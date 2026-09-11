@@ -14,6 +14,7 @@
   "scripts": {
     "postinstall": "node scripts/patch-sdk.ts",
     "typecheck": "tsc --build",
+    "check:contracts": "tsx scripts/check-contracts.ts",
     "build": "tsx scripts/build.ts",
     "generate:remotes": "tsx scripts/generate-remotes.ts",
     "dev:isolated": "tsx scripts/dev-isolated.ts",
@@ -50,6 +51,7 @@
     "tsx": "4.23.13",
     "typescript": "6.0.3",
     "vite": "7.3.6",
-    "vitest": "4.0.18"
+    "vitest": "4.0.18",
+    "zod": "4.6.2"
   }
 }

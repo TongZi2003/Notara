@@ -1,0 +1,78 @@
+
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts tests/unit/contracts-v2.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ❯ |unit| tests/unit/contracts-v2.test.ts (13 tests | 1 failed) 27ms
+     ✓ accepts the four contract branches inside their ranges 2ms
+     ✓ rejects out-of-range pages, degenerate rects and inverted ranges 0ms
+     ✓ rejects unknown locator kinds and stray fields 0ms
+     ✓ an empty plan and a mixed source/card plan are both legal 1ms
+     ✓ initialIndex must address a real item 0ms
+     ✓ a card entry cannot smuggle a material locator 0ms
+     × author headings are ordinary content and source-only cards are valid 2ms
+     ✓ card content keeps front/sections/notes and rejects host mechanical fields 0ms
+     ✓ knowledge is one body and carries no review ladder 0ms
+     ✓ a single real observation can be saved without any verifiedAbility claim 1ms
+     ✓ memory kind is configurable and scope defaults to general 0ms
+     ✓ message envelope requires a bound native messageId and freezes selection 0ms
+     ✓ now and time zone are provided by the caller, not the contract module 19ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |unit| tests/unit/contracts-v2.test.ts > model-boundary content schemas > author headings are ordinary content and source-only cards are valid
+ZodError: [
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "front"
+    ],
+    "message": "Too small: expected string to have >=1 characters"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "sections",
+      0,
+      "heading"
+    ],
+    "message": "\"复习\"/\"重写\" are system history sections, not card content"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "sections",
+      1,
+      "heading"
+    ],
+    "message": "\"复习\"/\"重写\" are system history sections, not card content"
+  },
+  {
+    "code": "unrecognized_keys",
+    "keys": [
+      "title"
+    ],
+    "path": [],
+    "message": "Unrecognized key: \"title\""
+  }
+]
+ ❯ tests/unit/contracts-v2.test.ts:77:40
+     75| describe('model-boundary content schemas', () => {
+     76|   test('author headings are ordinary content and source-only cards are…
+     77|     const headings = CardContentSchema.parse({ title: '记录示例', front: '…
+       |                                        ^
+     78|     expect(headings.sections).toHaveLength(2);
+     79|     const sourceOnly = CardContentSchema.parse({ title: '原图题', front: …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 passed (13)
+   Start at  00:13:28
+   Duration  184ms (transform 44ms, setup 0ms, import 97ms, tests 27ms, environment 0ms)

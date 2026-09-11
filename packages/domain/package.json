@@ -2,5 +2,21 @@
   "name": "@studyforge/domain",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "exports": {
+    "./clock": {
+      "types": "./lib/types/clock.d.ts",
+      "default": "./lib/types/clock.js"
+    },
+    "./ids": {
+      "types": "./lib/types/ids.d.ts",
+      "default": "./lib/types/ids.js"
+    }
+  },
+  "files": [
+    "lib/types"
+  ],
+  "dependencies": {
+    "@studyforge/contracts": "0.0.0"
+  }
 }

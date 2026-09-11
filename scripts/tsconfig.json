@@ -9,5 +9,6 @@
     "rootDir": ".",
     "outDir": "../.runtime/script-types"
   },
+  "references": [{ "path": "../packages/contracts" }],
   "include": ["*.ts"]
 }
