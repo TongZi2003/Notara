@@ -26,12 +26,21 @@
 ## 3. 启动一个隔离 web 实例
 
 ```bash
-scratch=$(mktemp -d)                       # 任务自己的临时根
-export DSH_HOME="$scratch/dsh-home"        # 不碰 ~/.dsh
-export DSH_TELEMETRY_DISABLED=1            # 非空即关闭（隐私开关）
-cd "$scratch/classroom"                     # 专用空课堂工作目录，见 §4
-dsh --profile web --host 127.0.0.1 --port 0 --no-open
+cd /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+# 先激活 Node 24 LTS；使用 nvm 时运行 nvm use（读取本目录 .nvmrc）。
+node --version
+npm ci --no-audit --no-fund
+studyforge_dsh_bin="$PWD/node_modules/.bin/dsh"
+studyforge_scratch=$(mktemp -d)             # 本次独占；不使用开发仓作为课堂目录
+mkdir -p "$studyforge_scratch/classroom" "$studyforge_scratch/dsh-home"
+cd "$studyforge_scratch/classroom"
+DSH_HOME="$studyforge_scratch/dsh-home" DSH_TELEMETRY_DISABLED=1 \
+  node "$studyforge_dsh_bin" --profile web --host 127.0.0.1 --port 0 --no-open
 ```
+
+CLI 也由本项目 lockfile 固定；不使用全局 `dsh` 或允许隐式下载版本的 `npx`。
+`.npmrc` 开启 `engine-strict`，不满足 Node 要求的安装立即失败，避免 warning 后继续运行。
+上述实际服务启动属于 P0.2/P0.3 验收；P0.1 仅运行同一入口的 `--help`。
 
 - `--profile <name>`：启动 `$DSH_HOME/profiles/<name>`；`web` 是硬编码别名（`dsh web` 等价）。
 - 自定义 profile：`dsh --profile <新名> --from-default-profile web` 从随发行模板初始化一次；已存在的目录不会被复用或覆盖。

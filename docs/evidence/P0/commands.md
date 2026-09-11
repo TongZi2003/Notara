@@ -18,7 +18,7 @@ DSH 探针一律带隔离 `DSH_HOME`。
 | # | 完整命令 | 退出码 | 结果 |
 |---|---|---|---|
 | 5 | `cp $S/docs/superpowers/plans/2026-09-11-DSH原生迁移计划.md $R/docs/superpowers/plans/` | 0 | 总计划 |
-| 6 | `cp $S/docs/superpowers/plans/2026-09-11-dsh/*.md $R/docs/superpowers/plans/2026-09-11-dsh/` | 0 | 分册 12 份（P0–P9 + CONTRACTS + COVERAGE + REVIEW） |
+| 6 | `cp $S/docs/superpowers/plans/2026-09-11-dsh/*.md $R/docs/superpowers/plans/2026-09-11-dsh/` | 0 | 分册 13 份（P0–P9 + CONTRACTS + COVERAGE + REVIEW） |
 | 7 | `cp $S/docs/dev-log/2026-09-11-{DSH分阶段迁移计划,DeepSeek-Harness迁移勘查,DSH技术勘查-会话写入与插件接入}.md $R/docs/dev-log/` | 0 | 本轮计划交接 + 两份已确认勘查 |
 
 未复制：`sessions/_daily.json`、`sessions/_maplayout.json`、`.playwright-cli/`、
@@ -70,7 +70,7 @@ DSH 探针一律带隔离 `DSH_HOME`。
 2. **探针首次 `tsc --noEmit` 退出 2（TS1287）**——探针目录缺 `package.json` 的 `"type": "module"`，
    `verbatimModuleSyntax` 按 CommonJS 处理了带顶层 `export` 的文件。补上 ESM 语境后退出 0；
    已把「消费配置要自带 ESM 语境」写进 `bootstrap.md` §6。
-3. **`npm view` 批量查 8 个包的可用性被用户中断**——该查询只是为了确认包已发布；
+3. **`npm view` 批量查 8 个包的可用性被主 Agent 调度中断**——该查询只是为了确认包已发布；
    改用已验证的 rc.2 依赖树直接安装（命令 21）后成功，未再阻塞。
 
 ## 未运行（明确留位）

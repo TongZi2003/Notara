@@ -2,6 +2,20 @@
 
 状态：P0.1 **DONE**；P0.2、P0.3 未开始。**G0 未 PASS**，本文件不代 Codex 下结论。
 
+## Codex P0.1 审查与 inline 修正（2026-09-11）
+
+任务验收通过；这不是 G0 阶段通过。基座无源码时 TS18003 不构成接口缺口；脚本按 P0.2/P0.3 交付，维持原任务顺序。
+
+发现并已修正：
+
+- 启动示例缺 `mkdir` 且裸 `dsh` 会使用未锁定全局程序。CLI 已加入精确 devDependency，例子先创建独占目录，再用本项目 `.bin/dsh`。
+- 迁移目录的默认 PATH 实际解析到 Node 23.11.0/npm 10.9.2，首次补装出现 EBADENGINE 警告。明确激活 `/Users/yangrundong/.nvm/versions/node/v24.13.0/bin` 后重跑 install/ci；增加 `.nvmrc` 和 `.npmrc` 的 engine-strict 防止错误版本继续安装。未修改用户全局 Node 配置。
+- 文档分册数量改为 13；调度中断的来源改为主 Agent；官方生成器核验归属于 Codex，不误记为用户验证。
+
+新鲜验证：Node v24.13.0/npm 11.6.2 下 `npm install --no-audit --no-fund` 与 `npm ci --no-audit --no-fund` 均退出 0（ci 实装 527 包）；锁文件 587 条非根包记录，其中 DSH 家族 232 条均为 rc.2。临时空课堂目录、独占 DSH_HOME 下，本项目 CLI 的 `--help` 与 `--profile web --help` 均退出 0，预期旗标存在。所有直接依赖的非通配 exports 目标存在；strict 正例编译退出 0，`string = undefined` 负例被 TS2322 拒绝（退出 2）。机器可读结果见 `p01-review-checks.json`。
+
+未启动服务，未运行浏览器、Remote 或真实课堂。下一任务 P0.2，继续使用此锁文件与 Node 24。
+
 ## diff 范围与变更文件
 
 - base：`4d21a1523ace1c24f5074bf8ea5bf01609ae9c5a`（= `S main`）

@@ -1,0 +1,140 @@
+{
+  "runtime": "/Users/yangrundong/.nvm/versions/node/v24.13.0/bin/node",
+  "cli": [
+    {
+      "args": [
+        "--help"
+      ],
+      "exit": 0
+    },
+    {
+      "args": [
+        "--profile",
+        "web",
+        "--help"
+      ],
+      "exit": 0
+    }
+  ],
+  "packages": 587,
+  "dshVersions": {
+    "0.1.5-rc.2": 232
+  },
+  "exports": {
+    "@deepseek-ai/dsh": {
+      "version": "0.1.5-rc.2",
+      "exports": {}
+    },
+    "@deepseek-ai/dsh-api-remotes": {
+      "version": "0.1.5-rc.2",
+      "exports": {
+        ".": {
+          "types": "./lib/types/index.d.ts",
+          "default": "./lib/index.js"
+        },
+        "./client": {
+          "types": "./lib/types/client/index.d.ts",
+          "default": "./lib/client.js"
+        },
+        "./types": {
+          "types": "./lib/types/types.d.ts",
+          "default": "./lib/types/types.js"
+        },
+        "./src/*": "./src/*",
+        "./package.json": "./package.json"
+      }
+    },
+    "@deepseek-ai/dsh-app-boot": {
+      "version": "0.1.5-rc.2",
+      "exports": {
+        ".": {
+          "types": "./lib/types/index.d.ts",
+          "default": "./lib/index.js"
+        },
+        "./src/*": "./src/*",
+        "./package.json": "./package.json"
+      }
+    },
+    "@deepseek-ai/dsh-client-modules": {
+      "version": "0.1.5-rc.2",
+      "exports": {
+        ".": {
+          "types": "./lib/types/index.d.ts",
+          "default": "./lib/index.js"
+        },
+        "./client": {
+          "types": "./lib/types/client/index.d.ts",
+          "default": "./lib/client.js"
+        },
+        "./invariant": {
+          "types": "./lib/types/invariant.d.ts",
+          "default": "./lib/invariant.js"
+        },
+        "./src/*": "./src/*",
+        "./package.json": "./package.json"
+      }
+    },
+    "@deepseek-ai/dsh-client-ui-sidebar": {
+      "version": "0.1.5-rc.2",
+      "exports": {
+        ".": {
+          "types": "./lib/types/index.d.ts",
+          "default": "./lib/index.js"
+        },
+        "./client": {
+          "types": "./lib/types/client/index.d.ts",
+          "default": "./lib/client.js"
+        },
+        "./src/*": "./src/*",
+        "./package.json": "./package.json"
+      }
+    },
+    "@deepseek-ai/dsh-client-ui-sidebar-documentpreview": {
+      "version": "0.1.5-rc.2",
+      "exports": {
+        ".": {
+          "types": "./lib/types/index.d.ts",
+          "default": "./lib/index.js"
+        },
+        "./client": {
+          "types": "./lib/types/client/index.d.ts",
+          "default": "./lib/client.js"
+        },
+        "./src/*": "./src/*",
+        "./package.json": "./package.json"
+      }
+    },
+    "@deepseek-ai/dsh-host-webserver": {
+      "version": "0.1.5-rc.2",
+      "exports": {
+        ".": {
+          "types": "./lib/types/index.d.ts",
+          "default": "./lib/index.js"
+        },
+        "./src/*": "./src/*",
+        "./package.json": "./package.json"
+      }
+    },
+    "@deepseek-ai/dsh-typert-generator": {
+      "version": "0.1.5-rc.2",
+      "exports": {
+        ".": {
+          "types": "./lib/types/index.d.ts",
+          "default": "./lib/index.js"
+        },
+        "./tsdown": {
+          "types": "./lib/types/tsdown-plugin.d.ts",
+          "default": "./lib/types/tsdown-plugin.js"
+        },
+        "./src/*": "./src/*",
+        "./package.json": "./package.json"
+      }
+    },
+    "typescript": {
+      "version": "6.0.3",
+      "exports": {}
+    }
+  },
+  "strictPositiveExit": 0,
+  "strictNegativeExit": 2
+}
