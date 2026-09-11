@@ -4,6 +4,14 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./evidence": {
+      "types": "./lib/types/evidence/evidence-query.d.ts",
+      "default": "./lib/types/evidence/evidence-query.js"
+    },
+    "./courses": {
+      "types": "./lib/types/courses/course-metadata.d.ts",
+      "default": "./lib/types/courses/course-metadata.js"
+    },
     "./access": {
       "types": "./lib/types/access/execution-binding.d.ts",
       "default": "./lib/types/access/execution-binding.js"

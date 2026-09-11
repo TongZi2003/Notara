@@ -8,6 +8,7 @@ export * from './cards.ts';
 export * from './knowledge.ts';
 export * from './memory.ts';
 export * from './evidence.ts';
+export * from './courses.ts';
 
 import { z } from 'zod';
 import { CardContentSchema } from './cards.ts';
@@ -16,6 +17,7 @@ import { MemoryContentSchema, MemoryDraftSchema, MemoryObservationSchema } from 
 import { HostContextSchema, MutationContextSchema, ObjectChangeSchema } from './execution.ts';
 import { SourceLocatorSchema, SourceAnchorSchema, NormalizedRectSchema, MessageEnvelopeSchema } from './materials.ts';
 import { LessonMaterialsSchema } from './lesson-materials.ts';
+import { CourseMetadataSchema, CourseUpdateSchema, CourseViewSchema } from './courses.ts';
 
 /** Only authoring inputs belong in the model-facing set. Native envelopes are Host-owned. */
 export const MODEL_CONTENT_SCHEMAS = {
@@ -27,6 +29,7 @@ export const CONTRACT_SCHEMAS = {
   'message-envelope': MessageEnvelopeSchema, 'host-context': HostContextSchema,
   'mutation-context': MutationContextSchema, 'object-change': ObjectChangeSchema,
   rect: NormalizedRectSchema, 'source-anchor': SourceAnchorSchema,
+  'course-metadata': CourseMetadataSchema, 'course-update': CourseUpdateSchema, 'course-view': CourseViewSchema,
 } as const;
 /** JSON structural rules and TS come from Zod; cross-field refinements run at the Host boundary. */
 export const CONTRACT_JSON_SCHEMAS = Object.fromEntries(Object.entries(CONTRACT_SCHEMAS)

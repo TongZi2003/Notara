@@ -7,6 +7,8 @@
     "moduleResolution": "NodeNext",
     "moduleDetection": "force",
     "paths": {
+      "@studyforge/contracts/*": ["./packages/contracts/src/*.ts"],
+      "@studyforge/domain/evidence": ["./packages/domain/src/evidence/evidence-query.ts"],
       "@studyforge/contracts/probe": ["./packages/contracts/src/probe.ts"],
       "@studyforge/contracts": ["./packages/contracts/src/index.ts"]
     },

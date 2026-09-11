@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./courses": {
+      "types": "./lib/types/courses.d.ts",
+      "default": "./lib/types/courses.js"
+    },
     "./*": {
       "types": "./lib/types/*.d.ts",
       "default": "./lib/types/*.js"
@@ -22,6 +26,7 @@
   ],
   "dependencies": {
     "@deepseek-ai/dsh-session": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-token-meter": "0.1.5-rc.2",
     "zod": "4.6.2"
   }
 }

@@ -10,7 +10,8 @@
 | P1 | P1.2 | 完成；主Agent接手修正初稿 | 14单测/13合同/typecheck/build PASS；p12-*日志 |
 | P1 | P1.3 | 完成；主Agent inline | 6集成/2原生浏览器回归/typecheck/build；p13-* |
 | P1 | P1.4–P1.5 | 完成；G1 PASS，外部账号项单列BLOCKED | 20集成/14单测/2浏览器/strict/build，2live通过+2账号受阻；P1/review.md |
-| P2 | P2.1–P2.7 | 当前执行；G1已接受 | — |
+| P2 | P2.1、P2.3/P2.6后端 | 原生课程metadata/依据/模型与用量后端通过；G2尚未接受 | P2/backend-integration.log：9集成；7依据单测/16合同/Host和scripts strict |
+| P2 | P2.2/P2.4/P2.5及P2.6/P2.7界面 | 当前执行，窄屏本课与完整流式/调试待验 | — |
 | P3 | P3.1–P3.4 | 待G2 | — |
 | P4 | P4.1–P4.4 | 待G3 | — |
 | P5 | P5.1–P5.7 | 待G4 | — |

@@ -6,7 +6,12 @@ import { createClock } from '@studyforge/domain/clock';
 import { openWorkspaceRecords } from './storage.ts';
 import { StudyForgeProbe } from './probe-service.ts';
 import { installExecutionAccess } from './access/context.ts';
+import { CourseMetadataSchema } from '@studyforge/contracts';
+import { CourseMetadata } from '@studyforge/domain/courses';
+import { StudyForgeCourses } from './course-service.ts';
 export { StudyForgeProbe } from './probe-service.ts';
+export { StudyForgeCourses } from './course-service.ts';
+export type { CourseView, CourseUpdate } from '@studyforge/contracts';
 export type { ProbeReply } from '@studyforge/contracts';
 
 export interface Config { root: string; timeZone: string; }
@@ -26,6 +31,9 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const unprovide = ctx.reflect.provide('studyforgeRecords', owner);
     ctx.effect(() => async () => { unprovide(); await owner.close(); });
     await installExecutionAccess(ctx, config.root, workspace.id);
+    const courses = new CourseMetadata(await owner.collection('course', CourseMetadataSchema));
+    ctx.effect(() => ctx.reflect.provide('studyforgeCourseMetadata', courses));
+    ctx.plugin(StudyForgeCourses);
     ctx.plugin(StudyForgeProbe);
   } catch (error) { await owner.close(); throw error; }
 }

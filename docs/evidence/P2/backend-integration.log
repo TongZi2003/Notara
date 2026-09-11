@@ -1,0 +1,20 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/native-course.test.ts tests/integration/native-input-evidence.test.ts tests/integration/native-usage.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/native-input-evidence.test.ts (4 tests) 177ms
+ ✓ |integration| tests/integration/native-usage.test.ts (2 tests) 13991ms
+   ✓ native stream/final replacement and retry totals remain full-session facts; missing buckets stay unavailable  8787ms
+   ✓ native exact model selection applies to the next request; unlisted routes are not rejected by the catalog  5203ms
+ ✓ |integration| tests/integration/native-course.test.ts (3 tests) 20617ms
+   ✓ native identity adoption and metadata failure/retry preserve one classroom through a Host restart  8451ms
+   ✓ metadata patch cannot close a classroom, forge title or attach another workspace  4320ms
+   ✓ native prompt idempotency and accepted evidence survive restart without a second input ledger  7845ms
+
+ Test Files  3 passed (3)
+      Tests  9 passed (9)
+   Start at  01:57:00
+   Duration  20.80s (transform 153ms, setup 0ms, import 345ms, tests 34.78s, environment 0ms)

@@ -1,0 +1,1 @@
+PASS: tsc --build tsconfig.host.json scripts (exit 0; no diagnostics)

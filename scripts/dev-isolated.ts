@@ -3,6 +3,7 @@ import { appendFile, copyFile, cp, mkdtemp, mkdir, rename, rm, symlink, writeFil
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { build } from 'esbuild';
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -13,11 +14,12 @@ export interface IsolatedRuntime {
   setHostEnabled(enabled: boolean): Promise<void>;
   setClientEnabled(enabled: boolean): Promise<void>;
   rebuildClient(): Promise<void>;
+  restart(): Promise<void>;
   stop(): Promise<void>;
 }
 
 /** Boot only this task's empty workspace through the released DSH launcher. */
-export async function startIsolated(options: { hostEnabled?: boolean; clientEnabled?: boolean } = {}): Promise<IsolatedRuntime> {
+export async function startIsolated(options: { hostEnabled?: boolean; clientEnabled?: boolean; testModel?: boolean } = {}): Promise<IsolatedRuntime> {
   if (Number(process.versions.node.split('.')[0]) < 24) throw new Error('Node 24 or newer is required');
   const root = await mkdtemp(join(tmpdir(), 'studyforge-dsh-'));
   try {
@@ -28,7 +30,7 @@ export async function startIsolated(options: { hostEnabled?: boolean; clientEnab
   }
 }
 
-async function boot(root: string, options: { hostEnabled?: boolean; clientEnabled?: boolean }): Promise<IsolatedRuntime> {
+async function boot(root: string, options: { hostEnabled?: boolean; clientEnabled?: boolean; testModel?: boolean }): Promise<IsolatedRuntime> {
   const home = join(root, 'home');
   const workspace = join(root, 'classroom');
   await Promise.all([mkdir(home), mkdir(workspace)]);
@@ -49,14 +51,21 @@ async function boot(root: string, options: { hostEnabled?: boolean; clientEnable
     for (const dependency of localPackages) await symlink(join(plugins, dependency), join(scope, dependency === 'client' ? 'dsh-client' : dependency), 'dir');
   }
   const patch = join(home, 'cordis.patch.yml');
+  if (options.testModel) {
+    await mkdir(join(plugins, 'test-model'));
+    await writeFile(join(plugins, 'test-model/package.json'), '{"type":"module"}');
+    await build({ entryPoints: [join(project, 'scripts/fixtures/test-model.ts')], outfile: join(plugins, 'test-model/index.js'), bundle: true, packages: 'external', platform: 'node', format: 'esm', target: 'node24' });
+  }
   let hostEnabled = options.hostEnabled ?? true;
   let clientEnabled = options.clientEnabled ?? true;
   async function writePatch(): Promise<void> {
     const entries = [
+      ...(options.testModel ? [{ id: 'studyforge-test-model', name: join(plugins, 'test-model/index.js'), config: { logPath: join(root, 'model-requests.jsonl') } }] : []),
       ...(hostEnabled ? [{ id: 'studyforge-host', name: join(plugins, 'host/lib/types/index.js'), config: { root: workspace, timeZone: 'Asia/Shanghai' } }] : []),
       ...(clientEnabled ? [{ id: 'studyforge-client', name: join(plugins, 'client/lib/types/index.js') }] : []),
     ];
     await writeFile(`${patch}.next`, JSON.stringify([
+      ...(options.testModel ? [{ id: 'agent-default-model', config: { provider: 'studyforge-test', model: 'study-model-a' } }, { id: 'llm-deepseek', disabled: true }] : []),
       { id: 'fs-sandbox', disabled: hostEnabled },
       { id: 'agent-presets', config: hostEnabled ? {
         default: 'studyforge-learning', roots: [{ path: join(plugins, 'host/presets'), trust: 'system' }],
@@ -78,53 +87,58 @@ async function boot(root: string, options: { hostEnabled?: boolean; clientEnable
   }
   env.DSH_HOME = home;
   env.DSH_TELEMETRY_DISABLED = '1';
-  const child = spawn(process.execPath, [join(project, 'node_modules/.bin/dsh'), 'web', '--host', '127.0.0.1', '--port', '0', '--no-open'], {
-    cwd: workspace, env, stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  let output = '';
-  let authUrl = '';
-  let spawnError: Error | undefined;
-  const exited = new Promise<void>(resolveExit => {
-    child.once('exit', () => { resolveExit(); });
-    child.once('error', error => { spawnError = error; resolveExit(); });
-  });
-  // All persisted and reported logs redact the temporary browser login token.
-  const redact = (text: string): string => text.replace(/([?&]token=)[^\s&]+/g, '$1[redacted]');
-  const collect = (chunk: Buffer): void => {
-    output += chunk.toString();
-    authUrl = /dsh web: (http:\/\/\S+)/.exec(output)?.[1] ?? authUrl;
-  };
-  child.stdout.on('data', collect);
-  child.stderr.on('data', collect);
-  let stopping: Promise<void> | undefined;
-  async function shutdown(): Promise<void> {
-    if (child.pid !== undefined && child.exitCode === null && child.signalCode === null) {
-      child.kill('SIGTERM');
-      const timer = setTimeout(() => child.kill('SIGKILL'), 10_000);
-      try { await exited; } finally { clearTimeout(timer); }
+  function launch() {
+    const child = spawn(process.execPath, [join(project, 'node_modules/.bin/dsh'), 'web', '--host', '127.0.0.1', '--port', '0', '--no-open'], {
+      cwd: workspace, env, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let output = '';
+    let authUrl = '';
+    let spawnError: Error | undefined;
+    const exited = new Promise<void>(resolveExit => {
+      child.once('exit', () => { resolveExit(); });
+      child.once('error', error => { spawnError = error; resolveExit(); });
+    });
+    // All persisted and reported logs redact the temporary browser login token.
+    const redact = (text: string): string => text.replace(/([?&]token=)[^\s&]+/g, '$1[redacted]');
+    const collect = (chunk: Buffer): void => {
+      output += chunk.toString();
+      authUrl = /dsh web: (http:\/\/\S+)/.exec(output)?.[1] ?? authUrl;
+    };
+    child.stdout.on('data', collect);
+    child.stderr.on('data', collect);
+    async function stopProcess(): Promise<void> {
+      if (child.pid !== undefined && child.exitCode === null && child.signalCode === null) {
+        child.kill('SIGTERM');
+        const timer = setTimeout(() => child.kill('SIGKILL'), 10_000);
+        try { await exited; } finally { clearTimeout(timer); }
+      }
     }
-    // Keep diagnostics in memory for the test reporter; never retain the home
-    // credentials or plugin copies after this runtime has stopped.
-    await rm(root, { recursive: true, force: true });
+    async function ready(): Promise<void> {
+      await writeFile(join(root, 'launcher.json'), JSON.stringify({ pid: child.pid, parentPid: process.pid, workspace, node: process.versions.node }));
+      const deadline = Date.now() + 45_000;
+      while (!authUrl) {
+        if (spawnError) throw new Error(`DSH spawn failed: ${spawnError.message}`);
+        if (child.exitCode !== null || child.signalCode !== null) throw new Error(`DSH boot failed: ${redact(output)}`);
+        if (Date.now() > deadline) throw new Error(`DSH boot timed out: ${redact(output)}`);
+        await new Promise(resolveReady => setTimeout(resolveReady, 50));
+      }
+    }
+    return { child, stopProcess, ready, authUrl: () => authUrl, log: () => redact(output) };
   }
+  let active = launch(), stopping: Promise<void> | undefined;
+  let pastLog = '';
   function stop(): Promise<void> {
-    stopping ??= shutdown();
+    stopping ??= (async () => { await active.stopProcess(); await rm(root, { recursive: true, force: true }); })();
     return stopping;
   }
-  try {
-    await writeFile(join(root, 'launcher.json'), JSON.stringify({ pid: child.pid, parentPid: process.pid, workspace, node: process.versions.node }));
-    const deadline = Date.now() + 45_000;
-    while (!authUrl) {
-      if (spawnError) throw new Error(`DSH spawn failed: ${spawnError.message}`);
-      if (child.exitCode !== null || child.signalCode !== null) throw new Error(`DSH boot failed: ${redact(output)}`);
-      if (Date.now() > deadline) throw new Error(`DSH boot timed out: ${redact(output)}`);
-      await new Promise(resolveReady => setTimeout(resolveReady, 50));
-    }
-  } catch (error) {
-    await stop();
-    throw error;
+  async function restart(): Promise<void> {
+    if (stopping) throw new Error('Runtime already stopping');
+    await active.stopProcess(); pastLog += active.log() + '\n';
+    active = launch();
+    try { await active.ready(); } catch (error) { await stop(); throw error; }
   }
-  return { authUrl, root, log: () => redact(output), setHostEnabled, setClientEnabled, rebuildClient, stop };
+  try { await active.ready(); } catch (error) { await stop(); throw error; }
+  return { get authUrl() { return active.authUrl(); }, root, log: () => pastLog + active.log(), setHostEnabled, setClientEnabled, rebuildClient, restart, stop };
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {

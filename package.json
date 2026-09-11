@@ -34,6 +34,7 @@
     "@deepseek-ai/dsh-agent-loop": "0.1.5-rc.2",
     "@deepseek-ai/dsh-agent-presets": "0.1.5-rc.2",
     "@deepseek-ai/dsh-api-remotes": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-api-session-controller": "0.1.5-rc.2",
     "@deepseek-ai/dsh-app-boot": "0.1.5-rc.2",
     "@deepseek-ai/dsh-client-modules": "0.1.5-rc.2",
     "@deepseek-ai/dsh-client-store": "0.1.5-rc.2",
