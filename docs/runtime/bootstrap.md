@@ -78,8 +78,6 @@ P0.2/P0.3 的 fixture 必须：
   消费它的配置要自带 ESM 语境（`package.json` 的 `"type": "module"`），否则 `verbatimModuleSyntax` 会把文件判成 CommonJS 报 `TS1287`。
 - 包管理与遥测：`DSH_TELEMETRY_DISABLED` 非空即关闭；不要打印任何认证配置到日志。
 
-## 7. 尚未验证（留给 P0.2/P0.3，不要在这里写成 PASS）
+## 7. P0.2/P0.3 实施入口（2026-09-11 更新）
 
-- 真正绑定端口起服务的 `dev:isolated`；本任务只核到 CLI 的旗标与默认值。
-- Host/Client 插件包装配、Remote 生成与 `$mount()` 往返。
-- 浏览器页面替换、卸载恢复默认 UI、刷新后单例 shell。
+以上保留P0.1建立时的CLI基线。当前已实现 `npm run build`、`npm run dev:isolated` 与 `npm run test:e2e`；启动器会装配本工程插件的临时构建副本，浏览器测试直接使用内存认证URL。真实Remote、页面/预览与生命周期证据见 `remote-contract.md`、`client-slots.md` 和 `../evidence/P0/review.md`。没有真实模型或学生课堂验收。

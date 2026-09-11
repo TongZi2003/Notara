@@ -19,8 +19,8 @@ await build({
   entryPoints: ['packages/client/lib/types/client/index.js'],
   outfile: 'packages/client/lib/client.js',
   bundle: true, format: 'cjs', platform: 'browser', target: 'es2023',
-  external: ['react', 'react/jsx-runtime', '@deepseek-ai/cordis'],
+  external: ['react', 'react/jsx-runtime', 'react-dom', '@deepseek-ai/cordis'],
   define: { 'process.env.NODE_ENV': '"production"' },
-  banner: { js: 'window.__ModuleLoader__.load({ id: "@studyforge/client", factory: (require) => { var module = { exports: {} }; var exports = module.exports;' },
+  banner: { js: 'window.__ModuleLoader__.load({ id: "@studyforge/dsh-client", factory: (require) => { var module = { exports: {} }; var exports = module.exports;' },
   footer: { js: 'return module.exports; } });' },
 });

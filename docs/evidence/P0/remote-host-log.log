@@ -1,0 +1,9 @@
+(node:83341) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL instead
+dsh web: http://127.0.0.1:57533/?token=[redacted]
+studyforge-probe {"nonce":"71dc6e25-fd70-44c3-a042-c532c6a56de4"}
+studyforge-probe {"nonce":"fee98eca-596b-46e6-8572-83087b0ea36d"}
+studyforge-probe {"nonce":"b4af1a6f-7026-4cb8-a51b-0965f3590cfb"}
+studyforge-probe {"nonce":"62d7a9b5-1f3b-4054-9cd2-eec532529922"}
+studyforge-probe {"nonce":"91d329dc-b4cb-47e2-84a5-c5474eda4c07"}

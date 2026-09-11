@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.base.json",
-  "compilerOptions": { "types": ["react"], "lib": ["ES2023", "DOM", "DOM.Iterable"], "jsx": "react-jsx" },
+  "compilerOptions": { "types": ["react"], "lib": ["ES2023", "ESNext.Disposable", "DOM", "DOM.Iterable"], "jsx": "react-jsx" },
   "files": [],
   "references": [
     {

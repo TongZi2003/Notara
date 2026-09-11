@@ -31,11 +31,18 @@
     "@deepseek-ai/dsh-client-ui-renderer": "0.1.5-rc.2",
     "@deepseek-ai/dsh-client-ui-slots": "0.1.5-rc.2",
     "@deepseek-ai/dsh-client-store": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-dockkit": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.1.5-rc.2",
     "@playwright/test": "1.63.0",
     "@types/node": "22.20.2",
     "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "@types/mdast": "4.0.4",
+    "lexical": "0.49.0",
+    "katex": "0.16.47",
     "esbuild": "0.28.2",
     "react": "18.3.1",
+    "react-dom": "18.3.1",
     "tsx": "4.23.13",
     "typescript": "6.0.3"
   }

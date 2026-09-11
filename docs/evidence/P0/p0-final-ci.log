@@ -1,0 +1,8 @@
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+
+> studyforge-dsh@0.0.0 postinstall
+> node scripts/patch-sdk.ts
+
+Verified rc.2 generator npm-declaration fix
+
+added 556 packages in 8s

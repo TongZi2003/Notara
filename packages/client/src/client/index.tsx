@@ -3,6 +3,7 @@ import type {} from '@deepseek-ai/dsh-api-gateway/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import contribution from '@studyforge/host/remote';
 import { useState } from 'react';
+import { registerStudentShell } from '../shell/register-slots.tsx';
 
 export const inject = ['remote', 'slots'];
 
@@ -10,7 +11,11 @@ export const inject = ['remote', 'slots'];
 export async function apply(ctx: Context): Promise<void> {
   const unmountRemote = await ctx.remote.$mount(contribution);
   ctx.effect(() => unmountRemote);
-  ctx.plugin({ inject: ['remote', 'remote.studyforgeProbe', 'slots'], apply: registerProbe });
+  if (new URLSearchParams(window.location.search).get('studyforge-probe') === '1') {
+    ctx.plugin({ inject: ['remote', 'remote.studyforgeProbe', 'slots'], apply: registerProbe });
+  } else {
+    ctx.plugin({ inject: ['slots', 'sessions', 'layout', 'sidebarRight', 'documentPreviews'], apply: registerStudentShell });
+  }
 }
 
 function registerProbe(ctx: Context): void {

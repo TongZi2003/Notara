@@ -5,5 +5,6 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 15_000 },
   workers: 1,
-  use: { browserName: 'chromium', headless: true },
+  reporter: [['list'], ['json', { outputFile: '.runtime/e2e-results.json' }]],
+  use: { browserName: 'chromium', headless: true, actionTimeout: 15_000, navigationTimeout: 20_000 },
 });

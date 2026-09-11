@@ -1,0 +1,69 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/native-boot.spec.ts
+
+
+Running 1 test using 1 worker
+
+(node:78212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"revisionBefore":"","revisionAfter":"df2471fd6fe19629-44","hmrFrames":["graph","graph"]}
+  ✘  1 tests/e2e/native-boot.spec.ts:4:1 › native student slots, Markdown preview, refresh and Client lifecycle (5.8s)
+
+
+  1) tests/e2e/native-boot.spec.ts:4:1 › native student slots, Markdown preview, refresh and Client lifecycle
+
+    Error: expect(received).not.toContain(expected) // indexOf
+
+    Expected substring: not "/var/folders/6m/q0d3bw_55vl_r7px9ktfj33w0000gn/T/studyforge-dsh-vNP57E"
+    Received string:        "StudyForge
+    New Session
+    我的学习
+    学习空间
+    Settings
+    学习空间
+    StudyForge
+    01
+    还没有开始学习
+
+    把要读的资料放在右侧，留出中间这一页。
+
+    预览示例资料
+    ↗
+
+    读一段，想一想，再写下来。
+    学习示例.md
+    /private/var/folders/6m/q0d3bw_55vl_r7px9ktfj33w0000gn/T/studyforge-dsh-vNP57E/classroom/学习示例.md
+    Markdown
+    一起读这一小段
+
+    这是本次检查新建的示例资料。
+
+    观察，然后提出一个问题。
+
+    先说看到了什么
+    再说明你的理由"
+
+      48 |     await expect(page.getByRole('heading', { name: '一起读这一小段', exact: true })).toBeVisible();
+      49 |     await expect(page.getByRole('heading', { name: '一起读这一小段', exact: true })).toBeInViewport({ ratio: 1 });
+    > 50 |     expect(await page.locator('body').innerText()).not.toContain(dsh.root);
+         |                                                        ^
+      51 |     await expect(page.locator('[data-textpreview-path]')).toBeHidden();
+      52 |     await page.screenshot({ path: testInfo.outputPath('native-markdown-preview.png') });
+      53 |     await page.reload();
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/native-boot.spec.ts:50:56
+
+    attachment #2: browser-console (text/plain) ────────────────────────────────────────────────────
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: host-log (text/plain) ───────────────────────────────────────────────────────────
+    (node:78217) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/native-boot-native-student-ac8cc-efresh-and-Client-lifecycle/error-context.md
+
+  1 failed
+    tests/e2e/native-boot.spec.ts:4:1 › native student slots, Markdown preview, refresh and Client lifecycle

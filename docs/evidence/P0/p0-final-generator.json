@@ -1,0 +1,10 @@
+{
+  "result": "PASS",
+  "files": {
+    "typert.host.js": "2fe95a6496b1dab93a8e4de8a7671474dd6aedf1e66232756cfe6e8d5e41a01a",
+    "typert.host.d.ts": "5e2d26ee86d0fe170dac8cd3f5854e67bdea334c57f40a5766ace57b8304c17d",
+    "typert.remote-client.js": "0782016f77e19ca69ef4369d094e3f3bc621282f4a4fc8db2c61fbc325ec411a",
+    "typert.remote-client.d.ts": "23bfd8248d826c7b8f8de1c82cc737235a1d00d64b509b0409673737307a4969",
+    "typert.remote-client.d.ts.map": "b4af612c34a267dd8189c52d3750f4a3f2eb7682e2cc843cf8201c34f9592d3b"
+  }
+}

@@ -10,7 +10,7 @@ Running 1 test using 1 worker
   ✘  1 tests/e2e/remote-probe.spec.ts:4:1 › generated Remote crosses the native connection and survives Host unload (19.8s)
 
 
-  1) tests/e2e/remote-probe.spec.ts:4:1 › generated Remote crosses the native connection and survives Host unload 
+  1) tests/e2e/remote-probe.spec.ts:4:1 › generated Remote crosses the native connection and survives Host unload
 
     Error: expect(locator).toContainText(expected) failed
 
@@ -42,10 +42,10 @@ Running 1 test using 1 worker
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
     attachment #2: browser-errors (text/plain) ─────────────────────────────────────────────────────
-    
+
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
     Error Context: test-results/remote-probe-generated-Rem-a9d63-on-and-survives-Host-unload/error-context.md
 
   1 failed
-    tests/e2e/remote-probe.spec.ts:4:1 › generated Remote crosses the native connection and survives Host unload 
+    tests/e2e/remote-probe.spec.ts:4:1 › generated Remote crosses the native connection and survives Host unload

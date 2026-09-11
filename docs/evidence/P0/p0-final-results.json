@@ -1,0 +1,24 @@
+{
+  "stats": {
+    "startTime": "2026-09-11T13:17:05.428Z",
+    "duration": 16425.851,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "native student slots, Markdown preview, refresh and Client lifecycle",
+      "status": "passed",
+      "durationMs": 8672,
+      "errors": []
+    },
+    {
+      "title": "generated Remote crosses the native connection and survives Host unload",
+      "status": "passed",
+      "durationMs": 7183,
+      "errors": []
+    }
+  ]
+}

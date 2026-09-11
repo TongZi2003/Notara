@@ -1,5 +1,5 @@
 {
-  "name": "@studyforge/client",
+  "name": "@studyforge/dsh-client",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -21,7 +21,12 @@
       "platform": "web",
       "inject": [
         "@deepseek-ai/dsh-api-remotes",
-        "@deepseek-ai/dsh-client-ui-renderer"
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-ui-sidebar-documentpreview"
       ],
       "immediately": true
     }
@@ -31,6 +36,7 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
-    "react": "18.3.1"
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   }
 }

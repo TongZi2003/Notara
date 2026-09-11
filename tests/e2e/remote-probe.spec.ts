@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { access } from 'node:fs/promises';
 import { startIsolated } from '../../scripts/dev-isolated.ts';
 
 test('generated Remote crosses the native connection and survives Host unload', async ({ page }, testInfo) => {
@@ -7,6 +8,7 @@ test('generated Remote crosses the native connection and survives Host unload', 
   page.on('pageerror', error => errors.push(error.message));
   try {
     await page.goto(runtime.authUrl);
+    await page.goto(`${new URL(runtime.authUrl).origin}/?studyforge-probe=1`);
     const button = page.getByTestId('probe-send');
     const result = page.getByTestId('probe-result');
     await expect(button).toBeVisible();
@@ -37,9 +39,20 @@ test('generated Remote crosses the native connection and survives Host unload', 
     }).toContain('空学习空间');
     await page.reload();
     await expect(button).toHaveCount(1);
+    const oldPanel = await page.getByTestId('probe-panel').elementHandle();
+    await runtime.rebuildClient();
+    await expect.poll(() => oldPanel?.evaluate(element => element.isConnected)).toBe(false);
+    await expect(button).toHaveCount(1);
+    const handledBeforeClick = runtime.log().match(/studyforge-probe /g)?.length ?? 0;
+    await button.click();
+    await expect(result).toContainText('空学习空间');
+    expect(runtime.log().match(/studyforge-probe /g)?.length ?? 0).toBe(handledBeforeClick + 1);
+    expect(errors).toEqual([]);
   } finally {
+    await runtime.stop();
     await runtime.stop();
     await testInfo.attach('host-log', { body: runtime.log(), contentType: 'text/plain' });
     await testInfo.attach('browser-errors', { body: errors.join('\n'), contentType: 'text/plain' });
+    await expect(access(runtime.root)).rejects.toMatchObject({ code: 'ENOENT' });
   }
 });
