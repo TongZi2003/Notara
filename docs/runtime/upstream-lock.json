@@ -98,6 +98,14 @@
     "satisfiesGeneratorRange": true
   },
   "generator": {
+    "localBuildFix": {
+      "reason": "Recognize canonical npm protocol declarations in isTypeMetaSymbol",
+      "review": "../evidence/P0/generator-pre-review.md",
+      "script": "scripts/patch-sdk.ts",
+      "originalArtifactSha256": "06a187cfc6c7e12eb88d260dc7a5d09029159a17cf9a9a54bea4e27939d0b009",
+      "patchedArtifactSha256": "59f8200e082408255a5dd64d78850b69890c288f0a85d531ad379db9f697247e",
+      "runtimeModified": false
+    },
     "package": "@deepseek-ai/dsh-typert-generator",
     "version": "0.1.5-rc.2",
     "integrity": "sha512-II4+JIRwODl9WiD2QgKpKPJ9vc9K1y0ZaDzrAf3Vuqp1hPHF0qVXgFHh7HwvSZuv+Ja5mmrRy2LQBzXhosinQQ==",

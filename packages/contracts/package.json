@@ -1,0 +1,19 @@
+{
+  "name": "@studyforge/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./probe": {
+      "types": "./lib/types/probe.d.ts",
+      "default": "./lib/types/probe.js"
+    },
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/types/index.js"
+    }
+  },
+  "files": [
+    "lib/types"
+  ]
+}

@@ -1,0 +1,15 @@
+
+> studyforge-dsh@0.0.0 build
+> tsx scripts/build.ts
+
+file:///Users/yangrundong/Oh-My-Student-dsh-migration/dsh/node_modules/@deepseek-ai/dsh-typert-generator/lib/index.js:4143
+			if (remoteActual !== void 0 || remoteFiles.some((file) => files.includes(file))) throw new TypertAnalysisError(`typert(host): ${artifact.package} publishes Remote artifacts but has no Remote methods`);
+			                                                                                       ^
+
+TypertAnalysisError: typert(host): @studyforge/host publishes Remote artifacts but has no Remote methods
+    at WorkspaceTypertGenerator.validateExport (file:///Users/yangrundong/Oh-My-Student-dsh-migration/dsh/node_modules/@deepseek-ai/dsh-typert-generator/lib/index.js:4143:91)
+    at WorkspaceTypertGenerator.generate (file:///Users/yangrundong/Oh-My-Student-dsh-migration/dsh/node_modules/@deepseek-ai/dsh-typert-generator/lib/index.js:4118:10)
+    at generateRemotes (/Users/yangrundong/Oh-My-Student-dsh-migration/dsh/scripts/generate-remotes.ts:10:56)
+    at <anonymous> (/Users/yangrundong/Oh-My-Student-dsh-migration/dsh/scripts/build.ts:15:7)
+
+Node.js v24.13.0

@@ -1,0 +1,51 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/remote-probe.spec.ts
+
+
+Running 1 test using 1 worker
+
+(node:51539) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/remote-probe.spec.ts:4:1 › generated Remote crosses the native connection and survives Host unload (19.8s)
+
+
+  1) tests/e2e/remote-probe.spec.ts:4:1 › generated Remote crosses the native connection and survives Host unload 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('probe-result')
+    Expected substring: "空学习空间"
+    Received string:    "gateway/internal"
+    Timeout: 15000ms
+
+    Call log:
+      - Expect "toContainText" getByTestId('probe-result') with timeout 15000ms
+      - waiting for getByTestId('probe-result')
+        34 × locator resolved to <p data-testid="probe-result">gateway/internal</p>
+           - unexpected value "gateway/internal"
+
+
+      14 |     if (await notice.isVisible()) await notice.click();
+      15 |     await button.click();
+    > 16 |     await expect(result).toContainText('空学习空间');
+         |                          ^
+      17 |     const first = await result.textContent();
+      18 |     await page.screenshot({ path: testInfo.outputPath('remote-success.png') });
+      19 |     await button.click();
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/remote-probe.spec.ts:16:26
+
+    attachment #1: host-log (text/plain) ───────────────────────────────────────────────────────────
+    (node:51544) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: browser-errors (text/plain) ─────────────────────────────────────────────────────
+    
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/remote-probe-generated-Rem-a9d63-on-and-survives-Host-unload/error-context.md
+
+  1 failed
+    tests/e2e/remote-probe.spec.ts:4:1 › generated Remote crosses the native connection and survives Host unload 

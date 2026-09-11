@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noEmit": false,
+    "emitDeclarationOnly": false,
+    "rewriteRelativeImportExtensions": true,
+    "outDir": "lib/types",
+    "rootDir": "src",
+    "tsBuildInfoFile": "lib/build.tsbuildinfo",
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "ES2023"
+    ]
+  },
+  "include": [
+    "src/**/*"
+  ]
+}
