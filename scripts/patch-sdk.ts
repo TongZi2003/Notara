@@ -35,3 +35,20 @@ if (sha(subagentSource) !== subagentPatched) {
   writeFileSync(subagentFile, result);
 }
 console.log('Verified rc.2 subagent projection declaration imports');
+
+// rc.2 cold session/list uses only persisted projection hints. An idle rename
+// is already in the native log, but the throttled hint may retain its old title
+// across a restart. Checkpoint the native cache before acknowledging rename;
+// cache.write also flushes the log. Keep the native title as the only authority.
+const sessionApiFile = join(project, 'node_modules/@deepseek-ai/dsh-api-session-controller/lib/index.js');
+const sessionApiOriginal = '16ecb48f33996efe72868f1603223214430634c5ac4c3e8fe9060bf240e990ff';
+const sessionApiPatched = '99f88cae48c9abc7ccd1c068a2dcdc984f559e70011bf3ad71a553a3d7379d80';
+const sessionApiSource = readFileSync(sessionApiFile, 'utf8');
+if (sha(sessionApiSource) !== sessionApiPatched) {
+  if (sha(sessionApiSource) !== sessionApiOriginal) throw new Error('Unknown DSH Session API artifact; review rename checkpoint fix');
+  const beforeRename = '\t\t\tconst accepted = titles.rename(agent.session, request.title);';
+  const result = sessionApiSource.replace(beforeRename, beforeRename + '\n\t\t\tconst cache = this.ctx.get("sessionProjectionCache");\n\t\t\tif (cache === void 0) await this.ctx.sessions.flush(agent.session);\n\t\t\telse await cache.write(agent.session);');
+  if (sha(result) !== sessionApiPatched) throw new Error('DSH rename checkpoint patch digest mismatch');
+  writeFileSync(sessionApiFile, result);
+}
+console.log('Verified rc.2 native rename projection checkpoint');

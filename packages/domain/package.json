@@ -27,6 +27,14 @@
     "./ids": {
       "types": "./lib/types/ids.d.ts",
       "default": "./lib/types/ids.js"
+    },
+    "./outputs": {
+      "types": "./lib/types/courses/output-projection.d.ts",
+      "default": "./lib/types/courses/output-projection.js"
+    },
+    "./course-projection": {
+      "types": "./lib/types/courses/course-projection.d.ts",
+      "default": "./lib/types/courses/course-projection.js"
     }
   },
   "files": [

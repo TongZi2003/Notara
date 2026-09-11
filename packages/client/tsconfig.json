@@ -21,7 +21,7 @@
     ],
     "jsx": "react-jsx"
   },
-  "references": [{ "path": "../contracts" }],
+  "references": [{ "path": "../contracts" }, { "path": "../domain" }],
   "include": [
     "src/**/*"
   ]

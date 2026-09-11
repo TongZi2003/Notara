@@ -2,18 +2,36 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "ES2023",
-    "lib": ["ES2023"],
+    "lib": [
+      "ES2023"
+    ],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "moduleDetection": "force",
     "paths": {
-      "@studyforge/contracts/*": ["./packages/contracts/src/*.ts"],
-      "@studyforge/domain/evidence": ["./packages/domain/src/evidence/evidence-query.ts"],
-      "@studyforge/contracts/probe": ["./packages/contracts/src/probe.ts"],
-      "@studyforge/contracts": ["./packages/contracts/src/index.ts"]
+      "@studyforge/contracts/*": [
+        "./packages/contracts/src/*.ts"
+      ],
+      "@studyforge/domain/evidence": [
+        "./packages/domain/src/evidence/evidence-query.ts"
+      ],
+      "@studyforge/contracts/probe": [
+        "./packages/contracts/src/probe.ts"
+      ],
+      "@studyforge/contracts": [
+        "./packages/contracts/src/index.ts"
+      ],
+      "@studyforge/domain/outputs": [
+        "./packages/domain/src/courses/output-projection.ts"
+      ],
+      "@studyforge/domain/course-projection": [
+        "./packages/domain/src/courses/course-projection.ts"
+      ]
     },
     "types": [],
-    "customConditions": ["@deepseek-ai/dsh-source"],
+    "customConditions": [
+      "@deepseek-ai/dsh-source"
+    ],
     "strict": true,
     "noImplicitOverride": true,
     "noUncheckedIndexedAccess": true,

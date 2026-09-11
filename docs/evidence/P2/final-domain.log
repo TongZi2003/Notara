@@ -1,0 +1,18 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/course-state.test.ts tests/integration/output-projection.test.ts tests/integration/native-usage.test.ts tests/integration/native-input-evidence.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/course-state.test.ts (3 tests) 164ms
+ ✓ |integration| tests/integration/native-input-evidence.test.ts (4 tests) 258ms
+ ✓ |integration| tests/integration/output-projection.test.ts (10 tests) 395ms
+ ✓ |integration| tests/integration/native-usage.test.ts (2 tests) 13602ms
+   ✓ native stream/final replacement and retry totals remain full-session facts; missing buckets stay unavailable  8607ms
+   ✓ native exact model selection applies to the next request; unlisted routes are not rejected by the catalog  4994ms
+
+ Test Files  4 passed (4)
+      Tests  19 passed (19)
+   Start at  02:59:43
+   Duration  13.74s (transform 281ms, setup 0ms, import 687ms, tests 14.42s, environment 0ms)

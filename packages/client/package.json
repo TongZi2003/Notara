@@ -32,7 +32,8 @@
     }
   },
   "dependencies": {
-    "@studyforge/host": "0.0.0"
+    "@studyforge/host": "0.0.0",
+    "@studyforge/domain": "0.0.0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.2",

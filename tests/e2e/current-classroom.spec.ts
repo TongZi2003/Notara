@@ -1,0 +1,181 @@
+import { existsSync } from 'node:fs';
+import { access } from 'node:fs/promises';
+import { join } from 'node:path';
+import { test as base, expect, type Page } from '@playwright/test';
+import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
+
+/**
+ * This spec exercises a real lesson, so it boots the isolated runtime with the
+ * controllable test provider. The shared fixture stays model-free for the
+ * specs that never send a prompt.
+ */
+const test = base.extend<{ dsh: IsolatedRuntime }>({
+  dsh: async ({}, use, testInfo) => {
+    const runtime = await startIsolated({ testModel: true });
+    try {
+      await use(runtime);
+    } finally {
+      await runtime.stop();
+      await runtime.stop(); // disposal is idempotent
+      await testInfo.attach('host-log', { body: runtime.log(), contentType: 'text/plain' });
+      await expect(access(runtime.root)).rejects.toMatchObject({ code: 'ENOENT' });
+    }
+  },
+});
+
+/** The native model control's accessible name, whichever locale the app boots in. */
+const MODEL_TRIGGER = /^(Select model|选择模型)/;
+const STUDENT_PAGES = [
+  { label: '首页', page: 'studyforge.home' },
+  { label: '课程', page: 'studyforge.courses' },
+  { label: '资料', page: 'studyforge.materials' },
+  { label: '学习集', page: 'studyforge.sets' },
+  { label: '日历', page: 'studyforge.calendar' },
+] as const;
+
+/** First-run notices are modal and ordered; a returning boot shows none. */
+async function dismissNotices(page: Page): Promise<void> {
+  for (const name of ['Continue', 'Configure later'] as const) {
+    const button = page.getByRole('button', { name, exact: true });
+    try {
+      await button.waitFor({ state: 'visible', timeout: 5_000 });
+      await button.click();
+    } catch { /* onboarding is a one-time surface */ }
+  }
+}
+
+async function enter(page: Page, url: string): Promise<void> {
+  await page.goto(url);
+  await dismissNotices(page);
+}
+
+test('native classroom keeps its own composer and carries the student lesson surfaces', async ({ page, dsh }, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'warning' || message.type() === 'error') errors.push(message.text()); });
+  try {
+    await enter(page, dsh.authUrl);
+
+    // The classroom is the native Conversation: nothing of ours covers `main`/`conversation`.
+    await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
+    await expect(page.locator('[data-composer-input]')).toBeVisible();
+    await expect(page.getByTestId('studyforge-shell')).toHaveCount(0);
+    // Model selection stays the native control; this client adds none of its own.
+    await expect(page.getByRole('button', { name: MODEL_TRIGGER })).toBeVisible();
+    await expect(page.locator('[data-studyforge-style="p2"]')).toHaveCount(1);
+    await page.screenshot({ path: testInfo.outputPath('native-classroom-1440.png') });
+
+    // Every student entry reaches its own page, and leaving it restores the classroom.
+    for (const entry of STUDENT_PAGES) {
+      await page.getByRole('button', { name: entry.label, exact: true }).click();
+      const surface = page.getByTestId(`studyforge-page-${entry.page}`);
+      await expect(surface).toBeVisible();
+      await expect(page.locator('[data-conversation-scroll]')).toHaveCount(0);
+      if (entry.page === 'studyforge.courses') {
+        expect(await surface.innerText()).not.toMatch(/studyforge\.|sessionId|schema|\/Users\//);
+        await expect(surface).toContainText('还没有课');
+      }
+    }
+    await page.getByRole('button', { name: '首页', exact: true }).click();
+    await page.getByTestId('open-classroom').click();
+    await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('home-back-to-classroom.png') });
+
+    // A zero-material lesson: the student says what they want, and the native
+    // session is created by that submission with no material picked first.
+    await page.locator('[data-composer-input]').click();
+    await page.keyboard.insertText('我想先弄清楚一次函数的图像');
+    const send = page.getByRole('button', { name: 'Send message', exact: true });
+    await expect(send).toBeEnabled();
+    await send.click();
+    await page.screenshot({ path: testInfo.outputPath('sent-zero-material.png') });
+    await expect.poll(async () => existsSync(join(dsh.root, 'model-requests.jsonl')), { timeout: 30_000 }).toBe(true);
+
+    // The lesson entry opens this client's own rightbar page type; the read is real
+    // (this lesson has no material yet, and the panel says exactly that).
+    const lessonEntry = page.getByRole('button', { name: '本课', exact: true });
+    await expect(lessonEntry).toBeVisible();
+    await lessonEntry.click();
+    const panel = page.getByTestId('studyforge-lesson-panel');
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('本课资料');
+    await expect(panel).toContainText('还没有把资料放进这节课。');
+    await expect(panel).toContainText('进行中');
+    // The docked panel slides in: assert the heading and body actually land in the
+    // viewport before the evidence shot, so a mid-transition frame cannot pass.
+    await expect(panel.getByRole('heading', { name: '本课', exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(panel.getByText('还没有把资料放进这节课。')).toBeInViewport({ ratio: 1 });
+    await expect(panel).toBeInViewport({ ratio: 0.95 });
+    expect(await panel.innerText()).not.toMatch(/studyforge\.|sessionId|schema|\/Users\/|\.jsonl/);
+    await page.screenshot({ path: testInfo.outputPath('lesson-panel-rightbar.png') });
+
+    // The lesson the student just started is now a real row in their course list.
+    await page.getByRole('button', { name: '课程', exact: true }).click();
+    const courses = page.getByTestId('studyforge-page-studyforge.courses');
+    await expect(courses).not.toContainText('还没有课', { timeout: 20_000 });
+    await expect(page.getByTestId('studyforge-lessons')).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('courses-after-lesson.png') });
+
+    // Narrower and smallest supported viewports keep the classroom and the entries usable.
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.getByRole('button', { name: '首页', exact: true }).click();
+    await page.getByTestId('open-classroom').click();
+    await expect(page.locator('[data-composer-input]')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+    await page.screenshot({ path: testInfo.outputPath('classroom-1024.png') });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    // At the smallest width the native rightbar covers the viewport, so the lesson
+    // panel itself is what the student reads there; a browser reload resets the
+    // in-memory layout and the navigation is reachable again.
+    const narrowPanel = page.getByTestId('studyforge-lesson-panel');
+    await expect(narrowPanel).toBeVisible();
+    await expect(narrowPanel).toContainText('本课资料');
+    await expect(narrowPanel.getByRole('heading', { name: '本课', exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(narrowPanel.getByText('还没有把资料放进这节课。')).toBeInViewport({ ratio: 1 });
+    await expect(narrowPanel.getByText('进行中')).toBeInViewport({ ratio: 1 });
+    await page.screenshot({ path: testInfo.outputPath('narrow-390-lesson.png') });
+    await page.reload();
+    await dismissNotices(page);
+    await expect(page.getByRole('button', { name: '日历', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '日历', exact: true }).click();
+    await expect(page.getByTestId('studyforge-page-studyforge.calendar')).toBeVisible();
+    await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+    await page.screenshot({ path: testInfo.outputPath('narrow-390.png') });
+    expect(errors).toEqual([]);
+  } finally {
+    await testInfo.attach('browser-console', { body: errors.join('\n'), contentType: 'text/plain' });
+  }
+});
+
+test('a creation session keeps the classroom and hides the learning lesson surfaces', async ({ page, dsh }, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'warning' || message.type() === 'error') errors.push(message.text()); });
+  try {
+    await enter(page, dsh.authUrl);
+
+    // Pick the native creation composition from the blank-session hero, then start
+    // from the same composer: this client never rewrites the composition.
+    await page.getByRole('button', { name: '学习', exact: true }).click();
+    const option = page.getByRole('menuitem', { name: /制作/ }).or(page.getByText('制作', { exact: true }));
+    await option.first().click();
+
+    await page.locator('[data-composer-input]').click();
+    await page.keyboard.insertText('帮我做一张封面');
+    await page.getByRole('button', { name: 'Send message', exact: true }).click();
+    await expect.poll(async () => existsSync(join(dsh.root, 'model-requests.jsonl')), { timeout: 30_000 }).toBe(true);
+
+    // The classroom, its composer and the native model control stay; only the
+    // learning lesson entry and its outputs are absent.
+    await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
+    await expect(page.locator('[data-composer-input]')).toBeVisible();
+    await expect(page.getByRole('button', { name: MODEL_TRIGGER })).toBeVisible();
+    await expect(page.getByRole('button', { name: '本课', exact: true })).toHaveCount(0);
+    await expect(page.getByTestId('studyforge-lesson-panel')).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath('creation-session.png') });
+    expect(errors).toEqual([]);
+  } finally {
+    await testInfo.attach('browser-console', { body: errors.join('\n'), contentType: 'text/plain' });
+  }
+});

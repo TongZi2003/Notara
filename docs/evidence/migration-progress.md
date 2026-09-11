@@ -10,9 +10,9 @@
 | P1 | P1.2 | 完成；主Agent接手修正初稿 | 14单测/13合同/typecheck/build PASS；p12-*日志 |
 | P1 | P1.3 | 完成；主Agent inline | 6集成/2原生浏览器回归/typecheck/build；p13-* |
 | P1 | P1.4–P1.5 | 完成；G1 PASS，外部账号项单列BLOCKED | 20集成/14单测/2浏览器/strict/build，2live通过+2账号受阻；P1/review.md |
-| P2 | P2.1、P2.3/P2.6后端 | 原生课程metadata/依据/模型与用量后端通过；G2尚未接受 | P2/backend-integration.log：9集成；7依据单测/16合同/Host和scripts strict |
-| P2 | P2.2/P2.4/P2.5及P2.6/P2.7界面 | 当前执行，窄屏本课与完整流式/调试待验 | — |
-| P3 | P3.1–P3.4 | 待G2 | — |
+| P2 | P2.1、P2.3/P2.6后端 | 完成，随G2接受 | P2/backend-integration.log；原生课名缓存追加回归见native-title-regression.log |
+| P2 | P2.2/P2.4/P2.5及P2.6/P2.7界面 | 完成；G2 PASS，Trajectory保留原生入口、Raw默认关闭 | P2/review.md；25集成/21相关单测/14不同浏览器场景，精确P2暂存快照build/strict |
+| P3 | P3.1–P3.4 | 正在实施；原件版本、真实读取、DOCX与资料UI并行，G3未接受 | 已验证5读取集成(含原生模型请求中的图像附件)，其余待最终验收 |
 | P4 | P4.1–P4.4 | 待G3 | — |
 | P5 | P5.1–P5.7 | 待G4 | — |
 | P6 | P6.1–P6.6 | 待G5 | — |

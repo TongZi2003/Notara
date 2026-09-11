@@ -1,0 +1,25 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/current-classroom.spec.ts tests/e2e/native-model-controls.spec.ts tests/e2e/native-usage.spec.ts tests/e2e/raw-debug.spec.ts tests/e2e/native-boot.spec.ts tests/e2e/remote-probe.spec.ts tests/e2e/send-recovery.spec.ts tests/e2e/native-reconnect.spec.ts
+
+
+Running 13 tests using 1 worker
+
+(node:45537) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/current-classroom.spec.ts:52:1 › native classroom keeps its own composer and carries the student lesson surfaces (21.1s)
+  ✓   2 tests/e2e/current-classroom.spec.ts:151:1 › a creation session keeps the classroom and hides the learning lesson surfaces (9.8s)
+{"revisionBefore":"266382b04fc16087-44","revisionAfter":"266382b04fc16087-54","hmrFrames":["graph","graph","{\"type\":\"rebuilt\",\"id\":\"@studyforge/dsh-client\",\"rev\":\"8d742bcd8fa1\"}","graph","graph"]}
+  ✓   3 tests/e2e/native-boot.spec.ts:15:1 › native classroom survives refresh, HMR and Client lifecycle without a placeholder shell (22.9s)
+  ✓   4 tests/e2e/native-model-controls.spec.ts:24:1 › native model and effort controls choose the real provider route for the lesson request (8.3s)
+  ✓   5 tests/e2e/native-reconnect.spec.ts:10:1 › native per-session drafts, history and reopening remain separate across two classes and restart (18.6s)
+  ✓   6 tests/e2e/native-reconnect.spec.ts:53:1 › native reconnect replaces a disconnected stream with the one durable reply (13.5s)
+  ✓   7 tests/e2e/native-usage.spec.ts:14:1 › a completed turn keeps its native usage and the lesson panel never fills unreported buckets (8.3s)
+  ✓   8 tests/e2e/native-usage.spec.ts:48:1 › a turn without a proof of total usage is reported as incomplete coverage (8.0s)
+  ✓   9 tests/e2e/raw-debug.spec.ts:11:1 › raw debug stays off by default, then reads the shared binding window (8.1s)
+  ✓  10 tests/e2e/raw-debug.spec.ts:127:1 › the native Normal transcript never prints the internal context source (8.1s)
+  ✓  11 tests/e2e/remote-probe.spec.ts:5:1 › generated Remote crosses the native connection and survives Host unload (6.1s)
+  ✓  12 tests/e2e/send-recovery.spec.ts:6:1 › native Queue, Steer, Stop and a later send keep one accepted input identity each (13.1s)
+  ✓  13 tests/e2e/send-recovery.spec.ts:38:1 › native Markdown streaming preserves completed nodes and does not pull a reader away from old text (9.6s)
+
+  13 passed (2.6m)

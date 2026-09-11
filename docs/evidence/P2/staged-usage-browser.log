@@ -1,0 +1,14 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/native-usage.spec.ts
+
+
+Running 3 tests using 1 worker
+
+(node:52574) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/native-usage.spec.ts:14:1 › a completed turn keeps its native usage and the lesson panel never fills unreported buckets (8.3s)
+  ✓  2 tests/e2e/native-usage.spec.ts:48:1 › a turn without a proof of total usage is reported as incomplete coverage (8.0s)
+  ✓  3 tests/e2e/native-usage.spec.ts:68:1 › a second turn refreshes the lesson panel that stayed open, and a refresh agrees (8.5s)
+
+  3 passed (25.3s)

@@ -1,90 +1,117 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
-import type {} from '@deepseek-ai/dsh-client-resources/client';
-import type {} from '@deepseek-ai/dsh-client-ui-session/client';
-import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client';
-import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
-import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client';
-import type {} from '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/client';
-import { fileAddressFor } from '@deepseek-ai/dsh-util-workspace-path';
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
+import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
-import { useState, useSyncExternalStore } from 'react';
-import { flushSync } from 'react-dom';
-import { StudyForgeShell } from './StudyForgeShell.tsx';
+import { StudyForgeShell, type StudentLesson } from './StudyForgeShell.tsx';
+import { STUDENT_PAGES, type StudentPageId, type StudentPageSpec } from './navigation.ts';
 
 const css = `
-/* rc.2 exposes no path-title slot. Keep its native filename tab and controls;
-   hide only the redundant absolute-path row while our student surface owns main. */
-body:has(.sf-shell) [data-textpreview-path]{display:none}
-.sf-shell{height:100%;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 236px;color:#26437c;background:#fdfaf1;font-family:"Songti SC","Noto Serif SC",serif}
-.sf-shell[data-preview=true]{grid-template-columns:minmax(0,1fr)}
-.sf-space{min-width:0;display:flex;flex-direction:column;padding:32px clamp(22px,5vw,64px)}
-.sf-heading{display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid #d9d2bd;padding-bottom:18px;font-size:13px;letter-spacing:.08em}
-.sf-date{color:#777d88;font-family:system-ui,sans-serif;font-size:11px;letter-spacing:.03em}
-.sf-empty{margin:auto 0;padding:48px 0}.sf-page-number{font-size:14px;color:#a9a28b;display:block;margin-bottom:24px;font-family:system-ui,sans-serif}
-.sf-empty h1{font-size:clamp(24px,2.4vw,34px);font-weight:500;margin:0 0 18px;letter-spacing:.02em;line-height:1.4}
-.sf-empty p{font-size:14px;line-height:1.9;color:#5a688a;margin:0 0 28px}
-.sf-primary{display:inline-flex;align-items:center;gap:32px;padding:12px 18px;border:1px solid #26437c;background:#26437c;color:#fdfaf1;border-radius:3px;cursor:pointer;font:inherit;font-size:14px;transition:background 140ms ease}
-.sf-primary:hover{background:#3d5488}.sf-primary:disabled{opacity:.5;cursor:wait}.sf-primary:focus-visible,.sf-nav button:focus-visible{outline:2px solid #c93a2e;outline-offset:3px}
-.sf-empty .sf-message{font-size:12px;margin-top:16px;min-height:23px;color:#a52e24}
-.sf-footer{padding-top:20px;border-top:1px solid #d9d2bd;color:#8a887c;font-size:12px}
-.sf-context{background:#efe7d2;border-left:1px solid #d9d2bd;padding:30px 22px}.sf-context h2{font-size:14px;font-weight:500;margin:0 0 60px}.sf-context p{font-size:13px;line-height:1.8;margin-top:22px}.sf-context>span{font-size:11px;color:#747369}
-.sf-page-outline{width:94px;height:124px;border:1px solid #b9b19c;margin:0 auto;padding:28px 15px;background:#f6f1e3}.sf-page-outline i{display:block;height:1px;background:#d9d2bd;margin-bottom:14px}.sf-page-outline i:last-child{width:60%}
-.sf-nav{padding:18px 10px;display:flex;flex-direction:column;gap:6px;color:#26437c}.sf-nav-title{font:11px system-ui,sans-serif;letter-spacing:.12em;color:#777d88;padding:0 10px 12px}
-.sf-nav button{border:0;background:transparent;color:inherit;text-align:left;padding:11px 12px;border-radius:3px;font-size:13px;cursor:pointer}.sf-nav button:hover,.sf-nav button[aria-current=page]{background:#eee9df}.sf-brand{font-size:15px;letter-spacing:.03em;color:#26437c;font-weight:600}
-.sf-nav[data-wide=false]{padding:18px 0;align-items:center}.sf-nav[data-wide=false] button{display:grid;place-items:center;width:32px;height:32px;padding:6px}
-@media(max-width:900px){.sf-shell{grid-template-columns:minmax(0,1fr)}.sf-context{display:none}.sf-space{padding:22px}.sf-empty{padding:24px 0}}
-@media(prefers-reduced-motion:reduce){.sf-primary{transition:none}}
+/* StudyForge paper-and-ink surface. Scoped to the pages this client owns: the
+   native frame, Conversation, sidebar browser and rightbar keep their own look. */
+/* The native classroom reads the same paper-and-ink palette through the
+   Conversation's public data hooks and the documented --dsw-* alias tokens.
+   No hashed class name is referenced, and only the classroom surface is scoped. */
+[data-conversation-scroll],[data-composer-seat]{
+  --dsw-alias-bg-base:#fdfaf1;--dsw-alias-bg-layer-1:#fffdf6;--dsw-alias-bg-layer-2:#f6f1e3;
+  --dsw-alias-bg-layer-3:#f9f5ea;--dsw-alias-bg-layer-4:#efe7d2;
+  --dsw-alias-label-primary:#26437c;--dsw-alias-label-secondary:#5a688a;--dsw-alias-label-tertiary:#8a887c;
+  --dsw-alias-border-l1:#e7e0cd;--dsw-alias-border-l2:#d9d2bd;--dsw-alias-border-l3:#cfc7ae;
+  font-family:"Songti SC","Noto Serif SC",serif;
+}
+[data-conversation-scroll]{background:#fdfaf1}
+[data-composer-seat]{background:#fdfaf1}
+.sf-page{box-sizing:border-box;height:100%;min-height:0;display:flex;flex-direction:column;overflow:auto;background:#fdfaf1;color:#26437c;font-family:"Songti SC","Noto Serif SC",serif}
+.sf-page-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;border-bottom:1px solid #d9d2bd;padding:28px clamp(22px,5vw,64px) 18px;font-size:13px;letter-spacing:.08em}
+.sf-page-date{color:#777d88;font-family:system-ui,sans-serif;font-size:11px;letter-spacing:.03em}
+.sf-page-body{padding:clamp(28px,7vh,72px) clamp(22px,5vw,64px);max-width:62ch}
+.sf-page-index{font-size:14px;color:#a9a28b;display:block;margin-bottom:24px;font-family:system-ui,sans-serif}
+.sf-page-body h1{font-size:clamp(24px,2.4vw,34px);font-weight:500;margin:0 0 18px;letter-spacing:.02em;line-height:1.4}
+.sf-page-body p{font-size:14px;line-height:1.9;color:#5a688a;margin:0 0 26px}
+.sf-note{font-size:13px;color:#8a887c;margin:0}
+.sf-action{display:inline-flex;align-items:center;gap:32px;padding:12px 18px;border:1px solid #26437c;background:#26437c;color:#fdfaf1;border-radius:3px;cursor:pointer;font:inherit;font-size:14px;transition:background 140ms ease}
+.sf-action:hover{background:#3d5488}.sf-action:focus-visible,.sf-lessons button:focus-visible{outline:2px solid #c93a2e;outline-offset:3px}
+.sf-lessons{list-style:none;margin:0;padding:0;border-top:1px solid #d9d2bd}
+.sf-lessons li{border-bottom:1px solid #eee7d6}
+.sf-lessons button{display:flex;justify-content:space-between;align-items:baseline;gap:16px;width:100%;border:0;background:transparent;color:inherit;font:inherit;font-size:14px;text-align:left;padding:14px 4px;cursor:pointer}
+.sf-lessons button:hover{background:#f6f1e3}
+.sf-meta{font:11px system-ui,sans-serif;color:#8a887c;letter-spacing:.04em}
+.sf-brand{font-size:15px;letter-spacing:.03em;color:#26437c;font-weight:600}
+.sf-lesson{box-sizing:border-box;height:100%;min-height:0;overflow:auto;padding:22px 20px;background:#fdfaf1;color:#26437c;font-family:"Songti SC","Noto Serif SC",serif}
+.sf-lesson h2{font-size:15px;font-weight:600;margin:0 0 4px;letter-spacing:.04em}
+.sf-lesson .sf-note{margin:10px 0 0;line-height:1.8}
+.sf-lesson section{margin-top:26px;border-top:1px solid #d9d2bd;padding-top:14px}
+.sf-lesson h3{font-size:12px;font-weight:600;margin:0 0 10px;letter-spacing:.1em;color:#777d88}
+.sf-lesson h4{font-size:11px;font-weight:600;margin:14px 0 6px;letter-spacing:.08em;color:#8a887c}
+.sf-lesson ul{list-style:none;margin:0;padding:0}
+.sf-lesson li{display:flex;justify-content:space-between;gap:12px;font-size:13px;line-height:1.9;border-bottom:1px solid #f0e9d8;padding:8px 0}
+.sf-lesson li .sf-meta{white-space:nowrap}
+@media(max-width:900px){.sf-page-body{padding:22px}}
+@media(prefers-reduced-motion:reduce){.sf-action{transition:none}}
 `;
 
-/** Replace only owned contributions; the native frame, settings and rightbar survive. */
+/** Replace only owned contributions; the native frame, Conversation, rightbar and settings survive. */
 export function registerStudentShell(ctx: Context): void {
   const lifetime = new AbortController();
   const style = document.createElement('style');
-  style.dataset.studyforgeStyle = 'p0';
+  style.dataset.studyforgeStyle = 'p2';
   style.textContent = css;
   document.head.append(style);
   ctx.effect(() => () => { lifetime.abort(); style.remove(); });
 
-  function Shell(): React.JSX.Element {
-    const sessions = useSyncExternalStore(listener => ctx.sessions.list.subscribe(listener), () => ctx.sessions.list.getSnapshot());
-    const [pending, setPending] = useState(false);
-    const [previewOpen, setPreviewOpen] = useState(false);
-    const [message, setMessage] = useState('');
-    async function preview(): Promise<void> {
-      if (pending) return;
-      const id = sessions.current ?? sessions.ids[0];
-      const session = id === undefined ? undefined : sessions.byId[id];
-      if (!session) return;
-      setPending(true);
-      setMessage('');
-      try {
-        if (!ctx.documentPreviews.candidates('学习示例.md').some(item => item.id === '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/markdown')) throw new Error('Native Markdown preview unavailable');
-        // The native navigation command requires the selected Session's committed seat.
-        flushSync(() => { ctx.sessions.open(session.id); ctx.layout.selectPanel(null); });
-        if (lifetime.signal.aborted) return;
-        ctx.sidebarRight.openResource(fileAddressFor(session.id, session.cwd, '学习示例.md'));
-        if (!lifetime.signal.aborted) setPreviewOpen(true);
-      } catch (error) {
-        console.warn('StudyForge preview', error);
-        if (!lifetime.signal.aborted) setMessage('资料还没打开，请再试一次。');
-      } finally {
-        if (!lifetime.signal.aborted) setPending(false);
-      }
-    }
-    return <StudyForgeShell canPreview={sessions.ids.length > 0} previewOpen={previewOpen} pending={pending} message={message} onPreview={() => { void preview(); }} />;
+  for (const page of STUDENT_PAGES) {
+    ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: page.id, priority: -10 }, pageView(ctx, page))));
+    ctx.effect(() => ctx.slots.inject('sidebar.panellist', () => ctx.slots.register(
+      { name: 'sidebar.panellist', id: page.id, order: page.order, label: page.title }, pageIcon(page.id),
+    )));
   }
-  function Navigation({ wide }: PropsRuntime<'sidebar.workspaces'>): React.JSX.Element {
-    return <nav className="sf-nav" data-wide={wide} aria-label="学习导航">
-      {wide && <span className="sf-nav-title">我的学习</span>}
-      <button aria-current="page" aria-label="学习空间" title={wide ? undefined : '学习空间'} onClick={() => ctx.layout.selectPanel(null)}>
-        {wide ? '学习空间' : <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M4 4h6l2 2 2-2h6v16h-6l-2 2-2-2H4zM12 6v16" /></svg>}
-      </button>
-    </nav>;
-  }
-  ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'conversation', priority: -10 }, Shell)));
-  ctx.effect(() => ctx.slots.inject('sidebar.workspaces', () => ctx.slots.register({ name: 'sidebar.workspaces', priority: -10 }, Navigation)));
-  ctx.effect(() => ctx.slots.inject('sidebar.brand.name', () => ctx.slots.register({ name: 'sidebar.brand.name', priority: -10 }, () => <span className="sf-brand">StudyForge</span>)));
+  ctx.effect(() => ctx.slots.inject('sidebar.brand.name', () => ctx.slots.register(
+    { name: 'sidebar.brand.name', priority: -10 }, () => <span className="sf-brand">StudyForge</span>,
+  )));
+}
+
+/** One centre-column occupant per page key; the layout renders exactly the active key. */
+function pageView(ctx: Context, page: StudentPageSpec): (props: PropsRuntime<'main'>) => React.JSX.Element {
+  return function StudentPage({ useSessions }): React.JSX.Element {
+    const list = useSessions(snapshot => snapshot);
+    const lessons: StudentLesson[] = list.ids.flatMap(id => {
+      const session = list.byId[id];
+      return session === undefined || session.blank || session.origin === 'subagent'
+        ? []
+        : [{ id: session.id, title: session.title ?? '未命名的一课', running: session.running }];
+    });
+    return <StudyForgeShell
+      page={page.id}
+      today={todayLabel()}
+      lessons={lessons}
+      lessonsLoaded={list.phase === 'ready'}
+      onOpenClassroom={() => { ctx.layout.selectPanel(null); }}
+      onOpenLesson={(id) => {
+        const entry = ctx.sessions.list.getSnapshot().ids.find(candidate => candidate === id);
+        if (entry === undefined) return;
+        ctx.sessions.open(entry);
+        ctx.layout.selectPanel(null);
+      }}
+    />;
+  };
+}
+
+function todayLabel(): string {
+  return new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date());
+}
+
+/** Sidebar glyph for one row; the sidebar owns the row button and its label. */
+function pageIcon(page: StudentPageId): (props: PropsRuntime<'sidebar.panellist'>) => React.JSX.Element {
+  const paths: Record<StudentPageId, React.JSX.Element> = {
+    'studyforge.home': <path d="M4 11 12 4l8 7v9h-6v-5h-4v5H4z" />,
+    'studyforge.courses': <path d="M4 5h16v13H4zM4 9h16M9 9v9" />,
+    'studyforge.materials': <path d="M5 4h7a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3 3zM15 4h4v19h-4" />,
+    'studyforge.sets': <path d="M6 4h12v16l-6-4-6 4z" />,
+    'studyforge.calendar': <path d="M4 6h16v14H4zM4 10h16M9 4v4M15 4v4" />,
+  };
+  return function PageGlyph({ size }): React.JSX.Element {
+    return <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true">{paths[page]}</svg>;
+  };
 }

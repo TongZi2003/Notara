@@ -1,7 +1,18 @@
-import { join } from 'node:path';
+import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures/dsh.ts';
 
-test('native student slots, Markdown preview, refresh and Client lifecycle', async ({ page, dsh }, testInfo) => {
+/** First-run notices are modal and ordered; a returning boot shows none. */
+async function settle(page: Page): Promise<void> {
+  for (const name of ['Continue', 'Configure later'] as const) {
+    const button = page.getByRole('button', { name, exact: true });
+    try {
+      await button.waitFor({ state: 'visible', timeout: 5_000 });
+      await button.click();
+    } catch { /* onboarding is a one-time surface */ }
+  }
+}
+
+test('native classroom survives refresh, HMR and Client lifecycle without a placeholder shell', async ({ page, dsh }, testInfo) => {
   const errors: string[] = [];
   const hmrFrames: string[] = [];
   const cdp = await page.context().newCDPSession(page);
@@ -18,52 +29,44 @@ test('native student slots, Markdown preview, refresh and Client lifecycle', asy
   page.on('console', message => { if (message.type() === 'warning' || message.type() === 'error') errors.push(message.text()); });
   try {
     await page.goto(dsh.authUrl);
-    const shell = page.getByTestId('studyforge-shell');
-    await expect(shell).toBeVisible();
-    const notice = page.getByRole('button', { name: 'Continue', exact: true });
-    await expect(notice).toBeVisible();
-    await notice.click();
-    await page.getByRole('button', { name: 'Configure later', exact: true }).click();
-    await expect(page.getByTestId('probe-send')).toHaveCount(0);
-    await expect(page.locator('[data-studyforge-style="p0"]')).toHaveCount(1);
-    expect(await shell.innerText()).not.toMatch(/probe|sessionId|\/Users\/|\.jsonl|schema/);
-    await page.screenshot({ path: testInfo.outputPath('three-columns.png') });
+    await settle(page);
 
-    // Native identity is needed only to authorize the synthetic file preview.
-    // This creates no prompt, model request or StudyForge learning facts.
-    const origin = new URL(dsh.authUrl).origin;
-    const response = await page.request.post(`${origin}/api/session/create`, {
-      headers: { Origin: origin }, data: {
-        type: 'client-request', rpcId: crypto.randomUUID(), method: 'session/create',
-        payload: { args: { request: { cwd: join(dsh.root, 'classroom') } } },
-      },
-    });
-    expect(response.status()).toBe(200);
-    const created: unknown = await response.json();
-    expect(created).toMatchObject({ type: 'server-response', result: { ok: true } });
-    await page.reload();
-    await expect(shell).toHaveCount(1);
-    await page.getByRole('button', { name: 'Configure later', exact: true }).click();
-    await page.getByTestId('preview-example').click();
-    await expect(page.getByRole('heading', { name: '一起读这一小段', exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: '一起读这一小段', exact: true })).toBeInViewport({ ratio: 1 });
-    expect(await page.locator('body').innerText()).not.toContain(dsh.root);
-    await expect(page.locator('[data-textpreview-path]')).toBeHidden();
-    await page.screenshot({ path: testInfo.outputPath('native-markdown-preview.png') });
-    await page.reload();
-    await expect(shell).toHaveCount(1);
-    await page.getByRole('button', { name: 'Configure later', exact: true }).click();
+    // The native Conversation owns `main`/`conversation`; this client only adds seats.
+    await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
+    await expect(page.locator('[data-composer-input]')).toBeVisible();
+    await expect(page.getByTestId('studyforge-shell')).toHaveCount(0);
+    await expect(page.getByTestId('probe-panel')).toHaveCount(0);
+    await expect(page.locator('[data-studyforge-style="p2"]')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: '首页', exact: true })).toBeVisible();
 
-    const oldShell = await shell.elementHandle();
-    const oldStyle = await page.locator('[data-studyforge-style="p0"]').elementHandle();
+    // Student surfaces keep the paper-and-ink copy free of internals.
+    await page.getByRole('button', { name: '资料', exact: true }).click();
+    const materials = page.getByTestId('studyforge-page-studyforge.materials');
+    await expect(materials).toBeVisible();
+    await expect(page.locator('[data-conversation-scroll]')).toHaveCount(0);
+    expect(await materials.innerText()).not.toMatch(/probe|sessionId|schema|\/Users\/|\.jsonl|studyforge\./);
+    await page.screenshot({ path: testInfo.outputPath('student-page.png') });
+    await page.getByRole('button', { name: '首页', exact: true }).click();
+    await page.getByTestId('open-classroom').click();
+    await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('native-classroom.png') });
+
+    // Refresh rebuilds the client contributions without touching the native side.
+    await page.reload();
+    await settle(page);
+    await expect(page.locator('[data-studyforge-style="p2"]')).toHaveCount(1);
+    await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
+
+    // HMR swaps our style tag in place; the shell handle is replaced without a navigation.
+    const oldStyle = await page.locator('[data-studyforge-style="p2"]').elementHandle();
     let navigations = 0;
     const onNavigation = (): void => { navigations += 1; };
     page.on('framenavigated', onNavigation);
-    revisionBefore = /"id":"@studyforge\/dsh-client"[^}]*"rev":"([^"]+)"/.exec(await (await page.request.get(origin)).text())?.[1] ?? 'missing';
+    revisionBefore = /"id":"@studyforge\/dsh-client"[^}]*"rev":"([^"]+)"/.exec(await (await page.request.get(new URL(dsh.authUrl).origin)).text())?.[1] ?? 'missing';
     await dsh.rebuildClient();
-    await expect.poll(async () => ({ shell: await oldShell?.evaluate(element => element.isConnected), style: await oldStyle?.evaluate(element => element.isConnected) })).toEqual({ shell: false, style: false });
-    await expect(shell).toHaveCount(1);
-    await expect(page.locator('[data-studyforge-style="p0"]')).toHaveCount(1);
+    await expect.poll(async () => ({ style: await oldStyle?.evaluate(element => element.isConnected) })).toEqual({ style: false });
+    await expect(page.locator('[data-studyforge-style="p2"]')).toHaveCount(1);
+    await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
     page.off('framenavigated', onNavigation);
     expect(navigations).toBe(0);
 
@@ -71,29 +74,30 @@ test('native student slots, Markdown preview, refresh and Client lifecycle', asy
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.keyboard.press('Escape');
     await dsh.setClientEnabled(false);
-    await expect.poll(async () => (await page.request.get(origin)).text()).not.toContain('@studyforge/dsh-client');
+    await expect.poll(async () => (await page.request.get(new URL(dsh.authUrl).origin)).text()).not.toContain('@studyforge/dsh-client');
     await page.reload();
-    await page.getByRole('button', { name: 'Configure later', exact: true }).click();
-    await expect(shell).toHaveCount(0);
-    await expect(page.locator('[data-studyforge-style="p0"]')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Send message', exact: true })).toBeVisible();
+    await settle(page);
+    await expect(page.locator('[data-studyforge-style="p2"]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '首页', exact: true })).toHaveCount(0);
+    // Uninstalling the client leaves the classroom itself fully intact.
+    await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
+    await expect(page.locator('[data-composer-input]')).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('native-ui-restored.png') });
+
     await dsh.setClientEnabled(true);
-    await expect.poll(async () => (await page.request.get(origin)).text()).toContain('@studyforge/dsh-client');
+    await expect.poll(async () => (await page.request.get(new URL(dsh.authUrl).origin)).text()).toContain('@studyforge/dsh-client');
     await page.reload();
-    await page.getByRole('button', { name: 'Configure later', exact: true }).click();
-    await expect(shell).toHaveCount(1);
-    await expect(page.locator('[data-studyforge-style="p0"]')).toHaveCount(1);
+    await settle(page);
+    await expect(page.locator('[data-studyforge-style="p2"]')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: '日历', exact: true })).toBeVisible();
+
+    // The smallest supported viewport keeps the entries reachable and unclipped.
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(shell).toBeVisible();
-    // The native ResizeObserver and column transition settle asynchronously.
-    // No horizontal overflow alone can pass while a clipped center is unusable.
-    await expect.poll(async () => (await shell.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(330);
-    await expect(page.getByTestId('preview-example')).toBeInViewport({ ratio: 1 });
-    const rail = page.getByRole('navigation', { name: '学习导航' });
-    await expect(rail).toHaveAttribute('data-wide', 'false');
-    await expect(rail.getByRole('button', { name: '学习空间', exact: true })).toBeInViewport({ ratio: 1 });
-    await expect(rail.locator('.sf-nav-title')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '日历', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '日历', exact: true }).click();
+    const calendar = page.getByTestId('studyforge-page-studyforge.calendar');
+    await expect(calendar).toBeVisible();
+    await expect.poll(async () => (await calendar.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(300);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
     await page.screenshot({ path: testInfo.outputPath('narrow.png') });
     expect(errors).toEqual([]);
@@ -101,7 +105,6 @@ test('native student slots, Markdown preview, refresh and Client lifecycle', asy
     const revisionAfter = /"id":"@studyforge\/dsh-client"[^}]*"rev":"([^"]+)"/.exec(await (await page.request.get(new URL(dsh.authUrl).origin)).text())?.[1] ?? 'missing';
     console.log(JSON.stringify({ revisionBefore, revisionAfter, hmrFrames }));
     await testInfo.attach('hmr-diagnostics', { body: JSON.stringify({ revisionBefore, revisionAfter, hmrFrames }), contentType: 'application/json' });
-    await page.close();
     await testInfo.attach('browser-console', { body: errors.join('\n'), contentType: 'text/plain' });
   }
 });

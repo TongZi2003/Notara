@@ -1,0 +1,14 @@
+
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts
+
+
+ RUN  v4.0.18 /private/var/folders/6m/q0d3bw_55vl_r7px9ktfj33w0000gn/T/sf-p2-staged-_k_bgrv0/dsh
+
+ ✓ |unit| tests/unit/evidence-binding.test.ts (7 tests) 5ms
+ ✓ |unit| tests/unit/contracts-v2.test.ts (14 tests) 17ms
+
+ Test Files  2 passed (2)
+      Tests  21 passed (21)
+   Start at  03:07:59
+   Duration  171ms (transform 101ms, setup 0ms, import 190ms, tests 22ms, environment 0ms)

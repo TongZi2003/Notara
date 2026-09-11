@@ -7,6 +7,8 @@ import { connectRuntime } from '../fixtures/http-runtime.ts';
 import { CourseViewSchema, type CourseView } from '../../packages/contracts/src/courses.ts';
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
+import { Context } from '@deepseek-ai/cordis';
+import JsonlPersistence from '@deepseek-ai/dsh-session-persistence-jsonl';
 import type { EvidenceCatalogue } from '../../packages/domain/src/evidence/evidence-query.ts';
 
 let runtime: IsolatedRuntime | undefined;
@@ -85,4 +87,29 @@ test('native prompt idempotency and accepted evidence survive restart without a 
   await runtime.restart(); client = await connectRuntime(runtime);
   expect(value(await client.rpc<EvidenceCatalogue>('studyforgeCourses/evidence', { input: { sessionId } }))).toEqual(before);
   expect(await readFile(join(runtime.root, 'model-requests.jsonl'), 'utf8')).toBe(requests);
+}, 30_000);
+
+test.each(['during', 'after', 'native-after'] as const)('an explicit native title %s generation remains durable after completion and restart', async timing => {
+  runtime = await startIsolated({ testModel: true, hostEnabled: timing !== 'native-after', clientEnabled: false });
+  let client = await connectRuntime(runtime);
+  const { sessionId } = value(await client.rpc<SessionCreateValue>('session/create', { request: { cwd: join(runtime.root, 'classroom'), agentPreset: timing === 'native-after' ? 'standard' : 'studyforge-learning' } }));
+  value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[slow] 生成过程改名。'.repeat(10) }] } }));
+  await expect.poll(async () => (await readFile(join(runtime!.root, 'model-requests.jsonl'), 'utf8').catch(() => '')).length).toBeGreaterThan(0);
+  if (timing !== 'during') await expect.poll(async () => value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(row => row.sessionId === sessionId)?.running, { timeout: 10_000 }).toBe(false);
+  value(await client.rpc('session/rename', { request: { sessionId, title: '过程中指定的课名' } }));
+  await expect.poll(async () => value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(row => row.sessionId === sessionId)?.running, { timeout: 10_000 }).toBe(false);
+  expect(value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(row => row.sessionId === sessionId)?.projections?.values.title).toBe('过程中指定的课名');
+  const directory = join(runtime.root, 'home/sessions');
+  const cold = new Context();
+  await cold.plugin(JsonlPersistence, { root: directory });
+  try {
+    const reader = await cold.sessionPersistence.open(sessionId, 'read');
+    try {
+      const titles = (await reader.read()).events.filter(event => event.type === 'session/title');
+      expect(titles.at(-1)?.data).toMatchObject({ title: '过程中指定的课名', source: { kind: 'user' } });
+    }
+    finally { await reader.close(); }
+  } finally { await cold.fiber.dispose(); }
+  await runtime.restart(); client = await connectRuntime(runtime);
+  expect(value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(row => row.sessionId === sessionId)?.projections?.values.title).toBe('过程中指定的课名');
 }, 30_000);

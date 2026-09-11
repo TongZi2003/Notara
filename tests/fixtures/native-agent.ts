@@ -48,6 +48,8 @@ import LlmRuntime, {
 } from '@deepseek-ai/dsh-llm';
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session';
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection';
+// Include the native token-meter state augmentations alongside client view DTOs.
+import type {} from '@deepseek-ai/dsh-token-meter';
 import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl';
 import SessionQuery from '@deepseek-ai/dsh-session-query-sqlite';
 import SubagentRuntime from '@deepseek-ai/dsh-subagent';

@@ -1,0 +1,19 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/native-course.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/native-course.test.ts (6 tests) 53006ms
+   ✓ native identity adoption and metadata failure/retry preserve one classroom through a Host restart  8074ms
+   ✓ metadata patch cannot close a classroom, forge title or attach another workspace  4095ms
+   ✓ native prompt idempotency and accepted evidence survive restart without a second input ledger  7676ms
+   ✓ an explicit native title during generation remains durable after completion and restart  10987ms
+   ✓ an explicit native title after generation remains durable after completion and restart  11164ms
+   ✓ an explicit native title native-after generation remains durable after completion and restart  11009ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  02:37:48
+   Duration  53.15s (transform 38ms, setup 0ms, import 91ms, tests 53.01s, environment 0ms)
