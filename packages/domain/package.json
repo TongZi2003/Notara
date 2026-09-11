@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./storage": {
+      "types": "./lib/types/storage/record-store.d.ts",
+      "default": "./lib/types/storage/record-store.js"
+    },
     "./clock": {
       "types": "./lib/types/clock.d.ts",
       "default": "./lib/types/clock.js"
@@ -17,6 +21,8 @@
     "lib/types"
   ],
   "dependencies": {
+    "@deepseek-ai/dsh-storage-domain": "0.1.5-rc.2",
+    "zod": "4.6.2",
     "@studyforge/contracts": "0.0.0"
   }
 }

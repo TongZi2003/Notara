@@ -8,7 +8,8 @@
 |---|---|---|---|
 | P1 | P1.1 | 完成；主Agent已修核精确版本/空套件失败 | 2026-09-12-DSH-P1.1.md；typecheck/旧依赖保全PASS |
 | P1 | P1.2 | 完成；主Agent接手修正初稿 | 14单测/13合同/typecheck/build PASS；p12-*日志 |
-| P1 | P1.3–P1.5 | 待前项；主Agent已核存储，Helmholtz完成P1.4只读API映射 | — |
+| P1 | P1.3 | 完成；主Agent inline | 6集成/2原生浏览器回归/typecheck/build；p13-* |
+| P1 | P1.4–P1.5 | 待执行；原生授权/能力接缝已勘查 | native-seams.md |
 | P2 | P2.1–P2.7 | 待G1 | — |
 | P3 | P3.1–P3.4 | 待G2 | — |
 | P4 | P4.1–P4.4 | 待G3 | — |

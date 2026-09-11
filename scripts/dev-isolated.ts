@@ -35,18 +35,24 @@ async function boot(root: string, options: { hostEnabled?: boolean; clientEnable
   const plugins = join(root, 'plugins');
   await mkdir(plugins);
   await symlink(join(project, 'node_modules'), join(plugins, 'node_modules'), 'dir');
-  for (const name of ['host', 'client']) {
+  const localPackages = ['contracts', 'domain', 'host', 'client'];
+  for (const name of localPackages) {
     const target = join(plugins, name);
     await mkdir(target);
     await copyFile(join(project, 'packages', name, 'package.json'), join(target, 'package.json'));
     await cp(join(project, 'packages', name, 'lib'), join(target, 'lib'), { recursive: true });
+    // Local package imports must stay inside the same build snapshot. External
+    // libraries resolve through the parent node_modules link as before.
+    const scope = join(target, 'node_modules', '@studyforge');
+    await mkdir(scope, { recursive: true });
+    for (const dependency of localPackages) await symlink(join(plugins, dependency), join(scope, dependency === 'client' ? 'dsh-client' : dependency), 'dir');
   }
   const patch = join(home, 'cordis.patch.yml');
   let hostEnabled = options.hostEnabled ?? true;
   let clientEnabled = options.clientEnabled ?? true;
   async function writePatch(): Promise<void> {
     const entries = [
-      ...(hostEnabled ? [{ id: 'studyforge-host', name: join(plugins, 'host/lib/types/index.js') }] : []),
+      ...(hostEnabled ? [{ id: 'studyforge-host', name: join(plugins, 'host/lib/types/index.js'), config: { root: workspace, timeZone: 'Asia/Shanghai' } }] : []),
       ...(clientEnabled ? [{ id: 'studyforge-client', name: join(plugins, 'client/lib/types/index.js') }] : []),
     ];
     await writeFile(`${patch}.next`, JSON.stringify(entries.length ? [{ insert: entries }] : []));

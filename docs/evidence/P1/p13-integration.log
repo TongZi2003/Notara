@@ -1,0 +1,15 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/storage-v2.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/storage-v2.test.ts (6 tests) 12135ms
+   ✓ real process dies before publication; retry has one effect  6210ms
+   ✓ real process dies after publication; retry has one effect  5717ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  00:34:51
+   Duration  12.31s (transform 47ms, setup 0ms, import 114ms, tests 12.13s, environment 0ms)

@@ -21,6 +21,7 @@
     "src/**/*"
   ],
   "references": [
+    { "path": "../domain" },
     {
       "path": "../contracts"
     }

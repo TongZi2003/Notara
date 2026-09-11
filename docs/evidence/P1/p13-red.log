@@ -1,0 +1,28 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/storage-v2.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ❯ |integration| tests/integration/storage-v2.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |integration| tests/integration/storage-v2.test.ts [ tests/integration/storage-v2.test.ts ]
+Error: Cannot find module '../../packages/host/src/storage.ts' imported from '/Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/integration/storage-v2.test.ts'
+ ❯ tests/integration/storage-v2.test.ts:11:1
+      9| import { CardContentSchema } from '../../packages/contracts/src/cards.…
+     10| import { createTestClock } from '../../packages/domain/src/clock.ts';
+     11| import { openWorkspaceRecords } from '../../packages/host/src/storage.…
+       | ^
+     12|
+     13| const clock = createTestClock('2026-09-12T00:00:00Z', 'Asia/Shanghai');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  00:24:09
+   Duration  163ms (transform 45ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
