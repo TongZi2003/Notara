@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "lib": ["ES2023", "DOM"],
+    "tsBuildInfoFile": ".runtime/tests.tsbuildinfo"
+  },
+  "include": ["tests/**/*.ts"],
+  "references": [
+    { "path": "./packages/contracts" },
+    { "path": "./packages/domain" },
+    { "path": "./packages/host" }
+  ]
+}

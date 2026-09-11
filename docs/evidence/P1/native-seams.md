@@ -14,7 +14,8 @@ JSON per-record会把坏文档读成缺失，不适合作当前学习事实源�
 - workspaceFiles的`read/readBytes/readAll/readRelated/stat/list`使用session.header.cwd取得根，再调用fs.resolve；cwd只是解析，不是containment。读取authorization需落在这个backend。
 - 原生tool-fs走同一fs，grep/glob走subprocess rg，须另由`ctx.tools.guard`同步、单调deny控制。需要核realpath/祖先软链，不能只用字符串前缀。原生bash同样不限制读，本产品composition不裸开放任意shell来绕过文件边界。
 - native `agents.create({sessionId,meta:{cwd,agentPreset},setup})`与`agentPresets.mount(agentCtx,id)`可绑定用途composition；`workspaceRegistry.create`/`attachSession`使用可信cwd。已有消息后不能切composition，P7换教法只换配置/prompt。
-- fs调用通常没有session对象，绑定须按可信cwd等实际接缝限定；相同作品cwd的不同授权不得不知不觉合并扩权。`changes()`会无cwd解析根，须单独保留已授权根的合法路径。
+- 原生typert已提供composition-owned `lookups.configure('workspaceFileScope', ...)`，实际wire键为`workspaceFileScopeId`。Host从native `sessionQuery.observeSession`取得header与agentPreset projection，返回携带session授权的虚拟文件根；fs不按cwd合并不同会话的grants。原生workspaceFiles方法、序列化和change feed均保留，工具调用使用AsyncLocalStorage传递同一绑定。
+- rc.2 `dsh-code-runtime-worker-thread`公开声明model code具bash-equivalent trust；PTC不是读取隔离。产品learning/creation都由registry guard拒绝`run_code`及任意shell，不能只检查PTC里已知工具的参数。
 
 安装声明锚：`node_modules/@deepseek-ai/{dsh-fs/lib/types/index.d.ts,dsh-fs-local/lib/types/index.d.ts,dsh-tools/lib/types/index.d.ts,dsh-agent/lib/types/index.d.ts}`。源码锚：官方commit fb2c4b9e698e30edb738bca4cf0618587db7d203 的`packages/{api/workspace-files,fs/tool-fs,fs/tool-fs-search,preset/agent-presets}`。
 

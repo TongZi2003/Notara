@@ -1,0 +1,14 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test
+
+
+Running 2 tests using 1 worker
+
+(node:95793) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"revisionBefore":"6f73c1ed74daad46-44","revisionAfter":"6f73c1ed74daad46-54","hmrFrames":["graph","graph","graph","{\"type\":\"rebuilt\",\"id\":\"@studyforge/dsh-client\",\"rev\":\"460248076d30\"}","graph","graph"]}
+  ✓  1 tests/e2e/native-boot.spec.ts:4:1 › native student slots, Markdown preview, refresh and Client lifecycle (8.4s)
+  ✓  2 tests/e2e/remote-probe.spec.ts:5:1 › generated Remote crosses the native connection and survives Host unload (5.9s)
+
+  2 passed (14.9s)

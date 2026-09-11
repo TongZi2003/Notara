@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./access": {
+      "types": "./lib/types/access/execution-binding.d.ts",
+      "default": "./lib/types/access/execution-binding.js"
+    },
     "./storage": {
       "types": "./lib/types/storage/record-store.d.ts",
       "default": "./lib/types/storage/record-store.js"

@@ -1,0 +1,23 @@
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    prefix: 你是学习伙伴。根据当前材料和学生动作教学；教学选项不改变工具权限。
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+- id: tool-subagent
+  name: '@deepseek-ai/dsh-tool-subagent'
+  config:
+    provider: spawn
+    toolName: subagent
+    backgroundMode: continuable
+    modelSelectionSettings: true
+- id: tool-subagent-control
+  name: '@deepseek-ai/dsh-tool-subagent-control'

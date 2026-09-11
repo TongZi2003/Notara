@@ -41,6 +41,7 @@ async function boot(root: string, options: { hostEnabled?: boolean; clientEnable
     await mkdir(target);
     await copyFile(join(project, 'packages', name, 'package.json'), join(target, 'package.json'));
     await cp(join(project, 'packages', name, 'lib'), join(target, 'lib'), { recursive: true });
+    if (name === 'host') await cp(join(project, 'packages/host/presets'), join(target, 'presets'), { recursive: true });
     // Local package imports must stay inside the same build snapshot. External
     // libraries resolve through the parent node_modules link as before.
     const scope = join(target, 'node_modules', '@studyforge');
@@ -55,7 +56,14 @@ async function boot(root: string, options: { hostEnabled?: boolean; clientEnable
       ...(hostEnabled ? [{ id: 'studyforge-host', name: join(plugins, 'host/lib/types/index.js'), config: { root: workspace, timeZone: 'Asia/Shanghai' } }] : []),
       ...(clientEnabled ? [{ id: 'studyforge-client', name: join(plugins, 'client/lib/types/index.js') }] : []),
     ];
-    await writeFile(`${patch}.next`, JSON.stringify(entries.length ? [{ insert: entries }] : []));
+    await writeFile(`${patch}.next`, JSON.stringify([
+      { id: 'fs-sandbox', disabled: hostEnabled },
+      { id: 'agent-presets', config: hostEnabled ? {
+        default: 'studyforge-learning', roots: [{ path: join(plugins, 'host/presets'), trust: 'system' }],
+        includeShippedRoot: false, includeUserRoot: false,
+      } : { default: 'standard', roots: [], includeShippedRoot: true, includeUserRoot: true } },
+      ...(entries.length ? [{ insert: entries }] : []),
+    ]));
     await rename(`${patch}.next`, patch);
   }
   async function setHostEnabled(enabled: boolean): Promise<void> { hostEnabled = enabled; await writePatch(); }

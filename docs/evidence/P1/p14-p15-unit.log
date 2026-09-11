@@ -1,0 +1,13 @@
+
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |unit| tests/unit/contracts-v2.test.ts (14 tests) 26ms
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  01:28:12
+   Duration  306ms (transform 95ms, setup 0ms, import 184ms, tests 26ms, environment 0ms)

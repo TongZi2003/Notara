@@ -19,3 +19,19 @@ if (digest !== patched) {
   writeFileSync(file, result);
 }
 console.log('Verified rc.2 generator npm-declaration fix');
+
+// The published subagent entry loads projection value types but omits their
+// corresponding state augmentations from its declaration graph. TS6 then
+// rejects SessionProjectionRegistry.register itself. Import the package's own
+// declarations; do not duplicate SDK types or change executable runtime code.
+const subagentFile = join(project, 'node_modules/@deepseek-ai/dsh-subagent/lib/types/index.d.ts');
+const subagentOriginal = '069745a90031d6f5fa77250da37a062ecf1d76d5b4cce46ac602d6549fa9e0ec';
+const subagentPatched = 'f5916c9aa816edab64a756af3f164319fa0e7d9eb4c85ddf04067acf9f7ebb91';
+const subagentSource = readFileSync(subagentFile, 'utf8');
+if (sha(subagentSource) !== subagentPatched) {
+  if (sha(subagentSource) !== subagentOriginal) throw new Error('Unknown DSH subagent declaration; review the version before patching');
+  const result = 'import type {} from "./projection.ts";\nimport type {} from "./catalog.ts";\n' + subagentSource;
+  if (sha(result) !== subagentPatched) throw new Error('DSH subagent declaration patch digest mismatch');
+  writeFileSync(subagentFile, result);
+}
+console.log('Verified rc.2 subagent projection declaration imports');

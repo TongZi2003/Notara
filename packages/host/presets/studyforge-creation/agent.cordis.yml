@@ -1,0 +1,14 @@
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    prefix: 根据学生要求制作已选作品。所有文件操作指定作品内路径；只读已授权参考材料。
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
