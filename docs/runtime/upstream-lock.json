@@ -1,0 +1,116 @@
+{
+  "$comment": "P0.1 upstream version baseline. Every fact here was verified first-hand on 2026-09-11 from the official GitHub tags/releases API and the npm registry. P0.2+ may only consume these pinned versions.",
+  "verifiedAt": "2026-09-11",
+  "verifiedBy": "codex/deepseek-v4.1-flash (P0.1)",
+  "package": "@deepseek-ai/dsh",
+  "selectedVersion": "0.1.5-rc.2",
+  "selectedSource": {
+    "registry": "https://registry.npmjs.org/@deepseek-ai%2Fdsh",
+    "npmSelfReportedRepository": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "npmSelfReportedDirectory": "apps/cli",
+    "tarball": "https://registry.npmjs.org/@deepseek-ai/dsh/-/dsh-0.1.5-rc.2.tgz",
+    "integrity": "sha512-8Xc8hCQHcIWRmTCVU/xZdp6/qMsWMeAd2ObChKDEsfhUPJFXx6H0lgeb1DxUMD86HZrrVN+1bCvn1ppjZ/fOxw==",
+    "shasum": "2c78db39568d910868f1e4f34062a4f346d4815d",
+    "fileCount": 10,
+    "unpackedSize": 48910,
+    "registrySignatureKeyId": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+  },
+  "selectedCommit": {
+    "gitTag": "dsh-v0.1.5-rc.2",
+    "commit": "fb2c4b9e698e30edb738bca4cf0618587db7d203",
+    "releaseName": "v0.1.5-rc.2",
+    "releasePublishedAt": "2026-09-10T15:09:34Z",
+    "releasePrerelease": true,
+    "releaseTargetCommitish": "master",
+    "npmPublishAt": "2026-09-10T14:57:10.790Z",
+    "tagCommitMatchesReleaseTag": true,
+    "sourceArchive": "https://codeload.github.com/deepseek-ai/deepseek-harness/tar.gz/fb2c4b9e698e30edb738bca4cf0618587db7d203",
+    "sourceArchiveSha256": "60038295d9ea8849dc50a9d77dfcbed6c14397f0d54fadb035f768841415a3bd"
+  },
+  "registryChannelReality": {
+    "$comment": "The tag name is NOT the selection basis. On 2026-09-11 npm `latest` still points at the older rc.1; rc.2 is reachable only through the `next` tag.",
+    "distTags": {
+      "alpha": "0.1.5-alpha.2",
+      "next": "0.1.5-rc.2",
+      "latest": "0.1.5-rc.1"
+    },
+    "latestStillOlder": true,
+    "rejected": {
+      "0.1.5-rc.1": "superseded by rc.2 (published ~12h earlier); no correctness defect recorded, only recency"
+    }
+  },
+  "node": {
+    "enginesFloor": ">=24.0.0",
+    "verifiedRuntime": "v24.13.0",
+    "verifiedNpm": "11.6.2"
+  },
+  "cliIsolationContract": {
+    "$comment": "Verified first-hand from apps/cli/src/{args,profile-boot}.ts at the selected commit AND by running the installed 0.1.5-rc.2 CLI. These replace the conceptual names used in the plan (empty learning-space path, isolated DSH home, plugin assembly command, temporary port).",
+    "homeEnv": "DSH_HOME",
+    "defaultHome": "~/.dsh",
+    "homePrecedence": "explicit configured path > $DSH_HOME > ~/.dsh; blank/whitespace $DSH_HOME is ignored",
+    "profilesDir": "$DSH_HOME/profiles",
+    "launcherFlags": {
+      "--profile <name>": "boot the profile at $DSH_HOME/profiles/<name>; `web` is a hardcoded alias",
+      "--from-default-profile <name>": "one-time init of a custom profile from a shipped template (web|headless|acp|sdk|sdk-minimal); shipped names cannot be used as custom targets",
+      "--patch <path>": "repeatable extra overlay applied after the profile layer and the home layer",
+      "--dump-config": "print composed profile tree and exit without booting",
+      "--dump-default-config": "print bundle layers only (no user layer, no --patch) and exit"
+    },
+    "homePatchLayer": "$DSH_HOME/cordis.patch.yml",
+    "profileRootFile": "cordis.yml",
+    "profileUserPatchFile": "cordis.patch.yml",
+    "pluginAssembly": {
+      "command": "dsh plugin --profile <name> <pnpm args...>",
+      "behavior": "forwards the remaining arguments to pnpm inside the profile directory; initialized on first use",
+      "profileLinker": "pnpm, nodeLinker: hoisted, autoInstallPeers: false (written by profile init)"
+    },
+    "webSurfaceFlags": {
+      "handlerPackage": "@deepseek-ai/dsh-web-app/startup",
+      "--host <host>": "bind host; `0.0.0.0` is explicitly rejected",
+      "--port <port>": "listen port; `0` lets the OS pick a free port",
+      "--trusted-host <authority...>": "repeatable extra authority for the /api browser-trust fence",
+      "--no-open": "do not open the default browser"
+    },
+    "webSurfaceDefaultBind": {
+      "host": "127.0.0.1",
+      "port": 3080,
+      "source": "packages/bundle/web-app/cordis.patch.yml row `webserver`: config.host = ctx.webStartup.host ?? '127.0.0.1', config.port = ctx.webStartup.port ?? 3080"
+    },
+    "runtimeObservedNotes": {
+      "profileInitOnHelp": "`dsh --profile web --help` still initializes the profile directory (package.json, cordis.yml, cordis.patch.yml, pnpm-workspace.yaml) and links profile node_modules; the app reports neither service provides a bind, so no server listens",
+      "proxyWarningObserved": "on this machine the CLI prints a warning that `all_proxy` names a SOCKS proxy and then connects directly"
+    },
+    "isolationBoundary": {
+      "verifiedIn": "/tmp (mkdtemp-style scratch), DSH_HOME pointed at a scratch directory",
+      "realHomeUntouched": "~/.dsh mtime unchanged (2026-08-24) across every probe in this task",
+      "sharedServiceUntouched": "no boot of any profile that binds a port; StudyForge 4877, the old DSH checkout, and other worktrees were never started or stopped"
+    }
+  },
+  "dependencyTreePolicy": {
+    "$comment": "The lockfile is the arbiter. Every @deepseek-ai/dsh-* and @deepseek-ai/cordis dependency in dsh/package-lock.json must resolve to 0.1.5-rc.2 / 4.0.2-family; a mixed rc is a defect.",
+    "pinnedDshFamily": "0.1.5-rc.2",
+    "pinnedCordis": "4.0.2"
+  },
+  "typescript": {
+    "selected": "6.0.3",
+    "reason": "@deepseek-ai/dsh-typert-generator@0.1.5-rc.2 declares dependencies.typescript = ^6.0.3; a TS 5 install would not satisfy the rc.2 generator baseline",
+    "satisfiesGeneratorRange": true
+  },
+  "generator": {
+    "package": "@deepseek-ai/dsh-typert-generator",
+    "version": "0.1.5-rc.2",
+    "integrity": "sha512-II4+JIRwODl9WiD2QgKpKPJ9vc9K1y0ZaDzrAf3Vuqp1hPHF0qVXgFHh7HwvSZuv+Ja5mmrRy2LQBzXhosinQQ==",
+    "shasum": "555b7dbe65fd4e96d64d1ae4718b8c414c13abfd",
+    "exports": {
+      ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+      "./tsdown": { "types": "./lib/types/tsdown-plugin.d.ts", "default": "./lib/types/tsdown-plugin.js" }
+    },
+    "$comment": "P0.2 consumes WorkspaceTypertGenerator(root).generate(packages, ['host']) and the official ctx.remote.$mount path; user-verified against rc.2 public API. This task does not implement or pre-research it."
+  },
+  "officialEntryPoints": {
+    "releases": "https://github.com/deepseek-ai/deepseek-harness/releases",
+    "registry": "https://registry.npmjs.org/@deepseek-ai%2Fdsh",
+    "tagsApi": "https://api.github.com/repos/deepseek-ai/deepseek-harness/tags"
+  }
+}

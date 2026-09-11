@@ -1,0 +1,23 @@
+{
+  "name": "studyforge-dsh",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "StudyForge as a DSH-native plugin and Host domain (DeepSeek Harness).",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "workspaces": [],
+  "scripts": {},
+  "devDependencies": {
+    "@deepseek-ai/dsh-api-remotes": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-app-boot": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-modules": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-sidebar": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-sidebar-documentpreview": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-host-webserver": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-typert-generator": "0.1.5-rc.2",
+    "typescript": "6.0.3"
+  }
+}

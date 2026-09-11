@@ -1,0 +1,20 @@
+# Isolated runtime, credentials, test output, machine-local state.
+.runtime/
+node_modules/
+*.tsbuildinfo
+
+# Test / build output
+dist/
+lib/
+test-results/
+playwright-report/
+coverage/
+
+# Machine-local DSH homes and auth material (never committed)
+.dsh/
+.dsh-home/
+*.local.env
+.env
+.env.*
+**/auth.json
+**/credentials.json
