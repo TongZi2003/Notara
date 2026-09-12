@@ -15,6 +15,9 @@ export interface ProposalInboxProps {
   readonly ctx: Context;
   /** Only this lesson's proposals; absent leaves the workspace-wide list. */
   readonly sessionId?: string;
+  /** Native calls owned by this one reply; no unrelated lesson proposals. */
+  readonly callIds?: readonly string[];
+  readonly inline?: boolean;
   /**
    * Changed by the caller when something outside this inbox can have changed the
    * list — a native turn settling, or a confirmation made elsewhere — so the
@@ -32,7 +35,7 @@ type State =
   | { readonly status: 'ready'; readonly proposals: readonly ProposalView[] };
 
 /** Teacher proposals for one lesson, newest decision state included. */
-export function ProposalInbox({ ctx, sessionId, refreshToken, onChanged }: ProposalInboxProps): React.JSX.Element | null {
+export function ProposalInbox({ ctx, sessionId, callIds, inline, refreshToken, onChanged }: ProposalInboxProps): React.JSX.Element | null {
   const [state, setState] = useState<State>({ status: 'loading' });
   const [revision, setRevision] = useState(0);
   /**
@@ -88,7 +91,13 @@ export function ProposalInbox({ ctx, sessionId, refreshToken, onChanged }: Propo
     if (onChanged !== undefined) onChanged(view);
   }
 
-  const ordered = [...state.proposals].sort((left, right) => rank(left) - rank(right));
+  const matching = state.proposals.filter(proposal => !callIds || proposal.origin.kind === 'native' && callIds.includes(proposal.origin.callId));
+  const ordered = inline ? matching : [...matching].sort((left, right) => rank(left) - rank(right));
+  if (ordered.length === 0) return null;
+  if (inline) return <div className="sf-inline-proposals" data-testid="inline-proposal-turn">
+    {unreadable && <p role="status">暂时没有读到最新状态，下面保留上次的记录。</p>}
+    {ordered.map(proposal => <InlineProposal key={proposal.ref} ctx={ctx} proposal={proposal} onChanged={changed} />)}
+  </div>;
   const waiting = ordered.some(proposal => proposal.items.some(item => item.status === 'pending' || item.status === 'failed'));
   return <section className="sf-proposals" data-testid="proposal-inbox">
     <h2>{waiting ? '等你确认' : '提案记录'}</h2>
@@ -100,6 +109,17 @@ export function ProposalInbox({ ctx, sessionId, refreshToken, onChanged }: Propo
     </div>}
     {ordered.map(proposal => <ProposalCard key={proposal.ref} ctx={ctx} proposal={proposal} onChanged={changed} />)}
   </section>;
+}
+
+function InlineProposal({ ctx, proposal, onChanged }: { ctx: Context; proposal: ProposalView; onChanged: (view: ProposalView) => void }): React.JSX.Element {
+  const saved = proposal.items.every(item => item.status === 'applied');
+  const rejected = proposal.items.every(item => item.status === 'rejected');
+  const [open, setOpen] = useState(!saved && !rejected);
+  useEffect(() => { if (saved || rejected) setOpen(false); }, [saved, rejected]);
+  return <details className="sf-inline-proposal" data-testid="inline-proposal" open={open} onToggle={event => setOpen(event.currentTarget.open)}>
+    <summary><span>{proposal.title}</span><span className="sf-note">{saved ? '已经保存' : rejected ? '已经取消' : '待你确认'}</span></summary>
+    <ProposalCard ctx={ctx} proposal={proposal} onChanged={onChanged} />
+  </details>;
 }
 
 /** Unfinished business first: waiting, then failed, then already decided. */

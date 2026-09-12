@@ -30,6 +30,13 @@ const css = `
 .sf-proposal{display:flex;flex-direction:column;gap:10px;border-top:1px solid #eee7d6;padding-top:12px}
 .sf-proposal-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
 .sf-proposal-head h3{font-size:15px;font-weight:600;margin:0}
+.sf-inline-proposals{min-width:0;max-width:100%;display:grid;gap:10px}
+.sf-inline-proposal{min-width:0;max-width:100%;overflow-wrap:anywhere;border:1px solid var(--sf-line,#d9d2bd);border-radius:4px;padding:12px 16px;background:var(--sf-paper,#fffdf6)}
+.sf-inline-proposal>summary{cursor:pointer;display:flex;justify-content:space-between;gap:16px;align-items:baseline;color:var(--sf-ink,#26437c)}
+.sf-inline-proposal>summary:before{content:'▸';font-size:12px}
+.sf-inline-proposal[open]>summary:before{content:'▾'}
+.sf-inline-proposal>summary>span:first-of-type{flex:1}
+.sf-inline-proposal>.sf-proposal{margin-top:10px}
 .sf-proposal-items{list-style:none;display:flex;flex-direction:column;gap:14px;margin:0;padding:0}
 .sf-proposal-item{display:flex;flex-direction:column;gap:8px;border-left:2px solid #e7e0cd;padding-left:12px}
 .sf-proposal-item-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline}

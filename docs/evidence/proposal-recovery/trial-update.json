@@ -1,0 +1,30 @@
+{
+  "origin": "http://127.0.0.1:64004",
+  "revision": "layout-20260912091542837",
+  "clientSha256": "22b72def1abb2a47863a6968376cb0906566ca0a13f7d64ca6a170bac39332e1",
+  "hostExecutorSha256": "1a4c5d4bfcc214f2097e998bbf20b0af3bf31491698399962f8eb9f29a83b5ba",
+  "actualClientRegistryMatches": true,
+  "preservedPids": [
+    24515,
+    24527
+  ],
+  "temporaryPluginRemoved": true,
+  "visibleChecks": {
+    "inlineTurns": 2,
+    "fixedInbox": 0,
+    "collapsedSavedProposal": true,
+    "trajectoryAndChatClickable": true
+  },
+  "currentProposal": {
+    "revision": 5,
+    "status": "pending",
+    "baseline": 1,
+    "draftRevision": 2
+  },
+  "currentSkeleton": {
+    "revision": 1,
+    "nodeCount": 4
+  },
+  "realModelFollowup": "not-run",
+  "verifiedAt": "2026-09-12T09:19:47.540Z"
+}

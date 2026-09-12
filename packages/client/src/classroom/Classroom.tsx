@@ -6,7 +6,7 @@ import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import { LESSON_TAB_ID, LESSON_TAB_KIND, LessonPanel, type LessonPanelInjected } from './LessonPanel.tsx';
 import { useEffect, useRef, useState } from 'react';
 import { LessonSettingsModal } from './LessonSettings.tsx';
-import { ProposalInbox } from '../proposals/ProposalInbox.tsx';
+import { registerConversationProposals } from '../proposals/ConversationProposals.tsx';
 
 /** The one native composition that owns learning surfaces; creation is not a lesson. */
 const LEARNING_PRESET = 'studyforge-learning';
@@ -74,16 +74,6 @@ export function registerClassroom(ctx: Context): void {
         onClose={() => { setOpen(false); trigger.current?.focus(); }} />}
     </>;
   }
-  /**
-   * The teacher's confirmations stay in the dialogue itself: the student reads
-   * and answers them where the teacher proposed them, not in a side rail.
-   */
-  function LessonConfirmations({ sessionId, useSessions }: PropsRuntime<'conversation.input.dock'>): React.JSX.Element | null {
-    const preset = useSessions(state => presetOf(state.byId[sessionId]?.projectionValues?.agentPreset));
-    const running = useSessions(state => state.byId[sessionId]?.running);
-    if (preset !== LEARNING_PRESET) return null;
-    return <ProposalInbox ctx={ctx} sessionId={String(sessionId)} refreshToken={running ? 'running' : 'settled'} />;
-  }
   // One stable business face per plugin apply: the panel's effect depends on this
   // callback identity, so re-evaluating the inject factory must not refetch.
   const injected: LessonPanelInjected = {
@@ -114,7 +104,5 @@ export function registerClassroom(ctx: Context): void {
   ctx.effect(() => ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register(
     { name: 'conversation.session.header.actions', id: 'studyforge.lesson-settings', order: 11 }, LessonSettingsEntry,
   )), 'studyforge: lesson settings entry');
-  ctx.effect(() => ctx.slots.inject('conversation.input.dock', () => ctx.slots.register(
-    { name: 'conversation.input.dock', id: '@studyforge/dsh-client/proposals', order: 20 }, LessonConfirmations,
-  )), 'studyforge: lesson confirmations in the dialogue');
+  registerConversationProposals(ctx);
 }

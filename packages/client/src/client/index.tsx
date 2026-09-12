@@ -34,14 +34,14 @@ export async function apply(ctx: Context): Promise<void> {
   ctx.plugin({ inject: ['theme', 'slots', 'layout', 'sessions'], apply: scope => registerNotebook(scope, materialNavigation) });
   // Remote namespaces are separately injected properties: reading
   // `ctx.remote.studyforgeCourses` needs its own nested inject entry.
-  ctx.plugin({ inject: ['remote.studyforgeCourses', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'remote.studyforgeMemory', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'remote.studyforgeHandoffs', 'remote.studyforgeProposals', 'slots', 'sidebarRight', 'sidebarRightTabs', 'layout', 'sessions'], apply: registerClassroom });
+  ctx.plugin({ inject: ['remote.studyforgeCourses', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'remote.studyforgeMemory', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'remote.studyforgeHandoffs', 'remote.studyforgeProposals', 'slots', 'uiConversation', 'sidebarRight', 'sidebarRightTabs', 'layout', 'sessions'], apply: registerClassroom });
   // The student-facing system note and the opt-in Raw debug surfaces read the
   // same session binding the native Chat owns; they open no second source.
   ctx.plugin({ inject: ['remote.studyforgeCourses', 'slots', 'sessions'], apply: registerDebugSurfaces });
   // The materials page needs the Host's own material Remote plus the native
   // document-preview registry it adds a DOCX renderer to.
   ctx.plugin({ inject: ['remote.studyforgeMaterials', 'remote.studyforgeSources', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'resources', 'sidebarRightTabs', 'documentPreviews', 'slots', 'sidebarRight', 'layout', 'inputTriggers', 'conversation', 'sessions'], apply: scope => registerMaterials(scope, materialNavigation) });
-  ctx.plugin({ inject: ['remote.studyforgeLearning', 'remote.studyforgeProposals', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'slots', 'layout'], apply: scope => registerCardSurfaces(scope, { onSource: (source, sessionId) => { materialNavigation.show(source, sessionId); scope.layout.selectPanel('studyforge.materials' as MainPanelId); } }) });
+  ctx.plugin({ inject: ['remote.studyforgeLearning', 'remote.studyforgeProposals', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'remote.studyforgeOrganization', 'slots', 'layout'], apply: scope => registerCardSurfaces(scope, { onSource: (source, sessionId) => { materialNavigation.show(source, sessionId); scope.layout.selectPanel('studyforge.materials' as MainPanelId); } }) });
   ctx.plugin({ inject: ['remote.studyforgeOrganization', 'remote.studyforgeCalendar', 'remote.studyforgeMaterials', 'remote.studyforgeLearning', 'remote.studyforgeMemory', 'remote.studyforgeHandoffs', 'sessions', 'slots', 'layout', 'uiWorkspace'], apply: scope => registerOrganization(scope, materialNavigation) });
   ctx.plugin({ inject: ['remote.studyforgeOrganization', 'remote.studyforgeCalendar', 'remote.studyforgeMaterials', 'remote.studyforgeLearning', 'remote.studyforgeTeaching', 'sessions', 'slots', 'layout'], apply: registerCourses });
   // P4.3: the composer's own reference source and its dock row. Kept in a

@@ -5,6 +5,7 @@ import { routeValidators } from './organization-service.ts';
 import { checkHandoffProposal, closeConfirmedHandoff } from './handoff-service.ts';
 import { validateCoursePatch } from './course-service.ts';
 import { courseRecordRef } from '@studyforge/domain/courses';
+import { SkeletonError } from '@studyforge/domain/skeleton';
 
 /** Each confirmation invokes its real writer; the receipt describes its result. */
 export function proposalExecutor(host: Context): ProposalExecutor {
@@ -40,10 +41,13 @@ export function proposalExecutor(host: Context): ProposalExecutor {
         case 'route-edit':
           if (item.target !== 'route:tree') throw new Error('proposal_route_target_invalid');
           host.studyforgeRouteService.node(host.studyforgeRouteService.read(ctx), effect.nodeId); return;
-        case 'skeleton-save':
+        case 'skeleton-save': {
           if (item.target !== 'skeleton:' + effect.materialId) throw new Error('proposal_skeleton_target_invalid');
-          await host.studyforgeMaterialService.get(ctx, effect.materialId);
+          const current = await host.studyforgeSkeletonService.read(ctx, effect.materialId);
+          if ((current.revision ?? 0) !== item.baseline) throw new SkeletonError('skeleton_version_conflict',
+            '目录已更新。请先调用 read_skeleton 读取当前目录，保留已有章节，再重新提交这份增补草案。');
           await host.studyforgeSkeletonAuthoring.preview(ctx, effect.materialId, item.baseline, effect.change); return;
+        }
         case 'handoff-edit': host.studyforgeHandoffService.read(ctx, item.target, item.baseline); return;
       }
     },
@@ -51,6 +55,12 @@ export function proposalExecutor(host: Context): ProposalExecutor {
       try { return await applyEffect(host, context, item); }
       catch (error) {
         const typed = error as { name?: string; code?: string } | null;
+        // prepareCreate's existing-row refusal is before publication. Older
+        // versions mislabeled it as an uncertain save and offered endless retry.
+        if (typed?.name === 'RecordError' && (typed.code === 'record_exists'
+          || item.effect.kind === 'skeleton-save' && typed.code === 'version_conflict')) {
+          throw new ProposalEffectRejected(typed.code, false);
+        }
         // Only deterministic pre-publication refusals unlock editing. Storage
         // failures after publication still retain the original operation.
         if (['CardError', 'KnowledgeError', 'SetError', 'RouteError', 'MaterialReadError', 'ZodError'].includes(typed?.name ?? '') ||

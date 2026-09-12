@@ -38,6 +38,7 @@ export function ProposalCard({ ctx, proposal, onChanged }: ProposalCardProps): R
   const [busy, setBusy] = useState<Busy>(undefined);
   const [notice, setNotice] = useState<string | undefined>(undefined);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [recheckedSkeleton, setRecheckedSkeleton] = useState<{ version: number; paths: string[] }>();
   const [editing, setEditing] = useState<string | undefined>(undefined);
   const [draft, setDraft] = useState<{ title: string; front: string; back: string; body: string }>({ title: '', front: '', back: '', body: '' });
   const operationFor = useStableOperationId();
@@ -64,9 +65,9 @@ export function ProposalCard({ ctx, proposal, onChanged }: ProposalCardProps): R
   }
 
   /** The selection is exactly what is on screen: revision, digest, target, baseline. */
-  function selectionOf(items: readonly ProposalItemView[]): ProposalSelection {
+  function selectionOf(items: readonly ProposalItemView[], view = proposal): ProposalSelection {
     return {
-      revision: proposal.version,
+      revision: view.version,
       items: items.map(item => ({
         itemId: item.id, draft: item.draft.revision, digest: item.draft.digest,
         target: item.target, baseline: item.baseline,
@@ -99,6 +100,41 @@ export function ProposalCard({ ctx, proposal, onChanged }: ProposalCardProps): R
     if (!result.ok) { setNotice('回执还没有送出去，稍后再试一次。'); return; }
     take(result.value);
     setNotice('回执已经送出。');
+  }
+
+  /** Explicitly rebase an unchanged draft; checking never confirms the new draft. */
+  async function recheckSkeleton(displayed: ProposalItemView): Promise<void> {
+    setBusy({ kind: 'edit', item: displayed.id });
+    setNotice(undefined);
+    try {
+      const read = await ctx.remote.studyforgeProposals.read({ target: proposal.ref });
+      if (!read.ok) { setNotice('暂时读不到这份草案，请稍后重新检查。'); return; }
+      let view = read.value, item = view.items.find(row => row.id === displayed.id);
+      if (!item || view.version !== proposal.version) { take(view); setNotice('草案已有变化，请看过最新内容再决定。'); return; }
+      if (!isSkeletonConflict(item)) { take(view); return; }
+      // Recover old record_exists/unknown records through the same effect
+      // operation. Only the writer can resolve whether it actually committed.
+      if (item.failure?.commit === 'unknown') {
+        const checked = await ctx.remote.studyforgeProposals.confirm({ operationId: operationFor(attemptKey('check-skeleton-result', view.ref, String(view.version))),
+          target: view.ref, selection: selectionOf([item], view) });
+        if (!checked.ok) { setNotice(decisionFailureCopy(checked.error.message)); return; }
+        view = checked.value; take(view); item = view.items.find(row => row.id === displayed.id);
+      }
+      if (!item || item.status !== 'failed' || item.failure?.commit !== 'none' || item.draft.effect.kind !== 'skeleton-save') return;
+      const effect = item.draft.effect;
+      const current = await ctx.remote.studyforgeMaterials.skeleton({ materialId: effect.materialId });
+      if (!current.ok) { setNotice('暂时读不到当前目录，草案还在，请稍后重新检查。'); return; }
+      const baseline = current.value.revision ?? 0;
+      const preview = await ctx.remote.studyforgeOrganization.previewSkeleton({ materialId: effect.materialId, version: baseline, change: effect.change });
+      if (!preview.ok || preview.value.requiresDetach) { setNotice('这份草案与当前目录仍有冲突，原稿已保留，请调整内容后再保存。'); return; }
+      const edited = await ctx.remote.studyforgeProposals.edit({ operationId: operationFor(attemptKey('recheck-skeleton', view.ref, String(view.version), String(baseline))),
+        target: view.ref, expectedVersion: view.version, edit: { itemId: item.id, target: item.target, baseline, effect } });
+      if (!edited.ok) { setNotice(editFailureCopy(edited.error.message)); return; }
+      setRecheckedSkeleton({ version: edited.value.version, paths: preview.value.nodes.map(node => node.path) });
+      take(edited.value);
+      setNotice('已按当前目录重新检查。请核对合并后的目录，再决定是否保存。');
+    } catch { setNotice('暂时没有收到检查结果，草案仍保留，请稍后重新检查。'); }
+    finally { setBusy(undefined); }
   }
 
   function startEditing(item: ProposalItemView): void {
@@ -171,6 +207,11 @@ export function ProposalCard({ ctx, proposal, onChanged }: ProposalCardProps): R
           || item.draft.effect.kind === 'route-add' || item.draft.effect.kind === 'route-edit'
           || item.draft.effect.kind === 'plan-create' || item.draft.effect.kind === 'plan-edit'
           || item.draft.effect.kind === 'skeleton-save') && <OrganizationSummary effect={item.draft.effect} decidable={item.status === 'pending'} />}
+        {item.draft.effect.kind === 'skeleton-save' && item.status === 'pending' && recheckedSkeleton?.version === proposal.version
+          && <div data-testid="skeleton-recheck-preview" className="sf-proposal-content">
+            <h4>保存后的目录预览</h4>
+            <ul>{recheckedSkeleton.paths.map(path => <li key={path}>{path}</li>)}</ul>
+          </div>}
 
         {(item.draft.effect.kind === 'handoff' || item.draft.effect.kind === 'handoff-edit')
           && <HandoffSummary effect={item.draft.effect} decidable={item.status === 'pending'} />}
@@ -221,7 +262,7 @@ export function ProposalCard({ ctx, proposal, onChanged }: ProposalCardProps): R
           已经保存：《{item.receipt.title}》第 {String(item.receipt.revision)} 版。{item.receipt.deliveredAt === undefined ? '回执还没送出。' : '回执已经送出。'}
         </p>}
         {item.failure !== undefined && <p className="sf-notice" data-testid="proposal-failure">
-          {failureCopy(item.failure.code, item.failure.commit)}
+          {isSkeletonConflict(item) ? '目录已更新，这份草案尚未保存。重新检查当前目录后，再确认增补内容。' : failureCopy(item.failure.code, item.failure.commit)}
         </p>}
 
         <div className="sf-proposal-actions">
@@ -233,8 +274,11 @@ export function ProposalCard({ ctx, proposal, onChanged }: ProposalCardProps): R
             <button type="button" className="sf-quiet" data-testid="proposal-reject" disabled={busy !== undefined}
               onClick={() => { void decide('reject', [item]); }}>不要这一项</button>
           </>}
-          {item.status === 'failed' && <button type="button" className="sf-action" data-testid="proposal-retry" disabled={busy !== undefined}
-            onClick={() => { void decide('confirm', [item]); }}>用同一版再试一次</button>}
+          {item.status === 'failed' && (isSkeletonConflict(item)
+            ? <button type="button" className="sf-action" data-testid="proposal-recheck-skeleton" disabled={busy !== undefined}
+              onClick={() => { void recheckSkeleton(item); }}>重新检查目录</button>
+            : <button type="button" className="sf-action" data-testid="proposal-retry" disabled={busy !== undefined}
+              onClick={() => { void decide('confirm', [item]); }}>重新确认保存结果</button>)}
           {item.status === 'applied' && item.receipt?.deliveredAt === undefined
             && <button type="button" className="sf-quiet" data-testid="proposal-redeliver" disabled={busy !== undefined}
               onClick={() => { void retryDelivery(); }}>重新送一次回执</button>}
@@ -262,8 +306,13 @@ function statusCopy(item: ProposalItemView): string {
     case 'pending': return '等你决定';
     case 'applied': return '已经保存';
     case 'rejected': return '已经不要了';
-    case 'failed': return '这次没写成';
+    case 'failed': return isSkeletonConflict(item) || item.failure?.commit === 'none' ? '尚未保存' : '保存结果待核实';
   }
+}
+
+function isSkeletonConflict(item: ProposalItemView): boolean {
+  return item.status === 'failed' && item.draft.effect.kind === 'skeleton-save'
+    && ['record_exists', 'version_conflict', 'skeleton_version_conflict'].includes(item.failure?.code ?? '');
 }
 
 function originLabel(proposal: ProposalView): string {
@@ -585,20 +634,21 @@ function decisionFailureCopy(message: string): string {
   if (/proposal_stale_confirmation/u.test(message)) return '你看到的那一版已经变了，先看一遍最新稿再决定。';
   if (/version_conflict/u.test(message)) return '这份提案刚在别处更新过，重新打开再决定。';
   if (/proposal_item_closed/u.test(message)) return '这一项已经决定了，不用再来一次。';
-  if (/proposal_commit_unknown/u.test(message)) return '上一次可能已经写进去了，用同一版再试一次就知道。';
+  if (/proposal_commit_unknown/u.test(message)) return '上次保存结果还未确定，请先重新确认保存结果。';
   return '这次没有决定成功，稍后再试一次。';
 }
 
 function editFailureCopy(message: string): string {
-  if (/proposal_commit_unknown/u.test(message)) return '上一次可能已经写进去了，这一版不能改，只能用同一版再试。';
+  if (/proposal_commit_unknown/u.test(message)) return '上次保存结果还未确定，请先重新确认保存结果，再修改草案。';
   if (/proposal_item_closed/u.test(message)) return '这一项已经决定了，改不了了。';
+  if (/skeleton_version_conflict|目录已更新/u.test(message)) return '目录刚刚又有更新，请重新检查后再确认。';
   if (/proposal_expected_version_required|version_conflict/u.test(message)) return '提案刚在别处更新过，重新打开再改。';
   return '这一版没有存上，稍后再试一次。';
 }
 
 /** A failed effect, with the one thing the student has to know: written or not. */
 function failureCopy(code: string, commit: 'none' | 'unknown'): string {
-  if (commit === 'unknown') return '这次没有回话，但它可能已经保存了：用同一版再试一次，不会写第二遍。';
+  if (commit === 'unknown') return '暂时无法确定保存结果。重新确认会核对这次操作，不会重复保存。';
   switch (code) {
     case 'card_version_conflict': return '要改的那张卡已经变了，先打开最新版再看一遍。';
     case 'card_math_invalid': return '正文里的公式写错了，改好再保存。';
