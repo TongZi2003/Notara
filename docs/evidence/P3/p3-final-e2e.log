@@ -1,0 +1,22 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/material-import.spec.ts tests/e2e/docx-render.spec.ts tests/e2e/official-preview.spec.ts
+
+
+Running 11 tests using 1 worker
+
+(node:78962) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/docx-render.spec.ts:102:1 › duplicate paragraphs and duplicate tables each keep their own element, and a space is not nothing (6.5s)
+  ✓   2 tests/e2e/docx-render.spec.ts:141:1 › a paragraph the previewer drops leaves the whole document unpositioned instead of shifting a duplicate (5.7s)
+  ✓   3 tests/e2e/docx-render.spec.ts:159:1 › a flattened w:sdt document is unpositioned, and a rich document still draws its image, formula and table (6.0s)
+  ✓   4 tests/e2e/material-import.spec.ts:22:1 › an imported original is read directly and never opens a lesson (6.0s)
+  ✓   5 tests/e2e/material-import.spec.ts:50:1 › a second file with the same name is refused with a next action (6.1s)
+  ✓   6 tests/e2e/material-import.spec.ts:65:1 › a new version is explicit, keeps the old bytes readable, and a refresh keeps both (8.6s)
+  ✓   7 tests/e2e/official-preview.spec.ts:150:1 › the materials page reads a Chinese formula note and an image without a lesson or a model call (10.2s)
+  ✓   8 tests/e2e/official-preview.spec.ts:215:1 › paging and zooming show only finished pages, and a page that cannot be drawn says so (10.4s)
+  ✓   9 tests/e2e/official-preview.spec.ts:303:1 › a corrupt file is refused with a next action instead of a blank reader (8.7s)
+  ✓  10 tests/e2e/official-preview.spec.ts:315:1 › the sandboxed HTML cannot reach the application, and a lesson opens the same original in the native rightbar (9.2s)
+  ✓  11 tests/e2e/official-preview.spec.ts:352:1 › a contents read that never came back is not shown as an empty book (9.2s)
+
+  11 passed (1.5m)

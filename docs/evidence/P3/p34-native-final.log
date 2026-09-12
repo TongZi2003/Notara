@@ -1,0 +1,17 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/material-native.test.ts tests/integration/native-source-context.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/native-source-context.test.ts (1 test) 11427ms
+   ✓ native accepted source context retains v1 across version updates and restart; source text is not the student answer  11426ms
+ ✓ |integration| tests/integration/material-native.test.ts (2 tests) 16795ms
+   ✓ authenticated material import/read needs no Session, and native file addresses retain the exact version  11120ms
+   ✓ read_material sends the real crop as a native image attachment into the next model request  5674ms
+
+ Test Files  2 passed (2)
+      Tests  3 passed (3)
+   Start at  04:05:08
+   Duration  16.94s (transform 47ms, setup 0ms, import 134ms, tests 28.22s, environment 0ms)

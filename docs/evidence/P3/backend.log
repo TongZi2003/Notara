@@ -1,0 +1,18 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/material-version.test.ts tests/integration/material-read-region.test.ts tests/integration/skeleton.test.ts tests/integration/material-native.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/material-read-region.test.ts (3 tests) 80ms
+ ✓ |integration| tests/integration/material-version.test.ts (8 tests) 355ms
+ ✓ |integration| tests/integration/skeleton.test.ts (10 tests) 414ms
+ ✓ |integration| tests/integration/material-native.test.ts (2 tests) 16427ms
+   ✓ authenticated material import/read needs no Session, and native file addresses retain the exact version  10672ms
+   ✓ read_material sends the real crop as a native image attachment into the next model request  5754ms
+
+ Test Files  4 passed (4)
+      Tests  23 passed (23)
+   Start at  03:29:15
+   Duration  16.58s (transform 244ms, setup 0ms, import 939ms, tests 17.28s, environment 0ms)

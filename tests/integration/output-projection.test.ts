@@ -119,7 +119,7 @@ test('an object that is gone is dropped and never resurrected by a later rebuild
   await first.cards.create(write('old-create', 0), 'old', { title: '旧卡', presentation: 'problem', front: '旧' });
   const oldChanges = first.cards.changes(ctx, 'card:old');
   await first.owner.close();
-  await rm(join(first.root, '.studyforge', 'sf_card.json'), { force: true });
+  await rm(join(first.root, '.studyforge', 'sf_records.json'), { force: true });
 
   const rebuilt = await open(first.root);
   // The committed change still exists, but the object does not: no output row.

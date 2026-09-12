@@ -1,0 +1,13 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/day-projection.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/day-projection.test.ts (7 tests) 869ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  08:19:48
+   Duration  1.17s (transform 125ms, setup 0ms, import 234ms, tests 869ms, environment 0ms)

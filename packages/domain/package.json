@@ -4,6 +4,88 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./handoffs": { "types": "./lib/types/courses/handoff-service.d.ts", "default": "./lib/types/courses/handoff-service.js" },
+    "./class-close": { "types": "./lib/types/courses/class-close-service.d.ts", "default": "./lib/types/courses/class-close-service.js" },
+    "./sets": {
+      "types": "./lib/types/organization/set-service.d.ts",
+      "default": "./lib/types/organization/set-service.js"
+    },
+    "./routes": {
+      "types": "./lib/types/organization/route-service.d.ts",
+      "default": "./lib/types/organization/route-service.js"
+    },
+    "./plans": {
+      "types": "./lib/types/organization/plan-service.d.ts",
+      "default": "./lib/types/organization/plan-service.js"
+    },
+    "./skeleton-authoring": {
+      "types": "./lib/types/organization/skeleton-authoring.d.ts",
+      "default": "./lib/types/organization/skeleton-authoring.js"
+    },
+    "./card-changes": {
+      "types": "./lib/types/cards/card-changes.d.ts",
+      "default": "./lib/types/cards/card-changes.js"
+    },
+    "./proposals": {
+      "types": "./lib/types/proposals/proposal-service.d.ts",
+      "default": "./lib/types/proposals/proposal-service.js"
+    },
+    "./receipt-outbox": {
+      "types": "./lib/types/proposals/receipt-outbox.d.ts",
+      "default": "./lib/types/proposals/receipt-outbox.js"
+    },
+    "./cards": {
+      "types": "./lib/types/cards/card-service.d.ts",
+      "default": "./lib/types/cards/card-service.js"
+    },
+    "./knowledge": {
+      "types": "./lib/types/knowledge/knowledge-service.d.ts",
+      "default": "./lib/types/knowledge/knowledge-service.js"
+    },
+    "./review": {
+      "types": "./lib/types/review/review-service.d.ts",
+      "default": "./lib/types/review/review-service.js"
+    },
+    "./learning-records": {
+      "types": "./lib/types/review/learning-record-projection.d.ts",
+      "default": "./lib/types/review/learning-record-projection.js"
+    },
+    "./lesson-resources": {
+      "types": "./lib/types/courses/lesson-resource-projection.d.ts",
+      "default": "./lib/types/courses/lesson-resource-projection.js"
+    },
+    "./learning-search": {
+      "types": "./lib/types/materials/learning-search.d.ts",
+      "default": "./lib/types/materials/learning-search.js"
+    },
+    "./skeleton": {
+      "types": "./lib/types/materials/skeleton-service.d.ts",
+      "default": "./lib/types/materials/skeleton-service.js"
+    },
+    "./docx-text": {
+      "types": "./lib/types/materials/docx/normalize-text.d.ts",
+      "default": "./lib/types/materials/docx/normalize-text.js"
+    },
+    "./docx": {
+      "types": "./lib/types/materials/docx/index-docx.d.ts",
+      "default": "./lib/types/materials/docx/index-docx.js"
+    },
+    "./material-read": {
+      "types": "./lib/types/materials/read-material.d.ts",
+      "default": "./lib/types/materials/read-material.js"
+    },
+    "./materials": {
+      "types": "./lib/types/materials/material-service.d.ts",
+      "default": "./lib/types/materials/material-service.js"
+    },
+    "./outputs": {
+      "types": "./lib/types/courses/output-projection.d.ts",
+      "default": "./lib/types/courses/output-projection.js"
+    },
+    "./course-projection": {
+      "types": "./lib/types/courses/course-projection.d.ts",
+      "default": "./lib/types/courses/course-projection.js"
+    },
     "./evidence": {
       "types": "./lib/types/evidence/evidence-query.d.ts",
       "default": "./lib/types/evidence/evidence-query.js"
@@ -28,19 +110,32 @@
       "types": "./lib/types/ids.d.ts",
       "default": "./lib/types/ids.js"
     },
-    "./outputs": {
-      "types": "./lib/types/courses/output-projection.d.ts",
-      "default": "./lib/types/courses/output-projection.js"
+    "./book-exploration": {
+      "types": "./lib/types/materials/book-exploration.d.ts",
+      "default": "./lib/types/materials/book-exploration.js"
     },
-    "./course-projection": {
-      "types": "./lib/types/courses/course-projection.d.ts",
-      "default": "./lib/types/courses/course-projection.js"
+    "./read-day": {
+      "types": "./lib/types/organization/read-day.d.ts",
+      "default": "./lib/types/organization/read-day.js"
+    },
+    "./daily-report": {
+      "types": "./lib/types/organization/daily-report.d.ts",
+      "default": "./lib/types/organization/daily-report.js"
+    },
+    "./memory": {
+      "types": "./lib/types/memory/memory-service.d.ts",
+      "default": "./lib/types/memory/memory-service.js"
     }
   },
   "files": [
     "lib/types"
   ],
   "dependencies": {
+    "@napi-rs/canvas": "1.0.9",
+    "@xmldom/xmldom": "0.9.12",
+    "fflate": "0.8.3",
+    "pdfjs-dist": "6.3.289",
+    "sharp": "0.35.4",
     "@deepseek-ai/dsh-storage-domain": "0.1.5-rc.2",
     "zod": "4.6.2",
     "@studyforge/contracts": "0.0.0"

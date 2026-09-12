@@ -13,6 +13,7 @@ export function recordSchema(content: z.ZodType) {
       id: z.string().min(1), fingerprint: z.string().min(1), before: z.number().int().positive().nullable(),
       after: z.number().int().positive(), actor: ActorSchema, sessionId: z.string().min(1).optional(), at: TimestampSchema,
     }).strict()).min(1),
+    deleted: z.object({ operationId: z.string().min(1), revision: z.number().int().positive(), at: TimestampSchema }).strict().optional(),
   }).strict().superRefine((row, ctx) => {
     row.versions.forEach((version, index) => {
       if (version.revision !== index + 1 || !content.safeParse(version.content).success) ctx.addIssue({ code: 'custom', path: ['versions', index], message: 'invalid revision or content' });
@@ -21,8 +22,13 @@ export function recordSchema(content: z.ZodType) {
     for (const op of row.operations) if (!row.versions.some(v => v.revision === op.after) || (op.before !== null && !row.versions.some(v => v.revision === op.before))) ctx.addIssue({ code: 'custom', path: ['operations'], message: 'operation references missing version' });
   });
 }
-type Stored = z.output<ReturnType<typeof recordSchema>>;
+export type StoredRecord = z.output<ReturnType<typeof recordSchema>>;
+type Stored = StoredRecord;
 export interface Saved<T> { ref: string; version: number; data: T; duplicate: boolean; }
+/** Prepared by a real schema/authority owner, published only by its workspace. */
+export interface PreparedRecordChange<T = unknown> {
+  kind: string; workspaceId: string; key: string; before: string | null; next: StoredRecord; result: Saved<T>;
+}
 export class RecordError extends Error {
   readonly code: string;
   constructor(code: string) { super(code); this.code = code; this.name = 'RecordError'; }
@@ -37,6 +43,7 @@ function fingerprint(input: unknown, ctx: MutationContext): string {
   const authority = { actor: ctx.actor, purpose: ctx.purpose, ...(ctx.sessionId ? { sessionId: ctx.sessionId } : {}), ...(ctx.expectedVersion !== undefined ? { expectedVersion: ctx.expectedVersion } : {}) };
   return createHash('sha256').update(canonical(z.json().parse({ input, authority }))).digest('hex');
 }
+export function storedFingerprint(row: StoredRecord): string { return createHash('sha256').update(canonical(z.json().parse(row))).digest('hex'); }
 
 /** Schema + conditional changes only; queueing/publication remains the native table's job. */
 export class RecordStore<S extends z.ZodType> {
@@ -73,10 +80,32 @@ export class RecordStore<S extends z.ZodType> {
     if (!value) throw new RecordError('record_corrupt');
     return { ref: objectRef(this.kind, row.id), version: value.revision, data: this.content.parse(value.content), duplicate };
   }
-  read(ctx: HostContext, ref: string, revision?: number): Saved<z.output<S>> { return this.result(this.stored(ctx, ref), revision); }
+  read(ctx: HostContext, ref: string, revision?: number): Saved<z.output<S>> {
+    const row = this.stored(ctx, ref);
+    if (row.deleted && revision === undefined) throw new RecordError('record_missing');
+    return this.result(row, revision);
+  }
   list(ctx: HostContext): Saved<z.output<S>>[] {
     this.authorize(ctx);
-    return [...this.table.keys()].map(id => this.read(ctx, objectRef(this.kind, id)));
+    return [...this.table.keys()].flatMap(id => { const row = this.stored(ctx, objectRef(this.kind, id)); return row.deleted ? [] : [this.result(row)]; });
+  }
+  /** Remove the current object without erasing versions pinned by old references. */
+  async remove(ctx: MutationContext, ref: string): Promise<void> {
+    MutationContextSchema.parse(ctx); this.authorize(ctx);
+    if (ctx.actor !== 'student') throw new RecordError('delete_requires_student');
+    if (typeof ctx.expectedVersion !== 'number') throw new RecordError('version_conflict');
+    const revision = ctx.expectedVersion;
+    const replay = {};
+    await this.table.update(this.key(ref), raw => {
+      const row = this.schema.parse(raw);
+      if (row.workspaceId !== ctx.workspaceId) throw new RecordError('workspace_mismatch');
+      if (row.deleted) {
+        if (row.deleted.operationId === ctx.operationId && row.deleted.revision === revision) throw replay;
+        throw new RecordError('record_missing');
+      }
+      if (revision !== row.versions.at(-1)?.revision) throw new RecordError('version_conflict');
+      return { ...row, deleted: { operationId: ctx.operationId, revision, at: this.clock.now() } };
+    }).catch(error => { if (error !== replay) throw error; });
   }
   changes(ctx: HostContext, ref: string): ObjectChange[] {
     const row = this.stored(ctx, ref);
@@ -109,30 +138,65 @@ export class RecordStore<S extends z.ZodType> {
     this.creationTail = job.then(() => {}, () => {});
     return job;
   }
-  async update(ctx: MutationContext, ref: string, input: unknown, transform: (current: z.output<S>) => unknown): Promise<Saved<z.output<S>>> {
+  /** Preflight a batch member without writing. The aggregate publisher checks
+   * its entire previous row again at the single native publication boundary. */
+  prepareCreate(ctx: MutationContext, id: string, input: unknown): PreparedRecordChange<z.output<S>> {
     MutationContextSchema.parse(ctx); this.authorize(ctx);
-    const hash = fingerprint(input, ctx);
+    const ref = objectRef(this.kind, id), key = this.key(ref), hash = fingerprint(input, ctx);
+    const raw = this.table.get(key);
+    if (raw) {
+      const row = this.schema.parse(raw), op = row.operations.find(op => op.id === ctx.operationId);
+      if (row.workspaceId !== this.workspaceId) throw new RecordError('workspace_mismatch');
+      if (!op || op.fingerprint !== hash) throw new RecordError('record_exists');
+      return { kind: this.kind, workspaceId: this.workspaceId, key, before: storedFingerprint(row), next: row, result: this.result(row, op.after, true) };
+    }
+    const row = this.schema.parse({ id, workspaceId: this.workspaceId, versions: [{ revision: 1, content: this.content.parse(input) }],
+      operations: [{ id: ctx.operationId, fingerprint: hash, before: null, after: 1, actor: ctx.actor, ...(ctx.sessionId ? { sessionId: ctx.sessionId } : {}), at: this.clock.now() }] });
+    return { kind: this.kind, workspaceId: this.workspaceId, key, before: null, next: row, result: this.result(row) };
+  }
+  prepareUpdate(ctx: MutationContext, ref: string, input: unknown, transform: (current: z.output<S>) => unknown): PreparedRecordChange<z.output<S>> {
+    MutationContextSchema.parse(ctx); this.authorize(ctx);
+    return this.prepareRow(ctx, ref, input, transform, true, this.stored(ctx, ref));
+  }
+  async update(ctx: MutationContext, ref: string, input: unknown, transform: (current: z.output<S>) => unknown): Promise<Saved<z.output<S>>> {
+    return this.mutate(ctx, ref, input, transform, true);
+  }
+  /** Trusted mechanical merge against the native queue's current row, e.g. a late
+   * occurrence. Human authored replacement must keep using conditional update. */
+  async updateCurrent(ctx: Omit<MutationContext, 'expectedVersion'>, ref: string, input: unknown, transform: (current: z.output<S>) => unknown): Promise<Saved<z.output<S>>> {
+    if ('expectedVersion' in ctx) throw new RecordError('derived_update_has_expected_version');
+    return this.mutate(ctx, ref, input, transform, false);
+  }
+  private async mutate(ctx: MutationContext, ref: string, input: unknown, transform: (current: z.output<S>) => unknown, conditional: boolean): Promise<Saved<z.output<S>>> {
+    MutationContextSchema.parse(ctx); this.authorize(ctx);
     let result: Saved<z.output<S>> | undefined;
     const replay = {};
     await this.table.update(this.key(ref), raw => {
-      const row = this.schema.parse(raw);
-      if (row.workspaceId !== this.workspaceId) throw new RecordError('workspace_mismatch');
-      const prior = row.operations.find(op => op.id === ctx.operationId);
-      if (prior) {
-        if (prior.fingerprint !== hash) throw new RecordError('operation_conflict');
-        result = this.result(row, prior.after, true); throw replay;
-      }
-      const current = this.result(row);
-      if (ctx.expectedVersion !== current.version) throw new RecordError('version_conflict');
-      const data = this.content.parse(transform(current.data));
-      const changed = canonical(z.json().parse(data)) !== canonical(z.json().parse(row.versions.at(-1)!.content));
-      const version = current.version + (changed ? 1 : 0);
-      if (changed) row.versions.push({ revision: version, content: z.json().parse(data) });
-      row.operations.push({ id: ctx.operationId, fingerprint: hash, before: current.version, after: version, actor: ctx.actor, ...(ctx.sessionId ? { sessionId: ctx.sessionId } : {}), at: this.clock.now() });
-      const validated = this.schema.parse(row);
-      result = this.result(validated, version); return validated;
+      const change = this.prepareRow(ctx, ref, input, transform, conditional, raw);
+      result = change.result;
+      if (result.duplicate) throw replay;
+      return change.next;
     }).catch(error => { if (error !== replay) throw error; });
     if (!result) throw new RecordError('record_corrupt');
     return result;
+  }
+  private prepareRow(ctx: MutationContext, ref: string, input: unknown, transform: (current: z.output<S>) => unknown, conditional: boolean, raw: Stored): PreparedRecordChange<z.output<S>> {
+    const row = this.schema.parse(raw), before = storedFingerprint(row), hash = fingerprint(input, ctx);
+    if (row.workspaceId !== this.workspaceId) throw new RecordError('workspace_mismatch');
+    const result = (revision?: number, duplicate = false): PreparedRecordChange<z.output<S>> => ({ kind: this.kind, workspaceId: this.workspaceId, key: this.key(ref), before, next: this.schema.parse(row), result: this.result(row, revision, duplicate) });
+    const prior = row.operations.find(op => op.id === ctx.operationId);
+    if (prior) {
+      if (prior.fingerprint !== hash) throw new RecordError('operation_conflict');
+      return result(prior.after, true);
+    }
+    const current = this.result(row);
+    if (row.deleted) throw new RecordError('record_missing');
+    if (conditional && ctx.expectedVersion !== current.version) throw new RecordError('version_conflict');
+    const data = this.content.parse(transform(current.data));
+    const changed = canonical(z.json().parse(data)) !== canonical(z.json().parse(row.versions.at(-1)!.content));
+    const revision = current.version + (changed ? 1 : 0);
+    if (changed) row.versions.push({ revision, content: z.json().parse(data) });
+    row.operations.push({ id: ctx.operationId, fingerprint: hash, before: current.version, after: revision, actor: ctx.actor, ...(ctx.sessionId ? { sessionId: ctx.sessionId } : {}), at: this.clock.now() });
+    return result(revision);
   }
 }

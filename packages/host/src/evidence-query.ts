@@ -20,6 +20,7 @@ import type { ContentBlock } from '@deepseek-ai/dsh-llm';
 import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session';
 import type {} from '@deepseek-ai/dsh-session-query';
 import type { EvidenceCatalogueInput, EvidenceMessage, EvidenceObjectCandidate } from '@studyforge/domain/evidence';
+import { decodeSourceFragments, type SourceFragment } from '@studyforge/contracts/source-context';
 
 /** One Host-resolved object candidate; the version is the real object token. */
 export type EvidenceObjectRow = EvidenceObjectCandidate;
@@ -36,6 +37,7 @@ export interface EvidenceObjectQuery {
   readonly messageId: string;
   readonly occurredAt: string;
   readonly text: string;
+  readonly fragments?: readonly SourceFragment[];
 }
 
 /**
@@ -76,9 +78,9 @@ export async function narrowEvidence(
     const message = event.type === 'assistant/message' ? event.data.message : event.data;
     const messageId = String(message.id);
     const occurredAt = new Date(event.time).toISOString();
-    const text = textOf(message.content);
+    const { text, fragments } = decodeSourceFragments(textOf(message.content));
     // Only a real student message can carry objects: those bind that student's own work.
-    const query: EvidenceObjectQuery = { sessionId, messageId, occurredAt, text };
+    const query: EvidenceObjectQuery = { sessionId, messageId, occurredAt, text, fragments };
     const objects = role === 'student' && text.trim().length > 0 && resolveObjects
       ? [...await resolveObjects(query)]
       : [];

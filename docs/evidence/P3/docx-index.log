@@ -1,0 +1,13 @@
+
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts tests/unit/docx-index-v2.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |unit| tests/unit/docx-index-v2.test.ts (16 tests) 30ms
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  03:29:32
+   Duration  165ms (transform 37ms, setup 0ms, import 77ms, tests 30ms, environment 0ms)

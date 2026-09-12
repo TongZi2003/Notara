@@ -1,0 +1,32 @@
+import { test, expect, enterClassroom } from './fixtures/classroom.ts';
+import { connectRuntime } from '../fixtures/http-runtime.ts';
+import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
+import type { MaterialView } from '@studyforge/contracts/material-records';
+import type { CardView } from '@studyforge/contracts/cards';
+const value = <T,>(reply: RemoteResult<T>): T => { if (!reply.ok) throw new Error(JSON.stringify(reply.error)); return reply.value; };
+
+test('a source-only card is readable before grading and other unlearned inventory never joins its review queue', async ({ page, classroom }, info) => {
+  const client = await connectRuntime(classroom);
+  const material = value(await client.rpc<MaterialView>('studyforgeMaterials/import', { input: { operationId: 'source-only-book', material: { title: '原题', fileName: '原题.txt', mediaType: 'text/plain' }, base64: Buffer.from('先求函数的定义域。').toString('base64') } }));
+  const anchor = { materialId: material.materialId, versionId: material.currentVersion.versionId, locator: { kind: 'text', start: { line: 1, column: 0 }, end: { line: 1, column: 9 } } };
+  const card = value(await client.rpc<CardView>('studyforgeLearning/createCard', { input: { operationId: 'source-card', content: { title: '来自原文的一题', presentation: 'problem', sources: [anchor] } } }));
+  value(await client.rpc('studyforgeLearning/createCard', { input: { operationId: 'unrelated-stock', content: { title: '另一张还没学的卡', front: '库存内容' } } }));
+  await enterClassroom(page, classroom.authUrl);
+  await page.getByRole('button', { name: '首页', exact: true }).first().click();
+  await expect(page.getByTestId('today-review')).toHaveCount(0);
+  await page.getByRole('button', { name: '卡片', exact: true }).first().click();
+  const row = page.getByTestId('card-row').filter({ hasText: '来自原文的一题' });
+  await row.getByTestId('card-row-open').click();
+  await expect(page.getByTestId('card-source-excerpt')).toContainText('先求函数的定义域');
+  expect(value(await client.rpc<CardView>('studyforgeLearning/card', { input: { target: card.ref } })).history).toEqual([]);
+  await page.getByTestId('card-detail-back').click();
+  await row.getByTestId('card-row-learn').click();
+  await expect(page.getByTestId('card-source-excerpt')).toContainText('先求函数的定义域');
+  await page.screenshot({ path: info.outputPath('source-only-study.png'), fullPage: true });
+  await page.getByTestId('review-reveal').click();
+  await page.getByTestId('review-mark-牢').click();
+  await expect(page.getByTestId('review-result')).toBeVisible();
+  await page.getByTestId('review-next').click();
+  await expect(page.getByTestId('review-screen')).toHaveAttribute('data-review-empty', 'true');
+  expect(value(await client.rpc<CardView[]>('studyforgeLearning/cards', {})).find(item => item.content.title === '另一张还没学的卡')?.review).toBeUndefined();
+});

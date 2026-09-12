@@ -1,0 +1,18 @@
+
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |unit| tests/unit/source-context-codec.test.ts (3 tests) 7ms
+ ✓ |unit| tests/unit/review-occurrence.test.ts (21 tests) 39ms
+ ✓ |unit| tests/unit/docx-index-v2.test.ts (16 tests) 100ms
+ ✓ |unit| tests/unit/tool-schema.test.ts (2 tests) 108ms
+ ✓ |unit| tests/unit/evidence-binding.test.ts (7 tests) 15ms
+ ✓ |unit| tests/unit/contracts-v2.test.ts (14 tests) 34ms
+
+ Test Files  6 passed (6)
+      Tests  63 passed (63)
+   Start at  08:13:58
+   Duration  830ms (transform 1.31s, setup 0ms, import 2.34s, tests 303ms, environment 1ms)

@@ -1,0 +1,57 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/lesson-settings-draft.spec.ts tests/e2e/book-workspace.spec.ts tests/e2e/official-preview.spec.ts tests/e2e/confirmation-editor.spec.ts --grep lesson-settings draft|book expands|contents read|proposed card waits --output .runtime/ui-closeout-final-results --reporter=list
+
+
+Running 4 tests using 1 worker
+
+(node:11850) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/book-workspace.spec.ts:12:1 › book expands into existing cards, switches view and returns to the exact source without learning writes; breakdown is explicit (10.7s)
+  ✓  2 tests/e2e/confirmation-editor.spec.ts:58:1 › a proposed card waits, keeps the teacher original beside the student draft, and saves once (15.8s)
+  ✘  3 tests/e2e/lesson-settings-draft.spec.ts:51:1 › the student edits a lesson-settings draft without dropping what the teacher proposed (10.1s)
+(node:12205) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 tests/e2e/official-preview.spec.ts:352:1 › a contents read that never came back is not shown as an empty book (9.2s)
+
+
+  1) tests/e2e/lesson-settings-draft.spec.ts:51:1 › the student edits a lesson-settings draft without dropping what the teacher proposed
+
+    Error: expect(received).toMatchObject(expected)
+
+    - Expected  - 3
+    + Received  + 2
+
+    @@ -7,9 +7,8 @@
+              "cardVersion": 1,
+              "kind": "card",
+            },
+          ],
+        },
+    -   "stance": "",
+    -   "teachingRef": "organize",
+    -   "temporaryInstructions": "",
+    +   "stance": "看清定义域",
+    +   "temporaryInstructions": "先复习定义域。",
+      }
+
+      129 |   const draft = await client.rpc<ProposalView[]>('studyforgeProposals/list', { input: {} });
+      130 |   const patch = draft.ok ? draft.value[0]?.items[0]?.draft.effect : undefined;
+    > 131 |   expect(patch?.kind === 'lesson-edit' ? patch.patch : {}).toMatchObject({
+          |                                                            ^
+      132 |     learningSetRef: setRef, temporaryInstructions: '', stance: '', teachingRef: chosen?.id ?? '',
+      133 |     lessonMaterials: { materials: [{ kind: 'card', cardRef, cardVersion: 1 }] },
+      134 |   });
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/lesson-settings-draft.spec.ts:131:60
+
+    attachment #1: host-log (text/plain) ───────────────────────────────────────────────────────────
+    (node:12106) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/ui-closeout-final-results/lesson-settings-draft-the--19763-g-what-the-teacher-proposed/error-context.md
+
+  1 failed
+    tests/e2e/lesson-settings-draft.spec.ts:51:1 › the student edits a lesson-settings draft without dropping what the teacher proposed
+  3 passed (46.8s)

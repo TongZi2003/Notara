@@ -1,0 +1,16 @@
+
+Running 9 tests using 1 worker
+
+(node:200) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/card-coauthoring.spec.ts:56:1 › a card is created, read with the back hidden until asked, and edited (12.8s)
+  ✓  2 tests/e2e/card-coauthoring.spec.ts:94:1 › a second writer makes the first save a real conflict, and the draft survives a rebase (17.6s)
+  ✓  3 tests/e2e/card-fixed-version.spec.ts:22:1 › a frozen version shows its own text and offers no edit or newer redline (18.4s)
+  ✓  4 tests/e2e/coauthor-memory.spec.ts:74:1 › the student rewrites one judgement, keeps its evidence, and survives a conflict (21.0s)
+  ✓  5 tests/e2e/first-study.spec.ts:43:1 › an unstudied card is learnable right away, and only a real mark is recorded (16.0s)
+  ✓  6 tests/e2e/knowledge-editor.spec.ts:53:1 › knowledge keeps one identity while the student and the teacher both revise it (19.3s)
+  ✓  7 tests/e2e/knowledge-editor.spec.ts:126:1 › deleting one knowledge note leaves the related card and the learning records (20.7s)
+  ✓  8 tests/e2e/unknown-result.spec.ts:46:1 › a lost review answer keeps one grade, and the same retry is not a second record (20.6s)
+  ✓  9 tests/e2e/unknown-result.spec.ts:99:1 › a lost create answer is retried as the same write, not a second card (20.0s)
+
+  9 passed (2.8m)

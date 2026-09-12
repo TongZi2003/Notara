@@ -1,0 +1,22 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/card-redline.spec.ts tests/e2e/confirmation-editor.spec.ts tests/e2e/proposal-partial-failure.spec.ts tests/e2e/learning-records-handout.spec.ts tests/e2e/official-preview.spec.ts --output .runtime/p35-accepted-results --reporter=list
+
+
+Running 11 tests using 1 worker
+
+(node:4789) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/card-redline.spec.ts:61:1 › an edited card reads as red pen over the old line, and the back waits for the student (10.8s)
+  ✓   2 tests/e2e/confirmation-editor.spec.ts:58:1 › a proposed card waits, keeps the teacher original beside the student draft, and saves once (15.9s)
+  ✓   3 tests/e2e/confirmation-editor.spec.ts:104:1 › a rejected proposal saves nothing at all (16.1s)
+  ✓   4 tests/e2e/learning-records-handout.spec.ts:54:1 › a real mark becomes one record, and the handout only holds what is due (7.2s)
+  ✓   5 tests/e2e/official-preview.spec.ts:150:1 › the materials page reads a Chinese formula note and an image without a lesson or a model call (10.3s)
+  ✓   6 tests/e2e/official-preview.spec.ts:215:1 › paging and zooming show only finished pages, and a page that cannot be drawn says so (11.5s)
+  ✓   7 tests/e2e/official-preview.spec.ts:303:1 › a corrupt file is refused with a next action instead of a blank reader (9.1s)
+  ✓   8 tests/e2e/official-preview.spec.ts:315:1 › the sandboxed HTML cannot reach the application, and a lesson opens the same original in the native rightbar (9.8s)
+  ✓   9 tests/e2e/official-preview.spec.ts:352:1 › a contents read that never came back is not shown as an empty book (9.2s)
+  ✓  10 tests/e2e/proposal-partial-failure.spec.ts:60:1 › a planned node with no real parent is refused before anything is stored (9.3s)
+  ✓  11 tests/e2e/proposal-partial-failure.spec.ts:95:1 › a stale item fails alone, keeps its target, and leaves the other proposal alone (16.2s)
+
+  11 passed (2.1m)

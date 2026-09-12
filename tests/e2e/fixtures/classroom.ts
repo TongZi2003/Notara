@@ -20,7 +20,11 @@ export async function enterClassroom(page: Page, authUrl: string): Promise<void>
 }
 export async function typeInput(page: Page, text: string): Promise<void> {
   const input = page.locator('[data-composer-input]');
-  await input.click(); await page.keyboard.insertText(text);
+  await input.click();
+  // Native preparation blocks (e.g. loading this message's source crops)
+  // explicitly make the composer inert until its visible reference is ready.
+  await expect(input).toHaveAttribute('contenteditable', 'true');
+  await page.keyboard.insertText(text);
 }
 export async function sendInput(page: Page, text: string): Promise<void> {
   await typeInput(page, text);

@@ -14,7 +14,7 @@
       "node"
     ],
     "lib": [
-      "ES2023"
+      "ES2023", "ES2025.Float16", "DOM", "DOM.Iterable"
     ]
   },
   "include": [

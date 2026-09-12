@@ -4,6 +4,59 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./teaching": { "types": "./lib/types/teaching.d.ts", "default": "./lib/types/teaching.js" },
+    "./changes": {
+      "types": "./lib/types/changes.d.ts",
+      "default": "./lib/types/changes.js"
+    },
+    "./execution": {
+      "types": "./lib/types/execution.d.ts",
+      "default": "./lib/types/execution.js"
+    },
+    "./cards": {
+      "types": "./lib/types/cards.d.ts",
+      "default": "./lib/types/cards.js"
+    },
+    "./knowledge": {
+      "types": "./lib/types/knowledge.d.ts",
+      "default": "./lib/types/knowledge.js"
+    },
+    "./reviews": {
+      "types": "./lib/types/reviews.d.ts",
+      "default": "./lib/types/reviews.js"
+    },
+    "./proposals": {
+      "types": "./lib/types/proposals.d.ts",
+      "default": "./lib/types/proposals.js"
+    },
+    "./learning-search": {
+      "types": "./lib/types/learning-search.d.ts",
+      "default": "./lib/types/learning-search.js"
+    },
+    "./source-context": {
+      "types": "./lib/types/source-context.d.ts",
+      "default": "./lib/types/source-context.js"
+    },
+    "./skeleton": {
+      "types": "./lib/types/skeleton.d.ts",
+      "default": "./lib/types/skeleton.js"
+    },
+    "./materials": {
+      "types": "./lib/types/materials.d.ts",
+      "default": "./lib/types/materials.js"
+    },
+    "./material-api": {
+      "types": "./lib/types/material-api.d.ts",
+      "default": "./lib/types/material-api.js"
+    },
+    "./material-read": {
+      "types": "./lib/types/material-read.d.ts",
+      "default": "./lib/types/material-read.js"
+    },
+    "./material-records": {
+      "types": "./lib/types/material-records.d.ts",
+      "default": "./lib/types/material-records.js"
+    },
     "./courses": {
       "types": "./lib/types/courses.d.ts",
       "default": "./lib/types/courses.js"
@@ -19,6 +72,34 @@
     ".": {
       "types": "./lib/types/index.d.ts",
       "default": "./lib/types/index.js"
+    },
+    "./sets": {
+      "types": "./lib/types/sets.d.ts",
+      "default": "./lib/types/sets.js"
+    },
+    "./routes": {
+      "types": "./lib/types/routes.d.ts",
+      "default": "./lib/types/routes.js"
+    },
+    "./plans": {
+      "types": "./lib/types/plans.d.ts",
+      "default": "./lib/types/plans.js"
+    },
+    "./book-exploration": {
+      "types": "./lib/types/book-exploration.d.ts",
+      "default": "./lib/types/book-exploration.js"
+    },
+    "./calendar": {
+      "types": "./lib/types/calendar.d.ts",
+      "default": "./lib/types/calendar.js"
+    },
+    "./handoffs": {
+      "types": "./lib/types/handoffs.d.ts",
+      "default": "./lib/types/handoffs.js"
+    },
+    "./memory": {
+      "types": "./lib/types/memory.d.ts",
+      "default": "./lib/types/memory.js"
     }
   },
   "files": [

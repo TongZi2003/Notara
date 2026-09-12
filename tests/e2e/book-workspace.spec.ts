@@ -1,0 +1,54 @@
+import { test, expect, enterClassroom } from './fixtures/classroom.ts';
+import { connectRuntime } from '../fixtures/http-runtime.ts';
+import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
+import type { MaterialView } from '@studyforge/contracts/material-records';
+import type { CardView } from '@studyforge/contracts/cards';
+import type { SessionListValue } from '@deepseek-ai/dsh-api-session-controller';
+import type { CourseView } from '@studyforge/contracts/courses';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+const value = <T,>(reply: RemoteResult<T>): T => { if (!reply.ok) throw new Error(JSON.stringify(reply.error)); return reply.value; };
+
+test('book expands into existing cards, switches view and returns to the exact source without learning writes; breakdown is explicit', async ({ page, classroom }, info) => {
+  const client = await connectRuntime(classroom);
+  const book = value(await client.rpc<MaterialView>('studyforgeMaterials/import', { input: { operationId: 'book', material: { title: '函数原文', fileName: '函数.md', mediaType: 'text/markdown' }, base64: Buffer.from('定义域\n单调性\n').toString('base64') } }));
+  const source = { materialId: book.materialId, versionId: book.currentVersion.versionId, locator: { kind: 'text', start: { line: 1, column: 0 }, end: { line: 1, column: 3 } } };
+  value(await client.rpc('studyforgeOrganization/saveSkeleton', { input: { operationId: 'skeleton', materialId: book.materialId, expectedVersion: 0,
+    change: { nodes: [{ path: '函数', sources: [source] }, { path: '函数/定义域', sources: [source] }] } } }));
+  const card = value(await client.rpc<CardView>('studyforgeLearning/createCard', { input: { operationId: 'card', content: { title: '定义域卡片', front: '自变量允许的范围', chapter: '函数/定义域', sources: [source] } } }));
+  await page.setViewportSize({ width: 1440, height: 950 });
+  await enterClassroom(page, classroom.authUrl);
+  await page.getByRole('button', { name: '资料', exact: true }).first().click();
+  await page.getByTestId('material-row').filter({ hasText: '函数原文' }).getByRole('button').first().click();
+  const nodes = page.getByTestId('book-nodes');
+  await expect(nodes.locator('[data-kind]')).toHaveCount(1);
+  await nodes.locator('[data-kind="book"]').getByRole('button').first().click();
+  await nodes.getByRole('button', { name: '函数', exact: false }).filter({ hasText: /^▸ 函数$/ }).click();
+  await nodes.getByRole('button', { name: '定义域', exact: false }).first().click();
+  await expect(nodes.getByText('定义域卡片', { exact: true })).toBeVisible();
+  await nodes.getByText('定义域卡片', { exact: true }).click();
+  await expect(page.getByTestId('card-detail-title')).toHaveText('定义域卡片');
+  await page.getByRole('button', { name: '列表', exact: true }).click();
+  await expect(page.getByTestId('card-detail-title')).toHaveText('定义域卡片');
+  await page.getByRole('button', { name: '定位原文', exact: true }).click();
+  await expect(page.getByTestId('source-highlight').first()).toBeVisible();
+  expect(value(await client.rpc<CardView>('studyforgeLearning/card', { input: { target: card.ref } })).history).toEqual([]);
+  const before = await readFile(join(classroom.root, 'model-requests.jsonl'), 'utf8').catch(() => '');
+  expect(before.trim()).toBe('');
+  await page.screenshot({ path: info.outputPath('book-wide.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(async () => (await page.getByTestId('material-reader').boundingBox())?.width ?? 0).toBeGreaterThan(290);
+  await page.getByRole('button', { name: '结构', exact: true }).click();
+  await expect(page.getByTestId('card-detail-title')).toBeVisible();
+  await page.screenshot({ path: info.outputPath('book-narrow.png'), fullPage: true });
+  await nodes.locator('[data-kind="section"]').filter({ hasText: '定义域' }).getByRole('button', { name: '继续拆解' }).click();
+  await expect(page.locator('[data-composer-input]')).toBeVisible();
+  await expect.poll(async () => {
+    const listed = value(await client.rpc<SessionListValue>('session/list', { _request: {} }));
+    return listed.items.filter(item => !item.blank && item.origin !== 'subagent').length;
+  }).toBe(1);
+  const session = value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(item => !item.blank && item.origin !== 'subagent')!;
+  const course = value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId: session.sessionId } }));
+  expect(course.data.teachingRef).toBe('organize');
+  expect(course.data.lessonMaterials.materials[0]).toMatchObject({ kind: 'source', source: { materialId: book.materialId, versionId: book.currentVersion.versionId } });
+});

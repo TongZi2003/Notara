@@ -64,7 +64,7 @@ test('no-op and rejected content preserve actual content revisions', async () =>
 test('corrupt native single medium rejects instead of creating empty records', async () => {
   const { cards, owner, root } = await setup();
   await cards.create({ ...ctxWrite, operationId: 'create' }, 'one', { title: '保留' }); await owner.close();
-  const file = join(root, '.studyforge', 'sf_card.json');
+  const file = join(root, '.studyforge', 'sf_records.json');
   await writeFile(file, (await readFile(file, 'utf8')).slice(0, 10));
   const ctx = new Context(); await ctx.plugin(Storage);
   const broken = await openWorkspaceRecords(ctx, root, 'student-a', clock);

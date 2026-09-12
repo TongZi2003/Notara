@@ -9,11 +9,88 @@
     "moduleResolution": "NodeNext",
     "moduleDetection": "force",
     "paths": {
+      "@studyforge/domain/handoffs": ["./packages/domain/src/courses/handoff-service.ts"],
+      "@studyforge/domain/class-close": ["./packages/domain/src/courses/class-close-service.ts"],
       "@studyforge/contracts/*": [
         "./packages/contracts/src/*.ts"
       ],
       "@studyforge/domain/evidence": [
         "./packages/domain/src/evidence/evidence-query.ts"
+      ],
+      "@studyforge/domain/sets": [
+        "./packages/domain/src/organization/set-service.ts"
+      ],
+      "@studyforge/domain/routes": [
+        "./packages/domain/src/organization/route-service.ts"
+      ],
+      "@studyforge/domain/plans": [
+        "./packages/domain/src/organization/plan-service.ts"
+      ],
+      "@studyforge/domain/skeleton-authoring": [
+        "./packages/domain/src/organization/skeleton-authoring.ts"
+      ],
+      "@studyforge/domain/card-changes": [
+        "./packages/domain/src/cards/card-changes.ts"
+      ],
+      "@studyforge/domain/proposals": [
+        "./packages/domain/src/proposals/proposal-service.ts"
+      ],
+      "@studyforge/domain/receipt-outbox": [
+        "./packages/domain/src/proposals/receipt-outbox.ts"
+      ],
+      "@studyforge/domain/storage": [
+        "./packages/domain/src/storage/record-store.ts"
+      ],
+      "@studyforge/domain/clock": [
+        "./packages/domain/src/clock.ts"
+      ],
+      "@studyforge/domain/courses": [
+        "./packages/domain/src/courses/course-metadata.ts"
+      ],
+      "@studyforge/domain/access": [
+        "./packages/domain/src/access/execution-binding.ts"
+      ],
+      "@studyforge/domain/ids": [
+        "./packages/domain/src/ids.ts"
+      ],
+      "@studyforge/domain/cards": [
+        "./packages/domain/src/cards/card-service.ts"
+      ],
+      "@studyforge/domain/knowledge": [
+        "./packages/domain/src/knowledge/knowledge-service.ts"
+      ],
+      "@studyforge/domain/review": [
+        "./packages/domain/src/review/review-service.ts"
+      ],
+      "@studyforge/domain/learning-records": [
+        "./packages/domain/src/review/learning-record-projection.ts"
+      ],
+      "@studyforge/domain/lesson-resources": [
+        "./packages/domain/src/courses/lesson-resource-projection.ts"
+      ],
+      "@studyforge/domain/learning-search": [
+        "./packages/domain/src/materials/learning-search.ts"
+      ],
+      "@studyforge/domain/outputs": [
+        "./packages/domain/src/courses/output-projection.ts"
+      ],
+      "@studyforge/domain/materials": [
+        "./packages/domain/src/materials/material-service.ts"
+      ],
+      "@studyforge/domain/skeleton": [
+        "./packages/domain/src/materials/skeleton-service.ts"
+      ],
+      "@studyforge/domain/docx": [
+        "./packages/domain/src/materials/docx/index-docx.ts"
+      ],
+      "@studyforge/domain/docx-text": [
+        "./packages/domain/src/materials/docx/normalize-text.ts"
+      ],
+      "@studyforge/domain/material-read": [
+        "./packages/domain/src/materials/read-material.ts"
+      ],
+      "@studyforge/domain/course-projection": [
+        "./packages/domain/src/courses/course-projection.ts"
       ],
       "@studyforge/contracts/probe": [
         "./packages/contracts/src/probe.ts"
@@ -21,11 +98,17 @@
       "@studyforge/contracts": [
         "./packages/contracts/src/index.ts"
       ],
-      "@studyforge/domain/outputs": [
-        "./packages/domain/src/courses/output-projection.ts"
+      "@studyforge/domain/book-exploration": [
+        "./packages/domain/src/materials/book-exploration.ts"
       ],
-      "@studyforge/domain/course-projection": [
-        "./packages/domain/src/courses/course-projection.ts"
+      "@studyforge/domain/read-day": [
+        "./packages/domain/src/organization/read-day.ts"
+      ],
+      "@studyforge/domain/daily-report": [
+        "./packages/domain/src/organization/daily-report.ts"
+      ],
+      "@studyforge/domain/memory": [
+        "./packages/domain/src/memory/memory-service.ts"
       ]
     },
     "types": [],

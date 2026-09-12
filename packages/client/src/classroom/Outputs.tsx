@@ -21,9 +21,11 @@ export interface OutputsProps {
 const KIND_LABELS: Record<OutputKind, string> = {
   card: '卡片',
   knowledge: '知识',
-  memory: '记忆',
-  handoff: '交接',
+  memory: '学情',
+  handoff: '课堂小结',
   diagram: '图示',
+  set: '学习集', route: '课程安排', plan: '计划', skeleton: '目录',
+  course: '本课设置',
 };
 
 const STATUS_LABELS: Record<OutputEntry['status'], string> = {

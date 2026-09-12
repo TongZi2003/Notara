@@ -52,3 +52,44 @@ if (sha(sessionApiSource) !== sessionApiPatched) {
   writeFileSync(sessionApiFile, result);
 }
 console.log('Verified rc.2 native rename projection checkpoint');
+
+// rc.2 paints the expanded model serialization as its optimistic user echo.
+// Carry the captured editor text separately through the existing native sink.
+// Admission, request identity, attachments, cancellation and recovery stay native.
+const inputFile = join(project, 'node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js');
+const inputOriginal = '81314dfd95864f2522f8edb812e3f8e08b04a8ef2141913e6e8cbdaae1ffc37f';
+const inputPatched = 'a52d95fd35a71d1244fd34f3470cefbaf6414640c87ddc0442f2baeb1ee259f4';
+const inputSource = readFileSync(inputFile, 'utf8');
+if (sha(inputSource) !== inputPatched) {
+  if (sha(inputSource) !== inputOriginal) throw new Error('Unknown DSH native input artifact');
+  let result = inputSource;
+  for (const [before, after] of [
+  [
+    "async sendSession(session, text, attachmentIds, mode, signal) {",
+    "async sendSession(session, text, attachmentIds, mode, signal, displayText) {"
+  ],
+  [
+    "const submission = session.beginSubmission({\n\t\t\t\t\tmode,\n\t\t\t\t\ttext,",
+    "const submission = session.beginSubmission({\n\t\t\t\t\tmode,\n\t\t\t\t\ttext: displayText ?? text,"
+  ],
+  [
+    "this.deps.defaultSink(out.trim(), attachmentIds, mode, attempt.signal)",
+    "this.deps.defaultSink(out.trim(), attachmentIds, mode, attempt.signal, draft.trim())"
+  ],
+  [
+    "defaultSink: (text, attachmentIds, mode, signal) => this.sink(session, text, attachmentIds, mode, signal)",
+    "defaultSink: (text, attachmentIds, mode, signal, displayText) => this.sink(session, text, attachmentIds, mode, signal, displayText)"
+  ],
+  [
+    "sink(session, text, attachmentIds, mode, signal) {",
+    "sink(session, text, attachmentIds, mode, signal, displayText) {"
+  ],
+  [
+    "this.conversation().sendSession(session, text, attachmentIds, mode, signal)",
+    "this.conversation().sendSession(session, text, attachmentIds, mode, signal, displayText)"
+  ]
+]) result = result.replace(before!, after!);
+  if (sha(result) !== inputPatched) throw new Error('DSH native pending display patch digest mismatch');
+  writeFileSync(inputFile, result);
+}
+console.log('Verified rc.2 native reference pending display');

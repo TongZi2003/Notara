@@ -19,6 +19,7 @@
   },
   "files": [
     "presets",
+    "lib/teaching-resources",
     "lib/types",
     "lib/typert.host.js",
     "lib/typert.host.d.ts",
@@ -35,6 +36,7 @@
     "@deepseek-ai/dsh-storage": "0.1.5-rc.2",
     "@deepseek-ai/dsh-storage-domain": "0.1.5-rc.2",
     "@deepseek-ai/dsh-storage-json": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-subagent": "0.1.5-rc.2",
     "@deepseek-ai/dsh-token-meter": "0.1.5-rc.2",
     "@deepseek-ai/dsh-tools": "0.1.5-rc.2",
     "@deepseek-ai/dsh-typert-protocol": "0.1.5-rc.2",

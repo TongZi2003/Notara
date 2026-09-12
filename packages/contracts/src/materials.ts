@@ -100,7 +100,7 @@ export type SelectionSnapshot = z.infer<typeof SelectionSnapshotSchema>;
  */
 export const LessonMaterialSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('source'), source: MaterialContextSchema }).strict(),
-  z.object({ kind: z.literal('card'), cardRef: z.string().min(1) }).strict(),
+  z.object({ kind: z.literal('card'), cardRef: z.string().min(1), cardVersion: z.number().int().positive().optional() }).strict(),
 ]);
 export type LessonMaterial = z.infer<typeof LessonMaterialSchema>;
 

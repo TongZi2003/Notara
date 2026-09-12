@@ -1,0 +1,17 @@
+
+> studyforge-dsh@0.0.0 test:live
+> tsx scripts/test-live.ts
+
+test-live: live lane requires network access and the following external credentials:
+  - DEEPSEEK_API_KEY: MISSING (BLOCKED) · used by web_search (dsh-web-search-deepseek) and the DeepSeek chat adapter
+test-live: credentialed search/model probes are BLOCKED; anonymous HTTP fetch and provider assembly still run.
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |live| tests/live/native-capabilities.test.ts (4 tests | 2 skipped) 1305ms
+     ✓ anonymous native HTTP fetch retains a real URL and truncation fact  1294ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed | 2 skipped (4)
+   Start at  08:14:23
+   Duration  1.68s (transform 61ms, setup 0ms, import 258ms, tests 1.31s, environment 0ms)

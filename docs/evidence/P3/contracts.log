@@ -1,0 +1,5 @@
+
+> studyforge-dsh@0.0.0 check:contracts
+> tsx scripts/check-contracts.ts
+
+PASS: 25 same-source JSON schemas; authority excluded; authored history headings preserved
