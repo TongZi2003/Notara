@@ -7,7 +7,7 @@
    the printed palette where it is not. Declared on the page roots themselves, so
    the numbers resolve there (a var() inside a custom property is substituted on
    the declaring element, not on the user). */
-:is(.sf-materials,.sf-cards,.sf-review,.sf-handout,.sf-book-structure,.sf-lesson,.sf-card-detail,.sf-review-card){
+:is(.sf-materials,.sf-cards,.sf-review,.sf-handout,.sf-book-structure,.sf-lesson,.sf-card-detail,.sf-review-card,.sf-lesson-modal){
   --op-page:var(--nb-page,#f6f1e3); --op-paper:var(--nb-paper,#efe7d2); --op-hi:var(--nb-hi,#fdfaf1);
   --op-ink:var(--nb-ink,#3a3531); --op-pen:var(--nb-pen,#26437c); --op-pencil:var(--nb-pencil,#756e61);
   --op-seal:var(--nb-seal,#c93a2e); --op-rule:var(--nb-rule,#d9d2bd); --op-rule-hi:var(--nb-rule-hi,#b9b19c);

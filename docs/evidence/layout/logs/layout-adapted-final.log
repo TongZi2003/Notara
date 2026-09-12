@@ -1,0 +1,51 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/notebook-pages.spec.ts tests/e2e/notebook-theme.spec.ts tests/e2e/teaching-presets.spec.ts tests/e2e/confirmation-editor.spec.ts tests/e2e/coauthor-organization.spec.ts --output=.runtime/layout-adapted-final
+
+
+Running 10 tests using 1 worker
+
+(node:80382) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/coauthor-organization.spec.ts:78:1 › a planned node really opens one native lesson, and a restart keeps it bound (17.1s)
+  ✓   2 tests/e2e/coauthor-organization.spec.ts:120:1 › two writers move different nodes from the same read, and only the same node refuses (22.7s)
+  ✓   3 tests/e2e/coauthor-organization.spec.ts:166:1 › a plan is edited by its own target, keeps the draft on a stale save, and never rewrites another plan (23.8s)
+  ✓   4 tests/e2e/coauthor-organization.spec.ts:259:1 › at 390 the course page really widens after the sidebar collapses, and the canvas still fits (9.9s)
+  ✓   5 tests/e2e/confirmation-editor.spec.ts:57:1 › a proposed card waits, keeps the teacher original beside the student draft, and saves once (16.9s)
+  ✓   6 tests/e2e/confirmation-editor.spec.ts:103:1 › a rejected proposal saves nothing at all (17.1s)
+  ✘   7 tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths (15.6s)
+(node:81404) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   8 tests/e2e/notebook-theme.spec.ts:10:1 › notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft (12.2s)
+  ✓   9 tests/e2e/notebook-theme.spec.ts:88:1 › notebook card slips open the real card and its source returns to the originating lesson without recording study (10.4s)
+  ✓  10 tests/e2e/teaching-presets.spec.ts:10:1 › five teaching choices preserve the native draft and same lesson; a temporary requirement reaches the next actual request (17.5s)
+
+
+  1) tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths
+
+    Error: 管理学习集 content width 390
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      76 |       if (route === 'cards') await expect(surface.getByTestId('card-row')).toHaveCount(3);
+      77 |       if (route === 'calendar') await expect(surface.getByTestId('calendar-course')).toHaveCount(3);
+    > 78 |       expect(await surface.evaluate(element => element.scrollWidth <= element.clientWidth + 1), label + ' content width ' + width).toBe(true);
+         |                                                                                                                                    ^
+      79 |       await page.screenshot({ path: info.outputPath(`notebook-${route}-${width}.png`), fullPage: true });
+      80 |       if (route === 'materials' && width === 1440) {
+      81 |         await surface.getByTestId('material-row').first().getByRole('button').first().click();
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/notebook-pages.spec.ts:78:132
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:81270) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/layout-adapted-final/notebook-pages-original-no-b163e-at-desktop-and-phone-widths/error-context.md
+
+  1 failed
+    tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths
+  9 passed (2.7m)

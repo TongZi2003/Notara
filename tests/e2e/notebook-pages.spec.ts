@@ -1,4 +1,4 @@
-import { test, expect, enterClassroom, sendInput } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, sendInput, openRoot } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { MaterialView } from '@studyforge/contracts/material-records';
@@ -18,12 +18,17 @@ test('original notebook pages show real books, cards, calendar and learning reco
   await expect(page.locator('[data-chat-flow-kind="assistant-step"] .katex').first()).toBeVisible();
   await expect(page.locator('[data-chat-flow-kind="assistant-step"] table')).toBeVisible();
   await expect(page.locator('[data-chat-flow-kind="assistant-step"] pre code')).toHaveCSS('font-family', /monospace/);
-  await expect(page.getByTestId('notebook-sidebar')).toBeVisible();
-  await expect(page.locator('[data-rightbar-collapsed]').first()).toHaveCSS('grid-template-columns', /^196px /);
+  const sidebar = page.getByTestId('notebook-sidebar');
+  await expect(sidebar).toBeVisible();
+  // The notebook column is 196px wide when open; the native frame no longer
+  // exposes the old [data-rightbar-collapsed] grid-template hook.
+  await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeGreaterThan(180);
+  await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeLessThan(230);
   await page.getByRole('button', { name: '收起侧栏', exact: true }).click();
-  await expect(page.getByTestId('notebook-sidebar')).toHaveAttribute('data-collapsed', 'true');
+  await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
   await page.getByRole('button', { name: '展开侧栏', exact: true }).click();
-  await expect(page.locator('[data-rightbar-collapsed]').first()).toHaveCSS('grid-template-columns', /^196px /);
+  await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeGreaterThan(180);
+  await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeLessThan(230);
 
   const books: MaterialView[] = [];
   for (const [index, title] of ['函数与导数', '三角函数笔记', '解析几何'].entries()) {
@@ -41,10 +46,26 @@ test('original notebook pages show real books, cards, calendar and learning reco
 
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
-    for (const [label, route] of [['首页', 'home'], ['课程', 'courses'], ['资料', 'materials'], ['卡片', 'cards'], ['学习集', 'sets'], ['学情', 'memory'], ['日历', 'calendar']] as const) {
-      await page.getByRole('button', { name: label, exact: true }).first().click();
+    for (const [label, route] of [['首页', 'home'], ['课程', 'courses'], ['资料', 'materials'], ['卡片与笔记', 'cards'], ['管理学习集', 'sets'], ['学情', 'memory'], ['日历', 'calendar']] as const) {
+      if (route === 'cards') { await openRoot(page, '资料'); await page.getByTestId('materials-open-cards').click(); }
+      else if (route === 'sets') {
+        // The picker and management action live in the expanded sidebar body; a
+        // narrow rightbar overlay can have collapsed it.
+        const sidebar = page.getByTestId('notebook-sidebar');
+        if (await sidebar.getAttribute('data-collapsed') === 'true') await sidebar.getByRole('button', { name: '展开侧栏', exact: true }).click();
+        await sidebar.getByRole('button', { name: '管理学习集', exact: true }).click();
+      }
+      else await openRoot(page, label);
       const surface = page.getByTestId('studyforge-page-studyforge.' + route);
       await expect(surface).toBeVisible();
+      // Below the native breakpoint the notebook rail collapses on its own; the
+      // page keeps its own width only after that re-layout has actually landed.
+      if (width === 390 && await sidebar.getAttribute('data-collapsed') !== 'true') {
+        // A student who expanded the rail earlier keeps it; at the phone width
+        // they fold it themselves so the page keeps a usable column.
+        await page.getByRole('button', { name: '收起侧栏', exact: true }).click();
+        await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+      }
       await expect.poll(async () => (await surface.boundingBox())?.width ?? 0).toBeGreaterThan(290);
       await page.evaluate(async () => { await document.fonts.ready; });
       if (route === 'home') await expect(surface.locator('.home-box')).toHaveCount(4);

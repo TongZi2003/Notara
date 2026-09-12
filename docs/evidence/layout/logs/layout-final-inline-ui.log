@@ -1,0 +1,23 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/book-workspace.spec.ts tests/e2e/lesson-materials-mindmap.spec.ts tests/e2e/card-fixed-version.spec.ts tests/e2e/current-classroom.spec.ts tests/e2e/source-roundtrip.spec.ts tests/e2e/layout-roadmap.spec.ts --output=.runtime/layout-final-inline-ui
+
+
+Running 13 tests using 1 worker
+
+(node:78210) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/book-workspace.spec.ts:23:1 › book expands along its real tree, opens a card and its original in place, and returns without writing (11.4s)
+  ✓   2 tests/e2e/card-fixed-version.spec.ts:22:1 › a frozen version shows its own text and offers no edit or newer redline (16.6s)
+  ✓   3 tests/e2e/current-classroom.spec.ts:53:1 › native classroom keeps its own composer and carries the student lesson surfaces (21.0s)
+  ✓   4 tests/e2e/current-classroom.spec.ts:161:1 › a creation session keeps the classroom and hides the learning lesson surfaces (10.0s)
+  ✓   5 tests/e2e/layout-roadmap.spec.ts:10:1 › the default roadmap shows real lessons, places and mounts them on the same route, and survives refresh (10.8s)
+  ✓   6 tests/e2e/layout-roadmap.spec.ts:64:1 › five navigation entries are visible and learning-space management remains reachable through settings (10.1s)
+  ✓   7 tests/e2e/lesson-materials-mindmap.spec.ts:22:1 › the lesson right column is one material map that opens originals and cards in place (11.0s)
+  ✓   8 tests/e2e/source-roundtrip.spec.ts:13:1 › selected text travels in the native message and returns to the same immutable source after refresh (25.6s)
+  ✓   9 tests/e2e/source-roundtrip.spec.ts:71:1 › PDF pointer rectangles remain in original coordinates at four rotations and return to their page (12.7s)
+  ✓  10 tests/e2e/source-roundtrip.spec.ts:130:1 › Word cross-paragraph selection preserves each real block including the middle repeated paragraph (10.3s)
+  ✓  11 tests/e2e/source-roundtrip.spec.ts:169:1 › native card reference returns the displayed fixed version without exposing the answer (9.9s)
+  ✓  12 tests/e2e/source-roundtrip.spec.ts:198:1 › native admission failure restores a frozen source reference and retry sends it once (10.4s)
+  ✓  13 tests/e2e/source-roundtrip.spec.ts:244:1 › pointer-selected image is attached before native sending and native queued steering preserves its frozen reference (19.3s)
+
+  13 passed (3.0m)

@@ -13,7 +13,8 @@ import { SetCreateSchema, SetPatchSchema } from '@studyforge/contracts/sets';
 import type { MaterialView } from '@studyforge/contracts/material-records';
 import type { CardView } from '@studyforge/contracts/cards';
 import type { SourceAnchor } from '@studyforge/contracts/materials';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { setNavigation } from './set-navigation.ts';
 import { CardDetail } from '../cards/CardDetail.tsx';
 import { ReviewScreen } from '../review/ReviewScreen.tsx';
 
@@ -29,6 +30,8 @@ export function SetPage({ ctx, onMaterial, onSource }: { ctx: Context; onMateria
   const [sets, setSets] = useState<SetView[]>([]), [materials, setMaterials] = useState<MaterialView[]>([]), [cards, setCards] = useState<CardView[]>([]);
   const [ready, setReady] = useState(false), [notice, setNotice] = useState('');
   const [selected, select] = useState<string>(), [editing, setEditing] = useState(false);
+  const navigationTarget = useSyncExternalStore(setNavigation.subscribe, setNavigation.read);
+  useEffect(() => { if (navigationTarget !== undefined) { select(navigationTarget); setEditing(false); } }, [navigationTarget]);
   const [baseline, setBaseline] = useState<SetView>(), [latest, setLatest] = useState<SetView>();
   const [draft, setDraft] = useState<Draft>(draftOf()), [busy, setBusy] = useState(false);
   const [detail, setDetail] = useState<string>(), [studying, setStudying] = useState<string>();

@@ -10,8 +10,6 @@ async function settle(page: Page): Promise<void> {
       await button.click();
     } catch { /* onboarding is a one-time surface */ }
   }
-  const more = page.locator('.sf-side-more');
-  if (await more.count() && await more.getAttribute('open') === null) await more.locator('summary').click();
 }
 
 test('native classroom survives refresh, HMR and Client lifecycle without a placeholder shell', async ({ page, dsh }, testInfo) => {
@@ -100,8 +98,9 @@ test('native classroom survives refresh, HMR and Client lifecycle without a plac
 
     // The smallest supported viewport keeps the entries reachable and unclipped.
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(page.getByRole('button', { name: '日历', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: '日历', exact: true }).click();
+    const calendarRow = page.getByTestId('notebook-sidebar').getByRole('button', { name: '日历', exact: true });
+    await expect(calendarRow).toBeVisible();
+    await calendarRow.click();
     const calendar = page.getByTestId('studyforge-page-studyforge.calendar');
     await expect(calendar).toBeVisible();
     await expect.poll(async () => (await calendar.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(300);

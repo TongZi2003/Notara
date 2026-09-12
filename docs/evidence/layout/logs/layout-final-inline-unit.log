@@ -1,0 +1,14 @@
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts tests/unit/mindmap-projection.test.ts tests/unit/lesson-card-version-projection.test.ts tests/unit/lesson-pane-request.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |unit| tests/unit/lesson-pane-request.test.ts (1 test) 2ms
+ ✓ |unit| tests/unit/mindmap-projection.test.ts (8 tests) 3ms
+ ✓ |unit| tests/unit/lesson-card-version-projection.test.ts (1 test) 1ms
+
+ Test Files  3 passed (3)
+      Tests  10 passed (10)
+   Start at  14:51:07
+   Duration  306ms (transform 189ms, setup 0ms, import 324ms, tests 6ms, environment 0ms)

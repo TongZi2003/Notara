@@ -36,6 +36,7 @@ import type { SourceReferences } from './source-selection.ts';
 import { rememberSourceText, sourceTextOf } from './source-text.ts';
 import { SourceCapture } from './SourceCapture.tsx';
 import type { NativeResourceParams } from './native-preview-adapter.ts';
+import './reader-page.css';
 import {
   DOCX_MEDIA_TYPE, byteLabel, decodeBase64, decodeText, encodeBase64, importFailureCopy,
   kindLabel, mediaTypeOfName, titleFromFileName, versionFailureCopy,
@@ -131,32 +132,10 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
   // the library uses, and opening one goes through the library's own page.
   const [cardList, setCardList] = useState<CardListState>({ status: 'loading' });
   const [cardRefresh, setCardRefresh] = useState(0);
-  // A book's own saved sections come back through the skeleton read; expanding
-  // one asks the Host once per material and the answer is kept until the page
-  // goes away. A refused read is not an empty book: it can be asked again.
-  const [openBook, setOpenBook] = useState<string | undefined>(undefined);
-  const [outlines, setOutlines] = useState<Record<string, OutlineState>>({});
   const chooseMaterial = useCallback((materialId: string, versionId: string, locator?: MaterialContext['locator']) => {
     navigation.show({ materialId, versionId, ...(locator === undefined ? {} : { locator }) });
     setSelected({ materialId, versionId, ...(locator === undefined ? {} : { locator }) });
   }, [navigation]);
-
-  const loadOutline = useCallback(async (materialId: string) => {
-    setOutlines(state => ({ ...state, [materialId]: { status: 'loading' } }));
-    try {
-      const read = await host.skeleton({ materialId });
-      setOutlines(state => ({ ...state, [materialId]: read.ok
-        ? (read.value.nodes.length > 0 ? { status: 'ready', nodes: read.value.nodes } : { status: 'empty' })
-        : { status: 'failed' } }));
-    } catch {
-      setOutlines(state => ({ ...state, [materialId]: { status: 'failed' } }));
-    }
-  }, [host]);
-
-  const toggleBook = useCallback((view: MaterialView) => {
-    setOpenBook(current => (current === view.materialId ? undefined : view.materialId));
-    if (openBook !== view.materialId && outlines[view.materialId] === undefined) void loadOutline(view.materialId);
-  }, [loadOutline, openBook, outlines]);
 
   useEffect(() => {
     let live = true;
@@ -243,30 +222,12 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
     : active.versions.find(version => version.versionId === selected?.versionId) ?? active.currentVersion;
 
   const open = active !== undefined && activeVersion !== undefined ? { view: active, version: activeVersion } : undefined;
-  const readOutline = open === undefined || !isBookFormat(open.view.mediaType) ? undefined : outlineOf(open.view);
-  const readNodes = open === undefined ? [] : structureOf(open.view);
   const books = materials.filter(view => isBookFormat(view.mediaType));
   const files = materials.filter(view => !isBookFormat(view.mediaType));
   const cards = cardList.status === 'ready' ? cardList.cards : [];
   const shelfShown = scope === 'all' || scope === 'shelf' ? books : [];
   const filesShown = scope === 'all' || scope === 'files' ? files : [];
   const showCards = scope === 'all' || scope === 'cards';
-  // Function declarations, so the reading branch above can use them too.
-  function outlineOf(view: MaterialView): OutlineState | undefined { return outlines[view.materialId]; }
-  function structureOf(view: MaterialView): { readonly anchor: SourceAnchor; readonly path: string }[] {
-    const state = outlines[view.materialId];
-    if (state?.status !== 'ready') return [];
-    return state.nodes.flatMap(node => node.sources.map(anchor => ({ anchor, path: node.path })));
-  }
-  // Reading one book: its saved sections are read once, so the outline pane is
-  // the book's own structure (and never a guessed one).
-  useEffect(() => {
-    if (selected === undefined) return;
-    const view = materials.find(item => item.materialId === selected.materialId);
-    if (view === undefined || !isBookFormat(view.mediaType)) return;
-    if (outlines[view.materialId] !== undefined) return;
-    void loadOutline(view.materialId);
-  }, [selected, materials, outlines, loadOutline]);
 
   return <main className="sf-page sf-materials" data-reading={open === undefined ? 'false' : 'true'}
     data-studyforge-page={MATERIALS_PAGE_ID} data-testid={`studyforge-page-${MATERIALS_PAGE_ID}`}>
@@ -280,6 +241,8 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
       }}>← 回到《{originLesson.title || '原来的课'}》</button>}
       <div className="sf-assets-right">
         {open === undefined && <ImportMaterial pending={pending} onFiles={files => { void importFiles(files); }} />}
+        {open === undefined && <button type="button" className="sf-action sf-action-quiet" data-testid="materials-open-cards"
+          onClick={() => { ctx.layout.selectPanel('studyforge.cards' as MainPanelId); }}>卡片与笔记</button>}
         <span className="sf-page-date">{todayLabel()}</span>
       </div>
     </header>
@@ -340,8 +303,6 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
           <div className="sf-sec-head"><h2>卡片</h2>
             <span className="cnt">{cardList.status === 'ready' ? `${String(cards.length)} 张 · 你存下的题卡与笔记` : '你存下的题卡与笔记'}</span>
             <button type="button" className="sf-quiet" data-testid="materials-cards-refresh" onClick={() => { setCardRefresh(count => count + 1); }}>刷新</button>
-            <button type="button" className="sf-action sf-action-quiet" data-testid="materials-card-new"
-              onClick={() => { ctx.layout.selectPanel('studyforge.cards' as MainPanelId); }}>去卡片页新建</button>
             <span className="line" /></div>
           {cardList.status === 'loading' && <p className="sf-note" role="status">正在看你的卡片…</p>}
           {cardList.status === 'failed' && <p className="sf-note" role="status">卡片列表暂时取不到，稍后再看一次。</p>}
@@ -367,24 +328,10 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
           && <p className="sf-note">这一类里还没有资料。</p>}
       </div>}
 
-      {open !== undefined && <div className="sf-reader-page">
-        <nav className="sf-reader-outline" aria-label="这份资料的目录">
-          {isBookFormat(open.view.mediaType)
-            ? <>
-              {readOutline === undefined || readOutline.status === 'loading' ? <p className="sf-note">正在看目录…</p> : null}
-              {readOutline?.status === 'empty' && <p className="sf-note" data-testid="materials-outline-empty">这本书还没整理过目录。</p>}
-              {readOutline?.status === 'failed' && <p className="sf-note" role="status">目录暂时没取到。
-                <button type="button" className="sf-quiet" onClick={() => { void loadOutline(open.view.materialId); }}>再试一次</button></p>}
-              {readOutline?.status === 'ready' && readNodes.map(({ anchor, path }) =>
-                <button key={`${path}-${anchor.versionId}-${describeLocator(anchor.locator)}`} type="button"
-                  className="sf-tree-row leaf" data-testid="materials-outline-node"
-                  onClick={() => { chooseMaterial(open.view.materialId, anchor.versionId, anchor.locator); }}>
-                  <span>{path.split('/').filter(Boolean).slice(-1)[0] ?? path}</span>
-                  <span className="cnt">{describeLocator(anchor.locator)}</span>
-                </button>)}
-            </>
-            : <p className="sf-note">这份资料只有原文，没有分节目录。</p>}
-        </nav>
+      {/* One reading branch, one column: a book is the original on the left and
+          its own map/list on the right (the map is its outline), never a second
+          standalone directory column beside them. */}
+      {open !== undefined && <div className="sf-reader-page" data-testid="materials-reader-page">
         <div className="sf-material-reader" data-testid="material-reader">
           <MaterialReader
             ctx={ctx}
@@ -451,24 +398,6 @@ type CardListState =
   | { readonly status: 'loading' }
   | { readonly status: 'failed' }
   | { readonly status: 'ready'; readonly cards: readonly CardView[] };
-
-/** One book's saved sections, and whether that read really came back. */
-type OutlineState =
-  | { readonly status: 'loading' }
-  | { readonly status: 'failed' }
-  | { readonly status: 'empty' }
-  | { readonly status: 'ready'; readonly nodes: readonly SkeletonNode[] };
-
-/** Where a section sits, in the student's own coordinates. */
-function describeLocator(locator: SourceLocator): string {
-  switch (locator.kind) {
-    case 'pdf': return `第 ${String(locator.page)} 页`;
-    case 'text': return locator.start.line === locator.end.line
-      ? `第 ${String(locator.start.line)} 行` : `第 ${String(locator.start.line)}–${String(locator.end.line)} 行`;
-    case 'image': return '图中的位置';
-    case 'docx': return 'Word 正文';
-  }
-}
 
 type ReaderState =
   | { readonly status: 'loading' }
@@ -588,7 +517,9 @@ function MaterialReader({ view, version, host, references, sessionId, readCurren
       {state.status === 'ready' && <SourceCapture version={version} data={state.data} index={state.index} references={references} sessionId={sessionId} locator={locator} />}
     </div>
     </div>
-    {isBookFormat(version.mediaType) && <BookWorkspace key={version.materialId} ctx={ctx} source={{ materialId: version.materialId, versionId: version.versionId }} onSource={source => { onSource(source); setMobileView('original'); }} />}
+    {/* One version is one tree: a newer version never reuses the older one's
+        expanded nodes or its pick. */}
+    {isBookFormat(version.mediaType) && <BookWorkspace key={`${version.materialId}@${version.versionId}`} ctx={ctx} source={{ materialId: version.materialId, versionId: version.versionId }} onSource={source => { onSource(source); setMobileView('original'); }} />}
     </div>
   </>;
 }

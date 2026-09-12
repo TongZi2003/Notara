@@ -11,14 +11,14 @@ import './notebook.css';
 
 const KEY = 'studyforge.notebook.appearance';
 const APPEARANCE = 'studyforge.appearance' as MainPanelId;
-const DEFAULTS = { enabled: true, scheme: 'jia', size: 'm', face: 'print', paper: 'hengxian' } as const;
-type Appearance = { enabled: boolean; scheme: 'jia' | 'yi' | 'bing' | 'ding'; size: 's' | 'm' | 'l'; face: 'print' | 'hand'; paper: 'hengxian' | 'fangge' };
-const OPTIONS = { scheme: ['jia', 'yi', 'bing', 'ding'], size: ['s', 'm', 'l'], face: ['print', 'hand'], paper: ['hengxian', 'fangge'] } as const;
+const DEFAULTS = { enabled: true, scheme: 'jia', size: 'm', face: 'print', paper: 'hengxian', tone: 'yellow' } as const;
+type Appearance = { enabled: boolean; scheme: 'jia' | 'yi' | 'bing' | 'ding'; size: 's' | 'm' | 'l'; face: 'print' | 'hand'; paper: 'hengxian' | 'fangge'; tone: 'yellow' | 'white' };
+const OPTIONS = { scheme: ['jia', 'yi', 'bing', 'ding'], size: ['s', 'm', 'l'], face: ['print', 'hand'], paper: ['hengxian', 'fangge'], tone: ['yellow', 'white'] } as const;
 function readAppearance(value: unknown): Appearance {
   const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const result: Appearance = { ...DEFAULTS };
   if (typeof raw.enabled === 'boolean') result.enabled = raw.enabled;
-  for (const key of ['scheme', 'size', 'face', 'paper'] as const) {
+  for (const key of ['scheme', 'size', 'face', 'paper', 'tone'] as const) {
     if ((OPTIONS[key] as readonly unknown[]).includes(raw[key])) Object.assign(result, { [key]: raw[key] });
   }
   return result;
@@ -60,22 +60,36 @@ const DARK: Record<string, string> = {
   '--dsw-specific-input-major': '#302d25', '--dsw-specific-menu': '#302d25',
 };
 const TOKENS: ThemeTokenOverrides = Object.fromEntries(Object.entries(LIGHT).map(([name, light]) => [name, { light, dark: DARK[name] ?? light }]));
+// White paper changes surfaces through the same native token layer. Ink and
+// the native dark palette keep their contrast; colored stickers keep their hue.
+const WHITE_SURFACES: Record<string, string> = {
+  '#f6f1e3': '#ffffff', '#fdfaf1': '#ffffff', '#efe7d2': '#ffffff', '#e9e2cf': '#f3f4f6',
+  '#e2d8bf': '#e8ecf2', '#eee7d6': '#f2f4f7', '#ebe3cd': '#edf0f4',
+  '#e7e0cd': '#edf0f3', '#d9d2bd': '#e0e4e9', '#b9b19c': '#b9c1cc', '#a9a28b': '#a1abb8',
+};
+const WHITE_TOKENS: ThemeTokenOverrides = Object.fromEntries(Object.entries(LIGHT).map(([name, light]) => [name, {
+  light: WHITE_SURFACES[light] ?? light, dark: DARK[name] ?? light,
+}]));
 
 /** Theme state is browser-local appearance only; no course/fact/model writes. */
 export function registerNotebook(ctx: Context, navigation: MaterialNavigation): void {
   let current = storedAppearance();
   let removeTokens: (() => void) | undefined;
+  let appliedTone: Appearance['tone'] | undefined;
   let returnPanel: MainPanelId | null = null;
   let returnMaterial: unknown;
   const listeners = new Set<() => void>();
   const subscribe = (listener: () => void): (() => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
   const get = (): Appearance => current;
-  const oldAttributes = new Map(['data-sf-notebook', 'data-sf-scheme', 'data-sf-size', 'data-sf-face', 'data-sf-paper'].map(name => [name, document.body.getAttribute(name)]));
+  const oldAttributes = new Map(['data-sf-notebook', 'data-sf-scheme', 'data-sf-size', 'data-sf-face', 'data-sf-paper', 'data-sf-tone'].map(name => [name, document.body.getAttribute(name)]));
   function apply(): void {
     document.body.dataset.sfNotebook = current.enabled ? 'on' : 'off';
-    for (const key of ['scheme', 'size', 'face', 'paper'] as const) document.body.setAttribute('data-sf-' + key, current[key]);
-    if (current.enabled && !removeTokens) removeTokens = ctx.theme.overrideTokens('@studyforge/notebook', TOKENS);
-    if (!current.enabled && removeTokens) { removeTokens(); removeTokens = undefined; }
+    for (const key of ['scheme', 'size', 'face', 'paper', 'tone'] as const) document.body.setAttribute('data-sf-' + key, current[key]);
+    if (removeTokens && (!current.enabled || appliedTone !== current.tone)) { removeTokens(); removeTokens = undefined; }
+    if (current.enabled && !removeTokens) {
+      removeTokens = ctx.theme.overrideTokens('@studyforge/notebook', current.tone === 'white' ? WHITE_TOKENS : TOKENS);
+      appliedTone = current.tone;
+    }
     for (const listener of listeners) listener();
   }
   function update(patch: Partial<Appearance>): void {
@@ -107,6 +121,7 @@ export function registerNotebook(ctx: Context, navigation: MaterialNavigation): 
       <header><button className="sf-quiet" data-testid="notebook-back" onClick={() => { if (returnPanel === 'studyforge.materials') navigation.restore(returnMaterial); ctx.layout.selectPanel(returnPanel); }}>← {returnPanel ? '返回' : '返回课堂'}</button><span>本子的样子</span></header>
       <div className="sf-notebook-settings-body"><h1>这本本子的字迹</h1><p className="sf-note">只改变纸面，不改变本子里的内容。</p>
         <label className="sf-notebook-check"><input type="checkbox" checked={state.enabled} onChange={event => update({ enabled: event.target.checked })} />使用手写笔记本</label>
+        <label>主题<select data-testid="notebook-tone" value={state.tone} onChange={event => update({ tone: event.target.value as Appearance['tone'] })}><option value="yellow">黄色主题</option><option value="white">白色主题</option></select></label>
         <label>字迹<select data-testid="notebook-scheme" value={state.scheme} onChange={event => update({ scheme: event.target.value as Appearance['scheme'] })}>
           <option value="jia">甲 · 钢笔行楷</option><option value="yi">乙 · 毛笔楷书</option><option value="bing">丙 · 文楷</option><option value="ding">丁 · 老师用印刷体</option>
         </select></label>

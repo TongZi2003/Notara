@@ -16,7 +16,7 @@
  * inherits down the subtree and the nearest ancestor wins.
  */
 import { z } from 'zod';
-import { EntityRefSchema, TimestampSchema } from './core.ts';
+import { EntityRefSchema, SessionIdSchema, TimestampSchema } from './core.ts';
 import { DaySchema } from './reviews.ts';
 import { LessonMaterialsSchema } from './lesson-materials.ts';
 
@@ -164,3 +164,35 @@ export interface RouteOpenResult {
   readonly node: RouteNode;
   readonly created: boolean;
 }
+
+/**
+ * One native lesson of the acting workspace, as the course page draws it.
+ *
+ * A lesson summary is a *read*: it names a native session that really exists,
+ * its own title and header creation time, the existing CourseMetadata material
+ * list, and the route node id its explicit binding would use. It is not the
+ * binding itself — nothing is written to the axis until the student binds it —
+ * and it is never a member of the layout, so browsing the graph cannot move a
+ * card or create a node.
+ */
+export const RouteNativeLessonSchema = z.object({
+  sessionId: SessionIdSchema,
+  title: z.string().trim().min(1),
+  /** The native header's own creation time, never the route row's clock. */
+  createdAt: TimestampSchema,
+  /** The native lesson this one was forked from, when that parent is a real lesson of the same workspace. */
+  parentSession: SessionIdSchema.optional(),
+  /** What this lesson already carries as teaching material; `{ materials: [] }` means none. */
+  materials: LessonMaterialsSchema,
+  /** This lesson's own CourseMetadata archived flag; false when the row does not exist. */
+  archived: z.boolean(),
+  /** The route node id its binding uses/creates; stable for one workspace + native session. */
+  nodeId: z.string().min(1),
+  /** The handoff revision this lesson really continued from, when the confirmed close pinned one. */
+  continuation: z.object({ ref: EntityRefSchema, version: z.number().int().positive() }).strict().optional(),
+  /** The teaching configuration this lesson carried, when it has one. */
+  teachingRef: z.string().min(1).optional(),
+  /** The short student-facing stance this lesson carried, when it has one. */
+  stance: z.string().min(1).optional(),
+}).strict();
+export type RouteNativeLesson = z.infer<typeof RouteNativeLessonSchema>;

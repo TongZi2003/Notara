@@ -1,0 +1,15 @@
+/* The classroom's own material pane: the lesson's map, and whatever one node
+   opened inside the same container. Scoped to the pane's own classes; the map
+   itself is styled by `mindmap.css`. */
+.sf-lesson .sf-lesson-materials-section{margin-top:16px;border-top:1px solid var(--op-rule,#d9d2bd);padding-top:12px}
+.sf-lesson .sf-lesson-materials-section h3{font-family:var(--op-print,"Songti SC","STSong",serif);font-size:12px;letter-spacing:.1em;color:var(--op-pencil,#756e61);margin:0 0 10px}
+.sf-lesson .sf-lesson-materials-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sf-lesson .sf-lesson-materials-head .sf-quiet{margin-bottom:10px;font-size:11px}
+.sf-lesson-materials{display:flex;flex-direction:column;gap:8px;min-width:0}
+.sf-lesson-pane{display:flex;flex-direction:column;gap:10px;min-width:0}
+.sf-lesson-pane-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.sf-lesson-pane-title{font-family:var(--op-print,"Songti SC","STSong",serif);font-size:15px;color:var(--op-ink,#3a3531)}
+.sf-lesson-pane-head .sf-meta{font-family:var(--op-mono,ui-monospace,monospace);font-size:11px;color:var(--op-pencil,#756e61)}
+.sf-source-anchors{display:flex;flex-wrap:wrap;gap:6px}
+.sf-source-anchors button[aria-pressed="true"]{border-color:var(--op-seal,#c93a2e);color:var(--op-seal,#c93a2e)}
+@media(max-width:900px){.sf-lesson .sf-lesson-materials-section{margin-top:12px}}

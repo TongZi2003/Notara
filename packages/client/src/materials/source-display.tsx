@@ -6,6 +6,8 @@ import { useMemo, useState, type ComponentType } from 'react';
 import { decodeSourceFragments, encodeSourceFragment, type SourceFragment } from '@studyforge/contracts/source-context';
 import { openLessonSource } from './native-preview-adapter.ts';
 import { cardAddress } from './CardResource.tsx';
+import { requestLessonPane } from './lesson-pane-request.ts';
+import { LESSON_TAB_KIND } from '../classroom/LessonPanel.tsx';
 
 type Block = { readonly type: string; readonly text?: string };
 function cleanContent<T extends Block>(blocks: readonly T[]): T[] {
@@ -48,19 +50,41 @@ function SourceLinks({ ctx, sessionId, fragments }: { ctx: Context; sessionId: s
       const version = fragment.objects.find(item => item.ref === current.cardRef)?.version;
       return [<button key={n} type="button" onClick={() => {
         if (String(ctx.sessions.list.getSnapshot().current) !== sessionId || typeof version !== 'number') return;
+        // In a lesson the right column is the lesson's own map: its pane opens
+        // the pinned card revision, and no second rail is drawn beside it.
+        if (inLesson(ctx, sessionId)) {
+          requestLessonPane(sessionId, { kind: 'card', title: fragment.titles[0]?.title ?? '卡片', target: current.cardRef, version });
+          ctx.sidebarRight.openTab(LESSON_TAB_KIND);
+          return;
+        }
         ctx.sidebarRight.openResource(cardAddress(current.cardRef, version));
       }}>{fragment.titles[0]?.title ?? '查看卡片'}</button>];
     }
     const sources = fragment.context.selection?.sources ?? (current?.kind === 'source' ? [current.source] : []);
-    return sources.map((source, i) => <button key={n + ':' + i} type="button" onClick={() => {
+    return sources.map((source, i) => {
+      const title = fragment.titles.find(item => item.ref === source.materialId)?.title ?? fragment.titles[0]?.title ?? '查看选段';
+      return <button key={n + ':' + i} type="button" onClick={() => {
+      if (inLesson(ctx, sessionId) && String(ctx.sessions.list.getSnapshot().current) === sessionId) {
+        requestLessonPane(sessionId, { kind: 'source', title, anchors: [source] });
+        ctx.sidebarRight.openTab(LESSON_TAB_KIND);
+        return;
+      }
       void openLessonSource({
         resolveForSession: input => ctx.remote.studyforgeMaterials.resolveForSession(input),
         openAddress: async (address, params) => { ctx.sidebarRight.openResource(address, { params }); },
       }, sessionId, source, () => String(ctx.sessions.list.getSnapshot().current ?? '')).then(outcome => {
         setNotice(outcome === 'opened' ? '' : '这处资料暂时打不开，请回资料页查看。');
       });
-    }}>{fragment.titles.find(item => item.ref === source.materialId)?.title ?? fragment.titles[0]?.title ?? '查看选段'}</button>);
+      }}>{title}</button>;
+    });
   })}{notice && <span role="status">{notice}</span>}</div>;
+}
+
+/** Whether this Session is a lesson, whose right column is its own material map. */
+function inLesson(ctx: Context, sessionId: string): boolean {
+  const list = ctx.sessions.list.getSnapshot();
+  if (list.current === undefined || String(list.current) !== sessionId) return false;
+  return list.byId[list.current]?.projectionValues?.agentPreset === 'studyforge-learning';
 }
 
 /** Read the public slot ledger, preserving the owner's inject/store/locale/children. */

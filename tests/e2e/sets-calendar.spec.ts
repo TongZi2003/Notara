@@ -1,4 +1,4 @@
-import { test, expect, enterClassroom } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, openRoot, openSetManagement } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { SetView } from '@studyforge/contracts/sets';
@@ -9,7 +9,7 @@ const value = <T,>(reply: RemoteResult<T>): T => { if (!reply.ok) throw new Erro
 test('student set edits preserve their draft through a real concurrent update and persist at narrow width', async ({ page, classroom }, info) => {
   const client = await connectRuntime(classroom);
   await enterClassroom(page, classroom.authUrl);
-  await page.getByRole('button', { name: '学习集', exact: true }).first().click();
+  await openSetManagement(page);
   await page.getByRole('button', { name: '新建学习集', exact: true }).click();
   await page.getByLabel('学习集名称').fill('期末复习');
   await page.getByLabel('复习间隔', { exact: true }).fill('1, 3, 7');
@@ -35,7 +35,7 @@ test('calendar opens the second actual planned lesson and daily settings survive
   const client = await connectRuntime(classroom), date = '2026-09-20';
   for (const title of ['第一节课', '第二节课']) value(await client.rpc<RouteView>('studyforgeOrganization/addRouteNode', { input: { operationId: title, node: { title, date } } }));
   await enterClassroom(page, classroom.authUrl);
-  await page.getByRole('button', { name: '日历', exact: true }).first().click();
+  await openRoot(page, '日历');
   await page.getByLabel('查看日期').fill(date);
   await expect(page.getByTestId('calendar-course')).toHaveCount(2);
   await expect(page.getByTestId('calendar-due')).toContainText('0 张');

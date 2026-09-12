@@ -19,9 +19,10 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RouteRecordSchema, RouteViewSchema } from '../../packages/contracts/src/routes.ts';
+import type { RouteNativeLesson } from '../../packages/contracts/src/routes.ts';
 import type { HostContext } from '../../packages/contracts/src/execution.ts';
 import { createTestClock } from '../../packages/domain/src/clock.ts';
-import { ROUTE_KIND, RouteService, type NativeOpen, type RouteValidators } from '../../packages/domain/src/organization/route-service.ts';
+import { ROUTE_KIND, RouteService, lessonNodeId, type NativeLessonSource, type NativeOpen, type RouteValidators } from '../../packages/domain/src/organization/route-service.ts';
 import { openWorkspaceRecords } from '../../packages/host/src/storage.ts';
 import { toolSchema } from '../../packages/host/src/tools/tool-schema.ts';
 
@@ -31,6 +32,8 @@ const NATIVE_OPENED_AT = '2026-09-11T22:00:00Z';
 const roots: string[] = [];
 const cleanups: (() => Promise<void>)[] = [];
 const HOST: HostContext = { workspaceId: 'student-a', sessionId: 'lesson-a', actor: 'student', purpose: 'learning' };
+/** The node id a session-derived binding uses for the test workspace, per the domain's own rule. */
+const lessonNodeIdOf = (sessionId: string): string => lessonNodeId(HOST.workspaceId, sessionId);
 const student = (operationId: string, expectedVersion?: number) =>
   ({ ...HOST, operationId, ...(expectedVersion === undefined ? {} : { expectedVersion }) });
 
@@ -72,9 +75,31 @@ async function open(root?: string) {
     },
     teachingRef: (_ctx, ref) => knownRefs.has(`teach:${ref}`) ? Promise.resolve() : Promise.reject(refuse('teaching_ref_missing')),
   };
-  const routes = new RouteService(routeStore, native, clock, validators);
+  // The read-only native-lesson side: only the ids this fake store really holds
+  // are lessons of this workspace; the domain never asks it to create one.
+  const lessonStore = new Map<string, Omit<RouteNativeLesson, 'sessionId' | 'nodeId'>>();
+  let lessonsReads = 0;
+  const withId = (sessionId: string, found: Omit<RouteNativeLesson, 'sessionId' | 'nodeId'>): RouteNativeLesson =>
+    ({ sessionId, ...found, nodeId: lessonNodeIdOf(sessionId) });
+  // A real failure (corrupt or unreadable native facts) is not "no lesson": the
+  // stub raises it so the service must surface it, never default to an empty row.
+  const failOn = 'sess-corrupt';
+  const lessons: NativeLessonSource = {
+    read: async (_ctx, sessionId) => {
+      if (sessionId === failOn) throw Object.assign(new Error('record_corrupt'), { code: 'record_corrupt' });
+      lessonsReads += 1;
+      const found = lessonStore.get(sessionId);
+      return found === undefined ? { foreign: true } : { foreign: false, lesson: withId(sessionId, found) };
+    },
+    list: async () => {
+      if (lessonStore.has(failOn)) throw Object.assign(new Error('record_corrupt'), { code: 'record_corrupt' });
+      return [...lessonStore.entries()].map(([sessionId, found]) => withId(sessionId, found));
+    },
+  };
+  const routes = new RouteService(routeStore, native, clock, validators, lessons);
   cleanups.push(async () => { await owner.close(); await ctx.fiber.dispose(); });
-  return { dir, owner, routeStore, openings, routes, knownMaterials, knownRefs, setOnOpen: (fn?: (ctx: HostContext) => Promise<void>) => { onOpen = fn; } };
+  return { dir, owner, routeStore, openings, routes, knownMaterials, knownRefs, lessonStore,
+    lessonReads: () => lessonsReads, setOnOpen: (fn?: (ctx: HostContext) => Promise<void>) => { onOpen = fn; } };
 }
 
 test('a planned node may carry ordered mixed materials, or none at all', async () => {
@@ -395,4 +420,116 @@ test('the route survives a restart and stays inside its workspace', async () => 
   const reopened = await open(first.dir);
   expect(reopened.routes.read(HOST).nodes.map(node => node.title)).toEqual(['第一节', '第二节']);
   expect(() => reopened.routes.read({ ...HOST, workspaceId: 'student-b' })).toThrow(/workspace/);
+});
+
+test('an existing native lesson binds onto the same axis from its own header, once', async () => {
+  const { routes, lessonStore, lessonReads } = await open();
+  lessonStore.set('sess-existing', {
+    title: '上周那一节', createdAt: NATIVE_OPENED_AT, materials: { materials: [] }, archived: false,
+  });
+  const stored = lessonNodeIdOf('sess-existing');
+
+  // The explicit student action binds the lesson it read; the title and time are
+  // the native ones, never a client value or this row's clock.
+  const bound = await routes.bindNativeLesson(student('bind-existing'), 'sess-existing');
+  expect(bound.nodes).toHaveLength(1);
+  expect(bound.nodes[0]).toMatchObject({ id: stored, title: '上周那一节', materials: { materials: [] } });
+  expect(bound.nodes[0]!.session).toMatchObject({ sessionId: 'sess-existing', openedAt: NATIVE_OPENED_AT });
+  expect(lessonReads()).toBe(1);
+
+  // A different operation for the same lesson is the same one node, and it does
+  // not even need to read the lesson again: it sees the binding and answers.
+  const replay = await routes.bindNativeLesson(student('bind-other-tab'), 'sess-existing');
+  expect(replay.nodes).toHaveLength(1);
+  expect(replay.nodes[0]!.id).toBe(stored);
+  expect(lessonReads()).toBe(1);
+
+  // A retry of the very accepted operation answers the same node too.
+  const retry = await routes.bindNativeLesson(student('bind-existing'), 'sess-existing');
+  expect(retry.nodes).toHaveLength(1);
+  expect(retry.nodes[0]!.id).toBe(stored);
+});
+
+test('binding never invents a lesson and never duplicates a planned binding', async () => {
+  const { routes, lessonStore, knownMaterials } = await open();
+  knownMaterials.add('mat_a');
+  // A workspace with no such native lesson: nothing is stored and nothing is
+  // created — the read-only lesson port has no way to start a session.
+  await expect(routes.bindNativeLesson(student('bind-ghost'), 'sess-ghost'))
+    .rejects.toMatchObject({ code: 'route_native_session_foreign', problems: ['sess-ghost'] });
+  expect(routes.read(HOST).nodes).toEqual([]);
+
+  // A planned node really opened one lesson; binding that same native session
+  // adopts the planned node instead of adding a second leaf for one lesson.
+  lessonStore.set('sess-planned', { title: '排好的一节', createdAt: NATIVE_OPENED_AT, materials: { materials: [] }, archived: false });
+  expect(lessonNodeIdOf('sess-planned')).toMatch(/^l_/);
+  const planned = await routes.add(student('plan-planned'), {
+    title: '排好的一节', materials: { materials: [{ kind: 'source', source: { materialId: 'mat_a', versionId: 'ver_a' } }] },
+  });
+  const plannedId = planned.nodes[0]!.id;
+  const opened = await routes.openPlanned(student('open-planned'), plannedId);
+  expect(opened.created).toBe(true);
+  const adopted = await routes.bindNativeLesson(student('bind-planned'), opened.sessionId);
+  expect(adopted.nodes).toHaveLength(1);
+  expect(adopted.nodes[0]!.id).toBe(plannedId);
+  expect(adopted.nodes[0]!.session?.sessionId).toBe(opened.sessionId);
+});
+
+test('binding is stable under two simultaneous operations for one lesson', async () => {
+  const { routes, lessonStore } = await open();
+  lessonStore.set('sess-race', { title: '同一节', createdAt: NATIVE_OPENED_AT, materials: { materials: [] }, archived: false });
+  const [one, two] = await Promise.all([
+    routes.bindNativeLesson(student('race-one'), 'sess-race'),
+    routes.bindNativeLesson(student('race-two'), 'sess-race'),
+  ]);
+  const stored = lessonNodeIdOf('sess-race');
+  for (const view of [one, two]) {
+    expect(view.nodes).toHaveLength(1);
+    expect(view.nodes[0]!.id).toBe(stored);
+    expect(view.nodes[0]!.session?.sessionId).toBe('sess-race');
+  }
+});
+
+test('an unreadable native lesson fact fails the read instead of defaulting to an empty lesson', async () => {
+  const { routes, lessonStore } = await open();
+  lessonStore.set('sess-corrupt', {
+    title: '坏了的一节', createdAt: NATIVE_OPENED_AT, materials: { materials: [] }, archived: false,
+  });
+  // The graph read fails loudly rather than showing an apparently complete lesson
+  // with empty materials, and binding it fails too instead of storing that shape.
+  await expect(routes.lessons(HOST)).rejects.toMatchObject({ code: 'record_corrupt' });
+  await expect(routes.bindNativeLesson(student('bind-corrupt'), 'sess-corrupt')).rejects.toMatchObject({ code: 'record_corrupt' });
+  expect(routes.read(HOST).nodes).toEqual([]);
+});
+
+test('a first bind inherits the native lineage, and never re-parents an already bound node', async () => {
+  const { routes, lessonStore } = await open();
+  lessonStore.set('sess-parent', { title: '父课', createdAt: NATIVE_OPENED_AT, materials: { materials: [] }, archived: false });
+  lessonStore.set('sess-child', {
+    title: '子课', createdAt: NATIVE_OPENED_AT, materials: { materials: [] }, archived: false, parentSession: 'sess-parent',
+  });
+  lessonStore.set('sess-orphan', {
+    title: '父课还没上', createdAt: NATIVE_OPENED_AT, materials: { materials: [] }, archived: false, parentSession: 'sess-parent',
+  });
+
+  // Child first: its parent has no route node yet, so it stays at the root.
+  const childFirst = await routes.bindNativeLesson(student('bind-child-first'), 'sess-child');
+  const childNode = childFirst.nodes.find(node => node.session?.sessionId === 'sess-child')!;
+  expect(childNode).not.toHaveProperty('parent');
+
+  // Parent later, then the orphan child: the native lineage becomes the edge in
+  // the same bind, so the child is not left disconnected.
+  const withParent = await routes.bindNativeLesson(student('bind-parent'), 'sess-parent');
+  const parentNodeId = withParent.nodes.find(node => node.session?.sessionId === 'sess-parent')!.id;
+  const orphan = await routes.bindNativeLesson(student('bind-orphan'), 'sess-orphan');
+  expect(orphan.nodes.find(node => node.session?.sessionId === 'sess-orphan')!.parent).toBe(parentNodeId);
+
+  // The child's own first bind used its own row state: re-binding it does not
+  // invent the parent now, and an explicit root mount stays the student's.
+  const rerun = await routes.bindNativeLesson(student('bind-child-again'), 'sess-child');
+  expect(rerun.nodes.find(node => node.session?.sessionId === 'sess-child')).not.toHaveProperty('parent');
+  const mounted = await routes.mount(student('mount-child-root', rerun.version), childNode.id, null);
+  expect(mounted.nodes.find(node => node.session?.sessionId === 'sess-child')).not.toHaveProperty('parent');
+  const after = await routes.bindNativeLesson(student('bind-child-third'), 'sess-child');
+  expect(after.nodes.find(node => node.session?.sessionId === 'sess-child')).not.toHaveProperty('parent');
 });

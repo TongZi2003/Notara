@@ -10,7 +10,7 @@
  * The version is pinned through the real course metadata Remote and opened by
  * the lesson itself, so nothing here depends on a test-only mount.
  */
-import { test, expect, enterClassroom, sendInput } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, sendInput, openCards } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { SessionListValue } from '@deepseek-ai/dsh-api-session-controller';
@@ -35,7 +35,7 @@ test('a frozen version shows its own text and offers no edit or newer redline', 
   }, { timeout: 40_000 }).not.toBe('');
 
   // Two real versions of one card: create v1, then edit the face into v2.
-  await page.getByRole('button', { name: '卡片', exact: true }).first().click();
+  await openCards(page);
   await page.getByTestId('card-browser-create').click();
   await page.getByTestId('card-editor-title').fill('固定版本卡片');
   await page.getByTestId('card-editor-front').fill('第一版卡面：求顶点。');
@@ -45,6 +45,7 @@ test('a frozen version shows its own text and offers no edit or newer redline', 
   await page.getByTestId('card-editor-save').click();
   await expect(page.getByTestId('card-detail-title')).toHaveText('固定版本卡片');
   await page.getByTestId('card-detail-edit').click();
+  await page.getByTestId('card-editor-title').fill('第二版卡片标题');
   await page.getByTestId('card-editor-front').fill('第二版卡面：求顶点与对称轴。');
   await page.getByTestId('card-editor-section-body').fill('第二版解法。');
   await page.getByTestId('card-editor-save').click();
@@ -61,8 +62,12 @@ test('a frozen version shows its own text and offers no edit or newer redline', 
     patch: { lessonMaterials: { materials: [{ kind: 'card', cardRef: target, cardVersion: 1 }] } },
   } }));
 
-  // Re-entering the lesson opens its planned first material: the frozen v1 tab.
+  // Re-entering opens the map. The card node opens its pinned revision here.
   await enterClassroom(page, classroom.authUrl);
+  const pinned = page.getByTestId('lesson-materials-map').locator('[data-kind="card"]').filter({ hasText: '本节课安排' });
+  await expect(pinned).toContainText('固定版本卡片');
+  await expect(pinned).not.toContainText('第二版卡片标题');
+  await pinned.getByTestId('lesson-resource-open').click();
   await expect(page.getByTestId('card-detail-title')).toHaveText('固定版本卡片');
   await expect(page.getByTestId('card-detail-fixed')).toBeVisible();
   await expect(page.getByTestId('card-detail-front')).toContainText('第一版卡面');

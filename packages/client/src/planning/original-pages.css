@@ -397,6 +397,12 @@ body[data-sf-notebook="on"] .sf-orig .sf-lessons button{font-family:var(--nb-han
 
 /* B 的窄屏那一组：:root[data-hand="on"] … @media(max-width:760px) */
 @media(max-width:760px){
+  .sf-orig .set-shelf{grid-template-columns:minmax(0,1fr);gap:5px;padding:14px 4px}
+  .sf-orig .set-card-meta i{overflow-wrap:anywhere}
+  .sf-orig .set-list-row{align-items:flex-start}
+  .sf-orig .set-settings-toggle{margin-top:14px}
+  .sf-orig .set-picks{grid-template-columns:minmax(0,1fr);min-width:0}
+  .sf-orig .set-card-row input{min-width:0;flex-basis:100%}
   .sf-orig .cal-top .views{flex-basis:100%;margin-left:0;justify-content:flex-start}
   .sf-orig .cal-top h2{flex:1;font-size:24px}
   .sf-orig .cal-top .chip{padding:6px 10px;min-height:30px;font-size:12px}

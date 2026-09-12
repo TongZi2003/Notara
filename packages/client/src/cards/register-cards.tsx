@@ -158,7 +158,7 @@ export function registerCardSurfaces(ctx: Context, options: CardSurfacesOptions 
       // page is really here rather than inventing a second place to read cards.
       useEffect(() => cardOpenRequest.subscribe(target => { openCard(target); }), []);
       return <main className="sf-cards-page" data-testid={`studyforge-page-${CARDS_PAGE_ID}`}>
-        <header className="sf-cards-page-head"><span>卡片</span><span>你的题卡和笔记都在这里</span></header>
+        <header className="sf-cards-page-head"><button className="sf-quiet" type="button" onClick={() => ctx.layout.selectPanel('studyforge.materials' as import('@deepseek-ai/dsh-client-ui-layout/client').MainPanelId)}>← 资料</button><span>卡片与笔记</span></header>
         {studying === undefined
           ? <>
             <nav className="sf-cards-tabs" aria-label="卡片页" data-testid="cards-tabs">

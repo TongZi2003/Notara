@@ -1,0 +1,305 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/book-workspace.spec.ts tests/e2e/lesson-materials-mindmap.spec.ts tests/e2e/notebook-theme.spec.ts tests/e2e/card-fixed-version.spec.ts tests/e2e/current-classroom.spec.ts tests/e2e/lesson-settings-draft.spec.ts tests/e2e/source-roundtrip.spec.ts --output=.runtime/layout-sticker-ui
+
+
+Running 14 tests using 1 worker
+
+(node:74470) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/book-workspace.spec.ts:23:1 › book expands along its real tree, opens a card and its original in place, and returns without writing (11.6s)
+  ✘   2 tests/e2e/card-fixed-version.spec.ts:22:1 › a frozen version shows its own text and offers no edit or newer redline (16.4s)
+(node:74759) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   3 tests/e2e/current-classroom.spec.ts:53:1 › native classroom keeps its own composer and carries the student lesson surfaces (35.9s)
+(node:75038) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   4 tests/e2e/current-classroom.spec.ts:161:1 › a creation session keeps the classroom and hides the learning lesson surfaces (9.7s)
+  ✓   5 tests/e2e/lesson-materials-mindmap.spec.ts:22:1 › the lesson right column is one material map that opens originals and cards in place (10.2s)
+  ✓   6 tests/e2e/lesson-settings-draft.spec.ts:50:1 › the student edits a lesson-settings draft without dropping what the teacher proposed (10.8s)
+  ✓   7 tests/e2e/notebook-theme.spec.ts:10:1 › notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft (11.9s)
+  ✓   8 tests/e2e/notebook-theme.spec.ts:88:1 › notebook card slips open the real card and its source returns to the originating lesson without recording study (10.7s)
+  ✘   9 tests/e2e/source-roundtrip.spec.ts:13:1 › selected text travels in the native message and returns to the same immutable source after refresh (24.5s)
+(node:75809) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  10 tests/e2e/source-roundtrip.spec.ts:70:1 › PDF pointer rectangles remain in original coordinates at four rotations and return to their page (24.8s)
+(node:76000) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  11 tests/e2e/source-roundtrip.spec.ts:128:1 › Word cross-paragraph selection preserves each real block including the middle repeated paragraph (24.4s)
+(node:76224) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  12 tests/e2e/source-roundtrip.spec.ts:166:1 › native card reference returns the displayed fixed version without exposing the answer (24.6s)
+(node:76431) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  13 tests/e2e/source-roundtrip.spec.ts:194:1 › native admission failure restores a frozen source reference and retry sends it once (24.8s)
+(node:76644) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  14 tests/e2e/source-roundtrip.spec.ts:239:1 › pointer-selected image is attached before native sending and native queued steering preserves its frozen reference (24.4s)
+
+
+  1) tests/e2e/card-fixed-version.spec.ts:22:1 › a frozen version shows its own text and offers no edit or newer redline
+
+    Error: locator.click: Error: strict mode violation: getByTestId('lesson-materials-map').locator('[data-kind="card"]').getByTestId('lesson-resource-open') resolved to 2 elements:
+        1) <button type="button" aria-pressed="false" class="sf-mind-label" data-testid="lesson-resource-open">…</button> aka getByRole('button', { name: '固定版本卡片 本节课安排 · 卡片' })
+        2) <button type="button" aria-pressed="false" class="sf-mind-label" data-testid="lesson-resource-open">…</button> aka getByRole('button', { name: '固定版本卡片 课上产出 · 卡片' })
+
+    Call log:
+      - waiting for getByTestId('lesson-materials-map').locator('[data-kind="card"]').getByTestId('lesson-resource-open')
+
+
+      64 |   // Re-entering opens the map. The card node opens its pinned revision here.
+      65 |   await enterClassroom(page, classroom.authUrl);
+    > 66 |   await page.getByTestId('lesson-materials-map').locator('[data-kind="card"]').getByTestId('lesson-resource-open').click();
+         |                                                                                                                    ^
+      67 |   await expect(page.getByTestId('card-detail-title')).toHaveText('固定版本卡片');
+      68 |   await expect(page.getByTestId('card-detail-fixed')).toBeVisible();
+      69 |   await expect(page.getByTestId('card-detail-front')).toContainText('第一版卡面');
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/card-fixed-version.spec.ts:66:116
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:74608) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/layout-sticker-ui/card-fixed-version-a-froze-4b578-rs-no-edit-or-newer-redline/error-context.md
+
+  2) tests/e2e/current-classroom.spec.ts:53:1 › native classroom keeps its own composer and carries the student lesson surfaces
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByTestId('notebook-sidebar').getByRole('button', { name: '日历', exact: true })
+        - locator resolved to <button class="" title="日历" type="button">…</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div class="sf-lesson-materials-head">…</div> from <div data-rightbar-col="true" class="pI_x6G_rightbarCol">…</div> subtree intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div class="sf-lesson-materials-head">…</div> from <div data-rightbar-col="true" class="pI_x6G_rightbarCol">…</div> subtree intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        29 × waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <div class="sf-lesson-materials-head">…</div> from <div data-rightbar-col="true" class="pI_x6G_rightbarCol">…</div> subtree intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+
+
+      149 |     const calendarRow = page.getByTestId('notebook-sidebar').getByRole('button', { name: '日历', exact: true });
+      150 |     await expect(calendarRow).toBeVisible();
+    > 151 |     await calendarRow.click();
+          |                       ^
+      152 |     await expect(page.getByTestId('studyforge-page-studyforge.calendar')).toBeVisible();
+      153 |     await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+      154 |     await page.screenshot({ path: testInfo.outputPath('narrow-390.png') });
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/current-classroom.spec.ts:151:23
+
+    attachment #1: browser-console (text/plain) ────────────────────────────────────────────────────
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: host-log (text/plain) ───────────────────────────────────────────────────────────
+    (node:74765) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/layout-sticker-ui/current-classroom-native-c-2ed85-the-student-lesson-surfaces/error-context.md
+
+  3) tests/e2e/source-roundtrip.spec.ts:13:1 › selected text travels in the native message and returns to the same immutable source after refresh
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('material-text')
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByTestId('material-text') with timeout 15000ms
+      - waiting for getByTestId('material-text')
+
+
+      21 |   await page.getByRole('button', { name: '资料', exact: true }).first().click();
+      22 |   await page.getByTestId('material-file-input').setInputFiles(file);
+    > 23 |   await expect(page.getByTestId('material-text')).toBeVisible();
+         |                                                   ^
+      24 |   await page.getByTestId('material-open-classroom').click();
+      25 |   const panel = page.locator('[data-sidebar-right-panel]');
+      26 |   const text = panel.getByTestId('material-text');
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/source-roundtrip.spec.ts:23:51
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:75608) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/layout-sticker-ui/source-roundtrip-selected--6f80d-utable-source-after-refresh/error-context.md
+
+  4) tests/e2e/source-roundtrip.spec.ts:70:1 › PDF pointer rectangles remain in original coordinates at four rotations and return to their page
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator: getByTestId('pdf-viewer')
+    Expected: "1"
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveAttribute" getByTestId('pdf-viewer') with timeout 15000ms
+      - waiting for getByTestId('pdf-viewer')
+
+
+      76 |   await page.getByRole('button', { name: '资料', exact: true }).first().click();
+      77 |   await page.getByTestId('material-file-input').setInputFiles(file);
+    > 78 |   await expect(page.getByTestId('pdf-viewer')).toHaveAttribute('data-pdf-displayed-page', '1');
+         |                                                ^
+      79 |   await page.getByTestId('material-open-classroom').click();
+      80 |   const panel = page.locator('[data-sidebar-right-panel]');
+      81 |   const viewer = panel.getByTestId('pdf-viewer');
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/source-roundtrip.spec.ts:78:48
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:75815) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/layout-sticker-ui/source-roundtrip-PDF-point-8b402-ns-and-return-to-their-page/error-context.md
+
+  5) tests/e2e/source-roundtrip.spec.ts:128:1 › Word cross-paragraph selection preserves each real block including the middle repeated paragraph
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('[data-docx-positioned="true"]')
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" locator('[data-docx-positioned="true"]') with timeout 15000ms
+      - waiting for locator('[data-docx-positioned="true"]')
+
+
+      134 |   await page.getByRole('button', { name: '资料', exact: true }).first().click();
+      135 |   await page.getByTestId('material-file-input').setInputFiles(file);
+    > 136 |   await expect(page.locator('[data-docx-positioned="true"]')).toBeVisible();
+          |                                                               ^
+      137 |   await page.getByTestId('material-open-classroom').click();
+      138 |   const panel = page.locator('[data-sidebar-right-panel]');
+      139 |   await expect(panel.locator('[data-sf-block-id]')).toHaveCount(3);
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/source-roundtrip.spec.ts:136:63
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:76017) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/layout-sticker-ui/source-roundtrip-Word-cros-c3269-e-middle-repeated-paragraph/error-context.md
+
+  6) tests/e2e/source-roundtrip.spec.ts:166:1 › native card reference returns the displayed fixed version without exposing the answer
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByTestId('lesson-resource-row').filter({ hasText: '原卡' }).getByTestId('lesson-resource-open')
+
+
+      177 |   if (!result.ok) throw new Error('card create failed');
+      178 |   await page.getByTestId('open-lesson').click();
+    > 179 |   await page.getByTestId('lesson-resource-row').filter({ hasText: '原卡' }).getByTestId('lesson-resource-open').click();
+          |                                                                                                               ^
+      180 |   await expect(page.getByTestId('card-detail-title')).toHaveText('原卡');
+      181 |   await expect(page.getByTestId('composer-context')).toContainText('原卡');
+      182 |   await client.rpc('studyforgeLearning/editCard', { input: { operationId: crypto.randomUUID(), target: result.value.ref, expectedVersion: 1, patch: { front: '第二版题面' } } });
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/source-roundtrip.spec.ts:179:111
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:76230) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/layout-sticker-ui/source-roundtrip-native-ca-d8a91-without-exposing-the-answer/error-context.md
+
+  7) tests/e2e/source-roundtrip.spec.ts:194:1 › native admission failure restores a frozen source reference and retry sends it once
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('material-text')
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByTestId('material-text') with timeout 15000ms
+      - waiting for getByTestId('material-text')
+
+
+      206 |   await sendInput(page, '先打开原文');
+      207 |   await expect(page.locator('[data-conversation-scroll]').getByText('已收到：先打开原文', { exact: true })).toBeVisible();
+    > 208 |   const file = info.outputPath('失败重试.txt'); await writeFile(file, '原版本文字', 'utf8');
+          |                                                   ^
+      209 |   await page.getByRole('button', { name: '资料', exact: true }).first().click();
+      210 |   await page.getByTestId('material-file-input').setInputFiles(file);
+      211 |   await page.getByTestId('material-row').first().getByRole('button').first().click();
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/source-roundtrip.spec.ts:208:51
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:76437) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/layout-sticker-ui/source-roundtrip-native-ad-faa4c-nce-and-retry-sends-it-once/error-context.md
+
+  8) tests/e2e/source-roundtrip.spec.ts:239:1 › pointer-selected image is attached before native sending and native queued steering preserves its frozen reference
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('material-image')
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByTestId('material-image') with timeout 15000ms
+      - waiting for getByTestId('material-image')
+
+
+      245 |   await sendInput(page, '先读图');
+      246 |   await expect(page.locator('[data-conversation-scroll]').getByText('已收到：先读图', { exact: true })).toBeVisible();
+    > 247 |   const file = info.outputPath('函数图.png');
+          |                                           ^
+      248 |   await writeFile(file, readerImage());
+      249 |   await page.getByRole('button', { name: '资料', exact: true }).first().click();
+      250 |   await page.getByTestId('material-file-input').setInputFiles(file);
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/source-roundtrip.spec.ts:247:52
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:76661) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/layout-sticker-ui/source-roundtrip-pointer-s-bb34b-serves-its-frozen-reference/error-context.md
+
+  8 failed
+    tests/e2e/card-fixed-version.spec.ts:22:1 › a frozen version shows its own text and offers no edit or newer redline
+    tests/e2e/current-classroom.spec.ts:53:1 › native classroom keeps its own composer and carries the student lesson surfaces
+    tests/e2e/source-roundtrip.spec.ts:13:1 › selected text travels in the native message and returns to the same immutable source after refresh
+    tests/e2e/source-roundtrip.spec.ts:70:1 › PDF pointer rectangles remain in original coordinates at four rotations and return to their page
+    tests/e2e/source-roundtrip.spec.ts:128:1 › Word cross-paragraph selection preserves each real block including the middle repeated paragraph
+    tests/e2e/source-roundtrip.spec.ts:166:1 › native card reference returns the displayed fixed version without exposing the answer
+    tests/e2e/source-roundtrip.spec.ts:194:1 › native admission failure restores a frozen source reference and retry sends it once
+    tests/e2e/source-roundtrip.spec.ts:239:1 › pointer-selected image is attached before native sending and native queued steering preserves its frozen reference
+  6 passed (4.5m)

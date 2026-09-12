@@ -14,7 +14,10 @@ test('five teaching choices preserve the native draft and same lesson; a tempora
   await expect(page.locator('[data-conversation-scroll]').getByText('已收到：开始学习', { exact: true })).toBeVisible();
   const session = value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(item => !item.blank && item.origin !== 'subagent')!;
   await typeInput(page, '这条课堂草稿要保留');
-  await page.getByTestId('open-lesson').click();
+  // Teaching configuration now lives in the heading's 本课设置 modal, not the
+  // right-column lesson panel; the composer draft must survive that path.
+  await page.getByTestId('open-lesson-settings').click();
+  await expect(page.getByTestId('lesson-settings-modal')).toBeVisible();
   await page.getByTestId('lesson-adjust').locator('summary').click();
   await expect(page.getByTestId('teaching-preset').locator('option')).toHaveText(['资料整理', '诊断分析', '苏格拉底授课', '头脑风暴拓展', '搜索']);
   for (const choice of ['organize', 'diagnose', 'brainstorm', 'search', 'socratic']) {
@@ -25,6 +28,10 @@ test('five teaching choices preserve the native draft and same lesson; a tempora
   await page.getByTestId('teaching-instructions').fill('这节课先完整讲解，再给一道独立练习。');
   await page.getByTestId('teaching-save').click();
   await expect.poll(async () => value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId: session.sessionId } })).data.temporaryInstructions).toBe('这节课先完整讲解，再给一道独立练习。');
+  // The modal owns the same heading; it must be closed so the draft the student
+  // is holding in the composer is the thing that is really sent.
+  await page.getByTestId('lesson-settings-close').click();
+  await expect(page.getByTestId('lesson-settings-modal')).toHaveCount(0);
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await expect(page.locator('[data-conversation-scroll]').getByText('已收到：这条课堂草稿要保留', { exact: true })).toBeVisible();
   const requests = (await readFile(join(classroom.root, 'model-requests.jsonl'), 'utf8')).trim().split('\n').map(line => JSON.parse(line) as { sessionId: string; purpose: string; messages: unknown });
@@ -32,7 +39,10 @@ test('five teaching choices preserve the native draft and same lesson; a tempora
   expect(JSON.stringify(request?.messages)).toContain('这节课先完整讲解，再给一道独立练习。');
   expect(value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.filter(item => !item.blank && item.origin !== 'subagent')).toHaveLength(1);
   await enterClassroom(page, classroom.authUrl);
-  await page.getByTestId('open-lesson').click();
+  // Teaching configuration now lives in the heading's 本课设置 modal, not the
+  // right-column lesson panel; the composer draft must survive that path.
+  await page.getByTestId('open-lesson-settings').click();
+  await expect(page.getByTestId('lesson-settings-modal')).toBeVisible();
   await page.getByTestId('lesson-adjust').locator('summary').click();
   await expect(page.getByTestId('teaching-preset')).toHaveValue('socratic');
   await expect(page.getByTestId('teaching-instructions')).toHaveValue('这节课先完整讲解，再给一道独立练习。');

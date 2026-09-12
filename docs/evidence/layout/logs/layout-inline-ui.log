@@ -1,0 +1,46 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/book-workspace.spec.ts tests/e2e/lesson-materials-mindmap.spec.ts --output=.runtime/layout-inline-ui
+
+
+Running 2 tests using 1 worker
+
+(node:71781) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/book-workspace.spec.ts:23:1 › book expands along its real tree, opens a card and its original in place, and returns without writing (11.7s)
+  ✘  2 tests/e2e/lesson-materials-mindmap.spec.ts:22:1 › the lesson right column is one material map that opens originals and cards in place (25.4s)
+
+
+  1) tests/e2e/lesson-materials-mindmap.spec.ts:22:1 › the lesson right column is one material map that opens originals and cards in place
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('lesson-materials-map').locator('[data-key$="section:函数/定义域"]')
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByTestId('lesson-materials-map').locator('[data-key$="section:函数/定义域"]') with timeout 15000ms
+      - waiting for getByTestId('lesson-materials-map').locator('[data-key$="section:函数/定义域"]')
+
+
+      86 |   // The book opens along its own depth, down to the card the book really holds.
+      87 |   await bookNode.getByTestId('mindmap-expand').click();
+    > 88 |   await expect(map.locator('[data-key$="section:函数/定义域"]')).toBeVisible();
+         |                                                             ^
+      89 |   await map.locator('[data-key$="section:函数"]').getByTestId('mindmap-expand').click();
+      90 |   await map.locator('[data-key$="section:函数/定义域"]').getByTestId('mindmap-expand').click();
+      91 |   await expect(map.locator('[data-kind="card"]').filter({ hasText: '在书卡' })).toHaveCount(1);
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/lesson-materials-mindmap.spec.ts:88:61
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:71914) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/layout-inline-ui/lesson-materials-mindmap-t-f615a-riginals-and-cards-in-place/error-context.md
+
+  1 failed
+    tests/e2e/lesson-materials-mindmap.spec.ts:22:1 › the lesson right column is one material map that opens originals and cards in place
+  1 passed (37.6s)

@@ -1,0 +1,11 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/notebook-pages.spec.ts --output=.runtime/layout-pages-recovery
+
+
+Running 1 test using 1 worker
+
+(node:82835) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths (17.9s)
+
+  1 passed (18.5s)

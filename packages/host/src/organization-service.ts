@@ -18,22 +18,26 @@
  */
 import type { Context } from '@deepseek-ai/cordis';
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
+import { SessionId } from '@deepseek-ai/dsh-session';
+import type {} from '@deepseek-ai/dsh-session-query';
+import type {} from '@deepseek-ai/dsh-workspace';
+import { foldSessionTitle } from '@deepseek-ai/dsh-session-title';
+import { realpathSync } from 'node:fs';
 import { z } from 'zod';
-import { EntityRefSchema, type HostContext, type MutationContext } from '@studyforge/contracts';
+import { EntityRefSchema, LessonMaterialsSchema, type HostContext, type LessonMaterials, type MutationContext } from '@studyforge/contracts';
 import { MaterialContextSchema, type MaterialContext } from '@studyforge/contracts/materials';
 import { MaterialIdSchema } from '@studyforge/contracts/material-records';
 import { SetCreateSchema, SetPatchSchema, type SetCreateDraft, type SetPatchDraft, type SetView } from '@studyforge/contracts/sets';
-import { RouteNodeInputSchema, RouteNodePatchSchema, RoutePlacementSchema, type RouteNodeInputDraft, type RouteNodePatchDraft, type RouteOpenResult, type RoutePlacement, type RouteView } from '@studyforge/contracts/routes';
+import { RouteNodeInputSchema, RouteNodePatchSchema, RoutePlacementSchema, type RouteNativeLesson, type RouteNodeInputDraft, type RouteNodePatchDraft, type RouteOpenResult, type RoutePlacement, type RouteView } from '@studyforge/contracts/routes';
 import { PlanContentSchema, PlanPatchSchema, SkeletonChangeSchema, type PlanContent, type PlanContentDraft, type PlanPatch, type PlanView, type SkeletonChangeDraft, type SkeletonPreview } from '@studyforge/contracts/plans';
 import type { SkeletonView } from '@studyforge/contracts/skeleton';
 import { BookBreakdownIntentSchema, type BookBreakdownIntent, type BookStructure } from '@studyforge/contracts/book-exploration';
 import type { MaterialRefs, SetService } from '@studyforge/domain/sets';
-import { RouteError, type RouteService, type RouteValidators } from '@studyforge/domain/routes';
+import { RouteError, lessonNodeId, type NativeLessonSource, type RouteService, type RouteValidators } from '@studyforge/domain/routes';
 import type { PlanService } from '@studyforge/domain/plans';
 import type { SkeletonAuthoring } from '@studyforge/domain/skeleton-authoring';
 import { validateBookBreakdown, type BookExploration } from '@studyforge/domain/book-exploration';
 import { nativeOpen } from './runtime/native-open.ts';
-import { SessionId } from '@deepseek-ai/dsh-session';
 import type { SessionRequestId } from '@deepseek-ai/dsh-api-session-controller';
 import { validateLessonMaterials } from './materials/validate-lesson-materials.ts';
 import { studentContext } from './learning-service.ts';
@@ -67,6 +71,167 @@ export function routeValidators(host: Context, teachingConfigs: readonly string[
   return {
     materials: (ctx, materials) => validateLessonMaterials(host, ctx, materials),
     teachingRef: (_ctx, ref) => teachingConfigs.includes(ref) ? Promise.resolve() : Promise.reject(new RouteError('route_teaching_ref_missing', [ref])),
+  };
+}
+
+/** Fallback title for a native session whose log carries no title event yet. */
+const UNNAMED_LESSON = '未命名的一课';
+
+/** A narrow code read, so a domain refusal can be classified without swallowing it. */
+function codeOf(error: unknown): string | undefined {
+  if (error === null || typeof error !== 'object') return undefined;
+  const code = (error as { readonly code?: unknown }).code;
+  return typeof code === 'string' ? code : undefined;
+}
+
+/**
+ * The route membership rule, exactly the workspace registry's own: a session is
+ * a lesson of this workspace only when its header's canonical cwd *is* the
+ * workspace path. A nested registered workspace inside this one is a different
+ * workspace, so its lessons are foreign — a string-prefix check would wrongly
+ * adopt them.
+ */
+function isWorkspacePath(root: string, headerCwd: string): boolean {
+  try { return realpathSync(headerCwd) === root; }
+  catch { return false; }
+}
+
+/** The native blank predicate: a session no turn ever started is the reusable empty one. */
+function isBlankSession(events: readonly { readonly type: string }[]): boolean {
+  return !events.some(event => event.type === 'turn/start');
+}
+
+/**
+ * Whether one native session is the reusable empty/startup shell rather than a
+ * lesson to draw. The course page's own list keeps a lesson once it is named or
+ * an opening title landed, so "blank" only hides a session that is *also*
+ * untitled: the planned-opened flow names its lesson, and a real lesson the
+ * student opens gets a title too. Every other non-blank session is a lesson.
+ */
+function isBlankUntitled(
+  blank: boolean,
+  title: string | undefined,
+): boolean {
+  return blank && (title ?? '').trim().length === 0;
+}
+
+/**
+ * A lesson this workspace really holds no teaching row for. Only these codes
+ * mean "there is no row" — `record_corrupt`, persistence faults and every other
+ * failure are real and must reach the caller instead of dissolving into an
+ * apparently complete empty row.
+ */
+const COURSE_ROW_ABSENT = new Set(['record_missing', 'workspace_mismatch']);
+
+interface NativeCourseFacts {
+  readonly materials: LessonMaterials;
+  readonly archived: boolean;
+  readonly continuation?: { readonly ref: string; readonly version: number };
+  readonly teachingRef?: string;
+  readonly stance?: string;
+}
+
+/**
+ * The lesson's own CourseMetadata — its real material list, archived flag,
+ * teaching reference, stance and continuation pin. A workspace that genuinely
+ * holds no row for this lesson answers the untouched shape; a row that exists but
+ * cannot be read throws, so a corrupt or unreadable lesson never masquerades as
+ * an empty, complete one.
+ */
+function nativeLessonCourse(host: Context, ctx: HostContext, sessionId: string): NativeCourseFacts {
+  const own: HostContext = { workspaceId: ctx.workspaceId, sessionId, purpose: 'learning', actor: 'student' };
+  try {
+    const data = host.studyforgeCourseMetadata.read(own).data;
+    return {
+      materials: data.lessonMaterials, archived: data.archived,
+      ...(data.continuation === undefined ? {} : { continuation: data.continuation }),
+      ...(data.teachingRef === undefined ? {} : { teachingRef: data.teachingRef }),
+      ...(data.stance === undefined ? {} : { stance: data.stance }),
+    };
+  } catch (error) {
+    if (COURSE_ROW_ABSENT.has(codeOf(error) ?? '')) {
+      return { materials: LessonMaterialsSchema.parse({ materials: [] }), archived: false };
+    }
+    throw error;
+  }
+}
+
+/**
+ * Read the workspace's own native lessons without writing anything, and derive
+ * the one route node id a binding of each lesson would use.
+ *
+ * Membership is the workspace's own canonical directory plus the native header,
+ * exactly the rule the workspace registry uses; a session of any other directory
+ * — another workspace, or a nested registered workspace inside this one — is
+ * `foreign`, and so is a subagent child. A lesson no turn ever started is the
+ * reusable empty session, refused like the course page's own lesson list. The
+ * title and creation time come from the native observation — the header's own
+ * `createdAt`, never the route row's clock — and the material facts from that
+ * lesson's CourseMetadata. A lesson whose facts cannot be read fails the read
+ * instead of being dropped or defaulted.
+ */
+export function nativeLessons(host: Context): NativeLessonSource {
+  const lesson = async (ctx: HostContext, sessionId: string): Promise<RouteNativeLesson | undefined> => {
+    const observation = await host.sessionQuery.observeSession(SessionId(sessionId));
+    try {
+      const header = observation.header;
+      if (header.origin === 'subagent' || (header.delegationDepth ?? 0) > 0) return undefined;
+      if (header.cwd === undefined) return undefined;
+      const workspace = host.workspaceRegistry.get(ctx.workspaceId as never);
+      if (workspace === undefined || !isWorkspacePath(workspace.path, header.cwd)) return undefined;
+      const title = foldSessionTitle(observation.events)?.title;
+      if (isBlankUntitled(isBlankSession(observation.events), title)) return undefined;
+      const parent = header.parentSession;
+      const parentSession = parent === undefined || parent === header.id ? undefined : parent;
+      const course = nativeLessonCourse(host, ctx, header.id);
+      return {
+        sessionId: header.id, title: title ?? UNNAMED_LESSON,
+        createdAt: new Date(header.createdAt).toISOString(),
+        ...(parentSession === undefined ? {} : { parentSession }),
+        materials: course.materials, archived: course.archived,
+        ...(course.continuation === undefined ? {} : { continuation: course.continuation }),
+        ...(course.teachingRef === undefined ? {} : { teachingRef: course.teachingRef }),
+        ...(course.stance === undefined ? {} : { stance: course.stance }),
+        nodeId: lessonNodeId(ctx.workspaceId, header.id),
+      };
+    } finally { observation[Symbol.dispose](); }
+  };
+  return {
+    read: async (ctx, sessionId) => {
+      let found: RouteNativeLesson | undefined;
+      try { found = await lesson(ctx, sessionId); }
+      catch (error) {
+        // A session this runtime does not know is "not a lesson of this
+        // workspace"; anything else (corruption, unreadable facts, persistence
+        // faults) is a real failure and travels to the caller.
+        if (codeOf(error) === 'SESSION_QUERY_SESSION_NOT_FOUND') return { foreign: true };
+        throw error;
+      }
+      return found === undefined ? { foreign: true } : { foreign: false, lesson: found };
+    },
+    list: async ctx => {
+      const workspace = host.workspaceRegistry.get(ctx.workspaceId as never);
+      if (workspace === undefined) return [];
+      const root = workspace.path;
+      // The native Session list is the course page's own source: it carries the
+      // blank predicate and the folded title the sidebar already shows, so a
+      // startup/empty session never becomes a ghost lesson on the graph.
+      const list = await host.sessionController.list({}, AbortSignal.timeout(30_000));
+      const own = list.items.filter(item => {
+        if (item.origin === 'subagent' || item.cwd === undefined || !isWorkspacePath(root, item.cwd)) return false;
+        // The controller's cached projection is the native blank/title predicate
+        // the course page's own list uses; a session with neither is the reusable
+        // empty shell, not a lesson.
+        return !isBlankUntitled(item.blank === true, item.projections?.values.title ?? undefined);
+      });
+      const decided = await Promise.all(own.map(item => lesson(ctx, item.sessionId).then(
+        found => found === undefined ? [] : [found],
+        // A lesson that is really listed but cannot be read must fail the graph,
+        // never quietly vanish into an apparently complete one.
+        error => { throw error; },
+      )));
+      return decided.flat();
+    },
   };
 }
 
@@ -199,6 +364,28 @@ export class StudyForgeOrganization extends TypertRemoteService {
   async openPlannedLesson(input: { operationId: string; sessionId?: string; nodeId: string }): Promise<RouteOpenResult> {
     const parsed = WriteSchema.extend({ nodeId: z.string().min(1) }).strict().parse(input);
     return this.ctx.studyforgeRouteService.openPlanned(await this.mutation(parsed.sessionId, parsed.operationId), parsed.nodeId);
+  }
+
+  /**
+   * Every native lesson this workspace really has, read-only: the full-graph
+   * source the course page draws. A browse writes nothing, and each row already
+   * carries the route node id its explicit binding would use.
+   */
+  @Remote('routeLessons')
+  async routeLessons(): Promise<RouteNativeLesson[]> {
+    return [...await this.ctx.studyforgeRouteService.lessons(await this.context())];
+  }
+
+  /**
+   * The explicit student action that puts one existing native lesson onto the
+   * axis, in the same route row. A retry, a second tab and a restart answer the
+   * one node; a lesson a planned node already opened adopts that binding. This
+   * never creates or duplicates a session.
+   */
+  @Remote('bindNativeLesson')
+  async bindNativeLesson(input: { operationId: string; nativeSessionId: string }): Promise<RouteView> {
+    const parsed = z.object({ operationId: z.string().min(1), nativeSessionId: z.string().min(1) }).strict().parse(input);
+    return this.ctx.studyforgeRouteService.bindNativeLesson(await this.mutation(undefined, parsed.operationId), parsed.nativeSessionId);
   }
 
   // ---- plans ----------------------------------------------------------------

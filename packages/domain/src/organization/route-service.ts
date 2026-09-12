@@ -41,12 +41,18 @@
  * and `<operation>:bind`. What the domain cannot remove is the window between
  * the Host creating a native session and this row being written: the Host's
  * `NativeOpen` must adopt the same stable id for the same `openingKey`.
+ *
+ * A lesson that already exists gets onto the axis the other way round: browsing
+ * reads the Host's read-only {@link NativeLessonSource} and writes nothing, and
+ * the explicit student action binds it through {@link RouteService.bindNativeLesson}
+ * under a session-derived node id in this same row. That path never asks the
+ * Host for a session, so it cannot invent one.
  */
 import { createHash } from 'node:crypto';
 import { MutationContextSchema } from '@studyforge/contracts';
-import { RouteNodeInputSchema, RouteNodePatchSchema, RouteNodeSchema, RouteOpeningSchema, RoutePlacementSchema, RouteSessionBindingSchema, RouteViewSchema } from '@studyforge/contracts/routes';
+import { RouteNativeLessonSchema, RouteNodeInputSchema, RouteNodePatchSchema, RouteNodeSchema, RouteOpeningSchema, RoutePlacementSchema, RouteSessionBindingSchema, RouteViewSchema } from '@studyforge/contracts/routes';
 import type { HostContext, LessonMaterials, MutationContext } from '@studyforge/contracts';
-import type { RouteDecl, RouteLayout, RouteNode, RouteNodePatch, RouteOpening, RoutePlacementEntry, RoutePosition, RouteRecord, RouteSessionBinding, RouteView } from '@studyforge/contracts/routes';
+import type { RouteNativeLesson, RouteDecl, RouteLayout, RouteNode, RouteNodePatch, RouteOpening, RoutePlacementEntry, RoutePosition, RouteRecord, RouteSessionBinding, RouteView } from '@studyforge/contracts/routes';
 import type { Clock } from '../clock.ts';
 import { RecordError, type Saved } from '../storage/record-store.ts';
 
@@ -89,6 +95,36 @@ export interface NativeOpen {
   }): Promise<{ readonly sessionId: string; readonly openedAt: string }>;
 }
 
+/**
+ * The Host's native lesson side, read only. A lesson that already exists is
+ * bound onto the axis by reading it, never by starting a session: this port has
+ * no creation method at all, so `bindNativeLesson` cannot open a second lesson.
+ *
+ * `foreign` is `true` for a live or persisted native session that is *not*
+ * attached to the acting workspace (or is a subagent child); the domain refuses
+ * that instead of persisting a node this workspace cannot support, and the list
+ * simply leaves it out.
+ */
+export interface NativeLessonSource {
+  read(ctx: HostContext, sessionId: string): Promise<NativeLessonRead>;
+  /** The workspace's own ordinary lessons: attached, non-subagent, not archived, newest-first. */
+  list(ctx: HostContext): Promise<readonly RouteNativeLesson[]>;
+}
+
+export type NativeLessonRead =
+  | { readonly foreign: true }
+  | { readonly foreign: false; readonly lesson: RouteNativeLesson };
+
+/**
+ * The route node id one native lesson binds under. It is a pure function of the
+ * workspace and the native session, so a retry, a second tab or a restart binds
+ * the same one node; the `l_` namespace can never collide with a planned node's
+ * `p_` id, because no operation hash starts with the literal `l_`.
+ */
+export function lessonNodeId(workspaceId: string, sessionId: string): string {
+  return 'l_' + createHash('sha256').update(JSON.stringify([workspaceId, sessionId])).digest('hex').slice(0, 16);
+}
+
 /** A refused route write, with the exact rule that refused it. */
 export class RouteError extends Error {
   readonly code: string;
@@ -109,12 +145,14 @@ export class RouteError extends Error {
 export class RouteService {
   private readonly records: RouteRecordStore;
   private readonly native: NativeOpen;
+  private readonly nativeLessons: NativeLessonSource;
   private readonly clock: Clock;
   private readonly validators: RouteValidators;
 
-  constructor(records: RouteRecordStore, native: NativeOpen, clock: Clock, validators: RouteValidators) {
+  constructor(records: RouteRecordStore, native: NativeOpen, clock: Clock, validators: RouteValidators, nativeLessons: NativeLessonSource) {
     this.records = records;
     this.native = native;
+    this.nativeLessons = nativeLessons;
     this.clock = clock;
     this.validators = validators;
   }
@@ -309,6 +347,104 @@ export class RouteService {
     const bound = findNode(saved.data.nodes, nodeId);
     if (bound.session === undefined) throw new RouteError('route_binding_missing', [nodeId]);
     return { sessionId: bound.session.sessionId, node: bound, created: bound.session.sessionId === opened.sessionId };
+  }
+
+  /**
+   * Bind one native lesson that already exists onto this axis, in this one row.
+   *
+   * This is the explicit student action ("把这一节挪上课程路线"); browsing calls
+   * `lessons` and writes nothing. The lesson's title, creation time and
+   * material list are read from the native session and its own CourseMetadata —
+   * the caller supplies only the operation and the native id, and this never
+   * starts a session, so it cannot manufacture a lesson that is not there.
+   *
+   * The node id is a pure function of the workspace and the session, so a retry,
+   * an accepted-operation replay, a second tab and a restart all answer the one
+   * node. A lesson that was planned first (`openPlanned`) already holds a session
+   * binding without a lesson-node id: binding the same session then adopts that
+   * node instead of adding a duplicate leaf.
+   *
+   * A *new* node inherits its native lineage: when the lesson's `parentSession`
+   * already has a route node, the child lands under it in the same write. An
+   * already bound node is answered untouched, so an explicit later mount (the
+   * student dragging the child to the root, say) is never overwritten.
+   *
+   * @throws RouteError `route_native_session_foreign` for a session that is not
+   *   attached to the acting workspace, `route_native_session_unavailable` for a
+   *   subagent child or a lesson this workspace cannot read.
+   */
+  async bindNativeLesson(ctx: MutationContext, sessionId: string): Promise<RouteView> {
+    MutationContextSchema.parse(ctx);
+    try { return await this.bindNativeLessonOnce(ctx, sessionId); }
+    catch (error) {
+      // Another tab created the axis between this read and this write, under its
+      // own operation. The row now exists: re-read and let that one answer the
+      // node it wrote, or append against it when it wrote something else.
+      if (codeOf(error) !== 'record_exists') throw error;
+      return this.bindNativeLessonOnce(ctx, sessionId);
+    }
+  }
+
+  private async bindNativeLessonOnce(ctx: MutationContext, sessionId: string): Promise<RouteView> {
+    const nodeId = lessonNodeId(ctx.workspaceId, sessionId);
+    const current = this.optional(ctx);
+    // Already on the axis: a retry from another tab, and the lesson a planned
+    // node already opened, both answer the node that really carries the binding.
+    const existing = current?.data.nodes.find(node => node.session?.sessionId === sessionId);
+    if (existing !== undefined && current !== undefined) return this.viewOf(current);
+
+    const read = await this.nativeLessons.read(ctx, sessionId);
+    if (read.foreign) throw new RouteError('route_native_session_foreign', [sessionId]);
+    const lesson = read.lesson;
+    if (lesson.sessionId !== sessionId) throw new RouteError('route_native_session_unavailable', [sessionId]);
+
+    const session = RouteSessionBindingSchema.parse({ sessionId, openingKey: this.openingKeyOf(nodeId), openedAt: lesson.createdAt });
+    /**
+     * The one edge this write may introduce is the lesson's own native lineage,
+     * and only when that parent *already* has a route node: dragging a child in
+     * after its parent preserves the relation instead of dropping it at the root,
+     * and the recursive UI bind (parent first) is what makes that true. A parent
+     * nobody bound yet leaves the child at the root. This runs inside the same
+     * create transform, so it is never a second mount, and it never touches a
+     * node that already carries a binding (the replay path returns before here),
+     * so a student's explicit root mount is never overwritten.
+     */
+    const nodeFor = (row: RouteRecord): RouteNode => {
+      const parentSession = lesson.parentSession;
+      const inherited = parentSession === undefined ? undefined
+        : row.nodes.find(item => item.session?.sessionId === parentSession)?.id;
+      return RouteNodeSchema.parse({
+        id: nodeId, title: lesson.title, materials: lesson.materials, session,
+        ...(inherited === undefined ? {} : { parent: inherited }),
+      });
+    };
+    // A workspace that never wrote a route row is not an error and not a row to
+    // adopt: this lesson is the axis' first node, created under the operation's
+    // own mechanical record so a retry replays it instead of colliding.
+    if (current === undefined) {
+      const node = nodeFor({ nodes: [], layout: [] });
+      return this.viewOf(await this.records.create(subContext(ctx, 'write'), ROUTE_ID, { nodes: [node], layout: [] }));
+    }
+    // Reaching the transform means this operation is new: the node id is
+    // session-derived, so a *different* operation arriving for the same lesson
+    // adopts the binding another operation already wrote instead of colliding.
+    return this.viewOf(await this.records.updateCurrent(subContext(ctx, 'write'), ROUTE_REF, { bindNative: sessionId }, row => {
+      if (row.nodes.some(item => item.session?.sessionId === sessionId)) return row;
+      if (row.nodes.some(item => item.id === nodeId)) throw new RouteError('route_node_conflict', [nodeId]);
+      return { ...row, nodes: [...row.nodes, nodeFor(row)] };
+    }));
+  }
+
+  /**
+   * Every native lesson this workspace really has, read-only, in the route's own
+   * node order when a binding exists and newest-first otherwise. A browse never
+   * writes: this call only reads the row and asks the Host for the workspace's
+   * own lessons.
+   */
+  async lessons(ctx: HostContext): Promise<readonly RouteNativeLesson[]> {
+    // The Host owns the native side; this boundary only re-asserts the shape the
+    // course page can rely on, so a malformed row fails here rather than in UI.
+    return (await this.nativeLessons.list(ctx)).map(lesson => RouteNativeLessonSchema.parse(lesson));
   }
 
   /** The Host's validators, run before anything is stored. */

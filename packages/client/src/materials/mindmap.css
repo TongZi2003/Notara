@@ -1,0 +1,50 @@
+/* One shared node-and-edge map (book structure area + classroom 本课资料).
+   Scoped to `.sf-mindmap*` so the native frame, the composer and the other
+   notebook pages keep their own rules; the paper/ink tokens come from the
+   surrounding page and fall back to the printed palette when it is off. */
+.sf-mindmap-wrap{overflow:auto;min-width:0}
+.sf-mindmap{position:relative;min-height:140px;background-color:var(--op-paper,#efe7d2);background-image:radial-gradient(var(--op-rule,#d9d2bd) 1px,transparent 1px);background-size:24px 24px}
+.sf-mindmap-edges{position:absolute;left:0;top:0;pointer-events:none}
+.sf-mindmap-edges path{fill:none;stroke:var(--op-rule-hi,#b9b19c);stroke-width:1.4}
+.sf-mindmap-node{position:absolute;display:flex;flex-direction:column;align-items:stretch;gap:3px}
+/* A node's `left` is its centre (the same coordinate the edges meet), so the
+   drawn box has to sit half its width to the left of it. Lists are unaffected:
+   their nodes are laid out in flow, not at a coordinate. */
+.sf-mindmap > .sf-mindmap-node{transform:translateX(-50%)}
+.sf-mindmap-node .sf-mind-label{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;
+  min-height:58px;border:1px solid var(--op-rule,#d9d2bd);border-radius:4px;background:var(--op-hi,#fdfaf1);color:var(--op-ink,#3a3531);
+  font-family:var(--op-print,"Songti SC","STSong","Noto Serif SC",serif);font-size:13.5px;line-height:1.35;padding:7px 8px;cursor:pointer;text-align:center}
+.sf-mindmap-node .sf-mind-label:hover{border-color:var(--op-rule-hi,#b9b19c)}
+.sf-mindmap-node[data-selected="true"] .sf-mind-label{border-color:var(--op-seal,#c93a2e);box-shadow:inset 0 0 0 3px var(--op-seal-wash,rgba(201,58,46,.07))}
+.sf-mindmap-node[data-kind="book"] .sf-mind-label{font-weight:600;background:var(--op-paper,#efe7d2)}
+.sf-mindmap-node[data-kind="card"] .sf-mind-label{background:var(--op-hi,#fdfaf1);border-style:solid}
+.sf-mindmap-node[data-kind="knowledge"] .sf-mind-label{border-style:dashed}
+.sf-mindmap-node[data-kind="section"] .sf-mind-label{background:var(--op-page,#f6f1e3)}
+.sf-mindmap-node .sf-mind-title{overflow-wrap:anywhere}
+.sf-mindmap-node .sf-mind-hint{font:11px var(--op-hand,"Kaiti SC","STKaiti",serif);color:var(--op-pencil,#756e61)}
+.sf-mindmap-node .sf-mind-toggle{align-self:center;border:0;background:none;color:var(--op-pen,#26437c);
+  font:11px var(--op-hand,"Kaiti SC","STKaiti",serif);padding:1px 6px;cursor:pointer}
+.sf-mindmap-node .sf-mind-toggle:hover{text-decoration:underline}
+.sf-mindmap-node .sf-mind-action{align-self:center;font:11px var(--op-hand,"Kaiti SC","STKaiti",serif);padding:2px 8px}
+.sf-mindmap-list{list-style:none;margin:0;padding:0}
+.sf-mindmap-list .sf-mindmap-node{position:static;display:flex;flex-direction:column;align-items:stretch;gap:3px;
+  border-bottom:1px solid var(--op-rule,#d9d2bd);padding:6px 0}
+.sf-mindmap-list .sf-mind-label{flex-direction:row;justify-content:flex-start;min-height:0;border:0;background:none;text-align:left;padding:0}
+.sf-mindmap-list .sf-mind-label:hover{color:var(--op-seal,#c93a2e)}
+.sf-mindmap-list .sf-mindmap-node[data-selected="true"] .sf-mind-label{box-shadow:none;color:var(--op-seal,#c93a2e)}
+.sf-mindmap-list .sf-mind-title{font-family:var(--op-print,"Songti SC","STSong",serif);font-size:14px}
+.sf-mindmap-list .sf-mind-hint{margin-left:8px}
+.sf-mindmap-list .sf-mind-toggle,.sf-mindmap-list .sf-mind-action{align-self:flex-start}
+/* The original notebook's map-card stickers, shared by book and lesson maps. */
+.sf-mindmap > .sf-mindmap-node{box-sizing:border-box;padding:16px 10px 9px;border-radius:1px;background:#fdf1b0;box-shadow:var(--nb-slip-shadow,0 1px 1px #3c321a29,0 6px 14px #3c321a21);color:#3a3531}
+.sf-mindmap > .sf-mindmap-node:nth-of-type(3n+2){background:#e6efdc}
+.sf-mindmap > .sf-mindmap-node:nth-of-type(3n){background:#f7ded4}
+.sf-mindmap > .sf-mindmap-node::before{content:"";position:absolute;top:-8px;left:calc(50% - 27px);width:54px;height:17px;background:#e9ddb3aa;transform:rotate(-4deg);pointer-events:none}
+.sf-mindmap > .sf-mindmap-node .sf-mind-label{border:0;border-radius:0;background:transparent;box-shadow:none;color:#26437c;min-height:0;padding:3px 2px 7px}
+.sf-mindmap > .sf-mindmap-node .sf-mind-title{font:19px/1.4 var(--nb-hand,"Kaiti SC","STKaiti",serif)}
+.sf-mindmap > .sf-mindmap-node .sf-mind-hint{font:11px/1.5 var(--nb-print,"Songti SC",serif);color:#756e61}
+.sf-mindmap > .sf-mindmap-node :is(.sf-mind-toggle,.sf-mind-action){color:#26437c;font:12px/1.5 var(--nb-print,"Songti SC",serif)}
+.sf-mindmap > .sf-mindmap-node .sf-mind-action{border:0;background:none;padding:3px 6px}
+.sf-mindmap > .sf-mindmap-node:hover{box-shadow:0 2px 2px #3c321a20,0 9px 20px #3c321a2c}
+.sf-mindmap > .sf-mindmap-node[data-selected="true"]{outline:2px dashed #26437c;outline-offset:4px}
+@media(prefers-reduced-motion:reduce){.sf-mindmap-node .sf-mind-label{transition:none}}

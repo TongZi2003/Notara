@@ -10,7 +10,7 @@
  */
 import { test as base, expect, type Page } from '@playwright/test';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
-import { enterClassroom, typeInput } from './fixtures/classroom.ts';
+import { enterClassroom, typeInput, openCards, openCoursesList } from './fixtures/classroom.ts';
 
 const test = base.extend<{ dsh: IsolatedRuntime }>({
   dsh: async ({}, use, testInfo) => {
@@ -32,14 +32,14 @@ async function dismissNotices(page: Page): Promise<void> {
 
 async function openCourses(page: Page): Promise<void> {
   await dismissNotices(page);
-  await page.getByRole('button', { name: '课程', exact: true }).first().click();
-  await expect(page.getByTestId('studyforge-page-studyforge.courses')).toBeVisible();
+  // These flows use the row editor, so the student explicitly chooses the list tab.
+  await openCoursesList(page);
 }
 
 /** Create one ordinary card through the real editor so a node can point at it. */
 async function createCard(page: Page, title: string, front: string): Promise<void> {
   await dismissNotices(page);
-  await page.getByRole('button', { name: '卡片', exact: true }).first().click();
+  await openCards(page);
   await page.getByTestId('card-browser-create').click();
   await page.getByTestId('card-editor-title').fill(title);
   await page.getByTestId('card-editor-front').fill(front);

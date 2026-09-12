@@ -30,7 +30,7 @@ export async function apply(ctx: Context): Promise<void> {
     return;
   }
   ctx.plugin({ inject: ['slots', 'layout', 'sessions'], apply: registerStudentShell });
-  ctx.plugin({ inject: ['slots', 'layout', 'sessions', 'uiWorkspace'], apply: registerNotebookSidebar });
+  ctx.plugin({ inject: ['slots', 'layout', 'sessions', 'uiWorkspace', 'remote.studyforgeOrganization'], apply: registerNotebookSidebar });
   ctx.plugin({ inject: ['theme', 'slots', 'layout', 'sessions'], apply: scope => registerNotebook(scope, materialNavigation) });
   // Remote namespaces are separately injected properties: reading
   // `ctx.remote.studyforgeCourses` needs its own nested inject entry.

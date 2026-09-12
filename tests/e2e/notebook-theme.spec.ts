@@ -1,4 +1,4 @@
-import { test, expect, enterClassroom, sendInput, typeInput } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, sendInput, typeInput, openCards, openSetManagement } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { CardView } from '@studyforge/contracts/cards';
@@ -26,6 +26,9 @@ test('notebook fonts, paper controls and browser routes preserve the actual nati
   expect(await page.getByTestId('notebook-appearance').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   await expect(page).toHaveURL(/#studyforge\/appearance$/);
   await page.getByTestId('notebook-paper').selectOption('fangge');
+  await page.getByTestId('notebook-tone').selectOption('white');
+  await expect(page.getByTestId('notebook-appearance')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(page.getByTestId('notebook-sidebar')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await page.getByTestId('notebook-scheme').selectOption('bing');
   await page.getByTestId('notebook-face').selectOption('hand');
   await page.getByTestId('notebook-size').selectOption('l');
@@ -38,12 +41,14 @@ test('notebook fonts, paper controls and browser routes preserve the actual nati
   await page.emulateMedia({ colorScheme: 'light' });
   await page.getByTestId('notebook-back').click();
   await expect(page.locator('[data-composer-input]')).toContainText('这条草稿和原来的课堂都保留。');
-  await page.getByRole('button', { name: '卡片', exact: true }).first().click();
+  await openCards(page);
   await expect(page).toHaveURL(/#studyforge\/cards$/);
   await page.getByTestId('notebook-settings').click();
   await expect(page).toHaveURL(/#studyforge\/appearance$/);
   await page.reload();
   await expect(page.getByTestId('notebook-appearance')).toBeVisible();
+  await expect(page.getByTestId('notebook-tone')).toHaveValue('white');
+  await expect(page.getByTestId('notebook-appearance')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await page.getByTestId('notebook-back').click();
   await expect(page.getByTestId('studyforge-page-studyforge.cards')).toBeVisible();
   await page.getByRole('button', { name: '日历', exact: true }).first().click();
@@ -56,9 +61,15 @@ test('notebook fonts, paper controls and browser routes preserve the actual nati
   await expect(page.getByTestId('studyforge-page-studyforge.calendar')).toBeVisible();
   await expect(page.locator('body')).toHaveAttribute('data-sf-scheme', 'bing');
   for (const [title, route] of [['首页','home'],['课程','courses'],['资料','materials'],['卡片','cards'],['学习集','sets'],['日历','calendar']] as const) {
-    await page.getByRole('button', { name: title, exact: true }).first().click();
+    if (route === 'cards') await openCards(page);
+    else if (route === 'sets') await openSetManagement(page);
+    else await page.getByRole('button', { name: title, exact: true }).first().click();
     await expect(page).toHaveURL(new RegExp('#studyforge/' + route + '$'));
     await expect(page.getByTestId('studyforge-page-studyforge.' + route)).toBeVisible();
+    if (route === 'courses') {
+      await expect(page.getByTestId('roadmap-canvas')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+      await expect(page.getByTestId('roadmap-canvas')).toHaveCSS('background-image', 'none');
+    }
   }
   await page.getByTestId('notebook-toggle').click();
   await expect(page.locator('body')).toHaveAttribute('data-sf-notebook', 'off');
@@ -82,7 +93,7 @@ test('notebook card slips open the real card and its source returns to the origi
   const book = value(await client.rpc<MaterialView>('studyforgeMaterials/import', { input: { operationId: 'notebook-book', material: { title: '函数笔记', fileName: '函数.md', mediaType: 'text/markdown' }, base64: Buffer.from('先写定义域，再讨论单调性。').toString('base64') } }));
   const source = { materialId: book.materialId, versionId: book.currentVersion.versionId, quote: '先写定义域', locator: { kind: 'text', start: { line: 1, column: 0 }, end: { line: 1, column: 5 } } };
   const card = value(await client.rpc<CardView>('studyforgeLearning/createCard', { input: { operationId: 'notebook-card', content: { title: '先写定义域', front: '讨论单调性之前，第一步写什么？', sources: [source] } } }));
-  await page.getByRole('button', { name: '卡片', exact: true }).first().click();
+  await openCards(page);
   await expect(page.getByTestId('card-row')).toHaveCount(1);
   await expect(page.locator('.sf-card-face-preview')).toContainText('讨论单调性');
   await page.evaluate(async () => { await document.fonts.load('24px "SF Long Cang"', '先写定义域'); });

@@ -1,0 +1,25 @@
+/* 本课设置: the one modal the conversation heading opens. Fixed over the whole
+   window (the heading's own action opened it), with the lesson's settings on a
+   paper card; the right column keeps its single material map behind it. */
+.sf-lesson-modal{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;
+  background:rgba(38,32,24,.28);padding:min(8vh,64px) 16px 24px;overflow:auto}
+.sf-lesson-modal-card{box-sizing:border-box;width:min(640px,100%);max-height:80vh;overflow:auto;
+  border:1px solid var(--op-rule,#d9d2bd);border-radius:4px;background:var(--op-hi,#fdfaf1);color:var(--op-ink,#3a3531);
+  font-family:var(--op-print,"Songti SC","STSong","Noto Serif SC",serif);padding:18px 22px 26px;
+  box-shadow:0 18px 40px rgba(60,50,30,.24)}
+.sf-lesson-modal-card:focus-visible{outline:2px solid var(--op-seal,#c93a2e);outline-offset:3px}
+.sf-lesson-modal-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+  border-bottom:1px solid var(--op-rule,#d9d2bd);padding-bottom:10px;margin-bottom:14px}
+.sf-lesson-modal-head h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.04em}
+.sf-lesson-modal-card section{margin-top:20px}
+.sf-lesson-modal-card h3{font-size:12px;letter-spacing:.1em;color:var(--op-pencil,#756e61);margin:0 0 8px;font-weight:600}
+.sf-lesson-modal-card h4{font-size:11px;letter-spacing:.08em;color:var(--op-pencil,#756e61);margin:12px 0 6px}
+.sf-lesson-modal-card dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0;font-size:13px}
+.sf-lesson-modal-card dt{color:var(--op-pencil,#756e61);font-size:12px}
+.sf-lesson-modal-card dd{margin:0;overflow-wrap:anywhere}
+.sf-lesson-modal-card ul{list-style:none;margin:0;padding:0}
+.sf-lesson-modal-card li{font-size:13px}
+.sf-lesson-modal-card .sf-quiet{margin-top:8px}
+.sf-lesson-modal-card details.sf-lesson-adjust{margin-top:20px;border-top:1px solid var(--op-rule,#d9d2bd);padding-top:12px}
+.sf-lesson-modal-card details.sf-lesson-adjust>summary{cursor:pointer;font-size:13px;color:var(--op-pen,#26437c)}
+@media(max-width:900px){.sf-lesson-modal{padding:12px}.sf-lesson-modal-card{max-height:92vh;padding:14px 16px 22px}}

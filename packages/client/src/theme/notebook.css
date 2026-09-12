@@ -19,6 +19,12 @@ body[data-sf-notebook]{
   --nb-slip-shadow:0 1px 1px #3c321a29,0 6px 14px #3c321a21;--nb-page-shadow:0 1px 0 #3c321a0d,0 12px 32px #3c321a24;
 }
 body[data-sf-notebook][data-ds-dark-theme]{--nb-page:#28251f;--nb-desk:#211f1a;--nb-paper:#373328;--nb-hi:#302d25;--nb-slip:#302d25;--nb-ink:#eee5d0;--nb-pen:#abc2f0;--nb-pencil:#b0a48a;--nb-seal:#ee947c;--nb-rule:#514a3d;--nb-rule-hi:#756a55}
+body[data-sf-notebook][data-sf-tone="white"]:not([data-ds-dark-theme]){
+  --nb-page:#fff;--nb-desk:#f3f4f6;--nb-paper:#fff;--nb-hi:#fff;--nb-slip:#fff;
+  --nb-ink:#303640;--nb-pencil:#6a7380;--nb-rule:#e0e4e9;--nb-rule-hi:#b9c1cc;
+  --nb-slip-shadow:0 1px 2px #24304418,0 5px 12px #24304412;--nb-page-shadow:0 1px 0 #24304408,0 10px 28px #24304414;
+}
+body[data-sf-notebook="on"][data-sf-tone="white"] :is(.sf-map-canvas,.sf-mindmap){background-color:var(--nb-paper);background-image:none}
 body[data-sf-scheme="yi"]{--nb-hand:"SF Patrick Hand","SF Ma Shan Zheng",serif;--nb-scale:1.02}
 body[data-sf-scheme="bing"]{--nb-hand:"SF Caveat","SF WenKai",serif;--nb-scale:1.04}
 body[data-sf-scheme="ding"]{--nb-teacher:var(--nb-print);--nb-red:"SF Kalam","SF Zhi Mang Xing",serif}

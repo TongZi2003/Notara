@@ -3,7 +3,7 @@ import { access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { test as base, expect, type Page } from '@playwright/test';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
-import { enterClassroom } from './fixtures/classroom.ts';
+import { enterClassroom, openRoot, openSetManagement } from './fixtures/classroom.ts';
 
 /**
  * This spec exercises a real lesson, so it boots the isolated runtime with the
@@ -30,7 +30,8 @@ const STUDENT_PAGES = [
   { label: '首页', page: 'studyforge.home' },
   { label: '课程', page: 'studyforge.courses' },
   { label: '资料', page: 'studyforge.materials' },
-  { label: '学习集', page: 'studyforge.sets' },
+  { label: '管理学习集', page: 'studyforge.sets' },
+  { label: '学情', page: 'studyforge.memory' },
   { label: '日历', page: 'studyforge.calendar' },
 ] as const;
 
@@ -67,16 +68,19 @@ test('native classroom keeps its own composer and carries the student lesson sur
 
     // Every student entry reaches its own page, and leaving it restores the classroom.
     for (const entry of STUDENT_PAGES) {
-      await page.getByRole('button', { name: entry.label, exact: true }).click();
+      if (entry.page === 'studyforge.sets') await openSetManagement(page);
+      else await openRoot(page, entry.label);
       const surface = page.getByTestId(`studyforge-page-${entry.page}`);
       await expect(surface).toBeVisible();
       await expect(page.locator('[data-conversation-scroll]')).toHaveCount(0);
       if (entry.page === 'studyforge.courses') {
         expect(await surface.innerText()).not.toMatch(/studyforge\.|sessionId|schema|\/Users\//);
-        await expect(surface).toContainText('还没有课');
+        // The default course page is the roadmap; the lesson list is its own tab.
+        await page.getByTestId('courses-tab-list').click();
+        await expect(page.getByTestId('native-lessons-empty')).toContainText('还没有课');
       }
     }
-    await page.getByRole('button', { name: '首页', exact: true }).click();
+    await openRoot(page, '首页');
     await page.getByTestId('open-classroom').click();
     await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('home-back-to-classroom.png') });
@@ -93,7 +97,7 @@ test('native classroom keeps its own composer and carries the student lesson sur
 
     // The lesson entry opens this client's own rightbar page type; the read is real
     // (this lesson has no material yet, and the panel says exactly that).
-    const lessonEntry = page.getByRole('button', { name: '本课', exact: true });
+    const lessonEntry = page.getByRole('button', { name: '本课资料', exact: true });
     await expect(lessonEntry).toBeVisible();
     await lessonEntry.click();
     const panel = page.getByTestId('studyforge-lesson-panel');
@@ -110,15 +114,17 @@ test('native classroom keeps its own composer and carries the student lesson sur
     await page.screenshot({ path: testInfo.outputPath('lesson-panel-rightbar.png') });
 
     // The lesson the student just started is now a real row in their course list.
-    await page.getByRole('button', { name: '课程', exact: true }).click();
+    await page.getByTestId('notebook-sidebar').getByRole('button', { name: '课程', exact: true }).click();
     const courses = page.getByTestId('studyforge-page-studyforge.courses');
-    await expect(courses).not.toContainText('还没有课', { timeout: 20_000 });
-    await expect(page.getByTestId('studyforge-lessons')).toBeVisible();
+    await expect(courses).toBeVisible();
+    await page.getByTestId('courses-tab-list').click();
+    await expect(page.getByTestId('studyforge-lessons')).toBeVisible({ timeout: 20_000 });
+    await expect(courses).not.toContainText('还没有课');
     await page.screenshot({ path: testInfo.outputPath('courses-after-lesson.png') });
 
     // Narrower and smallest supported viewports keep the classroom and the entries usable.
     await page.setViewportSize({ width: 1024, height: 768 });
-    await page.getByRole('button', { name: '首页', exact: true }).click();
+    await openRoot(page, '首页');
     // 开始学习 now deliberately starts a new lesson. Return via the real history
     // entry to exercise the same lesson's panel at the smaller viewport.
     await page.getByTestId('home-last-transcript').click();
@@ -127,7 +133,7 @@ test('native classroom keeps its own composer and carries the student lesson sur
     await page.screenshot({ path: testInfo.outputPath('classroom-1024.png') });
 
     await page.setViewportSize({ width: 390, height: 844 });
-    if (!await panel.isVisible()) await page.getByRole('button', { name: '本课', exact: true }).click();
+    if (!await panel.isVisible()) await page.getByRole('button', { name: '本课资料', exact: true }).click();
     // At the smallest width the native rightbar covers the viewport, so the lesson
     // panel itself is what the student reads there; a browser reload resets the
     // in-memory layout and the navigation is reachable again.
@@ -140,8 +146,9 @@ test('native classroom keeps its own composer and carries the student lesson sur
     await page.screenshot({ path: testInfo.outputPath('narrow-390-lesson.png') });
     await page.reload();
     await dismissNotices(page);
-    await expect(page.getByRole('button', { name: '日历', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: '日历', exact: true }).click();
+    const calendarRow = page.getByTestId('notebook-sidebar').getByRole('button', { name: '日历', exact: true });
+    await expect(calendarRow).toBeVisible();
+    await calendarRow.click();
     await expect(page.getByTestId('studyforge-page-studyforge.calendar')).toBeVisible();
     await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
     await page.screenshot({ path: testInfo.outputPath('narrow-390.png') });
@@ -174,7 +181,7 @@ test('a creation session keeps the classroom and hides the learning lesson surfa
     await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
     await expect(page.locator('[data-composer-input]')).toBeVisible();
     await expect(page.getByRole('button', { name: MODEL_TRIGGER })).toBeVisible();
-    await expect(page.getByRole('button', { name: '本课', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '本课资料', exact: true })).toHaveCount(0);
     await expect(page.getByTestId('studyforge-lesson-panel')).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('creation-session.png') });
     expect(errors).toEqual([]);

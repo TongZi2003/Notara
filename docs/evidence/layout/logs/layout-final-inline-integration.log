@@ -1,0 +1,17 @@
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/mixed-route.test.ts tests/integration/native-route-binding.test.ts tests/integration/mixed-deck.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/mixed-route.test.ts (18 tests) 772ms
+ ✓ |integration| tests/integration/mixed-deck.test.ts (5 tests) 196ms
+ ✓ |integration| tests/integration/native-route-binding.test.ts (3 tests) 24385ms
+   ✓ routeLessons reads the workspace lessons without writing; bindNativeLesson binds one exactly once  12110ms
+   ✓ a nested registered workspace inside the acting workspace is foreign, not adopted  6069ms
+   ✓ a lesson of an unrelated workspace is refused and never becomes a lesson  6206ms
+
+ Test Files  3 passed (3)
+      Tests  26 passed (26)
+   Start at  14:53:05
+   Duration  24.51s (transform 235ms, setup 0ms, import 693ms, tests 25.35s, environment 0ms)

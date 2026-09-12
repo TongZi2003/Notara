@@ -12,7 +12,7 @@
  */
 import { test as base, expect, type Page } from '@playwright/test';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
-import { enterClassroom, typeInput } from './fixtures/classroom.ts';
+import { enterClassroom, typeInput, openCoursesList } from './fixtures/classroom.ts';
 
 const test = base.extend<{ dsh: IsolatedRuntime }>({
   dsh: async ({}, use, testInfo) => {
@@ -34,8 +34,9 @@ async function dismissNotices(page: Page): Promise<void> {
 
 async function openCourses(page: Page): Promise<void> {
   await dismissNotices(page);
-  await page.getByRole('button', { name: '课程', exact: true }).first().click();
-  await expect(page.getByTestId('studyforge-page-studyforge.courses')).toBeVisible();
+  // These flows use the row editor and its per-node controls, so the student
+  // explicitly chooses 课程列表; the default course tab is the roadmap canvas.
+  await openCoursesList(page);
 }
 
 async function planNode(page: Page, title: string, date?: string): Promise<void> {

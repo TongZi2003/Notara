@@ -20,6 +20,7 @@ test('selected text travels in the native message and returns to the same immuta
   await writeFile(file, '第一行\n递增区间\n第三行', 'utf8');
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-file-input').setInputFiles(file);
+  await page.getByTestId('material-row').first().getByRole('button').first().click();
   await expect(page.getByTestId('material-text')).toBeVisible();
   await page.getByTestId('material-open-classroom').click();
   const panel = page.locator('[data-sidebar-right-panel]');
@@ -75,6 +76,7 @@ test('PDF pointer rectangles remain in original coordinates at four rotations an
   await writeFile(file, scannedPdf(readerImage('jpeg'), 900, 560, [0, 90, 180, 270]));
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-file-input').setInputFiles(file);
+  await page.getByTestId('material-row').first().getByRole('button').first().click();
   await expect(page.getByTestId('pdf-viewer')).toHaveAttribute('data-pdf-displayed-page', '1');
   await page.getByTestId('material-open-classroom').click();
   const panel = page.locator('[data-sidebar-right-panel]');
@@ -133,6 +135,7 @@ test('Word cross-paragraph selection preserves each real block including the mid
   await writeFile(file, docxWithBody('<w:p><w:r><w:t>第一段起步</w:t></w:r></w:p><w:p><w:r><w:t>同样的一句话</w:t></w:r></w:p><w:p><w:r><w:t>同样的一句话</w:t></w:r></w:p>'));
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-file-input').setInputFiles(file);
+  await page.getByTestId('material-row').first().getByRole('button').first().click();
   await expect(page.locator('[data-docx-positioned="true"]')).toBeVisible();
   await page.getByTestId('material-open-classroom').click();
   const panel = page.locator('[data-sidebar-right-panel]');
@@ -176,6 +179,7 @@ test('native card reference returns the displayed fixed version without exposing
   } });
   if (!result.ok) throw new Error('card create failed');
   await page.getByTestId('open-lesson').click();
+  await page.getByTestId('lesson-materials-refresh').click();
   await page.getByTestId('lesson-resource-row').filter({ hasText: '原卡' }).getByTestId('lesson-resource-open').click();
   await expect(page.getByTestId('card-detail-title')).toHaveText('原卡');
   await expect(page.getByTestId('composer-context')).toContainText('原卡');
@@ -205,6 +209,7 @@ test('native admission failure restores a frozen source reference and retry send
   const file = info.outputPath('失败重试.txt'); await writeFile(file, '原版本文字', 'utf8');
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-file-input').setInputFiles(file);
+  await page.getByTestId('material-row').first().getByRole('button').first().click();
   await expect(page.getByTestId('material-text')).toBeVisible();
   await page.getByTestId('material-open-classroom').click();
   await expect(page.getByTestId('composer-context')).toContainText('失败重试');
@@ -244,6 +249,7 @@ test('pointer-selected image is attached before native sending and native queued
   await writeFile(file, readerImage());
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-file-input').setInputFiles(file);
+  await page.getByTestId('material-row').first().getByRole('button').first().click();
   await expect(page.getByTestId('material-image')).toBeVisible();
   await page.getByTestId('material-open-classroom').click();
   const image = page.locator('[data-sidebar-right-panel]').getByTestId('material-image');

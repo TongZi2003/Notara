@@ -1,0 +1,11 @@
+/* One reading branch, one column.
+   A book's own layout is two columns — the immutable original on the left and
+   its map/list on the right — so the page itself must not add a third column.
+   The standalone directory that used to sit here duplicated that map; the map
+   (and its list view) is the book's outline now, and it owns the right half. */
+.sf-materials .sf-reader-page{display:block;padding:0}
+.sf-materials .sf-reader-page .sf-material-reader{border-left:0;padding:0;overflow:visible;min-width:0}
+@media(max-width:900px){
+  .sf-materials .sf-reader-page{padding:0}
+  .sf-materials .sf-reader-page .sf-material-reader{padding:0}
+}

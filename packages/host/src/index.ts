@@ -31,7 +31,7 @@ import { RouteService } from '@studyforge/domain/routes';
 import { PlanService } from '@studyforge/domain/plans';
 import { SkeletonAuthoring } from '@studyforge/domain/skeleton-authoring';
 import { BookExploration } from '@studyforge/domain/book-exploration';
-import { StudyForgeOrganization, routeValidators } from './organization-service.ts';
+import { StudyForgeOrganization, nativeLessons, routeValidators } from './organization-service.ts';
 import { nativeOpen } from './runtime/native-open.ts';
 import { StudyForgeLearning } from './learning-service.ts';
 import { registerCardTools } from './tools/card-tools.ts';
@@ -124,7 +124,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       catch (error) { if ((error as { code?: string }).code === 'record_missing') return false; throw error; }
     } }, clock, owner);
     const routeRecords = await owner.collection('route', RouteRecordSchema);
-    const routes = new RouteService(routeRecords, nativeOpen(ctx), clock, routeValidators(ctx, teaching.choices.map(choice => choice.id)));
+    const routes = new RouteService(routeRecords, nativeOpen(ctx), clock, routeValidators(ctx, teaching.choices.map(choice => choice.id)), nativeLessons(ctx));
     const planRecords = await owner.collection('plan', PlanContentSchema);
     const plans = new PlanService(planRecords, materials, skeletons, {
       hasCard(context, ref) { try { cardRecords.read(context, ref); return true; } catch { return false; } },

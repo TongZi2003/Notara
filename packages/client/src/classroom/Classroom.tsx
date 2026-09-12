@@ -1,12 +1,12 @@
 import type { Context } from '@deepseek-ai/cordis';
-import { cardAddress } from '../materials/CardResource.tsx';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client';
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import { LESSON_TAB_ID, LESSON_TAB_KIND, LessonPanel, type LessonPanelInjected } from './LessonPanel.tsx';
-import { useEffect } from 'react';
-import type { NativeResourceParams } from '../materials/native-preview-adapter.ts';
+import { useEffect, useRef, useState } from 'react';
+import { LessonSettingsModal } from './LessonSettings.tsx';
+import { ProposalInbox } from '../proposals/ProposalInbox.tsx';
 
 /** The one native composition that owns learning surfaces; creation is not a lesson. */
 const LEARNING_PRESET = 'studyforge-learning';
@@ -18,6 +18,8 @@ const LEARNING_PRESET = 'studyforge-learning';
  */
 export function registerClassroom(ctx: Context): void {
   const initiallyOpened = new Set<string>();
+  /** The preset value the native Session really carries; unknown stays unknown. */
+  function presetOf(value: unknown): string | undefined { return typeof value === 'string' ? value : undefined; }
   function LessonEntry({ sessionId, useSessions }: PropsRuntime<'conversation.session.header.actions'>): React.JSX.Element | null {
     const selected = useSessions(state => state.current === sessionId);
     const preset = useSessions(state => {
@@ -26,62 +28,76 @@ export function registerClassroom(ctx: Context): void {
     });
     useEffect(() => {
       if (!selected || preset !== LEARNING_PRESET || initiallyOpened.has(sessionId)) return;
+      // On a phone the native rightbar covers the conversation. Keep the
+      // lesson readable until the student explicitly opens 本课资料.
+      if (window.matchMedia('(max-width: 900px)').matches) { initiallyOpened.add(sessionId); return; }
       let live = true;
       void (async () => {
-        const course = await ctx.remote.studyforgeCourses.read({ sessionId });
-        if (!live || !course.ok || ctx.sessions.list.getSnapshot().current !== sessionId) return;
-        const list = course.value.data.lessonMaterials;
-        const material = list.materials[list.initialIndex ?? 0];
-        if (!material) return;
-        // Restored native tabs take precedence over the planned first preview.
+        if (ctx.sessions.list.getSnapshot().current !== sessionId) return;
+        // Restored navigation wins: a tab the student already had — a card, an
+        // original, anything native — is left where it is. The default is the
+        // lesson's own material map, and it is a page tab, never a raw document.
         const active = ctx.sidebarRight.active();
-        if (active && active.kind !== 'guide') { initiallyOpened.add(sessionId); return; }
-        let open: () => void;
-        if (material.kind === 'card') {
-          open = () => ctx.sidebarRight.openResource(cardAddress(material.cardRef, material.cardVersion));
-        } else {
-          const result = await ctx.remote.studyforgeMaterials.resolveForSession({ sessionId, source: material.source });
-          if (!live || !result.ok || ctx.sessions.list.getSnapshot().current !== sessionId) return;
-          const params: NativeResourceParams = { studyforge: { source: material.source, version: result.value.version } };
-          open = () => ctx.sidebarRight.openResource(result.value.address, { params });
-        }
-        // The native seat and the resource registrants finish mounting after
-        // Session selection. A failed early open must not consume this preview.
+        if (active !== undefined && active.kind !== 'guide') { initiallyOpened.add(sessionId); return; }
+        // The tab type and its seat finish mounting after Session selection; a
+        // failed early open must not consume this default.
         for (let attempt = 0; attempt < 20; attempt++) {
           if (!live || ctx.sessions.list.getSnapshot().current !== sessionId) return;
-          try { open(); initiallyOpened.add(sessionId); return; }
+          try { ctx.sidebarRight.openTab(LESSON_TAB_KIND); initiallyOpened.add(sessionId); return; }
           catch { await new Promise(resolve => setTimeout(resolve, 50)); }
         }
-      })().catch(() => { /* The material stays available through the lesson's own list. */ });
+      })().catch(() => { /* The map stays reachable through the lesson's own entry. */ });
       return () => { live = false; };
     }, [sessionId, preset, selected]);
     // A creation session is not a lesson: no lesson entry, no learning outputs.
     // Unknown compositions stay hidden rather than offering a refused panel.
     if (preset !== LEARNING_PRESET) return null;
-    return <button type="button" className="sf-lesson-entry" data-testid="open-lesson" onClick={() => { ctx.sidebarRight.openTab(LESSON_TAB_KIND); }}>本课</button>;
+    return <button type="button" className="sf-lesson-entry" data-testid="open-lesson" onClick={() => { ctx.sidebarRight.openTab(LESSON_TAB_KIND); }}>本课资料</button>;
+  }
+  /**
+   * 本课设置 lives beside the lesson's own name in the conversation heading.
+   * The right column is then one container — the material map — and settings
+   * never take a rail of their own.
+   */
+  function LessonSettingsEntry({ sessionId, useSessions }: PropsRuntime<'conversation.session.header.actions'>): React.JSX.Element | null {
+    const preset = useSessions(state => presetOf(state.byId[sessionId]?.projectionValues?.agentPreset));
+    const running = useSessions(state => state.byId[sessionId]?.running);
+    const title = useSessions(state => state.byId[sessionId]?.title ?? '');
+    const [open, setOpen] = useState(false);
+    const trigger = useRef<HTMLButtonElement>(null);
+    if (preset !== LEARNING_PRESET) return null;
+    return <>
+      <button type="button" className="sf-lesson-entry sf-lesson-entry-quiet" data-testid="open-lesson-settings" ref={trigger}
+        onClick={() => { setOpen(true); }}>本课设置</button>
+      {open && <LessonSettingsModal ctx={ctx} sessionId={sessionId} title={title || '自由学习'}
+        readCourse={input => ctx.remote.studyforgeCourses.read(input)} refreshToken={running ?? false}
+        onClose={() => { setOpen(false); trigger.current?.focus(); }} />}
+    </>;
+  }
+  /**
+   * The teacher's confirmations stay in the dialogue itself: the student reads
+   * and answers them where the teacher proposed them, not in a side rail.
+   */
+  function LessonConfirmations({ sessionId, useSessions }: PropsRuntime<'conversation.input.dock'>): React.JSX.Element | null {
+    const preset = useSessions(state => presetOf(state.byId[sessionId]?.projectionValues?.agentPreset));
+    const running = useSessions(state => state.byId[sessionId]?.running);
+    if (preset !== LEARNING_PRESET) return null;
+    return <ProposalInbox ctx={ctx} sessionId={String(sessionId)} refreshToken={running ? 'running' : 'settled'} />;
   }
   // One stable business face per plugin apply: the panel's effect depends on this
   // callback identity, so re-evaluating the inject factory must not refetch.
   const injected: LessonPanelInjected = {
     ctx,
     readCourse: input => ctx.remote.studyforgeCourses.read(input),
-    readUsage: input => ctx.remote.studyforgeCourses.usage(input),
-    resources: {
+    host: {
       lessonResources: input => ctx.remote.studyforgeMaterials.lessonResources(input),
-      openCard: target => { ctx.sidebarRight.openResource(cardAddress(target)); },
+      materials: () => ctx.remote.studyforgeMaterials.list(),
+      book: input => ctx.remote.studyforgeOrganization.book(input),
+      card: input => ctx.remote.studyforgeLearning.card(input),
+      cards: () => ctx.remote.studyforgeLearning.cards(),
       resolveForSession: input => ctx.remote.studyforgeMaterials.resolveForSession(input),
-      openAddress: async (address, params) => {
-        // The column belongs to the lesson on stage; coming back to it is what
-        // makes the address land in a real tab of that lesson.
-        ctx.layout.selectPanel(null);
-        for (let attempt = 0; attempt < 20; attempt += 1) {
-          await new Promise(resolve => { setTimeout(resolve, 50); });
-          // The native tab takes the position as its own navigation parameter;
-          // a locator the native body cannot land on simply sends none.
-          try { ctx.sidebarRight.openResource(address, params === undefined ? undefined : { params }); return; } catch { /* seat not drawn yet */ }
-        }
-        throw new Error('sidebar_right_unavailable');
-      },
+      bytes: ref => ctx.remote.studyforgeMaterials.bytes(ref),
+      docxIndex: ref => ctx.remote.studyforgeMaterials.docxIndex(ref),
     },
   };
   ctx.effect(() => ctx.sidebarRightTabs.register({
@@ -95,4 +111,10 @@ export function registerClassroom(ctx: Context): void {
   ctx.effect(() => ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register(
     { name: 'conversation.session.header.actions', id: 'studyforge.lesson', order: 10 }, LessonEntry,
   )), 'studyforge: lesson header entry');
+  ctx.effect(() => ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register(
+    { name: 'conversation.session.header.actions', id: 'studyforge.lesson-settings', order: 11 }, LessonSettingsEntry,
+  )), 'studyforge: lesson settings entry');
+  ctx.effect(() => ctx.slots.inject('conversation.input.dock', () => ctx.slots.register(
+    { name: 'conversation.input.dock', id: '@studyforge/dsh-client/proposals', order: 20 }, LessonConfirmations,
+  )), 'studyforge: lesson confirmations in the dialogue');
 }

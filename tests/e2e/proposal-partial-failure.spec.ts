@@ -20,7 +20,7 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
-import { enterClassroom, sendInput } from './fixtures/classroom.ts';
+import { enterClassroom, sendInput, openRoot } from './fixtures/classroom.ts';
 import type { ProposalView } from '@studyforge/contracts/proposals';
 import type { RouteView } from '@studyforge/contracts/routes';
 import type { SetView } from '@studyforge/contracts/sets';
@@ -45,9 +45,8 @@ async function dismissNotices(page: Page): Promise<void> {
 /** The card library, wherever the client root mounts it. */
 async function openCards(page: Page): Promise<void> {
   await dismissNotices(page);
-  const row = page.getByRole('button', { name: '卡片', exact: true }).first();
-  if (await row.count() > 0) await row.click();
-  else await page.getByRole('button', { name: '资料', exact: true }).first().click();
+  await openRoot(page, '资料');
+  await page.getByTestId('studyforge-page-studyforge.materials').getByRole('button', { name: '卡片与笔记', exact: true }).click();
   await expect(page.getByTestId('studyforge-cards')).toBeVisible();
 }
 

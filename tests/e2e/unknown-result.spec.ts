@@ -9,7 +9,7 @@
  * operation id must make the retry land on the first write.
  */
 import { expect, type Page, type Route } from '@playwright/test';
-import { enterClassroom, test } from './fixtures/classroom.ts';
+import { enterClassroom, test, openRoot } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { CardView } from '@studyforge/contracts/cards';
 import type { LearningRecord } from '@studyforge/domain/learning-records';
@@ -37,9 +37,8 @@ function recordWrites(page: Page, endpoint: string): string[] {
 }
 
 async function openCards(page: Page): Promise<void> {
-  const row = page.getByRole('button', { name: '卡片', exact: true }).first();
-  if (await row.count() > 0) await row.click();
-  else await page.getByRole('button', { name: '资料', exact: true }).first().click();
+  await openRoot(page, '资料');
+  await page.getByTestId('studyforge-page-studyforge.materials').getByRole('button', { name: '卡片与笔记', exact: true }).click();
   await expect(page.getByTestId('studyforge-cards')).toBeVisible();
 }
 

@@ -16,12 +16,9 @@ import type { SourceLocator } from '@studyforge/contracts/materials';
 import type { MaterialView, MaterialVersion } from '@studyforge/contracts/material-records';
 import type { SkeletonNode, SkeletonView } from '@studyforge/contracts/skeleton';
 import { useEffect, useState } from 'react';
-import { DOCX_MEDIA_TYPE } from './files.ts';
-
-/** The formats that can carry a book's structure; an image or a lone page is not one. */
-export function isBookFormat(mediaType: string): boolean {
-  return mediaType === 'application/pdf' || mediaType === 'text/markdown' || mediaType === 'text/plain' || mediaType === DOCX_MEDIA_TYPE;
-}
+// The format rule itself lives in `book-format.ts` (pure, shared with the map's
+// projection); this module keeps the name its callers already import.
+export { isBookFormat } from './book-format.ts';
 
 type OutlineState =
   /** Read back fine and the book simply has no sections yet. */

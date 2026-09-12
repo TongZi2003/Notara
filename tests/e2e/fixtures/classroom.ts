@@ -18,10 +18,50 @@ export async function enterClassroom(page: Page, authUrl: string): Promise<void>
     catch { /* Returning sessions and configured test providers do not repeat onboarding. */ }
   }
   await expect(page.locator('[data-composer-input]')).toBeVisible();
-  // The original notebook groups secondary destinations under “更多”. Tests
-  // that cover those destinations open the same disclosure a student uses.
-  const more = page.locator('.sf-side-more');
-  if (await more.count() && !(await more.getAttribute('open') !== null)) await more.locator('summary').click();
+}
+
+/** The accepted sidebar: five roots plus a set picker; cards and sets are reached from pages. */
+export const SIDEBAR_ROOTS = ['首页', '课程', '资料', '日历', '学情'] as const;
+
+/** The expanded sidebar body (pickers and actions) hides behind the fold. */
+async function expandSidebar(page: Page): Promise<void> {
+  const sidebar = page.getByTestId('notebook-sidebar');
+  if (await sidebar.getAttribute('data-collapsed') === 'true') {
+    await sidebar.getByRole('button', { name: '展开侧栏', exact: true }).click();
+  }
+}
+
+/** Click one of the five sidebar roots by its student-facing label. */
+export async function openRoot(page: Page, label: (typeof SIDEBAR_ROOTS)[number]): Promise<void> {
+  await expandSidebar(page);
+  await page.getByTestId('notebook-sidebar').getByRole('button', { name: label, exact: true }).click();
+}
+
+/** The card library is a materials action ("卡片与笔记"), not a sidebar root. */
+export async function openCards(page: Page): Promise<void> {
+  await openRoot(page, '资料');
+  await page.getByTestId('studyforge-page-studyforge.materials').getByRole('button', { name: '卡片与笔记', exact: true }).click();
+  await expect(page.getByTestId('studyforge-cards')).toBeVisible();
+}
+
+/** Learning-set management lives behind the sidebar's 管理学习集 entry. */
+export async function openSetManagement(page: Page): Promise<void> {
+  await expandSidebar(page);
+  await page.getByTestId('notebook-sidebar').getByRole('button', { name: '管理学习集', exact: true }).click();
+  await expect(page.getByTestId('studyforge-page-studyforge.sets')).toBeVisible();
+}
+
+/** A connected, pannable roadmap is the default course page. */
+export async function openCourses(page: Page): Promise<void> {
+  await openRoot(page, '课程');
+  await expect(page.getByTestId('studyforge-page-studyforge.courses')).toBeVisible();
+}
+
+/** Existing row-editor flows still exist, but the student chooses the list tab. */
+export async function openCoursesList(page: Page): Promise<void> {
+  await openCourses(page);
+  await page.getByTestId('courses-tab-list').click();
+  await expect(page.getByTestId('course-lessons')).toBeVisible();
 }
 export async function typeInput(page: Page, text: string): Promise<void> {
   const input = page.locator('[data-composer-input]');

@@ -14,6 +14,7 @@ import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type { SessionId } from '@studyforge/contracts';
 import { useCallback, useState } from 'react';
 import { CourseMap, NativeLessonList, type NativeLessonRow } from './CourseMap.tsx';
+import { CourseRoadmap } from './CourseRoadmap.tsx';
 import { PlanEditor } from '../planning/PlanEditor.tsx';
 // The ported page sheet; importing it here too keeps the course page styled in a
 // composition that registers this page without the organization page beside it.
@@ -102,24 +103,22 @@ export function registerCourses(ctx: Context): void {
           ? []
           : [{ id: session.id, title: session.title ?? '未命名的一课', running: session.running }];
       });
-      const [tab, setTab] = useState<'roadmap' | 'plans'>('roadmap');
+      const [tab, setTab] = useState<'roadmap' | 'list' | 'plans'>('roadmap');
       const open = useCallback(onOpenLesson, []);
-      return <main className="sf-orig sf-page-scroll sf-courses-page" data-testid={`studyforge-page-${COURSES_PAGE_ID}`}>
-        <div className="plain-wrap">
-          <div className="sec-head"><h2>课程</h2><span className="cnt">{tab === 'roadmap' ? `${String(lessons.length)} 节` : '排课'}</span><div className="line" /></div>
-          <p className="mini-note">上过的课留着当时的样子；排好的课在下面，点「开这节」才真开一节课。</p>
+      return <main className={'sf-orig sf-page-scroll sf-courses-page' + (tab === 'roadmap' ? ' sf-courses-map-page' : '')} data-testid={`studyforge-page-${COURSES_PAGE_ID}`}>
           <nav className="sf-courses-tabs" aria-label="课程页" data-testid="courses-tabs">
-            <button type="button" className={tab === 'roadmap' ? 'chip on' : 'chip'} data-testid="courses-tab-roadmap" onClick={() => { setTab('roadmap'); }}>课程与排课</button>
+            <button type="button" className={tab === 'roadmap' ? 'chip on' : 'chip'} data-testid="courses-tab-roadmap" onClick={() => { setTab('roadmap'); }}>路线图</button>
+            <button type="button" className={tab === 'list' ? 'chip on' : 'chip'} data-testid="courses-tab-list" onClick={() => { setTab('list'); }}>课程列表</button>
             <button type="button" className={tab === 'plans' ? 'chip on' : 'chip'} data-testid="courses-tab-plans" onClick={() => { setTab('plans'); }}>计划</button>
           </nav>
-          {tab === 'roadmap' ? <>
+          {tab === 'roadmap' ? <CourseRoadmap ctx={ctx} lessons={lessons} {...(list.current ? { currentSessionId: list.current } : {})} onOpenLesson={open} />
+          : <div className="plain-wrap">{tab === 'list' ? <>
             <section className="sf-courses-block" data-testid="course-lessons">
               <h2>上过的课</h2>
               <NativeLessonList lessons={lessons} loaded={list.phase === 'ready'} onOpenLesson={open} />
             </section>
             <CourseMap ctx={ctx} lessons={lessons} lessonsLoaded={list.phase === 'ready'} onOpenLesson={open} />
-          </> : <PlanEditor ctx={ctx} {...(list.current === undefined ? {} : { sessionId: list.current })} />}
-        </div>
+          </> : <PlanEditor ctx={ctx} {...(list.current === undefined ? {} : { sessionId: list.current })} />}</div>}
       </main>;
     },
   )), 'studyforge: course page');

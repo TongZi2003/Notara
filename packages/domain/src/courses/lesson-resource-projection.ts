@@ -55,6 +55,8 @@ export interface LessonResource {
   readonly source: MaterialContext | null;
   /** Saved object identity, for a card/knowledge/… row. */
   readonly target: EntityRef | null;
+  /** A lesson or accepted message may explicitly pin a card revision. */
+  readonly cardVersion?: number;
   readonly title: string | null;
   /** The frozen quote a message used to justify this row, when it had one. */
   readonly quote: string | null;
@@ -112,7 +114,7 @@ export function readLessonResources(input: LessonResourceInput): LessonResources
   const add = (row: Omit<LessonResource, 'origins' | 'quote'>, origin: LessonResourceOrigin, quote: string | null): void => {
     const key = row.source !== null
       ? `${row.kind}\u0000${row.source.materialId}\u0000${row.source.versionId}\u0000${locatorKey(row.source.locator)}`
-      : `${row.kind}\u0000${row.target}`;
+      : `${row.kind}\u0000${row.target}\u0000${row.cardVersion ?? 'current'}`;
     const existing = at.get(key);
     if (existing === undefined) {
       at.set(key, resources.length);
@@ -188,7 +190,8 @@ function fromLessonMaterial(item: LessonMaterial): Omit<LessonResource, 'origins
       source: { materialId: item.source.materialId, versionId: item.source.versionId, ...(item.source.locator === undefined ? {} : { locator: item.source.locator }) },
       target: null, title: null,
     }
-    : { kind: 'card', tabKey: item.cardRef, source: null, target: item.cardRef, title: null };
+    : { kind: 'card', tabKey: item.cardVersion === undefined ? item.cardRef : `${item.cardRef}@${item.cardVersion}`,
+      source: null, target: item.cardRef, title: null, ...(item.cardVersion === undefined ? {} : { cardVersion: item.cardVersion }) };
 }
 
 /** A locator's comparable form; two rows are the same position only when this matches. */

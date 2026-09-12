@@ -1,0 +1,15 @@
+{
+  "origin": "http://127.0.0.1:64004",
+  "revision": "layout-20260912070202884",
+  "previousRevision": "layout-20260912065533602",
+  "originalRevision": "tools-usability-20260912",
+  "clientSha256": "23f1fd54b91b26c3db57a983ddef3b72584a9bf6eeb986f83b7cfa2d1c7c7020",
+  "pidAlive": true,
+  "entriesSwitched": true,
+  "clientMatches": true,
+  "classroomDirectoryPresent": true,
+  "unauthenticatedStatus": 401,
+  "visibleTrialRefresh": "BLOCKED: Mac locked; in-app browser ERR_BLOCKED_BY_CLIENT",
+  "providerCredentialsRead": false,
+  "runtimeStopped": false
+}
