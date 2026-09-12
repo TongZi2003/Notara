@@ -9,7 +9,9 @@
   "clientMatches": true,
   "classroomDirectoryPresent": true,
   "unauthenticatedStatus": 401,
-  "visibleTrialRefresh": "BLOCKED: Mac locked; in-app browser ERR_BLOCKED_BY_CLIENT",
+  "visibleTrialRefresh": "PASS after native login and client module registry refresh",
+  "clientRegistryMatchesFinalSnapshot": true,
+  "nativeModuleDependencies": ["loader", "webServer"],
   "providerCredentialsRead": false,
   "runtimeStopped": false
 }
