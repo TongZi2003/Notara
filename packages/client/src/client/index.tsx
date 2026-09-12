@@ -17,6 +17,7 @@ import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import { registerCourses } from '../courses/register-courses.tsx';
 import { registerNotebook } from '../theme/notebook.tsx';
 import { registerNotebookSidebar } from '../shell/NotebookSidebar.tsx';
+import { registerToolActivity } from '../classroom/ToolActivity.tsx';
 
 export const inject = ['remote', 'slots'];
 
@@ -30,6 +31,7 @@ export async function apply(ctx: Context): Promise<void> {
     return;
   }
   ctx.plugin({ inject: ['slots', 'layout', 'sessions'], apply: registerStudentShell });
+  ctx.plugin({ inject: ['slots'], apply: registerToolActivity });
   ctx.plugin({ inject: ['slots', 'layout', 'sessions', 'uiWorkspace', 'remote.studyforgeOrganization'], apply: registerNotebookSidebar });
   ctx.plugin({ inject: ['theme', 'slots', 'layout', 'sessions'], apply: scope => registerNotebook(scope, materialNavigation) });
   // Remote namespaces are separately injected properties: reading

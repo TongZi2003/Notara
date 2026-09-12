@@ -1,0 +1,13 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/tool-activity.spec.ts tests/e2e/inline-proposals.spec.ts --output=.runtime/tool-display-ui
+
+
+Running 2 tests using 1 worker
+
+(node:80160) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/inline-proposals.spec.ts:9:1 › proposals stay with their own reply, scroll with chat, and never cover the trajectory tab (18.0s)
+  ✓  2 tests/e2e/tool-activity.spec.ts:5:1 › tool rows speak plainly until expanded and retain the native inspection route (11.3s)
+
+  2 passed (29.9s)

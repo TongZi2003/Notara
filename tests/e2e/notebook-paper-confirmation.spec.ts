@@ -23,6 +23,18 @@ test('the whole conversation uses paper, wide tables stay inside, and confirmati
     await expect.poll(async () => page.locator('[data-conversation-scroll]').evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
   }
   await containedTables();
+  await expect.poll(() => tables.evaluateAll(elements => {
+    const paper = document.querySelector('[data-slot="main.conversation"]>[data-phase]')!;
+    const css = getComputedStyle(paper), row = parseFloat(css.getPropertyValue('--nb-row'));
+    const rule = paper.getBoundingClientRect().top + parseFloat(css.backgroundPositionY) + row;
+    return Math.max(...elements.flatMap(table => [...table.querySelectorAll('th,td')].map(cell => {
+      const marker = document.createElement('i');
+      marker.style.cssText = 'display:inline-block;width:0;height:0;padding:0;margin:0;border:0;vertical-align:baseline';
+      cell.prepend(marker); const delta = marker.getBoundingClientRect().top - rule; marker.remove();
+      const mod = ((delta % row) + row) % row;
+      return Math.min(mod, row - mod);
+    })));
+  })).toBeLessThan(0.8);
   expect(await tables.first().evaluate(el => {
     const table = el.getBoundingClientRect(), wrap = el.parentElement!.getBoundingClientRect();
     return table.width < wrap.width && Math.abs((table.left + table.right) - (wrap.left + wrap.right)) < 2;
