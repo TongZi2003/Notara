@@ -31,7 +31,17 @@ export function apply(ctx: Context, config: { logPath: string }): void {
       if (studentText.includes('[structured-problem]') && options.tools?.some(tool => tool.name === 'structured_output')) scripted = [{ name: 'structured_output',
         arguments: { problems: [{ title: '独立命题样题', front: '求 $2+3$。', solution: '5', notes: '', tags: [] }] },
       }];
-      const call = scripted[attempt];
+      let call = scripted[attempt];
+      // Explicit receipt scenario: after confirmation the teacher reads its
+      // lesson once. This exercises actual dispatch, not just a tool-name list.
+      if (studentText.includes('[receipt-readback]')) {
+        const noticeAt = options.messages.findLastIndex(message => message.role === 'user' && message.source.kind === 'plugin' && message.source.plugin === 'studyforge');
+        const userAt = options.messages.findLastIndex(message => message === user);
+        if (noticeAt > userAt) {
+          const read = options.messages.slice(noticeAt + 1).some(message => message.content.some(block => block.type === 'tool-call' && block.name === 'read_lesson'));
+          call = read ? undefined : { name: 'read_lesson', arguments: {} };
+        }
+      }
       if (call && options.purpose !== 'session-title') {
         const id = ToolCallId(crypto.randomUUID()), args = JSON.stringify(call.arguments);
         yield { type: 'block-start', index: 0, blockType: 'tool-call' };

@@ -41,12 +41,17 @@ test('native proposal survives restart, confirmation saves once and its plugin r
   expect(cards).toHaveLength(1); expect(cards[0]?.content.title).toBe('请你检查分母'); expect(cards[0]?.review).toBeUndefined();
   const before = value(await client.rpc<EvidenceCatalogue>('studyforgeCourses/evidence', { input: { sessionId } }));
   expect(before.entries).toHaveLength(1);
-  const requests = z.array(z.object({ sessionId: z.string().optional(), messages: z.array(z.object({ id: z.string(), source: z.object({ kind: z.string(), plugin: z.string().optional() }).passthrough() }).passthrough()) }).passthrough())
+  const requests = z.array(z.object({ sessionId: z.string().optional(), toolNames: z.array(z.string()), messages: z.array(z.object({ id: z.string(), source: z.object({ kind: z.string(), plugin: z.string().optional() }).passthrough() }).passthrough()) }).passthrough())
     .parse((await readFile(join(runtime.root, 'model-requests.jsonl'), 'utf8')).trim().split('\n').map(line => JSON.parse(line) as unknown));
   const last = requests.findLast(request => request.sessionId === sessionId)!;
   // Native prompt/time notices can also be plugin messages. Count our exact
   // receipt provenance, not all system traffic as if StudyForge owned it.
   expect(last.messages.filter(message => message.source.kind === 'plugin' && message.source.plugin === 'studyforge')).toHaveLength(1);
+  // Confirmation resumes the same teacher. It may read the saved result and
+  // propose the next step; a receipt must not silently erase its tools.
+  expect(last.toolNames).toContain('read_skeleton');
+  expect(last.toolNames).toContain('read_material');
+  expect(last.toolNames).toContain('propose_card');
   value(await client.rpc('studyforgeProposals/confirm', { input: request }));
   expect(value(await client.rpc<CardView[]>('studyforgeLearning/cards', {}))).toEqual(cards);
   expect(value(await client.rpc<EvidenceCatalogue>('studyforgeCourses/evidence', { input: { sessionId } }))).toEqual(before);

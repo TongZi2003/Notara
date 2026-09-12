@@ -90,6 +90,8 @@ test('a proposed card waits, keeps the teacher original beside the student draft
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText('请你检查分母');
   await expect(rows.first()).toContainText('还没学过');
+  await expect(inbox.getByRole('heading', { name: '提案记录', exact: true })).toBeVisible();
+  await expect(inbox.getByRole('heading', { name: '等你确认', exact: true })).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('proposal-confirmed.png'), fullPage: true });
 
   // A fresh boot reads the Host again: the receipt and the card both persist.

@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { SessionCreateValue, SessionListValue } from '@deepseek-ai/dsh-api-session-controller';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
+import type { ContentBlock } from '@deepseek-ai/dsh-llm';
 import type { CourseView } from '@studyforge/contracts/courses';
 import type { TeachingChoice } from '@studyforge/contracts/teaching';
 import type { ProposalView } from '@studyforge/contracts/proposals';
@@ -11,8 +12,8 @@ import { connectRuntime } from '../fixtures/http-runtime.ts';
 let runtime: IsolatedRuntime | undefined;
 afterEach(async () => { await runtime?.stop(); runtime = undefined; });
 const value = <T>(result: RemoteResult<T>): T => { if (!result.ok) throw new Error(JSON.stringify(result.error)); return result.value; };
-type Request = { sessionId: string; purpose: string; messages: { role: string; source: { kind: string; plugin?: string }; content: { type: string; text?: string }[] }[]; toolNames: string[] };
-const transcript = (row: Request) => row.messages.flatMap(message => message.content.flatMap(block => block.text ? [block.text] : [])).join('\n');
+type Request = { sessionId: string; purpose: string; messages: { role: string; source: { kind: string; plugin?: string }; content: ContentBlock[] }[]; toolNames: string[] };
+const transcript = (row: Request) => row.messages.flatMap(message => message.content.flatMap(block => block.type === 'text' ? [block.text] : [])).join('\n');
 async function requests(): Promise<Request[]> { return (await readFile(join(runtime!.root, 'model-requests.jsonl'), 'utf8')).trim().split('\n').map(line => JSON.parse(line) as Request).filter(row => row.purpose !== 'session-title'); }
 
 test('teacher lesson settings are a proposal over the exact observed current lesson, then the student confirms', async () => {
@@ -61,19 +62,30 @@ test('five configured teaching choices change the actual next native request and
   expect(transcript(resumed)).toContain('本轮优先核对官方来源。');
 }, 45_000);
 
-test('receipt-only native followup has no tools and a later student turn regains them', async () => {
+test('a saved-result followup retains teacher tools and can read back without a new student turn', async () => {
   runtime = await startIsolated({ testModel: true });
   const client = await connectRuntime(runtime);
   const { sessionId } = value(await client.rpc<SessionCreateValue>('session/create', { request: { cwd: join(runtime.root, 'classroom'), agentPreset: 'studyforge-learning' } }));
-  value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tool]' + JSON.stringify({ name: 'propose_card', arguments: { kind: 'card', title: '题卡', presentation: 'problem', front: '题面', sections: [], notes: '', sources: [], tags: [], links: [] } }) }] } }));
+  value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tool]' + JSON.stringify({ name: 'propose_card', arguments: { kind: 'card', title: '[receipt-readback]题卡', presentation: 'problem', front: '题面', sections: [], notes: '', sources: [], tags: [], links: [] } }) }] } }));
   await expect.poll(async () => value(await client.rpc<ProposalView[]>('studyforgeProposals/list', { input: { sessionId } })).length).toBe(1);
   await expect.poll(async () => value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(row => row.sessionId === sessionId)?.running).toBe(false);
   const proposal = value(await client.rpc<ProposalView[]>('studyforgeProposals/list', { input: { sessionId } }))[0]!;
   const item = proposal.items[0]!;
   value(await client.rpc('studyforgeProposals/confirm', { input: { operationId: crypto.randomUUID(), target: proposal.ref, selection: { revision: proposal.version, items: [{ itemId: item.id, draft: item.draft.revision, digest: item.draft.digest, target: item.target, baseline: item.baseline }] } } }));
   await expect.poll(async () => (await requests()).filter(row => row.messages.findLast(message => message.role === 'user')?.source.kind === 'plugin').length).toBeGreaterThan(0);
+  await expect.poll(async () => {
+    const blocks = (await requests()).at(-1)!.messages.flatMap(message => message.content);
+    const call = blocks.findLast(block => block.type === 'tool-call' && block.name === 'read_lesson');
+    if (call?.type !== 'tool-call') return undefined;
+    const result = blocks.find(block => block.type === 'tool-result' && block.toolCallId === call.id);
+    if (result?.type !== 'tool-result' || result.isError) return undefined;
+    const body = result.content.find(block => block.type === 'text');
+    return body?.type === 'text' ? JSON.parse(body.text) : undefined;
+  }).toMatchObject({ data: { sessionId, lessonMaterials: { materials: [] } } });
   const receipt = (await requests()).findLast(row => row.messages.findLast(message => message.role === 'user')?.source.kind === 'plugin')!;
-  expect(receipt.toolNames).toEqual([]);
+  expect(receipt.toolNames).toContain('read_lesson');
+  expect(receipt.toolNames).toContain('read_card');
+  expect(receipt.toolNames).toContain('propose_card');
   value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '现在继续学这张卡' }] } }));
   await expect.poll(async () => transcript((await requests()).at(-1)!)).toContain('现在继续学这张卡');
   expect((await requests()).at(-1)!.toolNames).toContain('read_card');

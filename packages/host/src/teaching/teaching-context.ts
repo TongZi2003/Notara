@@ -39,7 +39,7 @@ export class StudyForgeTeaching extends TypertRemoteService {
   async choices(): Promise<TeachingChoice[]> { return [...this.ctx.studyforgeTeachingCatalog.choices]; }
 }
 
-/** Only native claims determine whether this request processes receipts alone. */
+/** Dynamic teaching context and the existing role-specific tool boundaries. */
 export function installTeaching(host: Context, catalog: TeachingCatalog): void {
   // Some native composition plugins register local tools after spawn's inherited
   // filter. These teacher-only capabilities must remain absent for every helper.
@@ -50,14 +50,6 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
     'read', 'write', 'edit', 'glob', 'grep', 'read_image', 'run_code']);
   const helper = (agent: Agent | undefined): boolean => !!agent && agent.session.header.origin === 'subagent'
     && (host.sessionProjections.snapshot(agent.session, ['agentPreset']).values.agentPreset ?? agent.session.header.agentPreset) === 'studyforge-learning';
-  const claimed = new Map<Agent, { turn: number; receiptOnly: boolean }>();
-  host.on('agent/inbox/claimed', ({ agent, message, turn }) => {
-    const source = message.source;
-    const receipt = source.kind === 'plugin' && source.plugin === 'studyforge' && source.form === 'notice';
-    const previous = claimed.get(agent);
-    claimed.set(agent, { turn, receiptOnly: receipt && (previous?.turn !== turn || previous.receiptOnly) });
-  });
-  host.on('agent/disposed', ({ agent }) => { claimed.delete(agent); });
   const owns = (agent: Agent | undefined): agent is Agent => !!agent
     && (host.sessionProjections.snapshot(agent.session, ['agentPreset']).values.agentPreset ?? agent.session.header.agentPreset) === 'studyforge-learning'
     && agent.session.header.origin !== 'subagent'
@@ -78,14 +70,13 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
   }));
   host.on('system-prompt/assemble', async (_assembly, context, next) => {
     const result = await next();
-    // The receipt-only turn still sees no tool at all, and a helper keeps its
-    // own filter; only the surviving list is projected for the provider.
-    if (context.agent && claimed.get(context.agent)?.receiptOnly) return { ...result, tools: [] };
+    // A saved-result notice resumes the same teacher with the same tools.
+    // Confirmation/idempotency belong to the writers, not a blanket tool ban
+    // that contradicts the receipt's instruction to continue teaching.
     const visible = helper(context.agent) ? result.tools.filter(tool => !helperForbidden.has(tool.name)) : result.tools;
     return { ...result, tools: providerToolSchemas(visible) };
   });
   host.effect(() => host.tools.guard(execution => {
-    if (execution.agent && claimed.get(execution.agent)?.receiptOnly) return '这次仅说明系统保存结果，不执行新的工具动作。';
     if (helper(execution.agent) && helperForbidden.has(execution.name)) return '这次独立任务只读取材料和返回结果，不能读取学情、写入学习事实或继续委派。';
     if (execution.name === 'register_cards') {
       if (!owns(execution.agent)) return '普通批量登记只在诊断课或独立命题的宿主写入中使用。';

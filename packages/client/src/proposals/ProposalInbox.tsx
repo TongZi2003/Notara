@@ -89,9 +89,10 @@ export function ProposalInbox({ ctx, sessionId, refreshToken, onChanged }: Propo
   }
 
   const ordered = [...state.proposals].sort((left, right) => rank(left) - rank(right));
+  const waiting = ordered.some(proposal => proposal.items.some(item => item.status === 'pending' || item.status === 'failed'));
   return <section className="sf-proposals" data-testid="proposal-inbox">
-    <h2>等你确认</h2>
-    <p className="sf-note">老师提的东西还没有保存成事实；你确认之后才会写进去。</p>
+    <h2>{waiting ? '等你确认' : '提案记录'}</h2>
+    {waiting && <p className="sf-note">尚未保存的内容，确认后才会记下；各项结果见下方。</p>}
     {unreadable && <div className="sf-notice" data-testid="proposal-inbox-unreadable">
       <p>刚才没能重新读取，下面还是你上回看到的那一版；正在改的草稿没有丢。</p>
       <button type="button" className="sf-quiet" data-testid="proposal-inbox-retry"

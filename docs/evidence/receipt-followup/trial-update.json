@@ -1,0 +1,41 @@
+{
+  "origin": "http://127.0.0.1:64004",
+  "revision": "layout-20260912082501650",
+  "clientSha256": "8f3c9e2efff201dc16e752e1782bfa761ba4fead3903c2f9637b51a31c5b20f1",
+  "hostTeachingSha256": "244373913f648d25a23bf39192862bd99c508ca59d51bbad1d96fe9a53ab4dcc",
+  "hostMatchesBuild": true,
+  "clientRegistryMatchesSnapshot": true,
+  "pluginStates": [
+    {
+      "id": "modules",
+      "state": 2
+    },
+    {
+      "id": "studyforge-host",
+      "state": 2
+    },
+    {
+      "id": "studyforge-client",
+      "state": 2
+    }
+  ],
+  "nativeModuleDependencies": [
+    "loader",
+    "webServer"
+  ],
+  "pidsPreserved": [
+    24515,
+    24527
+  ],
+  "dataDirectoryPresent": true,
+  "temporaryPluginRemoved": true,
+  "visibleReadOnlyChecks": [
+    "已连接",
+    "提案记录",
+    "这份提案已经全部保存",
+    "目录第1版",
+    "4节目录展开"
+  ],
+  "realModelFollowup": "not-run",
+  "verifiedAt": "2026-09-12T08:27:36.869Z"
+}
