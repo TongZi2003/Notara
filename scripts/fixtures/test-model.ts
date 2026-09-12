@@ -51,7 +51,13 @@ export function apply(ctx: Context, config: { logPath: string }): void {
         return;
       }
       if (text.includes('[error]')) throw new Error('isolated model request failure');
-      const body = options.purpose === 'session-title' ? '一次函数学习' : text.includes('[markdown]') ? '# 分式与条件\n\n先看 $x\\ne 0$。\n\n$$\\frac{x^2}{x}=x$$\n\n```text\n先检查条件\n```\n\n' + '阅读后请写出下一步。\n\n'.repeat(35) : `已收到：${decodeSourceFragments(text).text}`;
+      const body = options.purpose === 'session-title' ? '一次函数学习' : text.includes('[notebook-table]') ? [
+        '先按共同动作整理，表格的每一列都应留在纸面里。',
+        '| 角 | 值 |\n| --- | --- |\n| 零 | 一 |',
+        '| 节点 | 题号 | 页 | 共同动作 |\n| --- | --- | --- | --- |\n| 配角与凑角（结构变形、系数调整） | 4、5、7、8、9、10、11 | 1–2 | 把已知和所求凑成同一个角或其倍数，再检查象限。 |\n| 结构证明与给值求角 | 12、13、14、15 | 2–3 | 先证恒等式，再根据条件确定角的范围。 |',
+        '| 一 | 二 | 三 | 四 | 五 | 六 | 七 | 八 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| 和差公式 | 二倍角 | 降幂公式 | 弦切互化 | 象限条件 | 等价变形 | 共同动作 | 最后核对 |',
+        '表格之后的文字继续沿着同一张纸阅读。',
+      ].join('\n\n') : text.includes('[markdown]') ? '# 分式与条件\n\n先看 $x\\ne 0$。\n\n$$\\frac{x^2}{x}=x$$\n\n```text\n先检查条件\n```\n\n' + '阅读后请写出下一步。\n\n'.repeat(35) : `已收到：${decodeSourceFragments(text).text}`;
       yield { type: 'block-start', index: 0, blockType: 'text' };
       yield { type: 'usage', usage: { inputTokens: 8, cacheReadTokens: 2, outputTokens: 2 } };
       if (text.includes('[retry]') && attempt === 0) {

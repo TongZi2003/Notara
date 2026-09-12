@@ -199,19 +199,14 @@ test('课后小结在课上可读可改，并能从这一版真的开出一节�
   page.on('pageerror', error => errors.push(error.message));
   const { client, sessionId } = await proposeClose(page, dsh, '单调性收课小结', '今天把单调性的判断顺序讲完了。');
 
-  // The lesson panel is the student's own entry: its own inbox confirms the
-  // summary, and the editor under it reads, rewords and continues from it. Staying
-  // in the conversation is what keeps that entry reachable — the cards page has no
-  // lesson header.
+  // Confirm alongside the teacher's reply, then read/edit the saved summary
+  // through the lesson settings. The material map does not own confirmations.
   await dismissNotices(page);
-  const entry = page.getByTestId('open-lesson');
-  if (await entry.count() > 0) await entry.click();
-  else await page.getByRole('button', { name: '本课', exact: true }).first().click();
-  const panel = page.getByTestId('studyforge-lesson-panel');
-  await expect(panel).toBeVisible();
-  const card = panel.getByTestId('proposal-card').filter({ hasText: '单调性收课小结' });
-  await card.getByTestId('proposal-confirm').click();
-  await expect(card.getByTestId('proposal-item-status')).toHaveText('已经保存');
+  const proposal = page.getByTestId('inline-proposal').filter({ hasText: '单调性收课小结' });
+  await proposal.getByTestId('proposal-confirm').click();
+  await expect(proposal.locator('summary')).toContainText('已经保存');
+  await page.getByTestId('open-lesson-settings').click();
+  const panel = page.getByTestId('lesson-settings-modal');
 
   const editor = panel.getByTestId('handoff-editor');
   await expect(editor).toBeVisible();
@@ -255,7 +250,7 @@ test('课后小结在课上可读可改，并能从这一版真的开出一节�
   // The root's own navigation really happened, and it lands where a student can
   // actually start: the closed lesson's panel is gone, and the composer of the new
   // lesson is a live input rather than the "choose a workspace" placeholder.
-  await expect(page.getByTestId('studyforge-lesson-panel')).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.getByTestId('lesson-settings-modal')).toHaveCount(0, { timeout: 20_000 });
   const composer = page.locator('[data-composer-input]');
   await expect(composer).toBeVisible();
   await expect(composer).toHaveAttribute('contenteditable', 'true', { timeout: 20_000 });

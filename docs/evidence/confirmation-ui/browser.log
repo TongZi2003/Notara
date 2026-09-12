@@ -1,0 +1,24 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/confirmation-editor.spec.ts tests/e2e/inline-proposals.spec.ts tests/e2e/skeleton-conflict-recovery.spec.ts tests/e2e/notebook-paper-confirmation.spec.ts tests/e2e/lesson-settings-draft.spec.ts tests/e2e/proposal-partial-failure.spec.ts tests/e2e/coauthor-handoff.spec.ts tests/e2e/proposal-plan-presentation.spec.ts --output=.runtime/confirmation-review-accepted
+
+
+Running 13 tests using 1 worker
+
+(node:73341) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/coauthor-handoff.spec.ts:100:1 › 学生改写小结正文后确认：截止点与清单不动，小结与关闭一次写入且重启仍在 (17.8s)
+  ✓   2 tests/e2e/coauthor-handoff.spec.ts:153:1 › 更正写出新的一版，接续课固定在明确选定的旧版上 (11.2s)
+  ✓   3 tests/e2e/coauthor-handoff.spec.ts:197:1 › 课后小结在课上可读可改，并能从这一版真的开出一节接续课 (11.6s)
+  ✓   4 tests/e2e/coauthor-handoff.spec.ts:265:1 › 同一次开课重试只开一节课，也不按日期自动顺延 (10.9s)
+  ✓   5 tests/e2e/confirmation-editor.spec.ts:57:1 › a proposed card waits, keeps the teacher original beside the student draft, and saves once (16.9s)
+  ✓   6 tests/e2e/confirmation-editor.spec.ts:105:1 › a rejected proposal saves nothing at all (17.1s)
+  ✓   7 tests/e2e/inline-proposals.spec.ts:9:1 › proposals stay with their own reply, scroll with chat, and never cover the trajectory tab (17.7s)
+  ✓   8 tests/e2e/lesson-settings-draft.spec.ts:50:1 › the student edits a lesson-settings draft without dropping what the teacher proposed (11.5s)
+  ✓   9 tests/e2e/notebook-paper-confirmation.spec.ts:5:1 › the whole conversation uses paper, wide tables stay inside, and confirmation uses the original loose slip (11.9s)
+  ✓  10 tests/e2e/proposal-partial-failure.spec.ts:60:1 › a planned node with no real parent is refused before anything is stored (10.1s)
+  ✓  11 tests/e2e/proposal-partial-failure.spec.ts:98:1 › a stale item fails alone, keeps its target, and leaves the other proposal alone (17.8s)
+  ✓  12 tests/e2e/proposal-plan-presentation.spec.ts:6:1 › plan confirmations show the actual dates and reading positions before saving (10.6s)
+  ✓  13 tests/e2e/skeleton-conflict-recovery.spec.ts:15:1 › a stale directory proposal rechecks the current tree and waits for a new confirmation (11.6s)
+
+  13 passed (3.0m)

@@ -22,43 +22,54 @@ import type { TeachingChoice } from '@studyforge/contracts/teaching';
 import { OrganizationDraftEditor, isOrganizationDraft, type OrganizationMaterialOption, type OrganizationCardOption } from './OrganizationDraftEditor.tsx';
 import { useStableOperationId, attemptKey } from '../cards/attempt.ts';
 import { MarkdownBody } from '../cards/MarkdownBody.tsx';
-import { cardFieldLabel, PRESENTATION_LABELS } from '../cards/format.ts';
+import { PRESENTATION_LABELS } from '../cards/format.ts';
+import { SkeletonSummary } from './SkeletonSummary.tsx';
+import { positionLabel } from '../materials/lesson-materials-mindmap.ts';
 
 export interface ProposalCardProps {
   readonly ctx: Context;
   readonly proposal: ProposalView;
+  /** The enclosing conversation disclosure already names this proposal. */
+  readonly inline?: boolean;
   /** The newest proposal read, after any decision this card made. */
   readonly onChanged?: (view: ProposalView) => void;
 }
 
 type Busy = { readonly kind: 'decide' | 'edit' | 'deliver'; readonly item?: string } | undefined;
+interface Catalogue {
+  materials: OrganizationMaterialOption[];
+  cards: OrganizationCardOption[];
+  teaching: TeachingChoice[];
+  sets: { ref: string; name: string }[];
+}
 
 /** One confirmation: the drafts, the decisions, and what really happened. */
-export function ProposalCard({ ctx, proposal, onChanged }: ProposalCardProps): React.JSX.Element {
+export function ProposalCard({ ctx, proposal, inline = false, onChanged }: ProposalCardProps): React.JSX.Element {
   const [busy, setBusy] = useState<Busy>(undefined);
   const [notice, setNotice] = useState<string | undefined>(undefined);
-  const [showOriginal, setShowOriginal] = useState(false);
+  const [showOriginal, setShowOriginal] = useState<string>();
   const [recheckedSkeleton, setRecheckedSkeleton] = useState<{ version: number; paths: string[] }>();
   const [editing, setEditing] = useState<string | undefined>(undefined);
   const [draft, setDraft] = useState<{ title: string; front: string; back: string; body: string }>({ title: '', front: '', back: '', body: '' });
   const operationFor = useStableOperationId();
-  const [catalogue, setCatalogue] = useState<{ materials: OrganizationMaterialOption[]; cards: OrganizationCardOption[]; teaching: TeachingChoice[] }>();
+  const [catalogue, setCatalogue] = useState<Catalogue>();
   useEffect(() => {
-    if (!editing || !proposal.items.some(item => item.id === editing && isOrganizationDraft(item.draft.effect.kind))) return;
+    const needsNames = proposal.items.some(({ draft: { effect } }) => effect.kind !== 'card-create'
+      || effect.content.sources.length > 0 || effect.content.links.length > 0);
+    if (!editing && !needsNames) return;
     let live = true;
     // The teaching list is the Host's own installed set, so the choice shows a
     // real title; without it the field still keeps whatever the proposal said.
-    void Promise.all([ctx.remote.studyforgeMaterials.list(), ctx.remote.studyforgeLearning.cards(), ctx.remote.studyforgeTeaching.choices()])
-      .then(([materials, cards, teaching]) => {
+    void Promise.all([ctx.remote.studyforgeMaterials.list(), ctx.remote.studyforgeLearning.cards(), ctx.remote.studyforgeTeaching.choices(), ctx.remote.studyforgeOrganization.sets({})])
+      .then(([materials, cards, teaching, sets]) => {
         if (!live) return;
-        if (materials.ok && cards.ok) setCatalogue({ materials: materials.value, cards: cards.value, teaching: teaching.ok ? teaching.value : [] });
+        if (materials.ok && cards.ok) setCatalogue({ materials: materials.value, cards: cards.value, teaching: teaching.ok ? teaching.value : [], sets: sets.ok ? sets.value : [] });
         else setNotice('可选资料暂时无法读取，请关闭后重试，草稿仍在。');
       }).catch(() => { if (live) setNotice('可选资料暂时无法读取，请关闭后重试。'); });
     return () => { live = false; };
-  }, [ctx, editing]);
+  }, [ctx, editing, proposal.ref]);
 
   const pending = proposal.items.filter(item => item.status === 'pending');
-  const live = proposal.items.filter(item => item.status === 'applied' || item.status === 'failed');
 
   function take(view: ProposalView): void {
     if (onChanged !== undefined) onChanged(view);
@@ -95,11 +106,13 @@ export function ProposalCard({ ctx, proposal, onChanged }: ProposalCardProps): R
   async function retryDelivery(): Promise<void> {
     setBusy({ kind: 'deliver' });
     setNotice(undefined);
-    const result = await ctx.remote.studyforgeProposals.retryDelivery({ target: proposal.ref });
-    setBusy(undefined);
-    if (!result.ok) { setNotice('回执还没有送出去，稍后再试一次。'); return; }
-    take(result.value);
-    setNotice('回执已经送出。');
+    try {
+      const result = await ctx.remote.studyforgeProposals.retryDelivery({ target: proposal.ref });
+      if (!result.ok) { setNotice('保存结果还没通知老师，请稍后再试。'); return; }
+      take(result.value);
+      setNotice('保存结果已通知老师。');
+    } catch { setNotice('保存结果还没通知老师，请稍后再试。'); }
+    finally { setBusy(undefined); }
   }
 
   /** Explicitly rebase an unchanged draft; checking never confirms the new draft. */
@@ -172,60 +185,63 @@ export function ProposalCard({ ctx, proposal, onChanged }: ProposalCardProps): R
   }
 
   return <article className="sf-proposal" data-testid="proposal-card" data-proposal-status={statusOf(proposal)}>
-    <header className="sf-proposal-head">
+    {!inline && <header className="sf-proposal-head">
       <h3 data-testid="proposal-title">{proposal.title}</h3>
-      <span className="sf-meta">{originLabel(proposal)} · 第 {String(proposal.version)} 版提案</span>
-    </header>
+    </header>}
 
-    {pending.length > 1 && <div className="sf-proposal-bulk">
+    {pending.length > 1 && editing === undefined && <div className="sf-proposal-bulk">
       <button type="button" className="sf-action" data-testid="proposal-confirm-all" disabled={busy !== undefined}
         onClick={() => { void decide('confirm', pending); }}>全部保存（{String(pending.length)} 项）</button>
     </div>}
 
     <ul className="sf-proposal-items" data-testid="proposal-items">
       {proposal.items.map(item => <li className="sf-proposal-item" key={item.id} data-item-status={item.status} data-testid="proposal-item">
+        <div className="sf-proposal-slip" data-testid="proposal-slip">
         <div className="sf-proposal-item-head">
-          <span className="sf-meta">{effectLabel(item.draft.effect)}</span>
-          <span className="sf-proposal-status" data-testid="proposal-item-status">{statusCopy(item)}</span>
+          <span className="sf-meta">{item.draft.effect.kind === 'skeleton-save'
+            ? `${item.draft.effect.change.replaceExisting ? '重排目录' : '目录调整'} · ${item.draft.effect.change.nodes.length} 节` : effectLabel(item.draft.effect)}</span>
+          {(!inline || proposal.items.length > 1 || item.status !== 'pending')
+            && <span className="sf-proposal-status" data-testid="proposal-item-status">{statusCopy(item)}</span>}
         </div>
 
         {item.draft.effect.kind === 'card-create' && editing !== item.id && <div className="sf-proposal-content" data-testid="proposal-content">
-          <h4>{item.draft.effect.content.title}</h4>
+          {(proposal.items.length > 1 || item.draft.effect.content.title !== proposal.title) && <h4>{item.draft.effect.content.title}</h4>}
           <span className="sf-meta">{PRESENTATION_LABELS[item.draft.effect.content.presentation]}</span>
           {item.draft.effect.content.front !== '' && <MarkdownBody text={item.draft.effect.content.front} testId="proposal-front" />}
           {item.draft.effect.content.sections.length > 0 && <MarkdownBody text={sectionsToText(item.draft.effect.content.sections)} testId="proposal-back" />}
+          <CardMetadata content={item.draft.effect.content} catalogue={catalogue} />
         </div>}
 
         {item.draft.effect.kind === 'card-edit' && <div className="sf-proposal-content" data-testid="proposal-content">
-          <span className="sf-meta">在原卡上改：{describePatch(item.draft.effect.patch).join('、')}</span>
-          {item.draft.effect.patch.front !== undefined && <MarkdownBody text={item.draft.effect.patch.front} />}
-          {item.draft.effect.patch.sections !== undefined
-            && <MarkdownBody text={sectionsToText(item.draft.effect.patch.sections)} />}
+          <h4>{cardName(item.target, catalogue)}</h4>
+          <CardPatchSummary patch={item.draft.effect.patch} catalogue={catalogue} />
         </div>}
 
         {(item.draft.effect.kind === 'set-create' || item.draft.effect.kind === 'set-edit'
           || item.draft.effect.kind === 'route-add' || item.draft.effect.kind === 'route-edit'
           || item.draft.effect.kind === 'plan-create' || item.draft.effect.kind === 'plan-edit'
-          || item.draft.effect.kind === 'skeleton-save') && <OrganizationSummary effect={item.draft.effect} decidable={item.status === 'pending'} />}
+          || item.draft.effect.kind === 'skeleton-save') && editing !== item.id && <OrganizationSummary effect={item.draft.effect} catalogue={catalogue} />}
         {item.draft.effect.kind === 'skeleton-save' && item.status === 'pending' && recheckedSkeleton?.version === proposal.version
           && <div data-testid="skeleton-recheck-preview" className="sf-proposal-content">
             <h4>保存后的目录预览</h4>
             <ul>{recheckedSkeleton.paths.map(path => <li key={path}>{path}</li>)}</ul>
           </div>}
 
-        {(item.draft.effect.kind === 'handoff' || item.draft.effect.kind === 'handoff-edit')
-          && <HandoffSummary effect={item.draft.effect} decidable={item.status === 'pending'} />}
-        {item.draft.effect.kind === 'lesson-edit' && <LessonSummary effect={item.draft.effect} teachingChoices={catalogue?.teaching} />}
+        {(item.draft.effect.kind === 'handoff' || item.draft.effect.kind === 'handoff-edit') && editing !== item.id
+          && <HandoffSummary effect={item.draft.effect} />}
+        {item.draft.effect.kind === 'lesson-edit' && editing !== item.id && <LessonSummary effect={item.draft.effect} catalogue={catalogue} />}
 
-        {item.draft.effect.kind === 'knowledge-collect' && <p className="sf-note" data-testid="proposal-content">把这条知识收录为锦囊，不复制成第二张卡。</p>}
-        {item.draft.effect.kind === 'review' && <p className="sf-note" data-testid="proposal-content">
-          记一次复习：{item.draft.effect.record.mark} · {item.draft.effect.record.channel}{item.draft.effect.record.note === '' ? '' : ` · ${item.draft.effect.record.note}`}
-        </p>}
+        {item.draft.effect.kind === 'knowledge-collect' && <p className="sf-note" data-testid="proposal-content">将这条知识收录为锦囊。</p>}
+        {item.draft.effect.kind === 'review' && <div className="sf-proposal-content" data-testid="proposal-content">
+          <h4>{cardName(item.target, catalogue)}</h4>
+          <p className="sf-note">{item.draft.effect.record.channel} · 复习结果：{item.draft.effect.record.mark}</p>
+          {item.draft.effect.record.note !== '' && <MarkdownBody text={item.draft.effect.record.note} />}
+        </div>}
 
         {editing === item.id && isOrganizationDraft(item.draft.effect.kind) && (catalogue
           ? <OrganizationDraftEditor key={item.id + ':' + item.draft.revision} effect={item.draft.effect} original={item.original.effect}
             materials={catalogue.materials} cards={catalogue.cards} teachingChoices={catalogue.teaching} pending={busy !== undefined} onSave={effect => { void saveEffect(item, effect); }} onCancel={() => setEditing(undefined)} />
-          : <p role="status">正在读取可选资料…</p>)}
+          : <div><p role="status">正在读取可选资料…</p><button type="button" className="sf-quiet" onClick={() => setEditing(undefined)}>先不改</button></div>)}
         {editing === item.id && !isOrganizationDraft(item.draft.effect.kind) && <form className="sf-proposal-edit" data-testid="proposal-editor"
           onSubmit={event => { event.preventDefault(); void saveDraft(item); }}>
           <label className="sf-field"><span>标题</span>
@@ -249,36 +265,42 @@ export function ProposalCard({ ctx, proposal, onChanged }: ProposalCardProps): R
         </form>}
 
         {item.draft.revision > 1 && editing !== item.id && <div className="sf-proposal-versions">
-          <button type="button" className="sf-quiet" data-testid="proposal-show-original" onClick={() => { setShowOriginal(!showOriginal); }}>
-            {showOriginal ? '收起老师原稿' : '看老师原稿'}
+          <button type="button" className="sf-quiet" data-testid="proposal-show-original" onClick={() => { setShowOriginal(showOriginal === item.id ? undefined : item.id); }}>
+            {showOriginal === item.id ? '收起老师原稿' : '看老师原稿'}
           </button>
-          {showOriginal && <div className="sf-proposal-original" data-testid="proposal-original">
-            <span className="sf-meta">老师最初提的（第 {String(item.original.revision)} 版）</span>
-            {describeEffect(item.original.effect)}
+          {showOriginal === item.id && <div className="sf-proposal-original" data-testid="proposal-original">
+            <span className="sf-meta">老师最初提的</span>
+            {describeEffect(item.original.effect, catalogue)}
           </div>}
         </div>}
 
         {item.receipt !== undefined && <p className="sf-note" data-testid="proposal-receipt">
-          已经保存：《{item.receipt.title}》第 {String(item.receipt.revision)} 版。{item.receipt.deliveredAt === undefined ? '回执还没送出。' : '回执已经送出。'}
+          已经保存：《{item.receipt.title}》。{item.receipt.deliveredAt === undefined ? '还没通知老师。' : ''}
         </p>}
         {item.failure !== undefined && <p className="sf-notice" data-testid="proposal-failure">
           {isSkeletonConflict(item) ? '目录已更新，这份草案尚未保存。重新检查当前目录后，再确认增补内容。' : failureCopy(item.failure.code, item.failure.commit)}
         </p>}
-
+        </div>
         <div className="sf-proposal-actions">
           {item.status === 'pending' && editing !== item.id && <>
             <button type="button" className="sf-action" data-testid="proposal-confirm" disabled={busy !== undefined}
-              onClick={() => { void decide('confirm', [item]); }}>保存这一项</button>
+              onClick={() => { void decide('confirm', [item]); }}>{confirmLabel(item.draft.effect.kind)}</button>
             {isEditable(item.draft.effect) && <button type="button" className="sf-quiet" data-testid="proposal-edit"
-              disabled={busy !== undefined} onClick={() => { startEditing(item); }}>改一下再说</button>}
+              disabled={busy !== undefined} onClick={() => { startEditing(item); }}>{item.draft.effect.kind === 'skeleton-save' ? '调整目录' : '改一下'}</button>}
             <button type="button" className="sf-quiet" data-testid="proposal-reject" disabled={busy !== undefined}
-              onClick={() => { void decide('reject', [item]); }}>不要这一项</button>
+              onClick={() => { void decide('reject', [item]); }}>不采用</button>
           </>}
-          {item.status === 'failed' && (isSkeletonConflict(item)
+          {item.status === 'failed' && editing !== item.id && (isSkeletonConflict(item)
             ? <button type="button" className="sf-action" data-testid="proposal-recheck-skeleton" disabled={busy !== undefined}
               onClick={() => { void recheckSkeleton(item); }}>重新检查目录</button>
             : <button type="button" className="sf-action" data-testid="proposal-retry" disabled={busy !== undefined}
               onClick={() => { void decide('confirm', [item]); }}>重新确认保存结果</button>)}
+          {item.status === 'failed' && item.failure?.commit === 'none' && editing !== item.id && <>
+            {isEditable(item.draft.effect) && <button type="button" className="sf-quiet" data-testid="proposal-edit" disabled={busy !== undefined}
+              onClick={() => startEditing(item)}>改一下</button>}
+            <button type="button" className="sf-quiet" data-testid="proposal-reject" disabled={busy !== undefined}
+              onClick={() => { void decide('reject', [item]); }}>不采用</button>
+          </>}
           {item.status === 'applied' && item.receipt?.deliveredAt === undefined
             && <button type="button" className="sf-quiet" data-testid="proposal-redeliver" disabled={busy !== undefined}
               onClick={() => { void retryDelivery(); }}>重新送一次回执</button>}
@@ -286,8 +308,7 @@ export function ProposalCard({ ctx, proposal, onChanged }: ProposalCardProps): R
       </li>)}
     </ul>
 
-    {live.length === 0 && <p className="sf-note">还没有保存的项。</p>}
-    {proposal.items.every(item => item.status === 'applied') && <p className="sf-note" data-testid="proposal-done">这份提案已经全部保存。</p>}
+    {!inline && proposal.items.every(item => item.status === 'applied') && <p className="sf-note" data-testid="proposal-done">这份提案已经全部保存。</p>}
     {notice !== undefined && <p className="sf-notice" role="status" data-testid="proposal-notice">{notice}</p>}
   </article>;
 }
@@ -315,10 +336,6 @@ function isSkeletonConflict(item: ProposalItemView): boolean {
     && ['record_exists', 'version_conflict', 'skeleton_version_conflict'].includes(item.failure?.code ?? '');
 }
 
-function originLabel(proposal: ProposalView): string {
-  return proposal.origin.kind === 'native' ? '这节课上老师提的' : '老师提的';
-}
-
 function effectLabel(effect: ProposalEffect): string {
   switch (effect.kind) {
     case 'card-create': return '新卡片';
@@ -338,15 +355,33 @@ function effectLabel(effect: ProposalEffect): string {
   }
 }
 
+function confirmLabel(kind: ProposalEffect['kind']): string {
+  switch (kind) {
+    case 'card-create': return '保存卡片';
+    case 'card-edit': return '保存修改';
+    case 'knowledge-collect': return '收录锦囊';
+    case 'review': return '记下这次复习';
+    case 'set-create': return '建立学习集';
+    case 'set-edit': return '保存调整';
+    case 'route-add': return '加入课程路线';
+    case 'route-edit': return '保存课程安排';
+    case 'plan-create': case 'plan-edit': return '保存计划';
+    case 'skeleton-save': return '保存目录';
+    case 'handoff': return '保存小结并结束';
+    case 'handoff-edit': return '保存小结修改';
+    case 'lesson-edit': return '保存本课设置';
+  }
+}
+
 /** What one older draft asked for; only ever shown as the teacher's own text. */
-function describeEffect(effect: ProposalEffect): React.JSX.Element {
+function describeEffect(effect: ProposalEffect, catalogue?: Catalogue): React.JSX.Element {
   switch (effect.kind) {
     case 'card-create': return <div className="sf-proposal-content">
       <h4>{effect.content.title}</h4>
       {effect.content.front !== '' && <MarkdownBody text={effect.content.front} />}
       {effect.content.sections.length > 0 && <MarkdownBody text={sectionsToText(effect.content.sections)} />}
     </div>;
-    case 'card-edit': return <span className="sf-meta">{describePatch(effect.patch).join('、')}</span>;
+    case 'card-edit': return <CardPatchSummary patch={effect.patch} catalogue={catalogue} />;
     case 'knowledge-collect': return <span className="sf-meta">收录为锦囊</span>;
     case 'review': return <span className="sf-meta">{effect.record.mark} · {effect.record.channel}</span>;
     case 'set-create':
@@ -356,20 +391,23 @@ function describeEffect(effect: ProposalEffect): React.JSX.Element {
     case 'plan-create':
     case 'plan-edit':
     case 'skeleton-save':
-      return <OrganizationSummary effect={effect} />;
+      return <OrganizationSummary effect={effect} catalogue={catalogue} />;
     case 'handoff':
     case 'handoff-edit':
       return <HandoffSummary effect={effect} bodyTestId="proposal-original-handoff-body" />;
-    case 'lesson-edit': return <LessonSummary effect={effect} />;
+    case 'lesson-edit': return <LessonSummary effect={effect} catalogue={catalogue} />;
   }
 }
-function LessonSummary({ effect, teachingChoices }: { effect: Extract<ProposalEffect, { kind: 'lesson-edit' }>; teachingChoices?: readonly TeachingChoice[] | undefined }): React.JSX.Element {
+function LessonSummary({ effect, catalogue }: { effect: Extract<ProposalEffect, { kind: 'lesson-edit' }>; catalogue?: Catalogue | undefined }): React.JSX.Element {
   const p = effect.patch;
   const builtIn: Record<string, string> = { organize: '资料整理', diagnose: '诊断分析', socratic: '苏格拉底授课', brainstorm: '头脑风暴拓展', search: '搜索' };
-  const teachingName = (id: string): string => teachingChoices?.find(choice => choice.id === id)?.title ?? builtIn[id] ?? '所选教学配置';
+  const teachingName = (id: string): string => catalogue?.teaching.find(choice => choice.id === id)?.title ?? builtIn[id] ?? '所选教学配置';
   return <div className="sf-proposal-content" data-testid="proposal-lesson-summary"><h4>调整这节课的设置</h4>
-    {p.lessonMaterials !== undefined && <p data-testid="proposal-lesson-materials">采用 {p.lessonMaterials.materials.length} 项资料；{p.lessonMaterials.materials.length ? '顺序和默认项按这版保存。' : '从当前讨论继续。'}</p>}
-    {p.learningSetRef !== undefined && <p data-testid="proposal-lesson-set">{p.learningSetRef ? '调整所属学习集。' : '这节课不指定学习集。'}</p>}
+    {p.archived !== undefined && <p data-testid="proposal-lesson-archived">{p.archived ? '将这节课归档，从课程列表收起。' : '恢复这节课，重新显示在课程列表。'}</p>}
+    {p.lessonMaterials !== undefined && <ul className="sf-proposal-lines" data-testid="proposal-lesson-materials">{p.lessonMaterials.materials.length
+      ? materialLines(p.lessonMaterials.materials, catalogue).map((line, index) => <li key={index}>{index + 1}. {line}{index === (p.lessonMaterials?.initialIndex ?? 0) ? '（默认打开）' : ''}</li>)
+      : <li>不带资料，从当前讨论继续。</li>}</ul>}
+    {p.learningSetRef !== undefined && <p data-testid="proposal-lesson-set">{p.learningSetRef ? `所属学习集：${setName(p.learningSetRef, catalogue)}` : '这节课不指定学习集。'}</p>}
     {p.teachingRef !== undefined && <p data-testid="proposal-lesson-teaching">教学方式：{teachingName(p.teachingRef)}</p>}
     {p.stance !== undefined && <p data-testid="proposal-lesson-stance">本课重点：{p.stance === '' ? '清除原来的重点。' : p.stance}</p>}
     {p.temporaryInstructions !== undefined && (p.temporaryInstructions === ''
@@ -417,7 +455,7 @@ function revisedEffect(effect: ProposalEffect, draft: { title: string; front: st
 
 const HANDOFF_FACT_LABEL = { material: '课上用了', saved: '当时保存了', pending: '当时还没确认' } as const;
 
-function HandoffSummary({ effect, decidable, bodyTestId = 'proposal-handoff-body' }: { readonly effect: HandoffEffect; readonly decidable?: boolean; readonly bodyTestId?: string }): React.JSX.Element {
+function HandoffSummary({ effect, bodyTestId = 'proposal-handoff-body' }: { readonly effect: HandoffEffect; readonly bodyTestId?: string }): React.JSX.Element {
   const title = effect.kind === 'handoff' ? effect.draft.title : effect.correction.title;
   const body = effect.kind === 'handoff' ? effect.draft.body : effect.correction.body;
   return <div className="sf-proposal-content" data-testid="proposal-content">
@@ -429,10 +467,7 @@ function HandoffSummary({ effect, decidable, bodyTestId = 'proposal-handoff-body
       </li>)}
     </ul>}
     {effect.kind === 'handoff' && <p className="sf-note" data-testid="proposal-handoff-frozen">
-      这份小结写在老师提出来的时候，上面就是当时手上的东西；确认后一起收好，之后也不会被后来的动静替换。
-    </p>}
-    {decidable === true && <p className="sf-note" data-testid="proposal-no-detail-edit">
-      {isEditable(effect) ? '可以改一下正文再决定，也可以整份不要。' : '还能整份保存或整份不要；里面的细节暂时改不了。'}
+      确认后保存这份小结，并结束本课。
     </p>}
   </div>;
 }
@@ -445,28 +480,25 @@ function HandoffSummary({ effect, decidable, bodyTestId = 'proposal-handoff-body
 type OrganizationEffect = Extract<ProposalEffect,
   { kind: 'set-create' | 'set-edit' | 'route-add' | 'route-edit' | 'plan-create' | 'plan-edit' | 'skeleton-save' }>;
 
-function OrganizationSummary({ effect, decidable }: { readonly effect: OrganizationEffect; readonly decidable?: boolean }): React.JSX.Element {
-  const block = organizationLines(effect);
+function OrganizationSummary({ effect, catalogue }: { readonly effect: OrganizationEffect; readonly catalogue?: Catalogue | undefined }): React.JSX.Element {
+  if (effect.kind === 'skeleton-save') return <SkeletonSummary change={effect.change} />;
+  const block = organizationLines(effect, catalogue);
   return <div className="sf-proposal-content" data-testid="proposal-content">
     <h4>{block.heading}</h4>
     {block.lines.length > 0 && <ul className="sf-proposal-lines">
       {block.lines.map((line, index) => <li key={`${String(index)}:${line}`} className="sf-meta">{line}</li>)}
     </ul>}
-    {decidable === true && <p className="sf-note" data-testid="proposal-no-detail-edit">
-      还能整份保存或整份不要；里面的细节暂时改不了。
-    </p>}
   </div>;
 }
 
-function organizationLines(effect: OrganizationEffect): { heading: string; lines: string[] } {
+function organizationLines(effect: Exclude<OrganizationEffect, { kind: 'skeleton-save' }>, catalogue?: Catalogue): { heading: string; lines: string[] } {
   switch (effect.kind) {
-    case 'set-create': return { heading: `学习集「${effect.content.name}」`, lines: setCreateLines(effect.content) };
-    case 'set-edit': return { heading: '改这个学习集', lines: setPatchLines(effect.patch) };
-    case 'route-add': return { heading: `排一节课：${effect.content.title}`, lines: routeNodeLines(effect.content) };
-    case 'route-edit': return { heading: '改这一节课的安排', lines: routePatchLines(effect.patch) };
-    case 'plan-create': return planCreateBlock(effect.content);
-    case 'plan-edit': return { heading: '改这份计划', lines: planPatchLines(effect.patch) };
-    case 'skeleton-save': return { heading: '整理这本书的结构', lines: skeletonChangeLines(effect.change) };
+    case 'set-create': return { heading: `学习集「${effect.content.name}」`, lines: setCreateLines(effect.content, catalogue) };
+    case 'set-edit': return { heading: '改这个学习集', lines: setPatchLines(effect.patch, catalogue) };
+    case 'route-add': return { heading: effect.content.title, lines: routeNodeLines(effect.content, catalogue) };
+    case 'route-edit': return { heading: '改这一节课的安排', lines: routePatchLines(effect.patch, catalogue) };
+    case 'plan-create': return planCreateBlock(effect.content, catalogue);
+    case 'plan-edit': return { heading: '改这份计划', lines: planPatchLines(effect.patch, catalogue) };
   }
 }
 
@@ -476,73 +508,65 @@ type RouteNodeContent = Extract<ProposalEffect, { kind: 'route-add' }>['content'
 type RouteNodePatchContent = Extract<ProposalEffect, { kind: 'route-edit' }>['patch'];
 type PlanContentValue = Extract<ProposalEffect, { kind: 'plan-create' }>['content'];
 type PlanPatchContent = Extract<ProposalEffect, { kind: 'plan-edit' }>['patch'];
-type SkeletonChangeContent = Extract<ProposalEffect, { kind: 'skeleton-save' }>['change'];
 type LessonMaterialValue = RouteNodeContent['materials']['materials'][number];
 
 function ladderCopy(ladder: readonly number[] | null): string {
   return ladder === null ? '用默认梯子' : `隔 ${ladder.join('、')} 天复习`;
 }
 
-function countCopy(count: number, unit: string): string {
-  return `${String(count)} ${unit}`;
-}
-
-function setCreateLines(content: SetCreateContent): string[] {
+function setCreateLines(content: SetCreateContent, catalogue?: Catalogue): string[] {
   const lines = [ladderCopy(content.ladder)];
   if (content.subjects.length > 0) lines.push(`科目：${content.subjects.join('、')}`);
-  if (content.materials.length > 0) lines.push(`先把 ${countCopy(content.materials.length, '份资料')}放进来`);
+  lines.push(...content.materials.map(id => `放入资料：${bookName(id, catalogue)}`));
+  lines.push(...content.members.map(id => `放入卡片：${cardName(id, catalogue)}`));
   return lines;
 }
 
-function setPatchLines(patch: SetPatchContent): string[] {
+function setPatchLines(patch: SetPatchContent, catalogue?: Catalogue): string[] {
   const lines: string[] = [];
   if (patch.name !== undefined) lines.push(`名字改成「${patch.name}」`);
   if (patch.subjects !== undefined) lines.push(`科目改成 ${patch.subjects.length === 0 ? '不设' : patch.subjects.join('、')}`);
   if (patch.ladder !== undefined) lines.push(`复习梯子改成${ladderCopy(patch.ladder)}`);
-  if (patch.materials_add.length > 0) lines.push(`放进 ${countCopy(patch.materials_add.length, '份资料')}`);
-  if (patch.materials_remove.length > 0) lines.push(`移出 ${countCopy(patch.materials_remove.length, '份资料')}`);
-  if (patch.members_add.length > 0) lines.push(`加进 ${countCopy(patch.members_add.length, '张卡')}`);
-  if (patch.members_remove.length > 0) lines.push(`移出 ${countCopy(patch.members_remove.length, '张卡')}`);
+  lines.push(...patch.materials_add.map(id => `放入资料：${bookName(id, catalogue)}`));
+  lines.push(...patch.materials_remove.map(id => `移出资料：${bookName(id, catalogue)}`));
+  lines.push(...patch.members_add.map(id => `放入卡片：${cardName(id, catalogue)}`));
+  lines.push(...patch.members_remove.map(id => `移出卡片：${cardName(id, catalogue)}`));
+  if (patch.reason) lines.push(patch.reason);
   return lines.length === 0 ? ['没有实质改动'] : lines;
 }
 
-function routeNodeLines(content: RouteNodeContent): string[] {
+function routeNodeLines(content: RouteNodeContent, catalogue?: Catalogue): string[] {
   const lines: string[] = [];
   if (content.date !== null) lines.push(`安排在这一天：${content.date}`);
-  const materials = materialLines(content.materials.materials);
-  lines.push(materials.length === 0 ? '还没指定材料' : `材料：${materials.join('、')}`);
+  const materials = materialLines(content.materials.materials, catalogue);
+  lines.push(...(materials.length === 0 ? ['还没指定材料'] : materials.map((line, index) => `资料 ${index + 1}：${line}${index === (content.materials.initialIndex ?? 0) ? '（默认打开）' : ''}`)));
   const decl = declLine(content.decl);
   if (decl !== undefined) lines.push(decl);
   return lines;
 }
 
-function routePatchLines(patch: RouteNodePatchContent): string[] {
+function routePatchLines(patch: RouteNodePatchContent, catalogue?: Catalogue): string[] {
   const lines: string[] = [];
   if (patch.title !== undefined) lines.push(`标题改成「${patch.title}」`);
   if (patch.date !== undefined) lines.push(patch.date === null ? '去掉安排的日期' : `安排在这一天：${patch.date}`);
   if (patch.materials !== undefined) {
-    const materials = materialLines(patch.materials.materials);
-    lines.push(materials.length === 0 ? '材料改成不带材料' : `材料改成：${materials.join('、')}`);
+    const materials = materialLines(patch.materials.materials, catalogue);
+    lines.push(...(materials.length === 0 ? ['材料改成不带材料'] : materials.map((line, index) => `资料 ${index + 1}：${line}${index === (patch.materials?.initialIndex ?? 0) ? '（默认打开）' : ''}`)));
   }
   if (patch.decl !== undefined) {
     const decl = patch.decl === null ? undefined : declLine(patch.decl);
     lines.push(decl ?? '清掉这节课的教学说明');
   }
+  if (patch.reason) lines.push(patch.reason);
   return lines.length === 0 ? ['没有实质改动'] : lines;
 }
 
 /** One planned position, in the words the student reads on their own shelf. */
-function materialLines(materials: readonly LessonMaterialValue[]): string[] {
+function materialLines(materials: readonly LessonMaterialValue[], catalogue?: Catalogue): string[] {
   return materials.map(material => {
-    if (material.kind === 'card') return '一张卡';
+    if (material.kind === 'card') return cardName(material.cardRef, catalogue);
     const locator = material.source.locator;
-    if (locator === undefined) return '书里的一段';
-    switch (locator.kind) {
-      case 'pdf': return `书里第 ${String(locator.page)} 页`;
-      case 'image': return '书里的一张图';
-      case 'text': return `书里第 ${String(locator.start.line)} 行起`;
-      case 'docx': return '文档里的一段';
-    }
+    return `${bookName(material.source.materialId, catalogue)}${locator ? ` · ${positionLabel(locator)}` : ''}`;
   });
 }
 
@@ -554,54 +578,72 @@ function declLine(decl: RouteNodeContent['decl']): string | undefined {
   return parts.length === 0 ? undefined : parts.join(' · ');
 }
 
-function planCreateBlock(content: PlanContentValue): { heading: string; lines: string[] } {
+function planCreateBlock(content: PlanContentValue, catalogue?: Catalogue): { heading: string; lines: string[] } {
   if (content.kind === 'book') {
-    const lines = [`共 ${countCopy(content.entries.length, '天的安排')}`];
+    const lines = [bookName(content.materialId, catalogue), ...bookPlanLines(content.entries)];
     return { heading: `排课：《${content.title}》`, lines };
   }
-  const lines = [`每天 ${String(content.dailyCount)} 张`, `${content.start} 到 ${content.end}`];
+  const lines = [content.schedule.length ? '按下方逐日安排复习' : `每天 ${String(content.dailyCount)} 张到期卡`, `${content.start} 到 ${content.end}`];
+  if (content.learningSetRef) lines.push(`学习集：${setName(content.learningSetRef, catalogue)}`);
   if (content.tags.length > 0) lines.push(`标签：${content.tags.join('、')}`);
-  if (content.schedule.length > 0) lines.push(`其中 ${countCopy(content.schedule.length, '天')}已经排好具体卡片`);
+  if (content.cards.length) lines.push(`复习范围：${content.cards.map(id => cardName(id, catalogue)).join('、')}`);
+  lines.push(...scheduleLines(content.schedule, catalogue));
   return { heading: `复习计划「${content.title}」`, lines };
 }
 
-function planPatchLines(patch: PlanPatchContent): string[] {
+function planPatchLines(patch: PlanPatchContent, catalogue?: Catalogue): string[] {
   const lines: string[] = [];
   if (patch.title !== undefined) lines.push(`标题改成「${patch.title}」`);
-  if (patch.entries !== undefined) lines.push(`排课改成 ${countCopy(patch.entries.length, '天')}`);
-  if (patch.learningSetRef !== undefined) lines.push(patch.learningSetRef === null ? '不再绑定学习集' : '换到另一个学习集');
+  if (patch.entries !== undefined) lines.push(...(patch.entries.length ? bookPlanLines(patch.entries) : ['清除排课日期']));
+  if (patch.learningSetRef !== undefined) lines.push(patch.learningSetRef === null ? '不再绑定学习集' : `学习集改为：${setName(patch.learningSetRef, catalogue)}`);
   if (patch.tags !== undefined) lines.push(patch.tags.length === 0 ? '清掉标签' : `标签改成 ${patch.tags.join('、')}`);
-  if (patch.cards !== undefined) lines.push(`卡片范围改成 ${countCopy(patch.cards.length, '张')}`);
+  if (patch.cards !== undefined) lines.push(patch.cards.length ? `卡片范围：${patch.cards.map(id => cardName(id, catalogue)).join('、')}` : '不限定具体卡片');
   if (patch.dailyCount !== undefined) lines.push(`每天改成 ${String(patch.dailyCount)} 张`);
   if (patch.start !== undefined) lines.push(`开始日期：${patch.start}`);
   if (patch.end !== undefined) lines.push(`结束日期：${patch.end}`);
-  if (patch.schedule !== undefined) lines.push(`具体排到 ${countCopy(patch.schedule.length, '天')}`);
+  if (patch.schedule !== undefined) lines.push(...(patch.schedule.length ? scheduleLines(patch.schedule, catalogue) : ['取消逐日指定，按每日数量取到期卡']));
   return lines.length === 0 ? ['没有实质改动'] : lines;
 }
 
-function skeletonChangeLines(change: SkeletonChangeContent): string[] {
-  const lines: string[] = [];
-  if (change.nodes.length > 0) {
-    const shown = change.nodes.slice(0, 3).map(node => node.path).join('、');
-    lines.push(change.nodes.length > 3 ? `新增这些节：${shown} 等 ${countCopy(change.nodes.length, '节')}` : `新增这些节：${shown}`);
-  }
-  if (change.replaceExisting) lines.push('用这份结构替换原来的结构');
-  if (change.removePaths.length > 0) lines.push(`删掉 ${countCopy(change.removePaths.length, '节')}`);
-  if (change.repath.length > 0) lines.push(`改 ${countCopy(change.repath.length, '条路径')}`);
-  if (change.detachDependents) lines.push('同时放开原本挂在这些节上的卡');
-  return lines.length === 0 ? ['没有实质改动'] : lines;
+function bookName(id: string, catalogue?: Catalogue): string {
+  return catalogue?.materials.find(book => book.materialId === id)?.title ?? '资料（名称暂未读到）';
+}
+function cardName(ref: string | null, catalogue?: Catalogue): string {
+  return catalogue?.cards.find(card => card.ref === ref)?.content.title ?? '卡片（名称暂未读到）';
+}
+function setName(ref: string, catalogue?: Catalogue): string {
+  return catalogue?.sets.find(set => set.ref === ref)?.name ?? '学习集（名称暂未读到）';
+}
+function bookPlanLines(entries: Extract<PlanContentValue, { kind: 'book' }>['entries']): string[] {
+  return entries.map(entry => `${entry.date} · ${entry.chapter?.split('/').join(' › ') ?? '阅读选段'} · ${entry.sources.map(source => positionLabel(source.locator)).join('、')}`);
+}
+function scheduleLines(schedule: Extract<PlanContentValue, { kind: 'campaign' }>['schedule'], catalogue?: Catalogue): string[] {
+  return schedule.map(day => `${day.date} · ${day.cards.length ? day.cards.map(ref => cardName(ref, catalogue)).join('、') : '这天不安排卡片'}`);
 }
 
-/** The patch's own field names, never the whole card. */
-function describePatch(patch: unknown): string[] {
-  const fields = Object.entries(patch as Record<string, unknown>)
-    .filter(([, value]) => value !== undefined && Array.isArray(value) ? value.length > 0 : true)
-    .map(([key]) => fieldLabel(key));
-  return fields.length === 0 ? ['没有实质改动'] : fields;
+function CardMetadata({ content, catalogue }: { content: CardContent; catalogue?: Catalogue | undefined }): React.JSX.Element {
+  return <div className="sf-proposal-metadata">
+    {content.notes && <MarkdownBody text={content.notes} />}
+    {content.chapter && <p className="sf-note">章节：{content.chapter.split('/').join(' › ')}</p>}
+    {content.tags.length > 0 && <p className="sf-note">标签：{content.tags.join('、')}</p>}
+    {content.sources.map((source, index) => <p className="sf-note" key={index}>来源：{bookName(source.materialId, catalogue)} · {positionLabel(source.locator)}</p>)}
+    {content.links.length > 0 && <p className="sf-note">相关卡片：{content.links.map(ref => cardName(ref, catalogue)).join('、')}</p>}
+  </div>;
 }
-
-function fieldLabel(key: string): string {
-  return cardFieldLabel(key);
+function CardPatchSummary({ patch, catalogue }: { patch: Extract<ProposalEffect, { kind: 'card-edit' }>['patch']; catalogue?: Catalogue | undefined }): React.JSX.Element {
+  return <div className="sf-proposal-content">
+    {patch.title !== undefined && <p>标题改为：{patch.title}</p>}
+    {patch.presentation !== undefined && <p className="sf-note">类型：{PRESENTATION_LABELS[patch.presentation]}</p>}
+    {patch.front !== undefined && <div><h4>卡面</h4>{patch.front ? <MarkdownBody text={patch.front} /> : <p className="sf-note">清空卡面文字</p>}</div>}
+    {patch.sections !== undefined && <div><h4>卡背</h4>{patch.sections.length ? <MarkdownBody text={sectionsToText(patch.sections)} /> : <p className="sf-note">清空卡背</p>}</div>}
+    {patch.notes !== undefined && (patch.notes ? <MarkdownBody text={patch.notes} /> : <p className="sf-note">清空笔记</p>)}
+    {patch.tags !== undefined && <p className="sf-note">{patch.tags.length ? `标签改为：${patch.tags.join('、')}` : '清除所有标签'}</p>}
+    {patch.chapter !== undefined && <p className="sf-note">{patch.chapter ? `章节改为：${patch.chapter.split('/').join(' › ')}` : '不再挂在章节下'}</p>}
+    {patch.sources !== undefined && (patch.sources.length ? patch.sources.map((source, index) => <p className="sf-note" key={index}>来源改为：{bookName(source.materialId, catalogue)} · {positionLabel(source.locator)}</p>) : <p className="sf-note">清除来源</p>)}
+    {patch.links_add.map(ref => <p className="sf-note" key={'add:' + ref}>关联卡片：{cardName(ref, catalogue)}</p>)}
+    {patch.links_remove.map(ref => <p className="sf-note" key={'remove:' + ref}>解除关联：{cardName(ref, catalogue)}</p>)}
+    {patch.reason && <p className="sf-note">{patch.reason}</p>}
+  </div>;
 }
 
 /** The back as the student edits it: `## 小标题` blocks. */

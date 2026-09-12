@@ -87,6 +87,7 @@ test('the student edits a lesson-settings draft without dropping what the teache
     learningSetRef: setRef,
     temporaryInstructions: '先复习定义域。',
     stance: '看清定义域',
+    archived: true,
   } }));
   await expect.poll(async () => {
     const list = await client.rpc<ProposalView[]>('studyforgeProposals/list', { input: {} });
@@ -97,8 +98,10 @@ test('the student edits a lesson-settings draft without dropping what the teache
   const lib = page.getByTestId('studyforge-page-studyforge.cards');
   const item = lib.getByTestId('proposal-item');
   await expect(item).toHaveCount(1);
-  await expect(lib.getByTestId('proposal-lesson-materials')).toContainText('1 项资料');
+  await expect(lib.getByTestId('proposal-lesson-materials')).toContainText('默认打开');
+  await expect(lib.getByTestId('proposal-lesson-materials')).not.toContainText('名称暂未读到');
   await expect(lib.getByTestId('proposal-lesson-set')).toContainText('学习集');
+  await expect(lib.getByTestId('proposal-lesson-archived')).toContainText('归档');
   await page.screenshot({ path: testInfo.outputPath('lesson-proposal.png'), fullPage: true });
 
   // The student's own version: the teaching choice comes from the Host's real

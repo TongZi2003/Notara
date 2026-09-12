@@ -11,14 +11,14 @@ import './notebook.css';
 
 const KEY = 'studyforge.notebook.appearance';
 const APPEARANCE = 'studyforge.appearance' as MainPanelId;
-const DEFAULTS = { enabled: true, scheme: 'jia', size: 'm', face: 'print', paper: 'hengxian', tone: 'yellow' } as const;
-type Appearance = { enabled: boolean; scheme: 'jia' | 'yi' | 'bing' | 'ding'; size: 's' | 'm' | 'l'; face: 'print' | 'hand'; paper: 'hengxian' | 'fangge'; tone: 'yellow' | 'white' };
-const OPTIONS = { scheme: ['jia', 'yi', 'bing', 'ding'], size: ['s', 'm', 'l'], face: ['print', 'hand'], paper: ['hengxian', 'fangge'], tone: ['yellow', 'white'] } as const;
+const DEFAULTS = { enabled: true, scheme: 'jia', size: 'm', face: 'print', paper: 'hengxian', tone: 'yellow', table: 'follow' } as const;
+type Appearance = { enabled: boolean; scheme: 'jia' | 'yi' | 'bing' | 'ding'; size: 's' | 'm' | 'l'; face: 'print' | 'hand'; paper: 'hengxian' | 'fangge'; tone: 'yellow' | 'white'; table: 'follow' | 'print' };
+const OPTIONS = { scheme: ['jia', 'yi', 'bing', 'ding'], size: ['s', 'm', 'l'], face: ['print', 'hand'], paper: ['hengxian', 'fangge'], tone: ['yellow', 'white'], table: ['follow', 'print'] } as const;
 function readAppearance(value: unknown): Appearance {
   const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const result: Appearance = { ...DEFAULTS };
   if (typeof raw.enabled === 'boolean') result.enabled = raw.enabled;
-  for (const key of ['scheme', 'size', 'face', 'paper', 'tone'] as const) {
+  for (const key of ['scheme', 'size', 'face', 'paper', 'tone', 'table'] as const) {
     if ((OPTIONS[key] as readonly unknown[]).includes(raw[key])) Object.assign(result, { [key]: raw[key] });
   }
   return result;
@@ -81,10 +81,10 @@ export function registerNotebook(ctx: Context, navigation: MaterialNavigation): 
   const listeners = new Set<() => void>();
   const subscribe = (listener: () => void): (() => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
   const get = (): Appearance => current;
-  const oldAttributes = new Map(['data-sf-notebook', 'data-sf-scheme', 'data-sf-size', 'data-sf-face', 'data-sf-paper', 'data-sf-tone'].map(name => [name, document.body.getAttribute(name)]));
+  const oldAttributes = new Map(['data-sf-notebook', 'data-sf-scheme', 'data-sf-size', 'data-sf-face', 'data-sf-paper', 'data-sf-tone', 'data-sf-table'].map(name => [name, document.body.getAttribute(name)]));
   function apply(): void {
     document.body.dataset.sfNotebook = current.enabled ? 'on' : 'off';
-    for (const key of ['scheme', 'size', 'face', 'paper', 'tone'] as const) document.body.setAttribute('data-sf-' + key, current[key]);
+    for (const key of ['scheme', 'size', 'face', 'paper', 'tone', 'table'] as const) document.body.setAttribute('data-sf-' + key, current[key]);
     if (removeTokens && (!current.enabled || appliedTone !== current.tone)) { removeTokens(); removeTokens = undefined; }
     if (current.enabled && !removeTokens) {
       removeTokens = ctx.theme.overrideTokens('@studyforge/notebook', current.tone === 'white' ? WHITE_TOKENS : TOKENS);
@@ -127,6 +127,7 @@ export function registerNotebook(ctx: Context, navigation: MaterialNavigation): 
         </select></label>
         <label>字号<select data-testid="notebook-size" value={state.size} onChange={event => update({ size: event.target.value as Appearance['size'] })}><option value="s">小</option><option value="m">中</option><option value="l">大</option></select></label>
         <label>纸张<select data-testid="notebook-paper" value={state.paper} onChange={event => update({ paper: event.target.value as Appearance['paper'] })}><option value="hengxian">横线纸</option><option value="fangge">方格纸</option></select></label>
+        <label>表格字迹<select data-testid="notebook-table-font" value={state.table} onChange={event => update({ table: event.target.value as Appearance['table'] })}><option value="follow">跟随当前字迹</option><option value="print">印刷体</option></select></label>
         <label>题面<select data-testid="notebook-face" value={state.face} onChange={event => update({ face: event.target.value as Appearance['face'] })}><option value="print">剪贴印刷</option><option value="hand">手抄</option></select></label>
         <div className="sf-notebook-specimen" data-testid="notebook-specimen"><p><span>师</span>先想想，这一步为什么能这样做？</p><p className="sf-notebook-student"><span>我</span>我想先试着把理由写下来。</p><p className="sf-notebook-red">先看定义域，再往下写。</p></div>
       </div>

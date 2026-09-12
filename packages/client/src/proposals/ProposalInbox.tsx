@@ -118,7 +118,7 @@ function InlineProposal({ ctx, proposal, onChanged }: { ctx: Context; proposal: 
   useEffect(() => { if (saved || rejected) setOpen(false); }, [saved, rejected]);
   return <details className="sf-inline-proposal" data-testid="inline-proposal" open={open} onToggle={event => setOpen(event.currentTarget.open)}>
     <summary><span>{proposal.title}</span><span className="sf-note">{saved ? '已经保存' : rejected ? '已经取消' : '待你确认'}</span></summary>
-    <ProposalCard ctx={ctx} proposal={proposal} onChanged={onChanged} />
+    <ProposalCard ctx={ctx} proposal={proposal} inline onChanged={onChanged} />
   </details>;
 }
 

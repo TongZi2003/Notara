@@ -24,6 +24,7 @@ import { enterClassroom, sendInput, openRoot } from './fixtures/classroom.ts';
 import type { ProposalView } from '@studyforge/contracts/proposals';
 import type { RouteView } from '@studyforge/contracts/routes';
 import type { SetView } from '@studyforge/contracts/sets';
+import type { SessionListValue } from '@deepseek-ai/dsh-api-session-controller';
 
 const test = base.extend<{ dsh: IsolatedRuntime }>({
   dsh: async ({}, use, testInfo) => {
@@ -74,10 +75,13 @@ test('a planned node with no real parent is refused before anything is stored', 
   };
   await sendInput(page, '[tool]' + JSON.stringify(scripted));
 
-  // The writer's own refusal is what the lesson shows, and the whole call is
-  // all-or-nothing: the first node is not stored either.
-  await page.getByRole('button', { name: /tool call/iu }).first().click({ timeout: 10_000 });
-  await expect(page.getByText('不存在的节点').first()).toBeVisible({ timeout: 20_000 });
+  // Wait for the actual turn to settle before checking that neither node was
+  // proposed or saved. Disclosure placement belongs to the native trace UI.
+  await expect.poll(async () => {
+    const sessions = await client.rpc<SessionListValue>('session/list', { _request: {} });
+    return sessions.ok && sessions.value.items.length > 0 && sessions.value.items.every(item => !item.running);
+  }).toBe(true);
+  await expect(page.getByTestId('inline-proposal')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('route-refused.png'), fullPage: true });
   expect(await proposalCount(dsh)).toBe(0);
   // A Remote with no parameters is addressed without an `input` wrapper.
@@ -132,13 +136,19 @@ test('a stale item fails alone, keeps its target, and leaves the other proposal 
   await expect(cardProposal).toHaveCount(1);
   await expect(setProposal.getByTestId('proposal-content')).toContainText('改这个学习集');
   await expect(setProposal.getByTestId('proposal-content')).toContainText('名字改成「期末复习」');
-  await expect(setProposal.getByTestId('proposal-no-detail-edit')).toBeVisible();
+  await expect(setProposal.getByTestId('proposal-edit')).toBeEnabled();
+  await expect(setProposal).not.toContainText('细节暂时改不了');
   await page.screenshot({ path: testInfo.outputPath('failure-waiting.png'), fullPage: true });
 
   await setProposal.getByTestId('proposal-confirm').click();
   await expect(setProposal.getByTestId('proposal-item')).toHaveAttribute('data-item-status', 'failed');
   await expect(setProposal.getByTestId('proposal-failure')).toContainText('没有写进去');
   await expect(setProposal.getByTestId('proposal-retry')).toBeVisible();
+  await setProposal.getByTestId('proposal-edit').click();
+  await expect(setProposal.getByTestId('organization-draft-actions')).toBeVisible();
+  await expect(setProposal.getByTestId('proposal-retry')).toHaveCount(0);
+  await setProposal.getByTestId('draft-cancel').click();
+  await expect(setProposal.getByTestId('proposal-reject')).toBeEnabled();
   // The failed item wrote nothing: the other writer's name is still the stored one.
   const after = await client.rpc<SetView>('studyforgeOrganization/set', { input: { ref } });
   expect(after.ok ? after.value.name : '').toBe('别处先改的名字');

@@ -15,7 +15,7 @@ test('notebook fonts, paper controls and browser routes preserve the actual nati
   await expect(page.locator('[data-conversation-scroll]').getByText('已收到：求单调区间之前，我先把定义域写出来。', { exact: true })).toBeVisible();
   await page.evaluate(async () => { await document.fonts.load('18px "SF Long Cang"', '先看定义域'); await document.fonts.load('18px "SF Kalam"', 'abc'); });
   expect(await page.evaluate(() => document.fonts.check('18px "SF Long Cang"', '先看定义域'))).toBe(true);
-  await expect(page.locator('[data-chat-flow]')).toHaveCSS('background-image', /gradient/);
+  await expect(page.locator('[data-slot="main.conversation"] > [data-phase]')).toHaveCSS('background-image', /gradient/);
   await expect(page.locator('[data-composer-input]')).toHaveCSS('font-family', /SF Long Cang/);
   await expect(page.locator('[data-chat-flow-kind="assistant-step"] p').first()).toHaveCSS('font-family', /SF Long Cang/);
   await page.screenshot({ path: info.outputPath('notebook-classroom.png'), fullPage: true });

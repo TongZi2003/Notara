@@ -39,6 +39,7 @@ const css = `
 .sf-inline-proposal>.sf-proposal{margin-top:10px}
 .sf-proposal-items{list-style:none;display:flex;flex-direction:column;gap:14px;margin:0;padding:0}
 .sf-proposal-item{display:flex;flex-direction:column;gap:8px;border-left:2px solid #e7e0cd;padding-left:12px}
+.sf-proposal-slip{display:flex;flex-direction:column;gap:8px}
 .sf-proposal-item-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
 .sf-proposal-status{font-size:12px;color:#26437c}
 .sf-proposal-content h4{margin:0 0 4px;font-size:14px;color:#26437c}
