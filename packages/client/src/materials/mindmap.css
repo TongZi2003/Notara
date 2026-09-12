@@ -6,6 +6,8 @@
 .sf-mindmap{position:relative;min-height:140px;background-color:var(--op-paper,#efe7d2);background-image:radial-gradient(var(--op-rule,#d9d2bd) 1px,transparent 1px);background-size:24px 24px}
 .sf-mindmap-edges{position:absolute;left:0;top:0;pointer-events:none}
 .sf-mindmap-edges path{fill:none;stroke:var(--op-rule-hi,#b9b19c);stroke-width:1.4}
+.sf-mindmap-edges .sf-mind-relation{stroke:var(--nb-pen,#26437c);stroke-dasharray:5 4;opacity:.7}
+.sf-mindmap-edges text{fill:var(--nb-pen,#26437c);font:11px var(--nb-print,serif);paint-order:stroke;stroke:var(--nb-page,#f6f1e3);stroke-width:4px;stroke-linejoin:round}
 .sf-mindmap-node{position:absolute;display:flex;flex-direction:column;align-items:stretch;gap:3px}
 /* A node's `left` is its centre (the same coordinate the edges meet), so the
    drawn box has to sit half its width to the left of it. Lists are unaffected:
@@ -21,6 +23,7 @@
 .sf-mindmap-node[data-kind="knowledge"] .sf-mind-label{border-style:dashed}
 .sf-mindmap-node[data-kind="section"] .sf-mind-label{background:var(--op-page,#f6f1e3)}
 .sf-mindmap-node .sf-mind-title{overflow-wrap:anywhere}
+.sf-mindmap-node[data-kind="book"] .sf-mind-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
 .sf-mindmap-node .sf-mind-hint{font:11px var(--op-hand,"Kaiti SC","STKaiti",serif);color:var(--op-pencil,#756e61)}
 .sf-mindmap-node .sf-mind-toggle{align-self:center;border:0;background:none;color:var(--op-pen,#26437c);
   font:11px var(--op-hand,"Kaiti SC","STKaiti",serif);padding:1px 6px;cursor:pointer}

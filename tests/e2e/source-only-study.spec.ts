@@ -1,4 +1,4 @@
-import { test, expect, enterClassroom } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, openCards } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { MaterialView } from '@studyforge/contracts/material-records';
@@ -14,7 +14,7 @@ test('a source-only card is readable before grading and other unlearned inventor
   await enterClassroom(page, classroom.authUrl);
   await page.getByRole('button', { name: '首页', exact: true }).first().click();
   await expect(page.getByTestId('today-review')).toHaveCount(0);
-  await page.getByRole('button', { name: '卡片', exact: true }).first().click();
+  await openCards(page);
   const row = page.getByTestId('card-row').filter({ hasText: '来自原文的一题' });
   await row.getByTestId('card-row-open').click();
   await expect(page.getByTestId('card-source-excerpt')).toContainText('先求函数的定义域');

@@ -12,7 +12,7 @@
  * never reach the message.
  */
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
-import type { MaterialContext } from '@studyforge/contracts/materials';
+import type { MaterialContext, SourceLocator } from '@studyforge/contracts/materials';
 import type { MaterialBytes, MaterialResource } from '@studyforge/contracts/material-api';
 import type { MaterialRef, MaterialVersion } from '@studyforge/contracts/material-records';
 import type { DocxIndex } from '@studyforge/domain/docx';
@@ -68,9 +68,11 @@ export function SourcePane({ face, sessionId, anchors, browseId }: SourcePanePro
 /** One original's own bytes, at one position, in the pane that opened it. */
 function SourceBody({ face, sessionId, anchor, browseId }: { readonly face: SourcePaneFace; readonly sessionId: string; readonly anchor: MaterialContext; readonly browseId?: string | undefined }): React.JSX.Element {
   const [state, setState] = useState<State>({ status: 'loading' });
+  const [page, setPage] = useState<number | undefined>(undefined);
   const references = heldSourceReferences();
   useEffect(() => {
     let live = true;
+    setPage(undefined);
     setState({ status: 'loading' });
     void (async () => {
       const source: MaterialContext = { materialId: anchor.materialId, versionId: anchor.versionId, ...(anchor.locator === undefined ? {} : { locator: anchor.locator }) };
@@ -98,13 +100,15 @@ function SourceBody({ face, sessionId, anchor, browseId }: { readonly face: Sour
   }, [face, sessionId, anchor.materialId, anchor.versionId, anchor.locator]);
   // What the composer remembers this pane is showing; the version is the
   // resolved one, so a stale anchor can never stand in for another version.
+  const locator: SourceLocator | undefined = page !== undefined && (anchor.locator?.kind !== 'pdf' || page !== anchor.locator.page)
+    ? { kind: 'pdf', page } : anchor.locator;
   useEffect(() => {
     if (state.status !== 'ready' || references === undefined || browseId === undefined) return undefined;
     return references.browse(browseId, {
       sessionId, label: state.version.title,
-      context: { currentMaterial: { kind: 'source', source: { materialId: state.version.materialId, versionId: state.version.versionId, ...(anchor.locator === undefined ? {} : { locator: anchor.locator }) } } },
+      context: { currentMaterial: { kind: 'source', source: { materialId: state.version.materialId, versionId: state.version.versionId, ...(locator === undefined ? {} : { locator }) } } },
     });
-  }, [references, browseId, sessionId, state, anchor.locator]);
+  }, [references, browseId, sessionId, state, anchor.locator, page]);
   if (state.status === 'loading') return <p className="sf-note" role="status">正在取原件…</p>;
   if (state.status === 'failed') return <p className="sf-note" role="status">{state.text}</p>;
   if (references === undefined) return <>
@@ -112,7 +116,7 @@ function SourceBody({ face, sessionId, anchor, browseId }: { readonly face: Sour
     <MaterialPreview version={state.version} data={state.data} index={state.index} locator={anchor.locator} />
   </>;
   return <SourceCapture version={state.version} data={state.data} index={state.index} references={references}
-    sessionId={sessionId} locator={anchor.locator} />;
+    sessionId={sessionId} locator={anchor.locator} onPage={setPage} />;
 }
 
 /** What one position of one original is called, in the student's words. */

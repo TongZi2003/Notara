@@ -90,9 +90,40 @@ export function registerClassroom(ctx: Context): void {
       docxIndex: ref => ctx.remote.studyforgeMaterials.docxIndex(ref),
     },
   };
-  ctx.effect(() => ctx.sidebarRightTabs.register({
-    id: LESSON_TAB_ID, kind: LESSON_TAB_KIND, title: () => '本课',
-  }), 'studyforge: lesson tab type');
+  ctx.effect(() => {
+    let learning: boolean | undefined, dispose = (): void => {};
+    const sync = (): void => {
+      const state = ctx.sessions.list.getSnapshot();
+      const next = !!state.current && state.byId[state.current]?.projectionValues?.agentPreset === LEARNING_PRESET;
+      if (learning === next) return;
+      learning = next;
+      dispose();
+      // With only Files in the native guide registry, reopening an empty rail
+      // skips the guide entirely and seeds Files. This second entry restores
+      // the lesson doorway; creation sessions retain their native file seed.
+      dispose = ctx.sidebarRightTabs.register({
+        id: LESSON_TAB_ID, kind: LESSON_TAB_KIND, title: () => '工作台',
+        ...(next ? { guide: [{ order: -10, title: () => '本课工作台' }] } : {}),
+      });
+    };
+    sync();
+    const unsubscribe = ctx.sessions.list.subscribe(sync);
+    return () => { unsubscribe(); dispose(); };
+  }, 'studyforge: lesson tab type');
+  function LessonGuide({ useTabInfo }: PropsRuntime<'sidebar.right.tab.guide'> & { matched: boolean }): React.JSX.Element {
+    const info = useTabInfo();
+    return <section className="sf-deck-reopen" data-testid="lesson-deck-reopen">
+      <h2>本课工作台</h2><p>从关系图接着看，刚才打开的原文和卡片也会回来。</p>
+      <button type="button" className="sf-quiet" onClick={() => { info.tab.actions.openTab(LESSON_TAB_KIND, { replaceTab: true }); }}>打开工作台 →</button>
+    </section>;
+  }
+  ctx.effect(() => ctx.slots.inject('sidebar.right.tab.guide', () => ctx.slots.register({
+    name: 'sidebar.right.tab.guide', priority: -20,
+    select: () => {
+      const state = ctx.sessions.list.getSnapshot();
+      return state.current && state.byId[state.current]?.projectionValues?.agentPreset === LEARNING_PRESET ? true : null;
+    },
+  }, LessonGuide)), 'studyforge: lesson deck recovery');
   ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
     name: 'sidebar.right.pane.tab',
     key: LESSON_TAB_ID,

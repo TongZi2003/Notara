@@ -18,7 +18,9 @@ export function ContextPreview({ useInput, useSession, inputActions, sessionId, 
       if (live.has(held.ref)) {
         if (!previous.current.has(held.ref)) references.restored(held.ref);
       } else if (previous.current.has(held.ref)) {
-        references.dismissed(held.ref);
+        // Replacing the automatic reading reference is navigation, not the
+        // student's choice to suppress that source when they come back to it.
+        if (!references.isAutomatic(held.ref) || ![...live].some(ref => references.isAutomatic(ref))) references.dismissed(held.ref);
         for (const id of held.ids) if (ids.includes(id)) inputActions.removeAttachment(id);
       }
     }

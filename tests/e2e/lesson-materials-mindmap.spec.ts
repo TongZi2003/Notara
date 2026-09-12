@@ -48,7 +48,9 @@ test('the lesson right column is one material map that opens originals and cards
     content: CardContentSchema.parse({ title: '在书卡', front: '分式先看什么？', chapter: '函数/定义域', sources: [source] }) } }));
   // A card that belongs to no book: it has nothing to do with the book above.
   const standalone = value(await client.rpc<CardView>('studyforgeLearning/createCard', { input: { operationId: 'mind-standalone',
-    content: CardContentSchema.parse({ title: '独立卡', front: '换元的时候先定什么？' }) } }));
+    content: CardContentSchema.parse({ title: '独立卡', front: '换元的时候先定什么？', links: [inBook.ref] }) } }));
+  value(await client.rpc<CardView>('studyforgeLearning/createCard', { input: { operationId: 'mind-unrelated',
+    content: CardContentSchema.parse({ title: '无关联卡', front: '这张卡不该出现在本课关系图。' }) } }));
 
   const before = value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId } }));
   value(await client.rpc<CourseView>('studyforgeCourses/update', { input: { sessionId, operationId: crypto.randomUUID(), expectedVersion: before.version,
@@ -113,6 +115,44 @@ test('the lesson right column is one material map that opens originals and cards
   await page.screenshot({ path: info.outputPath('lesson-card-pane.png'), fullPage: true });
   await page.getByTestId('mindmap-back').click();
   await expect(map.locator('[data-kind="card"]').filter({ hasText: '独立卡' })).toBeVisible();
+
+  // Real relations stay separate from ownership. Two details stay open beside the map.
+  await map.locator('[data-kind="card"]').filter({ hasText: '独立卡' }).getByRole('button', { name: '展开关联', exact: true }).click();
+  await expect(map.getByTestId('mindmap-relation')).toHaveCount(1);
+  await expect(map).not.toContainText('无关联卡');
+  await map.locator('[data-kind="card"]').filter({ hasText: '在书卡' }).getByTestId('lesson-resource-open').click();
+  await expect(page.getByTestId('composer-context')).toContainText('在书卡');
+  await map.locator('[data-key$="section:函数/定义域"]').getByTestId('lesson-resource-open').click();
+  await expect(page.getByTestId('lesson-materials-pane')).toHaveCount(2);
+  const pages = panel.getByRole('navigation', { name: '工作台中打开的内容' });
+  await pages.getByRole('button', { name: '在书卡', exact: true }).click();
+  await expect(page.getByTestId('composer-context')).toContainText('在书卡');
+  const cardPane = panel.locator('[data-pane="card"]');
+  await cardPane.getByTestId('deck-parent').filter({ hasText: '函数原文' }).click();
+  await expect(page.getByTestId('lesson-materials-pane')).toHaveCount(3);
+  await expect(sourcePane).toHaveCount(2);
+  // The native tab can be closed and reopened, keeping open pages and hierarchy.
+  await page.getByRole('tab').filter({ hasText: '工作台' }).locator('[data-dockkit-tab-close]').click();
+  await expect(panel).toHaveCount(0);
+  await page.getByRole('button', { name: /^(打开右侧边栏|Open right sidebar)$/u }).click();
+  await expect(page.getByTestId('lesson-deck-reopen')).toBeVisible();
+  await page.getByRole('button', { name: '打开工作台 →', exact: true }).click();
+  await expect(page.getByTestId('lesson-materials-pane')).toHaveCount(3);
+  await expect(map.locator('[data-key$="section:函数/定义域"]')).toBeVisible();
+  await page.getByRole('tab').filter({ hasText: '工作台' }).locator('[data-dockkit-tab-close]').click();
+  await page.getByTestId('open-lesson').click();
+  await expect(page.getByTestId('lesson-materials-pane')).toHaveCount(3);
+  // The desk can spread across the screen using the native floating pane.
+  await page.getByTestId('spread-lesson-deck').click();
+  await expect(page.getByTestId('lesson-materials-pane')).toHaveCount(3);
+  await expect.poll(async () => (await page.getByTestId('lesson-deck-surface').boundingBox())?.width ?? 0).toBeGreaterThan(900);
+  await pages.getByRole('button', { name: '关系图', exact: true }).click();
+  await page.screenshot({ path: info.outputPath('lesson-deck-spread.png'), fullPage: true });
+  // Individual close leaves other pages on the desk.
+  await cardPane.getByTestId('mindmap-back').click();
+  await expect(page.getByTestId('lesson-materials-pane')).toHaveCount(2);
+  for (let i = 0; i < 2; i++) await page.getByTestId('mindmap-back').first().click();
+  await page.getByRole('button', { name: /^(收回到侧边栏|Send back to the sidebar)$/u }).click();
 
   // Reading opened no original session and called no model.
   expect(await requests()).toBe(quiet);

@@ -23,7 +23,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CardDetail } from '../cards/CardDetail.tsx';
 import { KnowledgeEditor } from '../cards/KnowledgeEditor.tsx';
 import { Mindmap, type MindNode } from './mindmap.tsx';
-import { kindLabel, lessonMindProjection, positionLabel, versionKeyOf } from './lesson-materials-mindmap.ts';
+import { kindLabel, lessonMindProjection, positionLabel, rowKey, versionKeyOf } from './lesson-materials-mindmap.ts';
+import { closeSheet, emptyDeck, lessonDecks, lessonRelations, openSheet, parentTrail, type DeckContent } from './lesson-deck.ts';
 import { SourcePane, type SourcePaneFace } from './SourcePane.tsx';
 import { heldSourceReferences } from './source-references-holder.ts';
 import { subscribeLessonPane } from './lesson-pane-request.ts';
@@ -43,10 +44,7 @@ export interface LessonResourcesFace extends SourcePaneFace {
 }
 
 /** Where one node opens: an original, a saved object, or the classroom's own face. */
-type PaneOpen =
-  | { readonly kind: 'source'; readonly title: string; readonly anchors: readonly MaterialContext[] }
-  | { readonly kind: 'card' | 'knowledge'; readonly title: string; readonly target: string; readonly version?: number | undefined }
-  | { readonly kind: 'object'; readonly title: string; readonly target: string };
+type PaneOpen = DeckContent;
 
 /** What a pane hands back to the classroom's own object faces. */
 export interface PaneControls {
@@ -75,13 +73,25 @@ type State =
 export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, renderObject }: LessonResourcesProps): React.JSX.Element {
   const [state, setState] = useState<State>({ status: 'loading' });
   const [notice, setNotice] = useState<string | undefined>(undefined);
-  const [expanded, setExpanded] = useState<readonly string[]>([]);
-  const [selected, setSelected] = useState<string | undefined>(undefined);
+  const [deck, setDeck] = useState(() => lessonDecks.get(sessionId) ?? emptyDeck());
+  const { expanded, selected } = deck;
+  const setSelected = (key: string | undefined): void => { setDeck(old => ({ ...old, selected: key })); };
+  const setOpen = (content: PaneOpen, key?: string): void => { setDeck(old => openSheet(old, content, key)); };
+  const surface = useRef<HTMLDivElement>(null);
+  useEffect(() => { lessonDecks.set(sessionId, deck); }, [sessionId, deck]);
+  useEffect(() => {
+    const desk = surface.current;
+    const columns = desk?.querySelectorAll<HTMLElement>('[data-sheet-id]');
+    const column = [...(columns ?? [])].find(element => element.dataset.sheetId === (deck.active ?? 'map'));
+    if (!desk || !column) return;
+    const left = column.getBoundingClientRect().left - desk.getBoundingClientRect().left + desk.scrollLeft;
+    if (left < desk.scrollLeft) desk.scrollLeft = left;
+    else if (left + column.offsetWidth > desk.scrollLeft + desk.clientWidth) desk.scrollLeft = left + column.offsetWidth - desk.clientWidth;
+  }, [deck.active]);
   const [structures, setStructures] = useState<ReadonlyMap<string, BookStructure>>(() => new Map());
   const [library, setLibrary] = useState<{ readonly mediaTypes: ReadonlyMap<string, string>; readonly titles: ReadonlyMap<string, string> }>(() => ({ mediaTypes: new Map(), titles: new Map() }));
-  const [cardTitles, setCardTitles] = useState<ReadonlyMap<string, string>>(() => new Map());
-  const [pinnedTitles, setPinnedTitles] = useState<ReadonlyMap<string, string>>(() => new Map());
-  const [open, setOpen] = useState<PaneOpen | undefined>(undefined);
+  const [cards, setCards] = useState<ReadonlyMap<string, CardView>>(() => new Map());
+  const [pinnedCards, setPinnedCards] = useState<ReadonlyMap<string, CardView>>(() => new Map());
   const [busy, setBusy] = useState(false);
   const [focus, setFocus] = useState(0);
   const loaded = useRef<string | undefined>(undefined);
@@ -109,9 +119,6 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
     if (loaded.current !== sessionId) {
       loaded.current = sessionId;
       setState({ status: 'loading' });
-      setOpen(undefined);
-      setExpanded([]);
-      setSelected(undefined);
       setStructures(new Map());
     }
     host.lessonResources({ sessionId }).then(
@@ -139,8 +146,8 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
       () => { if (live) setLibrary({ mediaTypes: new Map(), titles: new Map() }); },
     );
     void host.cards().then(
-      result => { if (live) setCardTitles(result.ok ? new Map(result.value.map(view => [view.ref, view.content.title])) : new Map()); },
-      () => { if (live) setCardTitles(new Map()); },
+      result => { if (live) setCards(result.ok ? new Map(result.value.map(view => [view.ref, view])) : new Map()); },
+      () => { if (live) setCards(new Map()); },
     );
     return () => { live = false; };
     // The shelf and the card library move outside this pane too (a book is
@@ -153,15 +160,20 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
     const pinned = state.status === 'ready' ? state.rows.filter(row => row.kind === 'card' && row.target !== null && row.cardVersion !== undefined) : [];
     void Promise.all(pinned.map(async row => {
       const result = await host.card({ target: row.target!, version: row.cardVersion! }).catch(() => undefined);
-      return result?.ok ? [`${row.target!}@${String(row.cardVersion)}`, result.value.content.title] as const : undefined;
-    })).then(results => { if (live) setPinnedTitles(new Map(results.flatMap(result => result ? [result] : []))); });
+      return result?.ok ? [`${row.target!}@${String(row.cardVersion)}`, result.value] as const : undefined;
+    })).then(results => { if (live) setPinnedCards(new Map(results.flatMap(result => result ? [result] : []))); });
     return () => { live = false; };
   }, [host, state]);
   const projection = useMemo(() => lessonMindProjection({
     rows, structures, mediaTypeOf: materialId => library.mediaTypes.get(materialId),
     materialTitleOf: materialId => library.titles.get(materialId),
-    cardTitleOf: (target, version) => version === undefined ? cardTitles.get(target) : pinnedTitles.get(`${target}@${String(version)}`),
-  }), [rows, structures, library, cardTitles, pinnedTitles]);
+    cardTitleOf: (target, version) => (version === undefined ? cards.get(target) : pinnedCards.get(`${target}@${String(version)}`))?.content.title,
+  }), [rows, structures, library, cards, pinnedCards]);
+  const graph = useMemo(() => lessonRelations(projection, cards, pinnedCards, deck.related, id => library.titles.get(id), expanded), [projection, cards, pinnedCards, deck.related, library, expanded]);
+  // Reopening the native deck restores navigation, then reads these books anew.
+  useEffect(() => {
+    for (const row of rows) if (row.source && expanded.includes(rowKey(row)) && !structures.has(versionKeyOf(row.source.materialId, row.source.versionId))) readBook(row.source);
+  }, [rows, expanded, structures]);
 
   /**
    * A saved structure moves when 继续拆解's confirmation lands (the skeleton was
@@ -188,8 +200,11 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
   }, [host, sessionId, refreshToken, focus]);
 
   /** Opening a book reads that exact version's own tree once; a failed read is not an empty book. */
+  const reading = useRef(new Set<string>());
   function readBook(source: MaterialContext): void {
     const key = versionKeyOf(source.materialId, source.versionId);
+    if (reading.current.has(key)) return;
+    reading.current.add(key);
     const at = sessionId;
     setBusy(true);
     void host.book({ sessionId, material: { materialId: source.materialId, versionId: source.versionId } }).then(
@@ -200,11 +215,12 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
         else setNotice('这本书的结构暂时读不出来，稍后再展开。');
       },
       () => { if (staged.current === at && loaded.current === at) setNotice('这本书的结构暂时读不出来，稍后再展开。'); },
-    ).finally(() => { setBusy(false); });
+    ).finally(() => { reading.current.delete(key); setBusy(reading.current.size > 0); });
   }
 
   function expand(node: MindNode, next: boolean): void {
-    setExpanded(old => next ? (old.includes(node.key) ? old : [...old, node.key]) : old.filter(key => key !== node.key));
+    setSelected(node.key);
+    setDeck(old => ({ ...old, expanded: next ? [...new Set([...old.expanded, node.key])] : old.expanded.filter(key => key !== node.key) }));
     setNotice(undefined);
     if (!next) return;
     const source = projection.rows.get(node.key)?.source;
@@ -216,15 +232,17 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
   function pick(node: MindNode): void {
     setSelected(node.key);
     setNotice(undefined);
+    const related = graph.requests.get(node.key);
+    if (related) { setOpen(related, node.key); return; }
     const row = projection.rows.get(node.key);
     if (row !== undefined) {
       if (row.source !== null) {
-        setOpen({ kind: 'source', title: row.title ?? kindLabel(row.kind), anchors: [anchorOf(row.source)] });
+        setOpen({ kind: 'source', title: node.title, anchors: [anchorOf(row.source)] }, node.key);
         return;
       }
       if (row.target === null) return;
       if (row.kind === 'card' || row.kind === 'knowledge') {
-        setOpen({ kind: row.kind, title: row.title ?? kindLabel(row.kind), target: row.target, ...(row.cardVersion === undefined ? {} : { version: row.cardVersion }) });
+        setOpen({ kind: row.kind, title: node.title, target: row.target, ...(row.cardVersion === undefined ? {} : { version: row.cardVersion }) }, node.key);
         return;
       }
       if (renderObject !== undefined) setOpen({ kind: 'object', title: row.title ?? kindLabel(row.kind), target: row.target });
@@ -233,35 +251,58 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
     const book = projection.books.get(node.key);
     if (book === undefined) return;
     if (book.kind === 'card' || book.kind === 'knowledge') {
-      setOpen({ kind: book.kind, title: book.title, target: book.target });
+      setOpen({ kind: book.kind, title: book.title, target: book.target }, node.key);
       return;
     }
-    if (book.sources.length > 0) { setOpen({ kind: 'source', title: book.title, anchors: book.sources.map(asContext) }); return; }
+    if (book.sources.length > 0) { setOpen({ kind: 'source', title: book.title, anchors: book.sources.map(asContext) }, node.key); return; }
     // No exact anchor is a real state, not a reason to guess one.
     setNotice('这一节还没有能精确定位的原文，先按结构看。');
   }
 
-  if (open !== undefined) return <div className="sf-lesson-materials" data-testid="lesson-materials" data-view="pane">
-    <Pane open={open} onBack={() => { setOpen(undefined); }}>
-      {open.kind === 'source'
-        ? <SourcePane face={host} sessionId={sessionId} anchors={open.anchors} browseId={browseId} />
-        : open.kind === 'card'
-          ? <CardPane ctx={ctx} host={host} sessionId={sessionId} target={open.target} {...(open.version === undefined ? {} : { version: open.version })} browseId={browseId}
-            onSource={(anchors, title) => { setOpen({ kind: 'source', title, anchors }); }} />
-          : open.kind === 'knowledge'
-            ? <KnowledgeEditor key={open.target} ctx={ctx} target={open.target} sessionId={sessionId} onSaved={() => { setNotice('已经收好。'); }} />
-            : renderObject?.(open.target, { back: () => { setOpen(undefined); }, source: (anchors, title) => { setOpen({ kind: 'source', title, anchors }); } }) ?? <p className="sf-note" role="status">这份记录暂时打不开。</p>}
-    </Pane>
-  </div>;
-
-  if (state.status === 'loading') return <p className="sf-note" role="status">正在看这节课用到什么…</p>;
-  if (state.status === 'unavailable') return <p className="sf-note" role="status">这节课用到的资料暂时取不到，稍后再看一次。</p>;
-  if (state.rows.length === 0) return <p className="sf-note" data-testid="lesson-resources-empty">这节课还没有用到资料。</p>;
-  return <div className="sf-lesson-materials" data-testid="lesson-materials" data-view="map">
-    <Mindmap testId="lesson-materials-map" label="这节课用到的资料" nodes={projection.nodes} mode="map"
+  function relate(node: MindNode, toggle = true): void {
+    setDeck(old => ({ ...old, active: undefined, selected: node.key, related: old.related.includes(node.key) ? (toggle ? old.related.filter(key => key !== node.key) : old.related) : [...old.related, node.key] }));
+  }
+  return <div className="sf-lesson-materials" data-testid="lesson-materials" data-view={deck.sheets.length ? 'deck' : 'map'}>
+    <nav className="sf-deck-index" aria-label="工作台中打开的内容">
+      <button type="button" className="sf-quiet" aria-pressed={deck.active === undefined} onClick={() => { setDeck(old => ({ ...old, active: undefined })); }}>关系图</button>
+      {deck.sheets.map(sheet => <button key={sheet.id} type="button" className="sf-quiet" aria-pressed={deck.active === sheet.id}
+        onClick={() => { setDeck(old => ({ ...old, active: sheet.id })); }}>{sheet.content.title}</button>)}
+    </nav>
+    <div className="sf-deck-surface" ref={surface} data-testid="lesson-deck-surface">
+    <section className="sf-deck-map" data-sheet-id="map" aria-label="本课关系图">
+    <p className="sf-deck-help">点便签读详情，展开看下一级 · 虚线是关联</p>
+    {state.status !== 'ready' ? <p className="sf-note" role="status">{state.status === 'loading' ? '正在看这节课用到什么…' : '这节课用到的资料暂时取不到，稍后再看一次。'}</p> :
+    <Mindmap testId="lesson-materials-map" label="这节课用到的资料" nodes={graph.nodes} mode="map" relations={graph.edges}
       expanded={expanded} selected={selected} onPick={pick} onExpand={expand} busy={busy}
+      action={{ label: node => deck.related.includes(node.key) ? '收起关联' : '展开关联', when: node => graph.canRelate(node.key), run: relate }}
       nodeTestId="lesson-resource-row" labelTestId="lesson-resource-open"
-      empty="这节课还没有用到资料。" />
+      empty="这节课还没有用到资料。" />}
+    </section>
+    {deck.sheets.map(sheet => {
+      const open = sheet.content, activeBrowseId = deck.active === sheet.id ? browseId : undefined;
+      const trail = parentTrail(graph.nodes, sheet.nodeKey);
+      const node = graph.nodes.find(candidate => candidate.key === sheet.nodeKey);
+      const close = (): void => { setDeck(old => closeSheet(old, sheet.id)); };
+      return <div className="sf-deck-sheet" key={sheet.id} data-sheet-id={sheet.id} data-active={deck.active === sheet.id}
+        onPointerDownCapture={() => { setDeck(old => old.active === sheet.id ? old : { ...old, active: sheet.id }); }}
+        onFocusCapture={() => { setDeck(old => old.active === sheet.id ? old : { ...old, active: sheet.id }); }}>
+      <Pane open={open} onBack={close}>
+        <nav className="sf-deck-trail" aria-label="父级与关系">
+          {trail.map(parent => <button type="button" className="sf-quiet" data-testid="deck-parent" key={parent.key} onClick={() => { pick(parent); }}>↑ {parent.title}</button>)}
+          {node && graph.canRelate(node.key) && <button type="button" className="sf-quiet" onClick={() => { relate(node, false); }}>查看关联</button>}
+        </nav>
+        {open.kind === 'source'
+          ? <SourcePane face={host} sessionId={sessionId} anchors={open.anchors} browseId={activeBrowseId} />
+          : open.kind === 'card'
+            ? <CardPane ctx={ctx} host={host} sessionId={sessionId} target={open.target} version={open.version} browseId={activeBrowseId}
+              onSource={(anchors, title) => { setOpen({ kind: 'source', title, anchors }); }} />
+            : open.kind === 'knowledge'
+              ? <KnowledgeEditor ctx={ctx} target={open.target} sessionId={sessionId} onSaved={() => { setFocus(n => n + 1); }} />
+              : renderObject?.(open.target, { back: close, source: (anchors, title) => { setOpen({ kind: 'source', title, anchors }); } }) ?? <p className="sf-note" role="status">这份记录暂时打不开。</p>}
+      </Pane>
+      </div>;
+    })}
+    </div>
     {notice !== undefined && <p className="sf-note" role="status" data-testid="lesson-resources-notice">{notice}</p>}
   </div>;
 }
@@ -271,8 +312,8 @@ function Pane({ open, onBack, children }: { readonly open: PaneOpen; readonly on
   const hint = open.kind === 'source' && open.anchors[0]?.locator !== undefined ? positionLabel(open.anchors[0].locator) : undefined;
   return <section className="sf-lesson-pane" data-testid="lesson-materials-pane" data-pane={open.kind}>
     <header className="sf-lesson-pane-head">
-      <button type="button" className="sf-quiet" data-testid="mindmap-back" onClick={onBack}>← 脑图</button>
       <span className="sf-lesson-pane-title">{open.title}</span>
+      <button type="button" className="sf-quiet sf-deck-close" data-testid="mindmap-back" aria-label={`收起${open.title}`} onClick={onBack}>×</button>
       {hint !== undefined && <span className="sf-meta">{hint}</span>}
     </header>
     {children}

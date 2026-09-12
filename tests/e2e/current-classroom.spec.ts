@@ -183,6 +183,9 @@ test('a creation session keeps the classroom and hides the learning lesson surfa
     await expect(page.getByRole('button', { name: MODEL_TRIGGER })).toBeVisible();
     await expect(page.getByRole('button', { name: '本课资料', exact: true })).toHaveCount(0);
     await expect(page.getByTestId('studyforge-lesson-panel')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Open right sidebar', exact: true }).click();
+    await expect(page.getByRole('tab').filter({ hasText: 'Files' })).toBeVisible();
+    await expect(page.getByTestId('lesson-deck-reopen')).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('creation-session.png') });
     expect(errors).toEqual([]);
   } finally {

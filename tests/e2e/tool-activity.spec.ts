@@ -27,6 +27,7 @@ test('tool rows speak plainly until expanded and retain the native inspection ro
   await expect(rows).toHaveCount(3);
   await expect(rows.first()).toContainText('查看今天该复习的卡片');
   await expect(rows.nth(1)).toContainText('提案已准备好');
+  await expect(rows.nth(1).getByTestId('tool-activity-summary')).toContainText('准备卡片“先检查象限”');
   await expect(rows.nth(1)).not.toContainText('已保存');
   await expect(rows.last()).toHaveAttribute('data-tool-state', 'error');
   for (const row of await rows.all()) {

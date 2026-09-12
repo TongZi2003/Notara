@@ -1,0 +1,12 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/current-classroom.spec.ts --grep creation session --reporter=list --output=.runtime/relation-deck-creation
+
+
+Running 1 test using 1 worker
+
+(node:16267) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/current-classroom.spec.ts:161:1 › a creation session keeps the classroom and hides the learning lesson surfaces (10.1s)
+
+  1 passed (10.7s)

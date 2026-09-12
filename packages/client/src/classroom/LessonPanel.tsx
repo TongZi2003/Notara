@@ -43,7 +43,8 @@ export function LessonPanel({ ctx, sessionId, readCourse, host, useSession, useS
   // open. No polling, no second event stream.
   const running = useSession(snapshot => snapshot.running);
   // This tab's own identity: what the composer remembers the pane is showing.
-  const browseId = String(useTabInfo().tab.id);
+  const tabInfo = useTabInfo();
+  const browseId = tabInfo.tab.visible ? String(tabInfo.tab.id) : undefined;
   useEffect(() => {
     let live = true;
     readCourse({ sessionId }).then(
@@ -57,11 +58,14 @@ export function LessonPanel({ ctx, sessionId, readCourse, host, useSession, useS
     ? state.view.data.closure !== null ? '已结束' : state.view.data.archived ? '已归入归档' : '进行中'
     : state.status === 'loading' ? '未加载' : '暂不可用';
   return <aside className="sf-lesson" data-testid="studyforge-lesson-panel">
-    <header className="sf-original-lesson-head"><span className="sf-lesson-seal" aria-hidden="true">课</span><div><small>本课资料</small><h2>{title}</h2><span className="sf-lesson-state">{lessonState}</span></div></header>
+    <header className="sf-deck-heading"><div><h2>本课资料</h2><small>{title} · {lessonState}</small></div>
+      <button type="button" className="sf-quiet sf-deck-spread" data-testid="spread-lesson-deck" onClick={() => {
+        const x = Math.max(12, Math.min(240, window.innerWidth * .16));
+        ctx.sidebarRight.float(tabInfo.tab.id, { x, y: 60, width: window.innerWidth - x - 16, height: window.innerHeight - 80 });
+      }}>铺开</button>
+      <button type="button" className="sf-quiet" data-testid="lesson-materials-refresh" onClick={() => { setRefresh(n => n + 1); }}>刷新</button>
+    </header>
     <section className="sf-lesson-materials-section">
-      <div className="sf-lesson-materials-head"><h3>本课资料</h3>
-        <button type="button" className="sf-quiet" data-testid="lesson-materials-refresh" onClick={() => { setRefresh(n => n + 1); }}>刷新</button>
-      </div>
       {/* The pane belongs to one lesson, so everything it opens opens here. */}
       <LessonResources key={sessionId} ctx={ctx} sessionId={sessionId} host={host} browseId={browseId}
         refreshToken={`${String(running)}:${state.status === 'ready' ? String(state.view.version) : 'x'}:${String(refresh)}`}

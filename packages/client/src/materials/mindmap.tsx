@@ -24,7 +24,7 @@ export { layoutMind, visibleMindNodes };
 
 /** One node action, offered only on the nodes it really applies to. */
 export interface MindAction {
-  readonly label: string;
+  readonly label: string | ((node: MindNode) => string);
   readonly when: (node: MindNode) => boolean;
   readonly run: (node: MindNode) => void;
 }
@@ -40,6 +40,7 @@ export interface MindmapProps {
   readonly onPick: (node: MindNode) => void;
   readonly onExpand: (node: MindNode, open: boolean) => void;
   readonly action?: MindAction | undefined;
+  readonly relations?: readonly { readonly from: string; readonly to: string; readonly label: string }[] | undefined;
   readonly busy?: boolean | undefined;
   /** What the map says when the projection really has no node at all. */
   readonly empty?: string | undefined;
@@ -87,6 +88,16 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
     return () => observer.disconnect();
   }, [mode, signature]);
 
+  useLayoutEffect(() => {
+    const element = wrap.current;
+    if (!element || mode !== 'map') return;
+    const key = props.selected ?? visible[0]?.key;
+    const node = [...element.querySelectorAll<HTMLElement>('.sf-mindmap > [data-key]')].find(candidate => candidate.dataset.key === key);
+    if (!node) return;
+    const bounds = node.getBoundingClientRect();
+    element.scrollLeft += bounds.left + bounds.width / 2 - element.getBoundingClientRect().left - element.clientWidth / 2;
+  }, [mode, signature, props.selected, available]);
+
   if (visible.length === 0) return <p className="sf-note" role="status">{props.empty ?? '这里还没有可以展开的结构。'}</p>;
 
   const toggle = (node: MindNode): React.JSX.Element | null => node.children.length === 0 && node.expandable !== true ? null
@@ -97,10 +108,10 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
     </button>;
   const action = (node: MindNode): React.JSX.Element | null => props.action !== undefined && props.action.when(node)
     ? <button type="button" className="sf-quiet sf-mind-action" disabled={props.busy === true}
-      onClick={() => { props.action?.run(node); }}>{props.action.label}</button>
+      onClick={() => { props.action?.run(node); }}>{typeof props.action.label === 'string' ? props.action.label : props.action.label(node)}</button>
     : null;
   const body = (node: MindNode): React.JSX.Element => <>
-    <button type="button" className="sf-mind-label" onClick={() => { props.onPick(node); }} aria-pressed={props.selected === node.key}
+    <button type="button" className="sf-mind-label" title={node.title} onClick={() => { props.onPick(node); }} aria-pressed={props.selected === node.key}
       data-testid={props.labelTestId ?? 'mindmap-node'}>
       <span className="sf-mind-title">{node.title}</span>
       <small className="sf-mind-hint">{node.hint}</small>
@@ -135,6 +146,13 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
   return <div className="sf-mindmap-wrap" ref={wrap}>
     <div className="sf-mindmap" data-testid={props.testId} aria-label={props.label} data-mode="map" style={{ width, height }}>
       <svg className="sf-mindmap-edges" width={width} height={height} aria-hidden="true">
+        {(props.relations ?? []).filter(edge => layout.depth.has(edge.from) && layout.depth.has(edge.to)).map(edge => {
+          const from = spot(edge.from), to = spot(edge.to);
+          return <g key={`${edge.from}:${edge.to}:${edge.label}`} data-testid="mindmap-relation">
+            <path className="sf-mind-relation" d={`M${String(from.left + nodeWidth / 2)},${String(from.top + 35)} C${String(from.left + nodeWidth)},${String(from.top - 14)} ${String(to.left - nodeWidth)},${String(to.top - 14)} ${String(to.left - nodeWidth / 2)},${String(to.top + 35)}`} />
+            <text x={(from.left + to.left) / 2} y={(from.top + to.top) / 2 + 12} textAnchor="middle">{edge.label}</text>
+          </g>;
+        })}
         {edges.map(edge => {
           const from = spot(edge.parent), to = spot(edge.key);
           const bottom = from.top + (heights.get(edge.parent) ?? 90);

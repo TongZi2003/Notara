@@ -1,0 +1,13 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/lesson-materials-mindmap.spec.ts tests/e2e/source-roundtrip.spec.ts --grep lesson right column|PDF pointer --reporter=list --output=.runtime/relation-deck-ui-7
+
+
+Running 2 tests using 1 worker
+
+(node:15321) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/lesson-materials-mindmap.spec.ts:22:1 › the lesson right column is one material map that opens originals and cards in place (11.8s)
+  ✓  2 tests/e2e/source-roundtrip.spec.ts:71:1 › PDF pointer rectangles remain in original coordinates at four rotations and return to their page (13.6s)
+
+  2 passed (26.3s)

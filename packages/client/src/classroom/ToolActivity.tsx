@@ -41,13 +41,14 @@ function ToolStep({ block, inspectCall, renderMessageImages }: {
   const name = settled ? block.call?.name ?? '' : block.name;
   const raw = settled ? block.call?.argsRaw ?? '' : block.argsRaw;
   const state: ToolDisplayState = !settled ? 'running' : block.error?.code === 'interrupted' ? 'stopped' : block.isError ? 'error' : 'ok';
+  const resultRaw = settled ? block.content.find(part => part.type === 'text')?.text ?? '' : '';
   const images: MessageImageSource[] = settled ? block.content.flatMap(part => part.type === 'image' && 'attachment' in part
     ? [{ attachment: part.attachment }] : []) : [];
   return <div className="sf-tool-step" data-testid="tool-activity" data-tool-state={state}>
     <details open={open} onToggle={event => setOpen(event.currentTarget.open)}>
       <summary data-testid="tool-activity-summary">
         <span className="sf-tool-state" aria-hidden="true">{state === 'running' ? '◌' : state === 'ok' ? '✓' : state === 'error' ? '!' : '·'}</span>
-        <span>{toolDisplayCopy(name, state, raw)}</span><span className="sf-tool-chevron" aria-hidden="true">{open ? '▾' : '▸'}</span>
+        <span>{toolDisplayCopy(name, state, raw, resultRaw)}</span><span className="sf-tool-chevron" aria-hidden="true">{open ? '▾' : '▸'}</span>
       </summary>
       {open && <div className="sf-tool-details" data-testid="tool-activity-details">
         <div className="sf-tool-details-head"><strong>{name || '原调用信息不在当前记录中'}</strong>

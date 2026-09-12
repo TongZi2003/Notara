@@ -122,9 +122,25 @@ test('PDF pointer rectangles remain in original coordinates at four rotations an
     for (let n = 0; n < 4; n++) expect(locator.rect?.[n]).toBeCloseTo(expected[p]![n]!, 2);
   }
   await page.getByTestId('message-sources').getByRole('button').nth(1).click();
-  await expect(viewer).toHaveAttribute('data-pdf-displayed-page', '2');
-  await expect(panel.getByTestId('source-highlight').first()).toBeVisible();
+  const returned = panel.locator('.sf-deck-sheet[data-active="true"]');
+  await expect(returned.getByTestId('pdf-viewer')).toHaveAttribute('data-pdf-displayed-page', '2');
+  await expect(returned.getByTestId('source-highlight').first()).toBeVisible();
   await page.screenshot({ path: info.outputPath('source-pdf-rotations.png'), fullPage: true });
+  await returned.getByTestId('pdf-next').click();
+  await expect(returned.getByTestId('pdf-viewer')).toHaveAttribute('data-pdf-displayed-page', '3');
+  await typeInput(page, '读第三页整页');
+  await page.getByRole('button', { name: 'Send message', exact: true }).click();
+  await expect.poll(async () => {
+    const rows = (await readFile(join(classroom.root, 'model-requests.jsonl'), 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+    return rows.some(row => row.messages.some((message: { role: string; content: { type: string; text?: string }[] }) => {
+      const text = message.content.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n');
+      if (message.role !== 'user' || !text.includes('读第三页整页')) return false;
+      return decodeSourceFragments(text).fragments.some(fragment => {
+        const material = fragment.context.currentMaterial;
+        return material?.kind === 'source' && material.source.locator?.kind === 'pdf' && material.source.locator.page === 3;
+      });
+    }));
+  }).toBe(true);
 });
 
 test('Word cross-paragraph selection preserves each real block including the middle repeated paragraph', async ({ page, classroom }, info) => {
@@ -188,10 +204,11 @@ test('native card reference returns the displayed fixed version without exposing
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await expect(page.getByTestId('message-sources').getByRole('button', { name: '原卡' })).toBeVisible();
   await page.getByTestId('message-sources').getByRole('button', { name: '原卡' }).click();
-  await expect(page.getByTestId('card-detail-fixed')).toBeVisible();
-  await expect(page.getByTestId('card-detail-front')).toContainText('第一版题面');
+  const returned = page.locator('.sf-deck-sheet[data-active="true"]');
+  await expect(returned.getByTestId('card-detail-fixed')).toBeVisible();
+  await expect(returned.getByTestId('card-detail-front')).toContainText('第一版题面');
   await expect(page.locator('body')).not.toContainText('暂时隐藏的解法');
-  await expect(page.getByTestId('card-detail-edit')).toHaveCount(0);
+  await expect(returned.getByTestId('card-detail-edit')).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('source-card-fixed.png'), fullPage: true });
 });
 

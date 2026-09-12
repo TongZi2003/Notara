@@ -1,0 +1,14 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/lesson-materials-mindmap.spec.ts tests/e2e/tool-activity.spec.ts --reporter=list --output=.runtime/relation-deck-ui-6
+
+
+Running 3 tests using 1 worker
+
+(node:12774) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/lesson-materials-mindmap.spec.ts:22:1 › the lesson right column is one material map that opens originals and cards in place (11.6s)
+  ✓  2 tests/e2e/tool-activity.spec.ts:8:1 › tool rows speak plainly until expanded and retain the native inspection route (10.9s)
+  ✓  3 tests/e2e/tool-activity.spec.ts:58:1 › an expanded image read keeps the native attachment preview (10.4s)
+
+  3 passed (33.6s)
