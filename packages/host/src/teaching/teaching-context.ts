@@ -9,6 +9,7 @@ import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import { TeachingManifestSchema, type TeachingChoice } from '@studyforge/contracts/teaching';
 import type { Agent } from '@deepseek-ai/dsh-agent';
 import { continuationBrief } from './lesson-brief.ts';
+import { providerToolSchemas } from '../tools/model-tool-schemas.ts';
 
 export class TeachingCatalog {
   readonly defaultId: string;
@@ -77,8 +78,11 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
   }));
   host.on('system-prompt/assemble', async (_assembly, context, next) => {
     const result = await next();
+    // The receipt-only turn still sees no tool at all, and a helper keeps its
+    // own filter; only the surviving list is projected for the provider.
     if (context.agent && claimed.get(context.agent)?.receiptOnly) return { ...result, tools: [] };
-    return helper(context.agent) ? { ...result, tools: result.tools.filter(tool => !helperForbidden.has(tool.name)) } : result;
+    const visible = helper(context.agent) ? result.tools.filter(tool => !helperForbidden.has(tool.name)) : result.tools;
+    return { ...result, tools: providerToolSchemas(visible) };
   });
   host.effect(() => host.tools.guard(execution => {
     if (execution.agent && claimed.get(execution.agent)?.receiptOnly) return '这次仅说明系统保存结果，不执行新的工具动作。';

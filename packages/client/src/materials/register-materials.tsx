@@ -16,6 +16,7 @@ import type { DocumentPreviewProps } from '@deepseek-ai/dsh-client-ui-sidebar-do
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client';
 import type {} from '@deepseek-ai/dsh-client-ui-slots';
 import { useEffect, useState } from 'react';
+import './original-pages.css';
 import { ContextPreview } from './ContextPreview.tsx';
 import { DocxPreview } from './docx/DocxPreview.tsx';
 import { SourceReferences } from './source-selection.ts';

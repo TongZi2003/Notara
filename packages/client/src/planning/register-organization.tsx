@@ -1,10 +1,14 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
+import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client';
 import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import type { MaterialNavigation } from '../materials/material-navigation.ts';
+import { MemoryPage } from '../memory/MemoryPage.tsx';
 import { SetPage } from '../sets/SetPage.tsx';
 import { Calendar } from './Calendar.tsx';
-import { Today } from './Today.tsx';
+import { Today, type HomeLessonRow } from './Today.tsx';
+import './original-pages.css';
 
 export function registerOrganization(ctx: Context, navigation: MaterialNavigation): void {
   ctx.effect(() => { const style = document.createElement('style'); style.dataset.studyforgeStyle = 'organization'; style.textContent = css; document.head.append(style); return () => style.remove(); });
@@ -24,8 +28,37 @@ export function registerOrganization(ctx: Context, navigation: MaterialNavigatio
   }
   ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'studyforge.calendar', priority: -20 },
     () => <Calendar ctx={ctx} onOpen={target => { void open(target); }} />)));
+  // B's 记忆 screen is the student's own surface, not only a tab inside one lesson.
+  ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'studyforge.memory', priority: -20 },
+    () => <MemoryPage ctx={ctx} />)));
   ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'studyforge.home', priority: -20 },
-    () => <Today ctx={ctx} onOpen={target => { if (target) void open(target); else ctx.layout.selectPanel(null); }} />)));
+    function HomePage({ useSessions }: PropsRuntime<'main'>): React.JSX.Element {
+      const list = useSessions(snapshot => snapshot);
+      // The native rows are the only course list; a subagent and an empty log are not lessons.
+      const lessons: HomeLessonRow[] = list.ids.flatMap(id => {
+        const row = list.byId[id];
+        return row === undefined || row.blank || row.origin === 'subagent'
+          ? []
+          : [{ id: row.id, title: row.displayTitle, running: row.running, updatedAt: row.updatedAt }];
+      }).sort((left, right) => right.updatedAt - left.updatedAt);
+      return <Today ctx={ctx} lessons={lessons} lessonsLoaded={list.phase === 'ready'}
+        onStartLesson={() => { startLesson(ctx); }}
+        onPage={page => { ctx.layout.selectPanel(page as MainPanelId); }}
+        onOpenTarget={target => { if (target !== '') void open(target); else ctx.layout.selectPanel(null); }}
+        onOpenLesson={id => { ctx.sessions.open(id as SessionId); ctx.layout.selectPanel(null); }} />;
+    })));
+}
+
+/**
+ * B's 开始学习 opens a new lesson; the native Workspace flow owns what that means
+ * (blank Session for the current workspace, then the classroom). The guard exists
+ * because a composition that does not inject `uiWorkspace` must not throw — it
+ * simply leaves the student where they are.
+ */
+function startLesson(ctx: Context): void {
+  const workspace = ctx.uiWorkspace;
+  if (workspace === undefined || typeof workspace.startSession !== 'function') return;
+  workspace.startSession();
 }
 const css = `
 .sf-organization-columns{display:grid;grid-template-columns:minmax(180px,26%) minmax(0,1fr);min-height:0;flex:1}

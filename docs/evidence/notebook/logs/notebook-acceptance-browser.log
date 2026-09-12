@@ -1,0 +1,258 @@
+
+Running 27 tests using 1 worker
+
+(node:62167) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   1 tests/e2e/book-workspace.spec.ts:12:1 › book expands into existing cards, switches view and returns to the exact source without learning writes; breakdown is explicit (25.8s)
+(node:62348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   2 tests/e2e/card-coauthoring.spec.ts:56:1 › a card is created, read with the back hidden until asked, and edited (10.7s)
+  ✓   3 tests/e2e/card-coauthoring.spec.ts:94:1 › a second writer makes the first save a real conflict, and the draft survives a rebase (14.3s)
+  ✓   4 tests/e2e/card-redline.spec.ts:61:1 › an edited card reads as red pen over the old line, and the back waits for the student (10.9s)
+  ✓   5 tests/e2e/coauthor-memory.spec.ts:74:1 › the student rewrites one judgement, keeps its evidence, and survives a conflict (17.5s)
+  ✓   6 tests/e2e/docx-render.spec.ts:104:1 › duplicate paragraphs and duplicate tables each keep their own element, and a space is not nothing (7.1s)
+  ✓   7 tests/e2e/docx-render.spec.ts:143:1 › a paragraph the previewer drops leaves the whole document unpositioned instead of shifting a duplicate (6.6s)
+  ✘   8 tests/e2e/docx-render.spec.ts:161:1 › a flattened w:sdt document is unpositioned, and a rich document still draws its image, formula and table (21.6s)
+(node:63020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   9 tests/e2e/knowledge-editor.spec.ts:53:1 › knowledge keeps one identity while the student and the teacher both revise it (10.7s)
+  ✓  10 tests/e2e/knowledge-editor.spec.ts:126:1 › deleting one knowledge note leaves the related card and the learning records (10.4s)
+  ✓  11 tests/e2e/material-import.spec.ts:22:1 › an imported original is read directly and never opens a lesson (7.0s)
+  ✓  12 tests/e2e/material-import.spec.ts:52:1 › a second file with the same name is refused with a next action (6.5s)
+  ✘  13 tests/e2e/material-import.spec.ts:67:1 › a new version is explicit, keeps the old bytes readable, and a refresh keeps both (21.8s)
+(node:63438) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  14 tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths (13.1s)
+  ✓  15 tests/e2e/notebook-theme.spec.ts:10:1 › notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft (11.8s)
+  ✓  16 tests/e2e/notebook-theme.spec.ts:77:1 › notebook card slips open the real card and its source returns to the originating lesson without recording study (10.6s)
+  ✘  17 tests/e2e/official-preview.spec.ts:159:1 › the materials page reads a Chinese formula note and an image without a lesson or a model call (24.5s)
+(node:63912) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  18 tests/e2e/official-preview.spec.ts:226:1 › paging and zooming show only finished pages, and a page that cannot be drawn says so (25.5s)
+(node:64083) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  19 tests/e2e/official-preview.spec.ts:315:1 › a corrupt file is refused with a next action instead of a blank reader (10.0s)
+  ✘  20 tests/e2e/official-preview.spec.ts:327:1 › the sandboxed HTML cannot reach the application, and a lesson opens the same original in the native rightbar (25.0s)
+(node:64363) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  21 tests/e2e/official-preview.spec.ts:365:1 › a contents read that never came back is not shown as an empty book (10.2s)
+  ✓  22 tests/e2e/planning-overview-v2.spec.ts:66:1 › a date range narrows the roadmap, keeps ancestors as context, and clearing restores the tree (16.4s)
+  ✓  23 tests/e2e/planning-overview-v2.spec.ts:121:1 › an opened planned lesson stays visible in the whole roadmap and keeps its real lesson (10.5s)
+  ✘  24 tests/e2e/planning-overview-v2.spec.ts:153:1 › a card the student really placed keeps its coordinate, and a content edit does not lose it (31.8s)
+(node:64828) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  25 tests/e2e/sets-calendar.spec.ts:9:1 › student set edits preserve their draft through a real concurrent update and persist at narrow width (10.6s)
+  ✓  26 tests/e2e/sets-calendar.spec.ts:34:1 › calendar opens the second actual planned lesson and daily settings survive a fresh page (16.1s)
+  ✓  27 tests/e2e/teaching-presets.spec.ts:10:1 › five teaching choices preserve the native draft and same lesson; a temporary requirement reaches the next actual request (17.3s)
+
+
+  1) tests/e2e/book-workspace.spec.ts:12:1 › book expands into existing cards, switches view and returns to the exact source without learning writes; breakdown is explicit
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 290
+    Received:   286
+
+    Call Log:
+    - Timeout 15000ms exceeded while waiting on the predicate
+
+      38 |   await page.screenshot({ path: info.outputPath('book-wide.png'), fullPage: true });
+      39 |   await page.setViewportSize({ width: 390, height: 844 });
+    > 40 |   await expect.poll(async () => (await page.getByTestId('material-reader').boundingBox())?.width ?? 0).toBeGreaterThan(290);
+         |                                                                                                        ^
+      41 |   await page.getByRole('button', { name: '结构', exact: true }).click();
+      42 |   await expect(page.getByTestId('card-detail-title')).toBeVisible();
+      43 |   await page.screenshot({ path: info.outputPath('book-narrow.png'), fullPage: true });
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/book-workspace.spec.ts:40:104
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:62198) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/notebook-acceptance-results/book-workspace-book-expand-616f4-rites-breakdown-is-explicit/error-context.md
+
+  2) tests/e2e/docx-render.spec.ts:161:1 › a flattened w:sdt document is unpositioned, and a rich document still draws its image, formula and table
+
+    TimeoutError: locator.setInputFiles: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByTestId('material-file-input')
+
+
+      177 |
+      178 |   // The rich fixture keeps its real content whatever the positioning verdict is.
+    > 179 |   await page.getByTestId('material-file-input').setInputFiles(mixed);
+          |   ^
+      180 |   await page.getByTestId('material-row').filter({ hasText: '混合文档' }).getByRole('button').first().click();
+      181 |   const rich = page.getByTestId('docx-body');
+      182 |   const drawing = rich.locator('img').first();
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/docx-render.spec.ts:179:3
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:62890) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/notebook-acceptance-results/docx-render-a-flattened-w--beebd-its-image-formula-and-table/error-context.md
+
+  3) tests/e2e/material-import.spec.ts:67:1 › a new version is explicit, keeps the old bytes readable, and a refresh keeps both
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('[data-composer-input]')
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" locator('[data-composer-input]') with timeout 15000ms
+      - waiting for locator('[data-composer-input]')
+
+
+      91 |   // A reload reads the Host again: both versions survive, and v1 still resolves v1.
+      92 |   await page.reload();
+    > 93 |   await expect(page.locator('[data-composer-input]')).toBeVisible();
+         |                                                       ^
+      94 |   for (const name of ['Continue', 'Configure later']) {
+      95 |     const button = page.getByRole('button', { name, exact: true });
+      96 |     try { await button.waitFor({ state: 'visible', timeout: 2000 }); await button.click(); }
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/material-import.spec.ts:93:55
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:63311) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/notebook-acceptance-results/material-import-a-new-vers-31deb-le-and-a-refresh-keeps-both/error-context.md
+
+  4) tests/e2e/official-preview.spec.ts:159:1 › the materials page reads a Chinese formula note and an image without a lesson or a model call
+
+    TimeoutError: locator.setInputFiles: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByTestId('material-file-input')
+
+
+      185 |
+      186 |   // The image is decoded from its own bytes at the real size of the original.
+    > 187 |   await page.getByTestId('material-file-input').setInputFiles(image);
+          |   ^
+      188 |   await openMaterial(page, '函数图像');
+      189 |   const shown = page.getByTestId('material-image');
+      190 |   await expect(shown).toBeVisible();
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/official-preview.spec.ts:187:3
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:63748) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/notebook-acceptance-results/official-preview-the-mater-faeb2-ut-a-lesson-or-a-model-call/error-context.md
+
+  5) tests/e2e/official-preview.spec.ts:226:1 › paging and zooming show only finished pages, and a page that cannot be drawn says so
+
+    TimeoutError: locator.setInputFiles: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByTestId('material-file-input')
+
+
+      294 |
+      295 |   // Six pages, five fast turns: only the finished last page may be on screen.
+    > 296 |   await page.getByTestId('material-file-input').setInputFiles([blank, undrawable]);
+          |   ^
+      297 |   await page.getByTestId('material-row').filter({ hasText: '六页' }).getByRole('button').first().click();
+      298 |   await expect(viewer).toHaveAttribute('data-pdf-displayed-page', '1');
+      299 |   for (let turn = 0; turn < 5; turn += 1) await page.getByTestId('pdf-next').click({ delay: 0 });
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/official-preview.spec.ts:296:3
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:63929) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/notebook-acceptance-results/official-preview-paging-an-65872-hat-cannot-be-drawn-says-so/error-context.md
+
+  6) tests/e2e/official-preview.spec.ts:327:1 › the sandboxed HTML cannot reach the application, and a lesson opens the same original in the native rightbar
+
+    TimeoutError: locator.setInputFiles: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByTestId('material-file-input')
+
+
+      352 |   // sends nothing new to the model.
+      353 |   const before = await modelRequestLines(runtime);
+    > 354 |   await page.getByTestId('material-file-input').setInputFiles(note);
+          |   ^
+      355 |   await openMaterial(page, '和角公式');
+      356 |   await page.getByTestId('material-open-classroom').click();
+      357 |   const panel = page.locator('[data-sidebar-right-panel]');
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/official-preview.spec.ts:354:3
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:64171) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/notebook-acceptance-results/official-preview-the-sandb-926cc-inal-in-the-native-rightbar/error-context.md
+
+  7) tests/e2e/planning-overview-v2.spec.ts:153:1 › a card the student really placed keeps its coordinate, and a content edit does not lose it
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByTestId('roadmap-canvas-node').filter({ hasText: '摆放这一节' }).getByTestId('roadmap-node-auto')
+        - locator resolved to <button type="button" class="sf-quiet" data-testid="roadmap-node-auto">排回原位</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div data-x="40" data-y="170" class="sf-roadmap-card" data-testid="roadmap-canvas-node" data-node-id="p_92944a06ceaa5531">…</div> intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div data-x="40" data-y="170" class="sf-roadmap-card" data-testid="roadmap-canvas-node" data-node-id="p_92944a06ceaa5531">…</div> intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        29 × waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <div data-x="40" data-y="170" class="sf-roadmap-card" data-testid="roadmap-canvas-node" data-node-id="p_92944a06ceaa5531">…</div> intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+
+
+      198 |
+      199 |   // Putting it back in the automatic order is a real edit: the placement goes away.
+    > 200 |   await restored.getByTestId('roadmap-node-auto').click();
+          |                                                   ^
+      201 |   await expect(restored.getByTestId('roadmap-node-auto')).toHaveCount(0);
+      202 |   await expect.poll(async () => Number(await restored.getAttribute('data-x'))).toBe(startX);
+      203 |   expect(errors).toEqual([]);
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/planning-overview-v2.spec.ts:200:51
+
+    attachment #1: host-log (text/plain) ───────────────────────────────────────────────────────────
+    (node:64628) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/notebook-acceptance-results/planning-overview-v2-a-car-4aa97-ntent-edit-does-not-lose-it/error-context.md
+
+  7 failed
+    tests/e2e/book-workspace.spec.ts:12:1 › book expands into existing cards, switches view and returns to the exact source without learning writes; breakdown is explicit
+    tests/e2e/docx-render.spec.ts:161:1 › a flattened w:sdt document is unpositioned, and a rich document still draws its image, formula and table
+    tests/e2e/material-import.spec.ts:67:1 › a new version is explicit, keeps the old bytes readable, and a refresh keeps both
+    tests/e2e/official-preview.spec.ts:159:1 › the materials page reads a Chinese formula note and an image without a lesson or a model call
+    tests/e2e/official-preview.spec.ts:226:1 › paging and zooming show only finished pages, and a page that cannot be drawn says so
+    tests/e2e/official-preview.spec.ts:327:1 › the sandboxed HTML cannot reach the application, and a lesson opens the same original in the native rightbar
+    tests/e2e/planning-overview-v2.spec.ts:153:1 › a card the student really placed keeps its coordinate, and a content edit does not lose it
+  20 passed (6.8m)

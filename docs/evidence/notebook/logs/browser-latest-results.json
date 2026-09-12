@@ -1,0 +1,204 @@
+{
+  "distinctScenarios": 33,
+  "method": "latest result per file and scenario; initial failures retained",
+  "results": [
+    {
+      "file": "tests/e2e/book-workspace.spec.ts",
+      "scenario": "book expands into existing cards, switches view and returns to the exact source without learning writes; breakdown is explicit",
+      "status": "PASS",
+      "log": "notebook-rework-browser.log"
+    },
+    {
+      "file": "tests/e2e/card-coauthoring.spec.ts",
+      "scenario": "a card is created, read with the back hidden until asked, and edited",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/card-coauthoring.spec.ts",
+      "scenario": "a second writer makes the first save a real conflict, and the draft survives a rebase",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/card-redline.spec.ts",
+      "scenario": "an edited card reads as red pen over the old line, and the back waits for the student",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/coauthor-memory.spec.ts",
+      "scenario": "the student rewrites one judgement, keeps its evidence, and survives a conflict",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/docx-render.spec.ts",
+      "scenario": "duplicate paragraphs and duplicate tables each keep their own element, and a space is not nothing",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/docx-render.spec.ts",
+      "scenario": "a paragraph the previewer drops leaves the whole document unpositioned instead of shifting a duplicate",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/docx-render.spec.ts",
+      "scenario": "a flattened w:sdt document is unpositioned, and a rich document still draws its image, formula and table",
+      "status": "PASS",
+      "log": "notebook-rework-browser.log"
+    },
+    {
+      "file": "tests/e2e/knowledge-editor.spec.ts",
+      "scenario": "knowledge keeps one identity while the student and the teacher both revise it",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/knowledge-editor.spec.ts",
+      "scenario": "deleting one knowledge note leaves the related card and the learning records",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/material-import.spec.ts",
+      "scenario": "an imported original is read directly and never opens a lesson",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/material-import.spec.ts",
+      "scenario": "a second file with the same name is refused with a next action",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/material-import.spec.ts",
+      "scenario": "a new version is explicit, keeps the old bytes readable, and a refresh keeps both",
+      "status": "PASS",
+      "log": "notebook-rework-browser.log"
+    },
+    {
+      "file": "tests/e2e/notebook-pages.spec.ts",
+      "scenario": "original notebook pages show real books, cards, calendar and learning records at desktop and phone widths",
+      "status": "PASS",
+      "log": "notebook-final-ui.log"
+    },
+    {
+      "file": "tests/e2e/notebook-theme.spec.ts",
+      "scenario": "notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft",
+      "status": "PASS",
+      "log": "notebook-final-ui.log"
+    },
+    {
+      "file": "tests/e2e/notebook-theme.spec.ts",
+      "scenario": "notebook card slips open the real card and its source returns to the originating lesson without recording study",
+      "status": "PASS",
+      "log": "notebook-final-ui.log"
+    },
+    {
+      "file": "tests/e2e/official-preview.spec.ts",
+      "scenario": "the materials page reads a Chinese formula note and an image without a lesson or a model call",
+      "status": "PASS",
+      "log": "notebook-final-reader.log"
+    },
+    {
+      "file": "tests/e2e/official-preview.spec.ts",
+      "scenario": "paging and zooming show only finished pages, and a page that cannot be drawn says so",
+      "status": "PASS",
+      "log": "notebook-rework-browser.log"
+    },
+    {
+      "file": "tests/e2e/official-preview.spec.ts",
+      "scenario": "a corrupt file is refused with a next action instead of a blank reader",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/official-preview.spec.ts",
+      "scenario": "the sandboxed HTML cannot reach the application, and a lesson opens the same original in the native rightbar",
+      "status": "PASS",
+      "log": "notebook-rework-browser.log"
+    },
+    {
+      "file": "tests/e2e/official-preview.spec.ts",
+      "scenario": "a contents read that never came back is not shown as an empty book",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/planning-overview-v2.spec.ts",
+      "scenario": "a date range narrows the roadmap, keeps ancestors as context, and clearing restores the tree",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/planning-overview-v2.spec.ts",
+      "scenario": "an opened planned lesson stays visible in the whole roadmap and keeps its real lesson",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/planning-overview-v2.spec.ts",
+      "scenario": "a card the student really placed keeps its coordinate, and a content edit does not lose it",
+      "status": "PASS",
+      "log": "notebook-rework-browser.log"
+    },
+    {
+      "file": "tests/e2e/sets-calendar.spec.ts",
+      "scenario": "student set edits preserve their draft through a real concurrent update and persist at narrow width",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/sets-calendar.spec.ts",
+      "scenario": "calendar opens the second actual planned lesson and daily settings survive a fresh page",
+      "status": "PASS",
+      "log": "notebook-acceptance-browser.log"
+    },
+    {
+      "file": "tests/e2e/teaching-presets.spec.ts",
+      "scenario": "five teaching choices preserve the native draft and same lesson; a temporary requirement reaches the next actual request",
+      "status": "PASS",
+      "log": "notebook-final-ui.log"
+    },
+    {
+      "file": "tests/e2e/current-classroom.spec.ts",
+      "scenario": "native classroom keeps its own composer and carries the student lesson surfaces",
+      "status": "PASS",
+      "log": "notebook-classroom-recovery.log"
+    },
+    {
+      "file": "tests/e2e/current-classroom.spec.ts",
+      "scenario": "a creation session keeps the classroom and hides the learning lesson surfaces",
+      "status": "PASS",
+      "log": "notebook-final-ui.log"
+    },
+    {
+      "file": "tests/e2e/native-boot.spec.ts",
+      "scenario": "native classroom survives refresh, HMR and Client lifecycle without a placeholder shell",
+      "status": "PASS",
+      "log": "notebook-final-ui.log"
+    },
+    {
+      "file": "tests/e2e/native-usage.spec.ts",
+      "scenario": "a completed turn keeps its native usage and the lesson panel never fills unreported buckets",
+      "status": "PASS",
+      "log": "notebook-final-ui.log"
+    },
+    {
+      "file": "tests/e2e/native-usage.spec.ts",
+      "scenario": "a turn without a proof of total usage is reported as incomplete coverage",
+      "status": "PASS",
+      "log": "notebook-final-ui.log"
+    },
+    {
+      "file": "tests/e2e/native-usage.spec.ts",
+      "scenario": "a second turn refreshes the lesson panel that stayed open, and a refresh agrees",
+      "status": "PASS",
+      "log": "notebook-final-ui.log"
+    }
+  ]
+}

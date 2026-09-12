@@ -48,7 +48,9 @@ type Range = { readonly from: string; readonly to: string };
 
 /** The automatic spot for one node when the student has not placed it themselves. */
 function autoSpot(index: number, depth: number): { readonly x: number; readonly y: number } {
-  return { x: 28 + depth * 190, y: 20 + index * 84 };
+  // B's mapAutoLayout: one column per generation (280px), one row per node (150px).
+  // The floating filter bar sits above this board rather than over it, so row one starts at 20.
+  return { x: 40 + depth * 280, y: 20 + index * 150 };
 }
 
 const REFUSAL_COPY: Readonly<Record<string, string>> = {
@@ -221,7 +223,7 @@ export function CourseMap({ ctx, lessons, lessonsLoaded, onOpenLesson }: CourseM
 
   if (loaded === undefined) {
     return <section className="sf-courses-block" data-testid="course-map">
-      <h2>排课</h2>
+      <div className="sec-head"><h2>排课</h2><div className="line" /></div>
       <p className="sf-note" role="status">{notice === '' ? '正在看你的课…' : notice}</p>
     </section>;
   }
@@ -236,9 +238,15 @@ export function CourseMap({ ctx, lessons, lessonsLoaded, onOpenLesson }: CourseM
     node, saved: placedByNode.get(node.id), auto: autoSpot(index, depth),
   }));
   const canvasHeight = Math.max(320, ...spots.map(spot => (spot.saved ?? spot.auto).y + 124));
+  const canvasWidth = Math.max(320, ...spots.map(spot => (spot.saved ?? spot.auto).x + 290));
+  /** Where one card is right now: the pointer's own spot while it is being dragged. */
+  type Spot = { readonly node: RouteNode; readonly saved: RouteView['layout'][number] | undefined; readonly auto: { readonly x: number; readonly y: number } };
+  const liveOf = (spot: Spot): { readonly x: number; readonly y: number } =>
+    (holding?.id === spot.node.id ? holding : spot.saved ?? spot.auto);
+  const byNode = new Map(spots.map(spot => [spot.node.id, spot] as const));
 
   return <section className="sf-courses-block" data-testid="course-map">
-    <h2>排课</h2>
+    <div className="sec-head"><h2>排课</h2><span className="cnt">{String(loaded.route.nodes.length)} 节</span><div className="line" /></div>
     <div className="sf-roadmap-filter" data-testid="roadmap-filter">
       <div className="sf-chip-row">
         <button type="button" className={chipClass(range === undefined)} data-testid="roadmap-filter-all" onClick={() => { void applyRange(undefined); }}>全部</button>
@@ -257,10 +265,21 @@ export function CourseMap({ ctx, lessons, lessonsLoaded, onOpenLesson }: CourseM
     </div>
     {ordered.length === 0 && <p className="sf-note" data-testid="roadmap-empty">还没有排课。写下想去哪，再点「排一节」。</p>}
     {arranging && <div className="sf-roadmap-canvas" data-testid="roadmap-canvas" style={{ height: `${String(canvasHeight)}px` }}>
+      {/* B's map draws the mount edges; a child's line starts at its parent's right edge. */}
+      <svg className="sf-roadmap-edges" width={canvasWidth} height={canvasHeight} aria-hidden="true">
+        {spots.flatMap(spot => {
+          const parent = spot.node.parent === undefined ? undefined : byNode.get(spot.node.parent);
+          if (parent === undefined) return [];
+          const from = liveOf(parent), to = liveOf(spot);
+          return [<path key={spot.node.id} className={spot.node.session === undefined ? 'planned' : 'opened'}
+            d={`M ${String(from.x + 230)} ${String(from.y + 42)} C ${String(from.x + 300)} ${String(from.y + 42)}, ${String(to.x - 70)} ${String(to.y + 42)}, ${String(to.x)} ${String(to.y + 42)}`} />];
+        })}
+      </svg>
       {spots.map(({ node, saved, auto }) => {
         const live = holding?.id === node.id ? holding : saved ?? auto;
         return <div key={node.id} className={saved === undefined ? 'sf-roadmap-card' : 'sf-roadmap-card sf-roadmap-card-placed'}
           data-testid="roadmap-canvas-node" data-node-id={node.id} data-x={String(live.x)} data-y={String(live.y)}
+          data-held={holding?.id === node.id}
           style={{ left: `${String(live.x)}px`, top: `${String(live.y)}px` }}
           onPointerDown={event => { beginDrag(event, node.id, live); }} onPointerMove={moveDrag} onPointerUp={endDrag}>
           <span className="sf-roadmap-title">{node.title}</span>

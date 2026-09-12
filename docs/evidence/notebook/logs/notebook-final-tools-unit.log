@@ -1,0 +1,13 @@
+
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts tests/unit/tool-schema.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |unit| tests/unit/tool-schema.test.ts (5 tests) 146ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  10:07:41
+   Duration  709ms (transform 171ms, setup 0ms, import 499ms, tests 146ms, environment 0ms)

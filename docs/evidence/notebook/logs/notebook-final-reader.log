@@ -1,0 +1,8 @@
+
+Running 1 test using 1 worker
+
+(node:68943) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/official-preview.spec.ts:159:1 › the materials page reads a Chinese formula note and an image without a lesson or a model call (11.5s)
+
+  1 passed (12.2s)

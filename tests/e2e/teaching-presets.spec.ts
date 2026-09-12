@@ -15,6 +15,7 @@ test('five teaching choices preserve the native draft and same lesson; a tempora
   const session = value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(item => !item.blank && item.origin !== 'subagent')!;
   await typeInput(page, '这条课堂草稿要保留');
   await page.getByTestId('open-lesson').click();
+  await page.getByTestId('lesson-adjust').locator('summary').click();
   await expect(page.getByTestId('teaching-preset').locator('option')).toHaveText(['资料整理', '诊断分析', '苏格拉底授课', '头脑风暴拓展', '搜索']);
   for (const choice of ['organize', 'diagnose', 'brainstorm', 'search', 'socratic']) {
     await page.getByTestId('teaching-preset').selectOption(choice);
@@ -32,6 +33,7 @@ test('five teaching choices preserve the native draft and same lesson; a tempora
   expect(value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.filter(item => !item.blank && item.origin !== 'subagent')).toHaveLength(1);
   await enterClassroom(page, classroom.authUrl);
   await page.getByTestId('open-lesson').click();
+  await page.getByTestId('lesson-adjust').locator('summary').click();
   await expect(page.getByTestId('teaching-preset')).toHaveValue('socratic');
   await expect(page.getByTestId('teaching-instructions')).toHaveValue('这节课先完整讲解，再给一道独立练习。');
   await page.screenshot({ path: info.outputPath('teaching-settings.png'), fullPage: true });

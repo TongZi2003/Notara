@@ -225,24 +225,44 @@ export function KnowledgeEditor({ ctx, sessionId, target, seed, onSaved, onDelet
   const frozenNow = frozen !== undefined;
   return <form className="sf-knowledge-editor" data-testid="knowledge-editor" data-frozen={frozenNow ? 'true' : undefined}
     onSubmit={event => { event.preventDefault(); void save(); }}>
-    <fieldset className="sf-write-frozen" disabled={frozenNow}>
-    <header><h3>{baseline === undefined ? '记一条知识' : '修改这条知识'}</h3>
+    <header className="ce-head">
+      <span className="ce-seal" aria-hidden="true">识</span>
+      <div>
+        <p>手写本 · 一条知识</p>
+        <h2>{baseline === undefined ? '记一条知识' : '改这条知识'}</h2>
+      </div>
       {baseline !== undefined && <span className="sf-meta">{baseline.collection === undefined ? '还没收录' : '已经收录'}</span>}
     </header>
-    <label className="sf-field"><span>标题</span>
-      <input data-testid="knowledge-editor-title" value={draft.title} onChange={event => { setDraft({ ...draft, title: event.target.value }); }} />
-    </label>
-    <label className="sf-field"><span>正文</span>
-      <textarea data-testid="knowledge-editor-body" rows={8} value={draft.body} onChange={event => { setDraft({ ...draft, body: event.target.value }); }} />
-    </label>
-    <label className="sf-field"><span>分类（可留空）</span>
-      <input data-testid="knowledge-editor-category" value={draft.category} onChange={event => { setDraft({ ...draft, category: event.target.value }); }} />
-    </label>
-    <label className="sf-field"><span>标签</span>
-      <input data-testid="knowledge-editor-tags" value={draft.tags.join('、')}
-        onChange={event => { setDraft({ ...draft, tags: event.target.value.split(/[、,，\s]+/u).map(tag => tag.trim()).filter(tag => tag !== '') }); }} />
-    </label>
-    {draft.body !== '' && <section className="sf-knowledge-preview"><h4>预览</h4><MarkdownBody text={draft.body} testId="knowledge-editor-preview" /></section>}
+    <fieldset className="sf-write-frozen" disabled={frozenNow}>
+    <div className="ce-layout">
+      <div className="ce-writing">
+        <label className="ce-field"><span>标题</span>
+          <input data-testid="knowledge-editor-title" value={draft.title} onChange={event => { setDraft({ ...draft, title: event.target.value }); }} />
+        </label>
+        <label className="ce-field"><span>正文</span>
+          <textarea data-testid="knowledge-editor-body" rows={10} value={draft.body} onChange={event => { setDraft({ ...draft, body: event.target.value }); }} />
+        </label>
+        <details className="ce-secondary">
+          <summary>分类 · 标签</summary>
+          <div className="ce-secondary-body">
+            <label className="ce-field"><span>分类（可留空）</span>
+              <input data-testid="knowledge-editor-category" value={draft.category} onChange={event => { setDraft({ ...draft, category: event.target.value }); }} />
+            </label>
+            <label className="ce-field"><span>标签</span>
+              <input data-testid="knowledge-editor-tags" value={draft.tags.join('、')}
+                onChange={event => { setDraft({ ...draft, tags: event.target.value.split(/[、,，\s]+/u).map(tag => tag.trim()).filter(tag => tag !== '') }); }} />
+            </label>
+          </div>
+        </details>
+      </div>
+      <aside className="ce-preview">
+        <div className="ce-preview-head"><b>纸面</b><span>保存后就是这条</span></div>
+        {draft.body !== ''
+          ? <MarkdownBody text={draft.body} testId="knowledge-editor-preview" />
+          : <p className="sf-note">写点字，这条知识就有内容了。</p>}
+      </aside>
+    </div>
+
     {conflict !== undefined && <section className="sf-conflict" data-testid="knowledge-editor-conflict">
       <p className="sf-notice">这条知识刚在别处更新过：现在已经是第 {String(conflict.version)} 版。下面是最新版，先看一眼再决定。</p>
       <dl className="sf-conflict-latest" data-testid="knowledge-editor-latest">

@@ -79,6 +79,15 @@ function value<T>(result: RemoteResult<T>): T {
  * add one: the classroom page filters blanks out of its own list, so comparing
  * native ids is the only honest way to see a lesson that was never opened.
  */
+/**
+ * Open one original from the shelf. The 资料 page is a full-width shelf until a
+ * book is chosen; the reader is then its own page with a 返回资料 button.
+ */
+async function openMaterial(page: Page, title: string): Promise<void> {
+  await page.getByTestId('material-row').filter({ hasText: title }).getByRole('button').first().click();
+  await expect(page.getByTestId('material-reader')).toBeVisible();
+}
+
 async function nativeSessionIds(client: NativeClient): Promise<string[]> {
   const listed = value(await client.rpc<SessionListValue>('session/list', { _request: {} }));
   return listed.items.map(row => row.sessionId).sort();
@@ -160,6 +169,7 @@ test('the materials page reads a Chinese formula note and an image without a les
   const sessionsBefore = await nativeSessionIds(client);
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-file-input').setInputFiles(note);
+  await openMaterial(page, '三角函数笔记');
 
   // Markdown keeps its structure: a real heading, a real table, and TeX through KaTeX.
   const markdown = page.getByTestId('material-markdown');
@@ -174,7 +184,9 @@ test('the materials page reads a Chinese formula note and an image without a les
   await page.screenshot({ path: testInfo.outputPath('materials-read-md.png'), fullPage: true });
 
   // The image is decoded from its own bytes at the real size of the original.
+  await page.getByTestId('materials-back').click();
   await page.getByTestId('material-file-input').setInputFiles(image);
+  await openMaterial(page, '函数图像');
   const shown = page.getByTestId('material-image');
   await expect(shown).toBeVisible();
   expect(await shown.evaluate(element => {
@@ -199,6 +211,7 @@ test('the materials page reads a Chinese formula note and an image without a les
   // Reading the same book again, with both files already in the library, adds
   // no record of its own: an unbroken book's skeleton is absent, not guessed.
   const recordsAfterImport = await recordFiles(join(runtime.root, 'classroom'));
+  await page.getByTestId('materials-back').click();
   await page.getByTestId('material-row').filter({ hasText: '三角函数笔记' }).getByRole('button').first().click();
   await expect(page.getByTestId('material-markdown')).toBeVisible();
   expect(await recordFiles(join(runtime.root, 'classroom'))).toEqual(recordsAfterImport);
@@ -226,6 +239,7 @@ test('paging and zooming show only finished pages, and a page that cannot be dra
   await enterClassroom(page, runtime.authUrl);
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-file-input').setInputFiles(scan);
+  await openMaterial(page, '扫描件');
 
   const viewer = page.getByTestId('pdf-viewer');
   await expect(viewer).toBeVisible();
@@ -281,6 +295,7 @@ test('paging and zooming show only finished pages, and a page that cannot be dra
   await page.setViewportSize({ width: 1280, height: 720 });
 
   // Six pages, five fast turns: only the finished last page may be on screen.
+  await page.getByTestId('materials-back').click();
   await page.getByTestId('material-file-input').setInputFiles([blank, undrawable]);
   await page.getByTestId('material-row').filter({ hasText: '六页' }).getByRole('button').first().click();
   await expect(viewer).toHaveAttribute('data-pdf-displayed-page', '1');
@@ -292,6 +307,7 @@ test('paging and zooming show only finished pages, and a page that cannot be dra
   await expect(viewer).toHaveAttribute('data-pdf-displayed-scale', /[0-9]/);
 
   // A page whose own content cannot be decoded is a failure, not a stale page.
+  await page.getByTestId('materials-back').click();
   await page.getByTestId('material-row').filter({ hasText: '画不出的页' }).getByRole('button').first().click();
   await expect(page.getByTestId('pdf-page-failed')).toBeVisible({ timeout: 20_000 });
   await expect(viewer).not.toHaveAttribute('data-pdf-displayed-page', /\d/);
@@ -323,6 +339,7 @@ test('the sandboxed HTML cannot reach the application, and a lesson opens the sa
 
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-file-input').setInputFiles(htmlPath);
+  await openMaterial(page, '讲义');
   const frame = page.getByTestId('material-html');
   await expect(frame).toBeVisible();
   await expect(frame).toHaveAttribute('sandbox', 'allow-scripts');
@@ -338,8 +355,9 @@ test('the sandboxed HTML cannot reach the application, and a lesson opens the sa
   // The same page's own action opens the real lesson's native column, and reading
   // sends nothing new to the model.
   const before = await modelRequestLines(runtime);
+  await page.getByTestId('materials-back').click();
   await page.getByTestId('material-file-input').setInputFiles(note);
-  await expect(page.getByTestId('material-markdown')).toBeVisible();
+  await openMaterial(page, '和角公式');
   await page.getByTestId('material-open-classroom').click();
   const panel = page.locator('[data-sidebar-right-panel]');
   await expect(panel.getByText('和角公式.md').first()).toBeVisible();
@@ -371,7 +389,7 @@ test('a contents read that never came back is not shown as an empty book', async
 
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-file-input').setInputFiles(note);
-  await expect(page.getByTestId('material-markdown')).toBeVisible();
+  await openMaterial(page, '还没有目录');
   await expect(page.getByText('结构暂时无法读取，请刷新。')).toBeVisible();
   await expect(page.getByTestId('book-nodes')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('materials-outline-refused.png'), fullPage: true });

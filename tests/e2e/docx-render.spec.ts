@@ -30,6 +30,8 @@ const test = base.extend<{ runtime: IsolatedRuntime }>({
 async function importDocx(page: Page, file: string): Promise<void> {
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-file-input').setInputFiles(file);
+  // The shelf comes first; the reader is a page of its own once the book is opened.
+  await page.getByTestId('material-row').filter({ hasText: file.split('/').pop()!.replace(/\.[^.]+$/u, '') }).getByRole('button').first().click();
   await expect(page.getByTestId('docx-body')).toBeVisible();
   await expect(page.getByTestId('docx-state')).toHaveAttribute('data-docx-status', 'ready');
 }
@@ -174,7 +176,9 @@ test('a flattened w:sdt document is unpositioned, and a rich document still draw
   await expect(first).toContainText('最后一段');
 
   // The rich fixture keeps its real content whatever the positioning verdict is.
+  await page.getByTestId('materials-back').click();
   await page.getByTestId('material-file-input').setInputFiles(mixed);
+  await page.getByTestId('material-row').filter({ hasText: '混合文档' }).getByRole('button').first().click();
   const rich = page.getByTestId('docx-body');
   const drawing = rich.locator('img').first();
   await expect(drawing).toBeVisible();

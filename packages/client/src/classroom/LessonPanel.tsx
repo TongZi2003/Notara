@@ -43,7 +43,8 @@ type PanelState =
   | { readonly status: 'ready'; readonly view: CourseView };
 
 /** One lesson's own facts: what it was given, and whether it is still running. */
-export function LessonPanel({ ctx, sessionId, readCourse, readUsage, resources, useSession }: LessonPanelProps): React.JSX.Element {
+export function LessonPanel({ ctx, sessionId, readCourse, readUsage, resources, useSession, useSessions }: LessonPanelProps): React.JSX.Element {
+  const title = useSessions(snapshot => snapshot.byId[sessionId]?.title || '自由学习');
   const [state, setState] = useState<PanelState>({ status: 'loading' });
   const [usage, setUsage] = useState<UsageState>({ status: 'loading' });
   const [refresh, setRefresh] = useState(0), [memory, setMemory] = useState(false), [target, setTarget] = useState<string>();
@@ -78,15 +79,17 @@ export function LessonPanel({ ctx, sessionId, readCourse, readUsage, resources, 
     }
     : { lesson: state.status === 'loading' ? '未加载' : '暂不可用', set: state.status === 'loading' ? '未加载' : '暂不可用' };
   return <aside className="sf-lesson" data-testid="studyforge-lesson-panel">
-    <h2>本课</h2>
-    <p className="sf-note">讨论、材料和产出都留在这节课里。</p>
+    <header className="sf-original-lesson-head"><span className="sf-lesson-seal" aria-hidden="true">课</span><div><small>本课信息与设置</small><h2>{title}</h2><span className="sf-lesson-state">{status.lesson}</span></div></header>
+    <section className="sf-original-lesson-overview"><h3>本课概况</h3><dl>
+      <div><dt>课名</dt><dd>{title}</dd></div>
+      <div><dt>所属</dt><dd>{state.status === 'ready' ? state.view.data.learningSetRef === null ? '全局学习' : '已指定学习集' : '正在读取…'}</dd></div>
+      <div><dt>接续</dt><dd>{state.status === 'ready' ? state.view.data.continuation ? '接着上次的小结' : '独立开始' : '正在读取…'}</dd></div>
+      <div><dt>带入资料</dt><dd>{state.status === 'ready' ? `${state.view.data.lessonMaterials.materials.length} 项` : '正在读取…'}</dd></div>
+    </dl></section>
     <button className="sf-quiet" data-testid="lesson-memory" onClick={() => { setMemory(!memory); setTarget(undefined); }}>{memory ? '返回本课' : '学情与偏好'}</button>
     {memory && <MemoryPanel ctx={ctx} sessionId={sessionId} />}
     {target && <LearningObject ctx={ctx} sessionId={sessionId} target={target} onBack={() => setTarget(undefined)}
       onSource={source => { void openLessonSource(resources, sessionId, source, () => current.current); }} />}
-    {state.status === 'ready' && <TeachingPresetPicker key={sessionId} ctx={ctx} sessionId={sessionId} course={state.view}
-      onChange={view => { setState({ status: 'ready', view }); }} />}
-    {state.status === 'ready' && <LessonMaterialsEditor ctx={ctx} course={state.view} onSaved={view => { setState({ status: 'ready', view }); setRefresh(n => n + 1); }} />}
     <section>
       <h3>本课资料</h3>
       {/* The pane belongs to one lesson, so the session it opens in is its own. */}
@@ -99,13 +102,12 @@ export function LessonPanel({ ctx, sessionId, readCourse, readUsage, resources, 
     <ProposalInbox ctx={ctx} sessionId={sessionId} refreshToken={refresh * 2 + Number(running)} onChanged={() => setRefresh(n => n + 1)} />
     {state.status === 'ready' && (state.view.data.closure || state.view.data.continuation) && <HandoffEditor ctx={ctx} sessionId={sessionId} onChanged={() => setRefresh(n => n + 1)}
       onContinued={next => { ctx.sessions.open(next as SessionId); ctx.layout.selectPanel(null); }} />}
-    <section>
-      <h3>状态</h3>
-      <ul>
-        <li><span>这节课</span><span className="sf-meta">{status.lesson}</span></li>
-        <li><span>学习集</span><span className="sf-meta">{status.set}</span></li>
-      </ul>
-    </section>
+    {state.status === 'ready' && <details className="sf-lesson-adjust" data-testid="lesson-adjust">
+      <summary>调整本课</summary>
+      <TeachingPresetPicker key={sessionId} ctx={ctx} sessionId={sessionId} course={state.view}
+        onChange={view => { setState({ status: 'ready', view }); }} />
+      <LessonMaterialsEditor ctx={ctx} course={state.view} onSaved={view => { setState({ status: 'ready', view }); setRefresh(n => n + 1); }} />
+    </details>}
     <NativeUsage state={usage} />
   </aside>;
 }

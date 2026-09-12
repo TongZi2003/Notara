@@ -168,89 +168,113 @@ export function CardEditor({ ctx, sessionId, target, seed, onSaved, onCancel }: 
 
   const preview = draft.sections.map(section => `## ${section.heading}\n${section.body}`).join('\n\n');
   const frozenNow = frozen !== undefined;
+  const written = draft.front.trim() !== '' || preview.trim() !== '';
   return <form className="sf-card-editor" data-testid="card-editor" data-frozen={frozenNow ? 'true' : undefined}
     onSubmit={event => { event.preventDefault(); void save(); }}>
-    <fieldset className="sf-write-frozen" disabled={frozenNow}>
-    <header className="sf-card-editor-head">
-      <h3>{baseline === undefined ? '新建卡片' : '修改卡片'}</h3>
+    <header className="ce-head">
+      <span className="ce-seal" aria-hidden="true">{baseline === undefined ? '新' : '改'}</span>
+      <div>
+        <p>手写本 · 一张卡</p>
+        <h2>{baseline === undefined ? '新建一张卡' : '改这张卡'}</h2>
+      </div>
       {baseline !== undefined && <span className="sf-meta" data-testid="card-editor-version">正在改 {versionLabel(baseline)}</span>}
     </header>
+    <fieldset className="sf-write-frozen" disabled={frozenNow}>
+    <div className="ce-layout">
+      <div className="ce-writing">
+        <label className="ce-field"><span>题面</span>
+          <input data-testid="card-editor-title" value={draft.title} onChange={event => { setDraft({ ...draft, title: event.target.value }); mark('title'); }} />
+        </label>
 
-    <label className="sf-field"><span>标题</span>
-      <input data-testid="card-editor-title" value={draft.title} onChange={event => { setDraft({ ...draft, title: event.target.value }); mark('title'); }} />
-    </label>
+        <div className="ce-split-fields">
+          <label className="ce-field"><span>类型</span>
+            <select data-testid="card-editor-presentation" value={draft.presentation}
+              onChange={event => { setDraft({ ...draft, presentation: event.target.value as CardDraft['presentation'] }); mark('presentation'); }}>
+              {PRESENTATIONS.map(value => <option key={value} value={value}>{PRESENTATION_LABELS[value]}</option>)}
+            </select>
+          </label>
+          <label className="ce-field"><span>章节（可留空）</span>
+            <input data-testid="card-editor-chapter" value={draft.chapter}
+              onChange={event => { setDraft({ ...draft, chapter: event.target.value }); mark('chapter'); }} />
+          </label>
+        </div>
 
-    <label className="sf-field"><span>类型</span>
-      <select data-testid="card-editor-presentation" value={draft.presentation}
-        onChange={event => { setDraft({ ...draft, presentation: event.target.value as CardDraft['presentation'] }); mark('presentation'); }}>
-        {PRESENTATIONS.map(value => <option key={value} value={value}>{PRESENTATION_LABELS[value]}</option>)}
-      </select>
-    </label>
+        <label className="ce-field"><span>卡面</span>
+          <textarea data-testid="card-editor-front" rows={4} value={draft.front}
+            onChange={event => { setDraft({ ...draft, front: event.target.value }); mark('front'); }} />
+        </label>
 
-    <label className="sf-field"><span>卡面</span>
-      <textarea data-testid="card-editor-front" rows={4} value={draft.front}
-        onChange={event => { setDraft({ ...draft, front: event.target.value }); mark('front'); }} />
-    </label>
+        <section className="ce-subsection">
+          <div className="ce-subhead"><b>卡背</b><small>一段一个标题；先给解法，再给为什么</small></div>
+          {draft.sections.map((section, index) => <div className="ce-section-row" key={`section-${String(index)}`}>
+            <div className="ce-section-head">
+              <input aria-label={`小标题 ${String(index + 1)}`} data-testid="card-editor-section-heading" value={section.heading}
+                onChange={event => { setDraft({ ...draft, sections: replace(draft.sections, index, { ...section, heading: event.target.value }) }); mark('sections'); }} />
+              <button type="button" className="sf-quiet" data-testid="card-editor-section-remove"
+                onClick={() => { setDraft({ ...draft, sections: draft.sections.filter((_, at) => at !== index) }); mark('sections'); }}>删掉这一段</button>
+            </div>
+            <textarea aria-label={`正文 ${String(index + 1)}`} data-testid="card-editor-section-body" rows={4} value={section.body}
+              onChange={event => { setDraft({ ...draft, sections: replace(draft.sections, index, { ...section, body: event.target.value }) }); mark('sections'); }} />
+          </div>)}
+          <button type="button" className="sf-quiet" data-testid="card-editor-section-add"
+            onClick={() => { setDraft({ ...draft, sections: [...draft.sections, { heading: '解法', body: '' }] }); mark('sections'); }}>加一段</button>
+        </section>
 
-    <section className="sf-card-editor-sections">
-      <h4>卡背</h4>
-      {draft.sections.map((section, index) => <div className="sf-section-row" key={`section-${String(index)}`}>
-        <input aria-label={`小标题 ${String(index + 1)}`} data-testid="card-editor-section-heading" value={section.heading}
-          onChange={event => { setDraft({ ...draft, sections: replace(draft.sections, index, { ...section, heading: event.target.value }) }); mark('sections'); }} />
-        <textarea aria-label={`正文 ${String(index + 1)}`} data-testid="card-editor-section-body" rows={4} value={section.body}
-          onChange={event => { setDraft({ ...draft, sections: replace(draft.sections, index, { ...section, body: event.target.value }) }); mark('sections'); }} />
-        <button type="button" className="sf-quiet" data-testid="card-editor-section-remove"
-          onClick={() => { setDraft({ ...draft, sections: draft.sections.filter((_, at) => at !== index) }); }}>删掉这一段</button>
-      </div>)}
-      <button type="button" className="sf-quiet" data-testid="card-editor-section-add"
-        onClick={() => { setDraft({ ...draft, sections: [...draft.sections, { heading: '解法', body: '' }] }); mark('sections'); }}>加一段</button>
-    </section>
+        <details className="ce-secondary">
+          <summary>笔记 · 标签 · 关联</summary>
+          <div className="ce-secondary-body">
+            <label className="ce-field"><span>笔记（只有你和老师看）</span>
+              <textarea data-testid="card-editor-notes" rows={3} value={draft.notes}
+                onChange={event => { setDraft({ ...draft, notes: event.target.value }); mark('notes'); }} />
+            </label>
+            <label className="ce-field"><span>标签</span>
+              <input data-testid="card-editor-tags" value={draft.tags.join('、')}
+                onChange={event => { setDraft({ ...draft, tags: event.target.value.split(/[、,，\s]+/u).map(tag => tag.trim()).filter(tag => tag !== '') }); mark('tags'); }} />
+            </label>
+            <section className="ce-subsection">
+              <div className="ce-subhead"><b>关联</b><small>引到别的卡上，改这一张不会改那一张</small></div>
+              <ul data-testid="card-editor-links" className="ce-link-selected">
+                {draft.links.map(link => <li key={link}>
+                  <span className="lk-chip">{relations?.find(view => view.ref === link)?.content.title ?? '已有关联（展开可查看）'}
+                    <button type="button" className="sf-quiet" data-testid="card-editor-link-remove"
+                      onClick={() => { setDraft({ ...draft, links: draft.links.filter(item => item !== link) }); mark('links'); }}>移除</button></span>
+                </li>)}
+              </ul>
+              <button type="button" className="sf-quiet" data-testid="card-editor-link-add" onClick={() => { void openRelations(); }}>添加关联</button>
+              {relations !== undefined && relations.filter(view => !draft.links.includes(view.ref)).length > 0
+                && <select data-testid="card-editor-link-pick" value="" onChange={event => {
+                  const ref = event.target.value;
+                  if (ref !== '') { setDraft({ ...draft, links: [...draft.links, ref] }); mark('links'); }
+                }}>
+                  <option value="">选一张自己的卡…</option>
+                  {relations.filter(view => !draft.links.includes(view.ref)).map(view => <option key={view.ref} value={view.ref}>{view.content.title}</option>)}
+                </select>}
+            </section>
+            {baseline?.content.sources !== undefined && baseline.content.sources.length > 0 && <section className="ce-subsection">
+              <div className="ce-subhead"><b>来源</b><small>不可在这里手填</small></div>
+              <p className="sf-meta">这张卡带着 {baseline.content.sources.length} 处原始位置。</p>
+            </section>}
+          </div>
+        </details>
+      </div>
 
-    <label className="sf-field"><span>笔记（只有你和老师看）</span>
-      <textarea data-testid="card-editor-notes" rows={3} value={draft.notes}
-        onChange={event => { setDraft({ ...draft, notes: event.target.value }); mark('notes'); }} />
-    </label>
-
-    <label className="sf-field"><span>标签</span>
-      <input data-testid="card-editor-tags" value={draft.tags.join('、')}
-        onChange={event => { setDraft({ ...draft, tags: event.target.value.split(/[、,，\s]+/u).map(tag => tag.trim()).filter(tag => tag !== '') }); mark('tags'); }} />
-    </label>
-
-    <label className="sf-field"><span>章节（可留空）</span>
-      <input data-testid="card-editor-chapter" value={draft.chapter}
-        onChange={event => { setDraft({ ...draft, chapter: event.target.value }); mark('chapter'); }} />
-    </label>
-
-    <section className="sf-card-editor-links">
-      <h4>关联</h4>
-      <ul data-testid="card-editor-links">
-        {draft.links.map(link => <li key={link}>
-          <span className="sf-meta">{relations?.find(view => view.ref === link)?.content.title ?? '已有关联（展开可查看）'}</span>
-          <button type="button" className="sf-quiet" data-testid="card-editor-link-remove"
-            onClick={() => { setDraft({ ...draft, links: draft.links.filter(item => item !== link) }); mark('links'); }}>移除</button>
-        </li>)}
-      </ul>
-      <button type="button" className="sf-quiet" data-testid="card-editor-link-add" onClick={() => { void openRelations(); }}>添加关联</button>
-      {relations !== undefined && relations.filter(view => !draft.links.includes(view.ref)).length > 0
-        && <select data-testid="card-editor-link-pick" value="" onChange={event => {
-          const ref = event.target.value;
-          if (ref !== '') { setDraft({ ...draft, links: [...draft.links, ref] }); mark('links'); }
-        }}>
-          <option value="">选一张自己的卡…</option>
-          {relations.filter(view => !draft.links.includes(view.ref)).map(view => <option key={view.ref} value={view.ref}>{view.content.title}</option>)}
-        </select>}
-    </section>
-
-    {baseline?.content.sources !== undefined && baseline.content.sources.length > 0 && <section className="sf-card-editor-sources">
-      <h4>来源</h4>
-      <ul><li className="sf-meta">这张卡带着 {baseline.content.sources.length} 处原始位置（不可在这里手填）。</li></ul>
-    </section>}
-
-    {(draft.front !== '' || preview !== '') && <section className="sf-card-editor-preview">
-      <h4>预览</h4>
-      <MarkdownBody text={draft.front} testId="card-editor-preview-front" />
-      {preview !== '' && <MarkdownBody text={preview} testId="card-editor-preview-back" />}
-    </section>}
+      <aside className="ce-preview">
+        <div className="ce-preview-head"><b>纸面</b><span>保存后就是这张卡</span></div>
+        <article className="tk">
+          <header className="tk-head">
+            <span className="tk-no">{PRESENTATION_LABELS[draft.presentation]}</span>
+            {draft.tags.map(tag => <span className="tk-tag" key={tag}>{tag}</span>)}
+            {draft.chapter !== '' && <span className="tk-src">{draft.chapter}</span>}
+          </header>
+          <div className="tk-face"><MarkdownBody text={draft.front} testId="card-editor-preview-front" /></div>
+          {preview !== '' && <div className="tk-back open">
+            <div className="tk-part-label">背面</div>
+            <MarkdownBody text={preview} testId="card-editor-preview-back" />
+          </div>}
+          {!written && <p className="sf-note">写点字，这张纸就有内容了。</p>}
+        </article>
+      </aside>
+    </div>
 
     {conflict !== undefined && <section className="sf-conflict" data-testid="card-editor-conflict">
       <p className="sf-notice">这张卡刚在别处更新过：你已经改了 {versionLabel(baseline ?? conflict)}，现在已经是 {versionLabel(conflict)}。下面是最新版，先看一遍再决定。</p>

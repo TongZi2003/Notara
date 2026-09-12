@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cp, readFile, writeFile } from 'node:fs/promises';
+import { cp, glob, readFile, writeFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { generateRemotes } from './generate-remotes.ts';
 
@@ -17,7 +17,15 @@ if (!process.argv.includes('--client-only')) {
   compile('tsconfig.host.json');
   await generateRemotes();
 }
+// The notebook faces stay out of the browser bundle: the Host entry serves them
+// from `lib/notebook/`, i.e. `../notebook/fonts/<name>` next to `lib/types/index.js`.
+await cp(join(root, 'packages/client/assets/notebook'), join(root, 'packages/client/lib/notebook'), { recursive: true });
 compile('tsconfig.client.json');
+// tsc emits imports but no stylesheets. Keep each stylesheet beside its
+// emitted module before esbuild resolves the browser-facing dependency tree.
+for await (const file of glob('**/*.css', { cwd: join(root, 'packages/client/src') })) {
+  await cp(join(root, 'packages/client/src', file), join(root, 'packages/client/lib/types', file));
+}
 const client = await build({
   absWorkingDir: root,
   entryPoints: ['packages/client/lib/types/client/index.js'],
@@ -28,7 +36,7 @@ const client = await build({
   plugins: [{ name: 'local-pdf-worker', setup(builder) {
     builder.onLoad({ filter: /pdf\.worker(?:\.min)?\.mjs$/ }, async args => ({ contents: await readFile(args.path, 'utf8'), loader: 'text' }));
   } }],
-  external: ['react', 'react/jsx-runtime', 'react-dom', '@deepseek-ai/cordis', '@deepseek-ai/dsh-client-ui-primitives'],
+  external: ['react', 'react/jsx-runtime', 'react-dom', '@deepseek-ai/cordis', '@deepseek-ai/dsh-client-ui-primitives', '/studyforge/notebook/fonts/*'],
   define: { 'process.env.NODE_ENV': '"production"' },
   banner: { js: 'window.__ModuleLoader__.load({ id: "@studyforge/dsh-client", factory: (require) => { var module = { exports: {} }; var exports = module.exports;' },
   footer: { js: `const entry = module.exports;

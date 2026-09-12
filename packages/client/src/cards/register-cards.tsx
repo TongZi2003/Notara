@@ -6,14 +6,16 @@
  * with the client's own lifetime. The entry point is exported so the client
  * root decides whether this library is its own page or a view inside another.
  */
+import '../materials/original-pages.css';
 import type { Context } from '@deepseek-ai/cordis';
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type { SourceAnchor } from '@studyforge/contracts/materials';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ProposalInbox } from '../proposals/ProposalInbox.tsx';
 import { LearningRecords } from '../review/LearningRecords.tsx';
 import { ReviewHandout } from '../review/ReviewHandout.tsx';
 import { ReviewScreen } from '../review/ReviewScreen.tsx';
+import { cardOpenRequest } from './CardOpenRequest.tsx';
 import { CardBrowser } from './CardBrowser.tsx';
 
 /** Registered `main` key and matching sidebar row id. */
@@ -151,6 +153,10 @@ export function registerCardSurfaces(ctx: Context, options: CardSurfacesOptions 
         setView('cards');
         setFocus(current => ({ target, seq: (current?.seq ?? 0) + 1 }));
       };
+      // Another page can hand this library one card to open. The request may
+      // have been made before this page mounted; the channel holds it until the
+      // page is really here rather than inventing a second place to read cards.
+      useEffect(() => cardOpenRequest.subscribe(target => { openCard(target); }), []);
       return <main className="sf-cards-page" data-testid={`studyforge-page-${CARDS_PAGE_ID}`}>
         <header className="sf-cards-page-head"><span>卡片</span><span>你的题卡和笔记都在这里</span></header>
         {studying === undefined

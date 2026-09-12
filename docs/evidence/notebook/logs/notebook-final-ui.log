@@ -1,0 +1,62 @@
+
+Running 10 tests using 1 worker
+
+(node:68942) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   1 tests/e2e/current-classroom.spec.ts:52:1 › native classroom keeps its own composer and carries the student lesson surfaces (26.1s)
+(node:69142) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   2 tests/e2e/current-classroom.spec.ts:151:1 › a creation session keeps the classroom and hides the learning lesson surfaces (9.6s)
+{"revisionBefore":"eb9bb76e6f73b5e7-44","revisionAfter":"eb9bb76e6f73b5e7-54","hmrFrames":["graph","graph","{\"type\":\"rebuilt\",\"id\":\"@studyforge/dsh-client\",\"rev\":\"62deb86076cc\"}","graph","graph"]}
+  ✓   3 tests/e2e/native-boot.spec.ts:17:1 › native classroom survives refresh, HMR and Client lifecycle without a placeholder shell (30.2s)
+  ✓   4 tests/e2e/native-usage.spec.ts:14:1 › a completed turn keeps its native usage and the lesson panel never fills unreported buckets (10.1s)
+  ✓   5 tests/e2e/native-usage.spec.ts:48:1 › a turn without a proof of total usage is reported as incomplete coverage (9.9s)
+  ✓   6 tests/e2e/native-usage.spec.ts:68:1 › a second turn refreshes the lesson panel that stayed open, and a refresh agrees (11.0s)
+  ✓   7 tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths (13.6s)
+  ✓   8 tests/e2e/notebook-theme.spec.ts:10:1 › notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft (12.2s)
+  ✓   9 tests/e2e/notebook-theme.spec.ts:77:1 › notebook card slips open the real card and its source returns to the originating lesson without recording study (10.8s)
+  ✓  10 tests/e2e/teaching-presets.spec.ts:10:1 › five teaching choices preserve the native draft and same lesson; a temporary requirement reaches the next actual request (18.0s)
+
+
+  1) tests/e2e/current-classroom.spec.ts:52:1 › native classroom keeps its own composer and carries the student lesson surfaces
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('studyforge-lesson-panel')
+    Expected substring: "还没有把资料放进这节课。"
+    Received string:    "课本课信息与设置一次函数学习进行中本课概况课名一次函数学习所属全局学习接续独立开始带入资料0 项学情与偏好本课资料这节课还没有用到资料。调整本课这节课怎么学教学方式 资料整理诊断分析苏格拉底授课头脑风暴拓展搜索从当前动作起步，逐步引导并观察独立表现。本课的临时要求保存要求调整本课资料用量输入（未缓存）8缓存读2缓存写未报告输出（含思考）5这 1 个回合的用量都已记下。上下文（估算，不是实际消耗）预计占用23上限8,192系统 / 工具 / 对话1,412 / 16,935 / 404"
+    Timeout: 15000ms
+
+    Call log:
+      - Expect "toContainText" getByTestId('studyforge-lesson-panel') with timeout 15000ms
+      - waiting for getByTestId('studyforge-lesson-panel')
+        - locator resolved to <aside class="sf-lesson" data-testid="studyforge-lesson-panel">…</aside>
+        - unexpected value "课本课信息与设置一次函数学习未加载本课概况课名一次函数学习所属正在读取…接续正在读取…带入资料正在读取…学情与偏好本课资料正在看这节课用到什么…用量正在看这节课用掉的量…"
+        33 × locator resolved to <aside class="sf-lesson" data-testid="studyforge-lesson-panel">…</aside>
+           - unexpected value "课本课信息与设置一次函数学习进行中本课概况课名一次函数学习所属全局学习接续独立开始带入资料0 项学情与偏好本课资料这节课还没有用到资料。调整本课这节课怎么学教学方式 资料整理诊断分析苏格拉底授课头脑风暴拓展搜索从当前动作起步，逐步引导并观察独立表现。本课的临时要求保存要求调整本课资料用量输入（未缓存）8缓存读2缓存写未报告输出（含思考）5这 1 个回合的用量都已记下。上下文（估算，不是实际消耗）预计占用23上限8,192系统 / 工具 / 对话1,412 / 16,935 / 404"
+
+
+      100 |     await expect(panel).toBeVisible();
+      101 |     await expect(panel).toContainText('本课资料');
+    > 102 |     await expect(panel).toContainText('还没有把资料放进这节课。');
+          |                         ^
+      103 |     await expect(panel).toContainText('进行中');
+      104 |     // The docked panel slides in: assert the heading and body actually land in the
+      105 |     // viewport before the evidence shot, so a mid-transition frame cannot pass.
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/current-classroom.spec.ts:102:25
+
+    attachment #1: browser-console (text/plain) ────────────────────────────────────────────────────
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: host-log (text/plain) ───────────────────────────────────────────────────────────
+    (node:68954) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/notebook-final-ui-results/current-classroom-native-c-2ed85-the-student-lesson-surfaces/error-context.md
+
+  1 failed
+    tests/e2e/current-classroom.spec.ts:52:1 › native classroom keeps its own composer and carries the student lesson surfaces
+  9 passed (2.5m)

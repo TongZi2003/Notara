@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import './patch-layout.ts';
+import './patch-sidebar.ts';
 
 const project = join(dirname(fileURLToPath(import.meta.url)), '..');
 const file = join(project, 'node_modules/@deepseek-ai/dsh-typert-generator/lib/index.js');

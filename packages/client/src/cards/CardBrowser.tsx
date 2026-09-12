@@ -160,6 +160,7 @@ function CardRow({ card, onOpen, onLearn }: {
   return <li className="sf-card-row" data-testid="card-row" data-kind="card">
     <button type="button" className="sf-card-row-open" data-testid="card-row-open" onClick={() => { onOpen(card.ref); }}>
       <span className="sf-card-row-title">{card.content.title}</span>
+      {card.content.front && <span className="sf-card-face-preview">{clip(card.content.front, 180)}</span>}
       <span className="sf-meta">{PRESENTATION_LABELS[card.content.presentation]}
         {card.content.chapter === undefined ? ' · 未归书' : ` · ${card.content.chapter}`}
         {card.content.tags.length > 0 ? ` · ${card.content.tags.join('、')}` : ''}

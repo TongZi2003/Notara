@@ -1,0 +1,43 @@
+
+Running 7 tests using 1 worker
+
+(node:66414) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/book-workspace.spec.ts:12:1 › book expands into existing cards, switches view and returns to the exact source without learning writes; breakdown is explicit (11.3s)
+  ✓  2 tests/e2e/docx-render.spec.ts:161:1 › a flattened w:sdt document is unpositioned, and a rich document still draws its image, formula and table (7.5s)
+  ✓  3 tests/e2e/material-import.spec.ts:67:1 › a new version is explicit, keeps the old bytes readable, and a refresh keeps both (9.9s)
+  ✘  4 tests/e2e/official-preview.spec.ts:159:1 › the materials page reads a Chinese formula note and an image without a lesson or a model call (25.7s)
+(node:66880) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 tests/e2e/official-preview.spec.ts:227:1 › paging and zooming show only finished pages, and a page that cannot be drawn says so (11.3s)
+  ✓  6 tests/e2e/official-preview.spec.ts:330:1 › the sandboxed HTML cannot reach the application, and a lesson opens the same original in the native rightbar (10.2s)
+  ✓  7 tests/e2e/planning-overview-v2.spec.ts:153:1 › a card the student really placed keeps its coordinate, and a content edit does not lose it (16.9s)
+
+
+  1) tests/e2e/official-preview.spec.ts:159:1 › the materials page reads a Chinese formula note and an image without a lesson or a model call
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByTestId('material-row').filter({ hasText: '三角函数笔记' }).getByRole('button').first()
+
+
+      212 |   // no record of its own: an unbroken book's skeleton is absent, not guessed.
+      213 |   const recordsAfterImport = await recordFiles(join(runtime.root, 'classroom'));
+    > 214 |   await page.getByTestId('material-row').filter({ hasText: '三角函数笔记' }).getByRole('button').first().click();
+          |                                                                                                    ^
+      215 |   await expect(page.getByTestId('material-markdown')).toBeVisible();
+      216 |   expect(await recordFiles(join(runtime.root, 'classroom'))).toEqual(recordsAfterImport);
+      217 |
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/official-preview.spec.ts:214:100
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:66698) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/notebook-rework-results/official-preview-the-mater-faeb2-ut-a-lesson-or-a-model-call/error-context.md
+
+  1 failed
+    tests/e2e/official-preview.spec.ts:159:1 › the materials page reads a Chinese formula note and an image without a lesson or a model call
+  6 passed (1.6m)

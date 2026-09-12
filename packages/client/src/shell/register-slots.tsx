@@ -109,6 +109,7 @@ function pageIcon(page: StudentPageId): (props: PropsRuntime<'sidebar.panellist'
     'studyforge.courses': <path d="M4 5h16v13H4zM4 9h16M9 9v9" />,
     'studyforge.materials': <path d="M5 4h7a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3 3zM15 4h4v19h-4" />,
     'studyforge.sets': <path d="M6 4h12v16l-6-4-6 4z" />,
+    'studyforge.memory': <path d="M12 4a7 7 0 0 1 7 7c0 2-1 3.5-2 5H7c-1-1.5-2-3-2-5a7 7 0 0 1 7-7zM9 20h6" />,
     'studyforge.calendar': <path d="M4 6h16v14H4zM4 10h16M9 4v4M15 4v4" />,
   };
   return function PageGlyph({ size }): React.JSX.Element {

@@ -35,6 +35,8 @@ test('an imported original is read directly and never opens a lesson', async ({ 
   await expect(row).toBeVisible();
   await expect(row).toContainText('Markdown');
   await expect(page.getByTestId('materials-notice')).toContainText('收好了');
+  // The shelf is the library; the reader is a page of its own once opened.
+  await row.getByRole('button').first().click();
   // The reader holds the Host's bytes and renders them as real Markdown.
   const reader = page.getByTestId('material-markdown');
   await expect(reader.getByRole('heading', { name: '三角函数笔记' })).toBeVisible();
@@ -79,6 +81,7 @@ test('a new version is explicit, keeps the old bytes readable, and a refresh kee
   await row.getByTestId('material-new-version-input').setInputFiles(second);
   await expect(row).toContainText('2 个版本');
   await expect(page.getByTestId('materials-notice')).toContainText('第 2 版');
+  await row.getByRole('button').first().click();
   await expect(page.getByTestId('material-markdown')).toContainText('第二版补上了差角公式');
 
   // The first version's own bytes are still there, under its own version.
@@ -87,13 +90,14 @@ test('a new version is explicit, keeps the old bytes readable, and a refresh kee
 
   // A reload reads the Host again: both versions survive, and v1 still resolves v1.
   await page.reload();
-  await expect(page.locator('[data-composer-input]')).toBeVisible();
   for (const name of ['Continue', 'Configure later']) {
     const button = page.getByRole('button', { name, exact: true });
     try { await button.waitFor({ state: 'visible', timeout: 2000 }); await button.click(); }
     catch { /* a reload of a configured workspace has no onboarding step */ }
   }
-  await page.getByRole('button', { name: '资料', exact: true }).first().click();
+  await expect(page.getByTestId('material-markdown')).toContainText('正弦与余弦的和角公式');
+  await expect(page.getByTestId('material-version-select').locator('option')).toHaveCount(2);
+  await page.getByTestId('materials-back').click();
   const afterReload = page.getByTestId('material-row').filter({ hasText: '三角函数笔记' });
   await expect(afterReload).toContainText('2 个版本');
   await afterReload.getByRole('button').first().click();

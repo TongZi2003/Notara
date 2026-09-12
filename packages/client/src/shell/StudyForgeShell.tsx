@@ -45,6 +45,7 @@ const COPY: Record<StudentPageId, PageCopy> = {
     heading: '日历',
     body: '按日期回看学过什么，也看接下来安排了什么。',
   },
+  'studyforge.memory': { heading: '学情', body: '这里收着学习中留下的观察，也可以随时补充和修正。' },
 };
 
 /** One student page inside the native frame's centre column. */

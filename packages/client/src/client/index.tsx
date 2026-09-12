@@ -15,6 +15,8 @@ import { registerOrganization } from '../planning/register-organization.tsx';
 import { MaterialNavigation } from '../materials/material-navigation.ts';
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import { registerCourses } from '../courses/register-courses.tsx';
+import { registerNotebook } from '../theme/notebook.tsx';
+import { registerNotebookSidebar } from '../shell/NotebookSidebar.tsx';
 
 export const inject = ['remote', 'slots'];
 
@@ -28,6 +30,8 @@ export async function apply(ctx: Context): Promise<void> {
     return;
   }
   ctx.plugin({ inject: ['slots', 'layout', 'sessions'], apply: registerStudentShell });
+  ctx.plugin({ inject: ['slots', 'layout', 'sessions', 'uiWorkspace'], apply: registerNotebookSidebar });
+  ctx.plugin({ inject: ['theme', 'slots', 'layout', 'sessions'], apply: scope => registerNotebook(scope, materialNavigation) });
   // Remote namespaces are separately injected properties: reading
   // `ctx.remote.studyforgeCourses` needs its own nested inject entry.
   ctx.plugin({ inject: ['remote.studyforgeCourses', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'remote.studyforgeMemory', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'remote.studyforgeHandoffs', 'remote.studyforgeProposals', 'slots', 'sidebarRight', 'sidebarRightTabs', 'layout', 'sessions'], apply: registerClassroom });
@@ -37,8 +41,8 @@ export async function apply(ctx: Context): Promise<void> {
   // The materials page needs the Host's own material Remote plus the native
   // document-preview registry it adds a DOCX renderer to.
   ctx.plugin({ inject: ['remote.studyforgeMaterials', 'remote.studyforgeSources', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'resources', 'sidebarRightTabs', 'documentPreviews', 'slots', 'sidebarRight', 'layout', 'inputTriggers', 'conversation', 'sessions'], apply: scope => registerMaterials(scope, materialNavigation) });
-  ctx.plugin({ inject: ['remote.studyforgeLearning', 'remote.studyforgeProposals', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'slots', 'layout'], apply: scope => registerCardSurfaces(scope, { onSource: source => { materialNavigation.show(source); scope.layout.selectPanel('studyforge.materials' as MainPanelId); } }) });
-  ctx.plugin({ inject: ['remote.studyforgeOrganization', 'remote.studyforgeCalendar', 'remote.studyforgeMaterials', 'remote.studyforgeLearning', 'remote.studyforgeMemory', 'remote.studyforgeHandoffs', 'sessions', 'slots', 'layout'], apply: scope => registerOrganization(scope, materialNavigation) });
+  ctx.plugin({ inject: ['remote.studyforgeLearning', 'remote.studyforgeProposals', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'slots', 'layout'], apply: scope => registerCardSurfaces(scope, { onSource: (source, sessionId) => { materialNavigation.show(source, sessionId); scope.layout.selectPanel('studyforge.materials' as MainPanelId); } }) });
+  ctx.plugin({ inject: ['remote.studyforgeOrganization', 'remote.studyforgeCalendar', 'remote.studyforgeMaterials', 'remote.studyforgeLearning', 'remote.studyforgeMemory', 'remote.studyforgeHandoffs', 'sessions', 'slots', 'layout', 'uiWorkspace'], apply: scope => registerOrganization(scope, materialNavigation) });
   ctx.plugin({ inject: ['remote.studyforgeOrganization', 'remote.studyforgeCalendar', 'remote.studyforgeMaterials', 'remote.studyforgeLearning', 'remote.studyforgeTeaching', 'sessions', 'slots', 'layout'], apply: registerCourses });
   // P4.3: the composer's own reference source and its dock row. Kept in a
   // separate entry so a composition without a conversation surface still gets

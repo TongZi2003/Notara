@@ -59,12 +59,13 @@ export function ImportMaterial({ pending, onFiles }: ImportMaterialProps): React
         const files = [...event.dataTransfer.files];
         if (files.length > 0) onFiles(files);
       }}
+      title="把文件拖到这里，或直接粘贴一张图"
     >
       <button type="button" className="sf-action" disabled={pending} data-testid="material-pick"
         onClick={() => { inputRef.current?.click(); }}>
-        {pending ? '正在收下…' : '导入一份资料'}
+        {pending ? '正在收下…' : '导入资料'}
       </button>
-      <p className="sf-note">把文件拖到这里，或直接粘贴一张图。PDF、Word、图片、Markdown、网页、纯文本都可以；导入后直接读，不会替你开课。</p>
+      <p className="sf-note">拖进来，或粘贴一张图</p>
     </div>
   </section>;
 }

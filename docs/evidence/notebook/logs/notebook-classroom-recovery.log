@@ -1,0 +1,8 @@
+
+Running 1 test using 1 worker
+
+(node:71848) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/current-classroom.spec.ts:52:1 › native classroom keeps its own composer and carries the student lesson surfaces (21.5s)
+
+  1 passed (21.9s)

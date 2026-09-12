@@ -10,6 +10,8 @@ async function settle(page: Page): Promise<void> {
       await button.click();
     } catch { /* onboarding is a one-time surface */ }
   }
+  const more = page.locator('.sf-side-more');
+  if (await more.count() && await more.getAttribute('open') === null) await more.locator('summary').click();
 }
 
 test('native classroom survives refresh, HMR and Client lifecycle without a placeholder shell', async ({ page, dsh }, testInfo) => {
@@ -30,6 +32,8 @@ test('native classroom survives refresh, HMR and Client lifecycle without a plac
   try {
     await page.goto(dsh.authUrl);
     await settle(page);
+    await expect(page.getByTestId('studyforge-page-studyforge.home')).toBeVisible();
+    await page.getByTestId('open-classroom').click();
 
     // The native Conversation owns `main`/`conversation`; this client only adds seats.
     await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
@@ -69,6 +73,9 @@ test('native classroom survives refresh, HMR and Client lifecycle without a plac
     await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
     page.off('framenavigated', onNavigation);
     expect(navigations).toBe(0);
+    // Replacing the sidebar presentation can remount native onboarding when
+    // this model-free fixture chose Configure later. No credential is invented.
+    await settle(page);
 
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();

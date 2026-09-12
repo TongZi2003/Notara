@@ -1,0 +1,101 @@
+
+Running 6 tests using 1 worker
+
+(node:66665) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/current-classroom.spec.ts:52:1 › native classroom keeps its own composer and carries the student lesson surfaces (27.6s)
+(node:66873) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/e2e/current-classroom.spec.ts:151:1 › a creation session keeps the classroom and hides the learning lesson surfaces (12.1s)
+{"revisionBefore":"30e4cf0d7955066b-44","revisionAfter":"c1640f553772","hmrFrames":["graph","graph","{\"type\":\"rebuilt\",\"id\":\"@studyforge/dsh-client\",\"rev\":\"c1640f553772\"}"]}
+  ✘  3 tests/e2e/native-boot.spec.ts:15:1 › native classroom survives refresh, HMR and Client lifecycle without a placeholder shell (28.7s)
+(node:67199) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 tests/e2e/native-usage.spec.ts:14:1 › a completed turn keeps its native usage and the lesson panel never fills unreported buckets (10.2s)
+  ✓  5 tests/e2e/native-usage.spec.ts:48:1 › a turn without a proof of total usage is reported as incomplete coverage (9.9s)
+  ✓  6 tests/e2e/native-usage.spec.ts:68:1 › a second turn refreshes the lesson panel that stayed open, and a refresh agrees (10.4s)
+
+
+  1) tests/e2e/current-classroom.spec.ts:52:1 › native classroom keeps its own composer and carries the student lesson surfaces
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '日历', exact: true })
+
+
+      68 |     // Every student entry reaches its own page, and leaving it restores the classroom.
+      69 |     for (const entry of STUDENT_PAGES) {
+    > 70 |       await page.getByRole('button', { name: entry.label, exact: true }).click();
+         |                                                                          ^
+      71 |       const surface = page.getByTestId(`studyforge-page-${entry.page}`);
+      72 |       await expect(surface).toBeVisible();
+      73 |       await expect(page.locator('[data-conversation-scroll]')).toHaveCount(0);
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/current-classroom.spec.ts:70:74
+
+    attachment #1: browser-console (text/plain) ────────────────────────────────────────────────────
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: host-log (text/plain) ───────────────────────────────────────────────────────────
+    (node:66671) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/notebook-native-lifecycle-results/current-classroom-native-c-2ed85-the-student-lesson-surfaces/error-context.md
+
+  2) tests/e2e/native-boot.spec.ts:15:1 › native classroom survives refresh, HMR and Client lifecycle without a placeholder shell
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Settings', exact: true })
+        - locator resolved to <button type="button" aria-label="Settings" aria-expanded="false" class="VOzbGW_trigger" aria-haspopup="dialog">…</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div aria-hidden="true" class="_mask_w1urq_14"></div> from <div role="presentation" class="_root_w1urq_2">…</div> subtree intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div aria-hidden="true" class="_mask_w1urq_14"></div> from <div role="presentation" class="_root_w1urq_2">…</div> subtree intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        29 × waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <div aria-hidden="true" class="_mask_w1urq_14"></div> from <div role="presentation" class="_root_w1urq_2">…</div> subtree intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+
+
+      71 |     expect(navigations).toBe(0);
+      72 |
+    > 73 |     await page.getByRole('button', { name: 'Settings', exact: true }).click();
+         |                                                                       ^
+      74 |     await expect(page.getByRole('dialog')).toBeVisible();
+      75 |     await page.keyboard.press('Escape');
+      76 |     await dsh.setClientEnabled(false);
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/native-boot.spec.ts:73:71
+
+    attachment #2: browser-console (text/plain) ────────────────────────────────────────────────────
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: host-log (text/plain) ───────────────────────────────────────────────────────────
+    (node:66986) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/notebook-native-lifecycle-results/native-boot-native-classro-fce0e-without-a-placeholder-shell/error-context.md
+
+  2 failed
+    tests/e2e/current-classroom.spec.ts:52:1 › native classroom keeps its own composer and carries the student lesson surfaces
+    tests/e2e/native-boot.spec.ts:15:1 › native classroom survives refresh, HMR and Client lifecycle without a placeholder shell
+  4 passed (1.7m)

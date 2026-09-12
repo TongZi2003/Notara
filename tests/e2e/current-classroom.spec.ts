@@ -3,6 +3,7 @@ import { access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { test as base, expect, type Page } from '@playwright/test';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
+import { enterClassroom } from './fixtures/classroom.ts';
 
 /**
  * This spec exercises a real lesson, so it boots the isolated runtime with the
@@ -45,8 +46,7 @@ async function dismissNotices(page: Page): Promise<void> {
 }
 
 async function enter(page: Page, url: string): Promise<void> {
-  await page.goto(url);
-  await dismissNotices(page);
+  await enterClassroom(page, url);
 }
 
 test('native classroom keeps its own composer and carries the student lesson surfaces', async ({ page, dsh }, testInfo) => {
@@ -99,12 +99,12 @@ test('native classroom keeps its own composer and carries the student lesson sur
     const panel = page.getByTestId('studyforge-lesson-panel');
     await expect(panel).toBeVisible();
     await expect(panel).toContainText('本课资料');
-    await expect(panel).toContainText('还没有把资料放进这节课。');
+    await expect(panel).toContainText('这节课还没有用到资料。');
     await expect(panel).toContainText('进行中');
     // The docked panel slides in: assert the heading and body actually land in the
     // viewport before the evidence shot, so a mid-transition frame cannot pass.
-    await expect(panel.getByRole('heading', { name: '本课', exact: true })).toBeInViewport({ ratio: 1 });
-    await expect(panel.getByText('还没有把资料放进这节课。')).toBeInViewport({ ratio: 1 });
+    await expect(panel.locator('.sf-original-lesson-head h2')).toBeInViewport({ ratio: 1 });
+    await expect(panel.getByText('这节课还没有用到资料。')).toBeInViewport({ ratio: 1 });
     await expect(panel).toBeInViewport({ ratio: 0.95 });
     expect(await panel.innerText()).not.toMatch(/studyforge\.|sessionId|schema|\/Users\/|\.jsonl/);
     await page.screenshot({ path: testInfo.outputPath('lesson-panel-rightbar.png') });
@@ -119,20 +119,23 @@ test('native classroom keeps its own composer and carries the student lesson sur
     // Narrower and smallest supported viewports keep the classroom and the entries usable.
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.getByRole('button', { name: '首页', exact: true }).click();
-    await page.getByTestId('open-classroom').click();
+    // 开始学习 now deliberately starts a new lesson. Return via the real history
+    // entry to exercise the same lesson's panel at the smaller viewport.
+    await page.getByTestId('home-last-transcript').click();
     await expect(page.locator('[data-composer-input]')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
     await page.screenshot({ path: testInfo.outputPath('classroom-1024.png') });
 
     await page.setViewportSize({ width: 390, height: 844 });
+    if (!await panel.isVisible()) await page.getByRole('button', { name: '本课', exact: true }).click();
     // At the smallest width the native rightbar covers the viewport, so the lesson
     // panel itself is what the student reads there; a browser reload resets the
     // in-memory layout and the navigation is reachable again.
     const narrowPanel = page.getByTestId('studyforge-lesson-panel');
     await expect(narrowPanel).toBeVisible();
     await expect(narrowPanel).toContainText('本课资料');
-    await expect(narrowPanel.getByRole('heading', { name: '本课', exact: true })).toBeInViewport({ ratio: 1 });
-    await expect(narrowPanel.getByText('还没有把资料放进这节课。')).toBeInViewport({ ratio: 1 });
+    await expect(narrowPanel.locator('.sf-original-lesson-head h2')).toBeInViewport({ ratio: 1 });
+    await expect(narrowPanel.getByText('这节课还没有用到资料。')).toBeInViewport({ ratio: 1 });
     await expect(narrowPanel.getByText('进行中')).toBeInViewport({ ratio: 1 });
     await page.screenshot({ path: testInfo.outputPath('narrow-390-lesson.png') });
     await page.reload();

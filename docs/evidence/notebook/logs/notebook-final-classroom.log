@@ -1,0 +1,45 @@
+
+Running 1 test using 1 worker
+
+(node:71332) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/current-classroom.spec.ts:52:1 › native classroom keeps its own composer and carries the student lesson surfaces (26.7s)
+
+
+  1) tests/e2e/current-classroom.spec.ts:52:1 › native classroom keeps its own composer and carries the student lesson surfaces
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('studyforge-lesson-panel')
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByTestId('studyforge-lesson-panel') with timeout 15000ms
+      - waiting for getByTestId('studyforge-lesson-panel')
+
+
+      130 |     // in-memory layout and the navigation is reachable again.
+      131 |     const narrowPanel = page.getByTestId('studyforge-lesson-panel');
+    > 132 |     await expect(narrowPanel).toBeVisible();
+          |                               ^
+      133 |     await expect(narrowPanel).toContainText('本课资料');
+      134 |     await expect(narrowPanel.locator('.sf-original-lesson-head h2')).toBeInViewport({ ratio: 1 });
+      135 |     await expect(narrowPanel.getByText('这节课还没有用到资料。')).toBeInViewport({ ratio: 1 });
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/current-classroom.spec.ts:132:31
+
+    attachment #1: browser-console (text/plain) ────────────────────────────────────────────────────
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: host-log (text/plain) ───────────────────────────────────────────────────────────
+    (node:71338) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/notebook-final-classroom-results/current-classroom-native-c-2ed85-the-student-lesson-surfaces/error-context.md
+
+  1 failed
+    tests/e2e/current-classroom.spec.ts:52:1 › native classroom keeps its own composer and carries the student lesson surfaces

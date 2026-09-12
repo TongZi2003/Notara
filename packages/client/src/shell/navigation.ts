@@ -20,6 +20,7 @@ export const STUDENT_PAGES = [
   { id: 'studyforge.courses', title: '课程', order: 20 },
   { id: 'studyforge.materials', title: '资料', order: 30 },
   { id: 'studyforge.sets', title: '学习集', order: 40 },
+  { id: 'studyforge.memory', title: '学情', order: 45 },
   { id: 'studyforge.calendar', title: '日历', order: 50 },
 ] as const satisfies readonly StudentPage[];
 

@@ -1,0 +1,408 @@
+/* ============================================================
+   StudyForge pages, ported from B@3831987 app/index.html (home /
+   calendar / map / memory / sets) and app/vendor/notebook.css.
+
+   Class names and numbers are B's; only the token names are local so
+   this file never redefines the native frame or another plugin's
+   surface. Everything is scoped to `.sf-orig`, the class these pages
+   put on their own root: the frame, the Conversation and the rightbar
+   keep their own look.
+   ============================================================ */
+/* ── 状态一：B 的 app.css（笔记本主题关闭时的最终样式）──────────────
+   B 的 notebook.css 整层都写在 `:root[data-hand="on"]` 下，所以「关」这一态就是
+   app.css 自己的值：宋体标题、#26437c 墨、880/760 的纸页宽度、硬边卡片。
+   这一层先写全，下面「状态二」再把笔记本那一层盖上去。 */
+.sf-orig{
+  --font-ui: "Songti SC", "STSong", "Noto Serif SC", serif;
+  --font-song: "Songti SC", "STSong", "Noto Serif SC", serif;
+  --font-kai: "LXGW WenKai", "Kaiti SC", "STKaiti", "KaiTi", serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --t-micro: 11px; --t-meta: 12px; --t-label: 13px; --t-body: 15px;
+  --t-handout: 16px; --t-lead: 17px; --t-title: 24px; --t-display: 34px; --t-hero: 44px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
+  --r-control: 2px; --r-card: 3px;
+  --motion: 140ms cubic-bezier(.4,0,.2,1);
+  --page:#f6f1e3; --desk:#e9e2cf; --paper:#efe7d2; --paper-hi:#fdfaf1; --slip:#fbf8ee;
+  --ink:#26437c; --ink-2:#3d5488; --ink-3:#5a688a; --ink-4:#a9a28b;
+  --gray:#8a94ab; --pencil:#756e61;
+  --pen:#26437c; --pen-wash:rgba(38,67,124,.08);
+  --seal:#c93a2e; --seal-hi:#a52e24; --seal-wash:rgba(201,58,46,.07);
+  --rule:#d9d2bd; --rule-hi:#b9b19c;
+  --ok:#3e7c59;
+  --shadow-card:0 3px 10px rgba(60,50,30,.12);
+  --shadow-slip:0 1px 1px rgba(60,50,30,.16),0 6px 14px rgba(60,50,30,.13);
+  --shadow-page:0 1px 0 rgba(60,50,30,.05),0 12px 32px rgba(60,50,30,.14);
+  /* 纸纹归 DSH 的主题开关：关掉主题时这几页与旁边的原生界面一样是素纸。 */
+  --paper-lines:none; --paper-lines-size:auto; --nb-dots:none;
+  font-family: var(--font-ui); color: var(--ink); font-size: var(--t-body);
+  background-color: var(--page); background-image: var(--paper-lines); background-size: var(--paper-lines-size);
+  -webkit-font-smoothing: antialiased;
+}
+.sf-orig *,.sf-orig *::before,.sf-orig *::after{ box-sizing:border-box; }
+/* B's `*{margin:0;padding:0}` reset, kept inside our own pages. */
+.sf-orig :is(h1,h2,h3,h4,h5,p,ul,ol,dl,dd,dt,figure,fieldset,legend,details,summary){ margin:0; padding:0; }
+.sf-orig button{ font-family:inherit; color:inherit; }
+.sf-orig input,.sf-orig textarea,.sf-orig select{ font-family:inherit; }
+.sf-orig ::selection{ background: var(--seal-wash); }
+
+/* B token names end here; everything below is copied from B's stylesheet. */
+
+/* ===== 通用元件 ===== */
+.sf-orig .btn{ padding:6px 14px; border:1px solid var(--rule-hi); border-radius: var(--r-control); background:transparent;
+  color: var(--ink); font-size: var(--t-label); transition: all var(--motion); }
+.sf-orig .btn:hover{ border-color: var(--seal-hi); color: var(--seal-hi); background: var(--seal-wash); }
+.sf-orig .btn.primary{ background: var(--seal); border-color: var(--seal); color:#f6f1e3; }
+.sf-orig .btn.primary:hover{ background: var(--seal-hi); border-color: var(--seal-hi); color:#f6f1e3; }
+.sf-orig .btn.ghost{ border-color:transparent; background:transparent; color: var(--ink-3); letter-spacing:1px; }
+.sf-orig .btn.ghost:hover{ color: var(--ink); background: var(--seal-wash); border-color:transparent; }
+.sf-orig .btn:disabled,.sf-orig .chip:disabled{ opacity:.5; cursor:wait; }
+.sf-orig .chip{ display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border:1px solid var(--rule-hi);
+  border-radius:999px; background:transparent; color: var(--ink-2); font-size: var(--t-micro); cursor:pointer; transition: all var(--motion); }
+.sf-orig .chip:hover{ background: var(--seal-wash); }
+.sf-orig .chip.on{ background: var(--seal); border-color: var(--seal); color:#f6f1e3; }
+.sf-orig .mini-note{ font-family: var(--font-kai); font-size: var(--t-meta); color: var(--ink-3); line-height:1.9; }
+.sf-orig .empty-hint{ padding: var(--s6); text-align:center; font-family: var(--font-kai); font-size: var(--t-meta); color: var(--gray); }
+.sf-orig .sec-head{ display:flex; align-items:baseline; gap: var(--s3); margin: var(--s2) 0 var(--s4); }
+.sf-orig .sec-head h2{ font-family: var(--font-song); font-size: var(--t-title); font-weight:600; }
+.sf-orig .sec-head .cnt{ font-family: var(--font-mono); font-size: var(--t-meta); color: var(--ink-3); }
+.sf-orig .sec-head .line{ flex:1; height:1px; background: var(--rule); align-self:center; }
+.sf-orig h2,.sf-orig h3{ font-family: var(--font-song); font-weight:600; }
+.sf-orig h3{ margin: var(--s5) 0 var(--s2); font-size: var(--t-body); }
+.sf-orig .mini-note{ margin:6px 0; }
+
+/* ===== 纸页容器：B 的 .plain-wrap / .home-wrap ===== */
+.sf-orig .plain-wrap{ max-width:760px; margin:0 auto; padding: var(--s6); width:100%; }
+.sf-orig .home-wrap{ max-width:880px; margin:0 auto; padding: var(--s7) var(--s6) var(--s6); width:100%; }
+.sf-orig.sf-page-scroll{ display:flex; flex-direction:column; flex:1; height:100%; min-height:0; overflow:auto; }
+
+/* ===== 首页 ===== */
+.sf-orig .home-greet{ margin-bottom: var(--s6); }
+.sf-orig .home-greet h1{ font-family: var(--font-song); font-size: var(--t-hero); font-weight:600; letter-spacing:.02em; line-height:48px; }
+.sf-orig .home-greet .date{ font-family: var(--font-mono); font-size: var(--t-label); color: var(--ink-3); letter-spacing:.05em; margin-top: var(--s4); line-height:16px; }
+.sf-orig .commit-health{ margin:calc(-1 * var(--s4)) 0 var(--s5); padding:var(--s2) var(--s4); border:1px solid var(--rule);
+  border-radius: var(--r-card); background: var(--paper-hi); font-size: var(--t-meta); color: var(--ink-2); }
+.sf-orig .continue-card{ display:flex; align-items:center; gap: var(--s4); width:100%; margin-bottom: var(--s5); padding: var(--s4) var(--s5);
+  border:1px solid var(--rule); border-radius: var(--r-card); background: var(--paper-hi); text-align:left;
+  box-shadow: var(--shadow-card); transition: transform var(--motion), border-color var(--motion); }
+.sf-orig .continue-card:hover{ transform: translateY(-2px); border-color: var(--rule-hi); }
+.sf-orig .continue-card .bk{ width:32px; height:32px; flex:0 0 32px; display:flex; align-items:center; justify-content:center;
+  border-radius: var(--r-control); background: var(--seal); color:#fff; font-family: var(--font-kai); font-size: var(--t-handout); }
+.sf-orig .continue-card .tt{ flex:1; min-width:0; }
+.sf-orig .continue-card .tt b{ display:block; font-family: var(--font-song); font-size: var(--t-lead); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sf-orig .continue-card .tt span{ display:block; font-size: var(--t-meta); color: var(--ink-3); margin-top:3px; }
+.sf-orig .continue-card .tt .ho-next{ margin-top:3px; font-family:var(--font-kai); font-size:12.5px; color:var(--gray); }
+.sf-orig .continue-card .ho-past{ background:none; border:none; padding:0 0 0 6px; cursor:pointer; color:var(--ink-3);
+  font-family:var(--font-kai); font-size:var(--t-meta); border-bottom:1px dotted var(--rule-hi); }
+.sf-orig .continue-card .ho-past:hover{ color:var(--seal); }
+.sf-orig .home-box{ border:1px solid var(--rule); border-radius: var(--r-card); background: var(--paper); padding: var(--s4) var(--s4) var(--s4); margin-bottom: var(--s5); }
+.sf-orig .home-box.now{ border-color: var(--seal); background: var(--seal-wash); }
+.sf-orig .home-box > .bh{ display:flex; align-items:center; gap: var(--s2); height:32px; }
+.sf-orig .home-box > .bh .t{ font-family: var(--font-song); font-size: var(--t-label); font-weight:700; }
+.sf-orig .home-box > .bh .c{ font-family: var(--font-mono); font-size: var(--t-micro); color: var(--gray); }
+.sf-orig .home-box > .bh .line{ flex:1; height:1px; background: var(--rule); }
+.sf-orig .home-box .row{ display:flex; align-items:center; gap: var(--s2); min-height:32px; padding: var(--s1) 0; border-top:1px dashed var(--rule); }
+.sf-orig .home-box .row:first-of-type{ border-top:0; }
+.sf-orig .home-box .row .badge{ font-family: var(--font-mono); font-size: var(--t-micro); background: var(--paper-hi);
+  border:1px solid var(--rule-hi); border-radius: var(--r-control); padding:1px 6px; white-space:nowrap; }
+.sf-orig .home-box .row .badge.hot{ background: var(--seal); color:#fff; border-color: var(--seal); }
+.sf-orig .home-box .row .txt{ flex:1; min-width:110px; font-size: var(--t-meta); color: var(--ink-2); }
+.sf-orig .home-box .row .acts{ display:flex; gap: var(--s1); margin-left:auto; }
+.sf-orig .home-box .row.done .badge.hot{ background: var(--ok); border-color: var(--ok); }
+.sf-orig .home-box > .mini-note{ display:flex; align-items:center; min-height:32px; padding:0 2px; }
+.sf-orig .home-box .home-actions{ margin-top:0; grid-template-columns:1fr 1fr 1fr; gap: var(--s4); }
+.sf-orig .home-box .home-act{ height:64px; display:flex; flex-direction:column; justify-content:center; }
+.sf-orig .home-box .continue-card{ margin:0; height:96px; padding:0 var(--s4); box-shadow:none; }
+.sf-orig .home-box .ledger-row{ min-height:32px; }
+.sf-orig .home-actions{ display:grid; grid-template-columns:1fr 1fr; gap: var(--s4); margin-top: var(--s4); }
+.sf-orig .home-act{ display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding: var(--s4);
+  border:1px solid var(--rule-hi); border-radius: var(--r-card); background: var(--paper-hi); cursor:pointer;
+  transition: transform var(--motion), border-color var(--motion); }
+.sf-orig .home-act b{ font-family: var(--font-song); font-size: var(--t-body); color: var(--ink); font-weight:600; }
+.sf-orig .home-act span{ color: var(--ink-3); font-size: var(--t-meta); }
+.sf-orig .home-act:hover{ transform: translateY(-2px); border-color: var(--rule-hi); }
+.sf-orig .home-more{ margin-top:var(--s3); width:max-content; }
+.sf-orig .home-more summary{ cursor:pointer; color:var(--ink-3); font-family:var(--font-kai); font-size:var(--t-label); }
+.sf-orig .home-more > div{ display:flex; gap:var(--s4); padding-top:var(--s2); }
+.sf-orig .home-more:not([open]) > div{ display:none; }
+.sf-orig .home-link{ border:0; border-bottom:1px solid var(--rule-hi); background:none; color:var(--ink-2); padding:4px 0; cursor:pointer; font-family:inherit; }
+.sf-orig .home-link:hover{ color:var(--seal); border-color:var(--seal); }
+.sf-orig .ledger-row{ display:flex; align-items:center; gap: var(--s3); width:100%; padding: var(--s2) var(--s1); border:0; border-bottom:1px dashed var(--rule);
+  background:transparent; text-align:left; cursor:pointer; }
+.sf-orig .ledger-row:hover{ background: var(--seal-wash); }
+.sf-orig .ledger-row .dot{ width:8px; height:8px; border-radius:2px; background: var(--seal); transform: rotate(45deg); flex:0 0 auto; }
+.sf-orig .ledger-row .dot.free{ background:transparent; border:1.5px solid var(--ink-3); }
+.sf-orig .ledger-row .t{ flex:1; min-width:0; font-family: var(--font-song); font-size: var(--t-handout); }
+.sf-orig .ledger-row .t small{ display:block; font-family: var(--font-ui); color: var(--ink-3); font-size: var(--t-meta); margin-top:3px; }
+.sf-orig .ledger-row .time{ font-family: var(--font-mono); font-size: var(--t-meta); color: var(--ink-3); }
+.sf-orig .home-ledger-more{ border-top:1px dashed var(--rule); }
+.sf-orig .home-ledger-more > summary{ min-height:36px; display:flex; align-items:center; padding:2px var(--s2); list-style:none; cursor:pointer; color:var(--ink-3); font-size:var(--t-meta); }
+.sf-orig .home-ledger-more > summary::-webkit-details-marker{ display:none; }
+.sf-orig .home-ledger-more > summary::after{ content:"▾"; margin-left:auto; color:var(--ink-4); transition:transform var(--motion); }
+.sf-orig .home-ledger-more[open] > summary::after{ transform:rotate(180deg); }
+.sf-orig .home-all-lessons{ display:block; width:100%; border:0; border-top:1px dashed var(--rule); background:none; padding:10px var(--s2);
+  text-align:left; cursor:pointer; color:var(--ink-3); font-family:var(--font-kai); font-size:var(--t-meta); }
+.sf-orig .home-all-lessons:hover{ background:var(--seal-wash); }
+
+/* ===== 日历 · 月历默认（照抄 RiLi 母版）===== */
+.sf-orig .cal-top{ display:flex; align-items:center; gap:10px; margin-bottom: var(--s3); flex-wrap:wrap; }
+.sf-orig .cal-top h2{ font-family: var(--font-song); font-size:18px; font-weight:700; }
+.sf-orig .cal-top .nv{ width:26px; height:26px; cursor:pointer; background:transparent; border:1px solid var(--rule-hi); border-radius:2px; color: var(--ink); font-size:11px; }
+.sf-orig .cal-top .views{ margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
+.sf-orig .cal-top :is(button,h2){white-space:nowrap}
+.sf-orig .cal-dow{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); font-family: var(--font-kai); font-size:12px; color: var(--gray); text-align:center; margin-bottom:2px; min-height:24px;line-height:24px; }
+.sf-orig .cal-grid{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); border:1px solid var(--rule); background:var(--paper-hi); }
+.sf-orig .cal-c{ border-right:1px solid var(--rule); border-bottom:1px solid var(--rule); padding:4px 6px; min-height:82px; overflow:hidden; text-align:left; background:none; border-top:0; border-left:0; font-family:inherit; color:inherit; cursor:pointer; }
+.sf-orig .cal-c:hover{ background: var(--seal-wash); }
+.sf-orig .cal-c i{ font-style:normal; font-family: var(--font-mono); font-size:10px; color: var(--gray); display:block; }
+.sf-orig .cal-c.out i{ color:#c9c1a8; }
+.sf-orig .cal-c.today{ background: var(--seal-wash); box-shadow:inset 0 0 0 1.5px var(--seal); }
+.sf-orig .cal-c.today i{ color: var(--seal); font-weight:700; }
+.sf-orig .cal-c .lb{ font-size:10.5px; line-height:1.5; color: var(--ink); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
+.sf-orig .cal-c .lb.done{ color: var(--gray); }
+.sf-orig .cal-c .lb.route{ color: var(--seal); }
+.sf-orig .cal-c .du{ display:inline-block; font-size:9px; color: var(--seal); border:1px solid var(--seal); border-radius:99px; padding:0 5px; margin-top:2px; font-family: var(--font-kai); }
+.sf-orig .cal-list{ border:1px solid var(--rule); background:var(--paper-hi); }
+.sf-orig .cal-lday{ border-bottom:1px solid var(--rule); padding:8px 14px 10px; }
+.sf-orig .cal-lday:last-child{ border-bottom:0; }
+.sf-orig .cal-ldate{ font-family:var(--font-mono); font-size:11px; color:var(--gray); margin-bottom:4px; }
+.sf-orig .cal-lday.today .cal-ldate{ color:var(--seal); font-weight:700; }
+.sf-orig .cal-lrow{ display:flex; align-items:baseline; gap:8px; width:100%; text-align:left; background:none; border:0; padding:3px 0; font-family:inherit; color:var(--ink); font-size:13px; cursor:pointer; }
+.sf-orig .cal-lrow:hover{ background:var(--seal-wash); }
+.sf-orig .cal-lrow .k{ flex:none; font-size:10.5px; font-family:var(--font-kai); color:var(--seal); border:1px solid var(--seal); border-radius:2px; padding:0 4px; }
+.sf-orig .cal-lrow .k.dim{ color:var(--gray); border-color:var(--rule); }
+.sf-orig .cal-lrow small{ color:var(--gray); font-size:11px; }
+
+/* ===== 学习集 ===== */
+.sf-orig .set-card{ border-bottom:1px solid var(--rule); }
+.sf-orig .set-card:first-of-type{ border-top:1px solid var(--rule); }
+.sf-orig .set-list-row{ display:flex; align-items:center; gap:10px; min-height:70px; }
+.sf-orig .set-shelf{ flex:1; min-width:0; display:grid; grid-template-columns:minmax(130px,1fr) minmax(180px,1fr) auto; align-items:center; gap:16px; padding:13px 4px; border:0; background:transparent; color:var(--ink); text-align:left; cursor:pointer; }
+.sf-orig .set-shelf:hover{ background:var(--seal-wash); }
+.sf-orig .set-card-name{ font-family:var(--font-song); font-size:16px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sf-orig .set-card-meta{ min-width:0; display:flex; flex-direction:column; gap:3px; font-size:11.5px; color:var(--ink-3); }
+.sf-orig .set-card-meta b{ font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sf-orig .set-card-meta i{ font-style:normal; font-family:var(--font-mono); color:var(--ink-4); }
+.sf-orig .set-shelf em{ font-style:normal; font-family:var(--font-kai); font-size:11.5px; color:var(--seal); white-space:nowrap; }
+.sf-orig .set-settings-toggle{ flex:none; }
+.sf-orig .set-editor{ margin:0 0 14px; padding:16px; border:1px solid var(--rule); background:var(--paper-hi); }
+.sf-orig .set-card-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:var(--s2) 0; }
+.sf-orig .set-card-row label{ font-family: var(--font-kai); font-size:11px; color: var(--gray); letter-spacing:1px; }
+.sf-orig .set-card-row input{ flex:1; min-width:180px; }
+.sf-orig .set-advanced{ margin-top:14px; border-top:1px solid var(--rule); padding-top:12px; }
+.sf-orig .set-advanced > summary{ cursor:pointer; list-style:none; font:600 13px var(--font-song); color:var(--ink-2); }
+.sf-orig .set-advanced > summary::-webkit-details-marker{ display:none; }
+.sf-orig .set-advanced > summary::before{ content:'▸'; display:inline-block; width:18px; color:var(--seal); }
+.sf-orig .set-advanced[open] > summary::before{ content:'▾'; }
+.sf-orig .set-field{ display:flex; flex-direction:column; gap:5px; }
+.sf-orig .set-field > span{ font-family: var(--font-kai); font-size:11px; color: var(--gray); letter-spacing:1px; }
+.sf-orig .set-picks{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:8px 16px; border:0; border-top:1px solid var(--rule); margin:0; padding:12px 0; }
+.sf-orig .set-picks legend{ font-family: var(--font-song); font-weight:600; font-size:var(--t-label); padding-right:8px; }
+.sf-orig .set-pick{ display:flex; align-items:flex-start; gap:7px; font-size:12.5px; color:var(--ink-2); line-height:1.7; }
+.sf-orig .set-pick input{ flex:none; margin-top:3px; }
+.sf-orig .set-picks:empty::after{ content:""; }
+
+/* ===== 记忆块（照抄 JiYi 母版）===== */
+.sf-orig .memory-sheet{ background: var(--paper-hi); border:1px solid var(--rule); border-radius:3px;
+  box-shadow: var(--shadow-card); padding: var(--s6); font-size: var(--t-body); line-height:1.9; }
+.sf-orig .memory-sheet h1,.sf-orig .memory-sheet h2{ font-family: var(--font-song); font-size: var(--t-lead); margin-bottom: var(--s3); }
+.sf-orig .memory-sheet ul{ padding-left:1.3em; }
+.sf-orig .mem-toolbar{ display:flex; align-items:center; gap:8px; font-family: var(--font-kai); font-size:11px; margin: var(--s3) 0; flex-wrap:wrap; }
+.sf-orig .mem-toolbar .note{ margin-left:auto; color: var(--gray); }
+.sf-orig .mem-block{ background: var(--paper-hi); border:1px solid var(--rule); border-left:3px double var(--ink); border-radius:3px; padding:12px 16px; margin-bottom:12px; text-align:left; width:100%; font-family:inherit; color:inherit; }
+.sf-orig .mem-block.ability{ border-left-color:#7a6a4a; }
+.sf-orig .mem-block .mh{ display:flex; align-items:center; gap:10px; cursor:pointer; flex-wrap:wrap; }
+.sf-orig .mem-block .mt{ font-size:15px; font-weight:700; font-family: var(--font-song); }
+.sf-orig .mem-block .rw{ margin-left:auto; font-family: var(--font-mono); font-size:10px; color: var(--gray); }
+.sf-orig .mem-block .brief{ font-size:12.5px; color:var(--ink-3); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sf-orig .mem-sec{ font-size:11.5px; color: var(--seal); font-family: var(--font-kai); margin:10px 0 4px; }
+.sf-orig .mem-assert{ font-size:14px; line-height:1.9; font-family: var(--font-song); }
+.sf-orig .mem-hrow{ display:flex; gap:10px; padding:5px 0; border-bottom:1px solid var(--rule); }
+.sf-orig .mem-hrow:last-child{ border-bottom:0; }
+.sf-orig .mem-hrow .hd{ font-family: var(--font-mono); font-size:10.5px; color: var(--gray); flex:0 0 48px; margin-top:3px; }
+.sf-orig .mem-hrow .ht{ font-family: var(--font-kai); font-size:12.5px; line-height:1.8; color: var(--ink-2); flex:1; }
+.sf-orig .ability-pill{ font-size:11px; color:#7a6a4a; font-family: var(--font-kai); border:1px solid #7a6a4a; border-radius:99px; padding:0 7px; }
+.sf-orig .mem-search{ margin-left:auto; flex:1; max-width:220px; border:1px solid var(--rule); border-radius:2px; background:var(--paper-hi); padding:8px 10px; font-family:var(--font-mono); font-size:10.5px; color:var(--ink); outline:0; }
+.sf-orig .memory-evidence{ margin-top:8px; font-size:12px; color:var(--ink-3); }
+.sf-orig .memory-evidence summary{ cursor:pointer; font-family:var(--font-kai); }
+.sf-orig .memory-evidence p{ margin:6px 0 0; line-height:1.8; }
+
+/* ===== 上过的课：B 首页那条 ledger 行的密度 ===== */
+.sf-orig .sf-lessons{ border-top:1px solid var(--rule); }
+.sf-orig .sf-lessons li{ border-bottom:1px dashed var(--rule); }
+.sf-orig .sf-lessons button{ padding: var(--s2) var(--s1); font-family: var(--font-song); font-size: var(--t-handout); }
+.sf-orig .sf-lessons button:hover{ background: var(--seal-wash); }
+.sf-orig .sf-lessons .sf-meta{ font-size: var(--t-meta); color: var(--ink-3); }
+
+/* ===== 课程地图：列表与画布吃 B 的 .map-card 密度 ===== */
+.sf-orig .sf-roadmap{ list-style:none; margin:0; padding:0; border-top:1px solid var(--rule); }
+/* 一行一张 B 的 map-card：纸面尺寸、标题字、元信息行、动作条。列表视图与画布用同一张卡的样子。 */
+.sf-orig .sf-roadmap{ border-top:0; display:flex; flex-direction:column; gap:8px; }
+.sf-orig .sf-roadmap-row{ display:flex; flex-direction:column; gap:6px; border:1px solid var(--rule);
+  border-radius:3px; background: var(--paper-hi); padding:9px 11px 8px; }
+.sf-orig .sf-roadmap-row:hover{ box-shadow: var(--shadow-card); }
+.sf-orig .sf-roadmap-row.sf-roadmap-context{ opacity:.14; }
+.sf-orig .sf-roadmap-row-head{ display:flex; align-items:baseline; gap:8px; }
+.sf-orig .sf-roadmap-title{ font-family: var(--font-song); font-size:13px; font-weight:600; line-height:1.5; }
+.sf-orig .sf-roadmap-row > .sf-meta{ font-family: var(--font-mono); font-size:10px; color: var(--gray); white-space:normal; }
+.sf-orig .sf-roadmap-actions{ display:flex; gap:7px; align-items:center; margin-top:2px; padding-top:6px; border-top:1px solid var(--rule); flex-wrap:wrap; }
+.sf-orig .sf-roadmap-actions .sf-quiet,.sf-orig .sf-roadmap-actions .sf-action{ padding:3px 10px; font-size: var(--t-micro); }
+.sf-orig .sf-roadmap-mount{ border-top:1px solid var(--rule); padding-top:6px; }
+.sf-orig .sf-roadmap-mount label{ font-size: var(--t-micro); color: var(--ink-3); }
+.sf-orig .sf-roadmap-edges{ position:absolute; left:0; top:0; pointer-events:none; }
+.sf-orig .sf-roadmap-edges path{ fill:none; stroke: var(--rule-hi); stroke-width:1.6; }
+.sf-orig .sf-roadmap-edges path.opened{ stroke: var(--seal); opacity:.75; }
+.sf-orig .sf-roadmap-edges path.planned{ stroke-dasharray:4 3; }
+.sf-orig .sf-roadmap-filter{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; border:1px solid var(--rule); border-radius:3px;
+  background:var(--paper-hi); box-shadow: var(--shadow-card); padding:10px 12px; }
+.sf-orig .sf-roadmap-filter label{ display:flex; gap:6px; align-items:center; font-size:12px; color:var(--ink-3); }
+.sf-orig .sf-roadmap-filter input[type=date]{ border:1px solid var(--rule); border-radius:2px; background:var(--paper); color:var(--ink); font:inherit; font-size:12px; padding:4px 7px; }
+.sf-orig .sf-roadmap-canvas{ position:relative; border:1px dashed var(--rule-hi); border-radius:3px; background:var(--paper-hi) radial-gradient(rgba(90,104,138,.16) 1px, transparent 1.2px); background-size:26px 26px; overflow:auto; min-height:320px; touch-action:none; }
+.sf-orig .sf-roadmap-card{ position:absolute; display:flex; flex-direction:column; gap:6px; width:230px; min-width:0; max-width:none; border:1px solid var(--rule);
+  border-radius:3px; background:var(--paper-hi); color:var(--ink); cursor:grab; padding:9px 11px 8px; user-select:none; }
+
+/* ===== DSH 既有类名对位到 B 的元件 =====
+   移植后的页面里仍留着 DSH 自己的类名（sf-quiet / sf-action / sf-chip / sf-note /
+   sf-meta / sf-notice / sf-field / sf-cards-search）。它们在 `.sf-orig` 之外保持原来的
+   look；只有落进移植页面时才换成 B 的按钮、标签与纸面，所以这里只做对位，不做新设计。 */
+.sf-orig button{ cursor:pointer; }
+.sf-orig .sf-quiet{ padding:6px 14px; border:1px solid var(--rule-hi); border-radius: var(--r-control);
+  background:transparent; color: var(--ink); font-family:inherit; font-size: var(--t-label); transition: all var(--motion); }
+.sf-orig .sf-quiet:hover{ border-color: var(--seal-hi); color: var(--seal-hi); background: var(--seal-wash); }
+.sf-orig .sf-quiet:disabled{ opacity:.5; cursor:wait; }
+.sf-orig .sf-action{ display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border:1px solid var(--seal);
+  border-radius: var(--r-control); background: var(--seal); color:#f6f1e3; font-family:inherit; font-size: var(--t-label); }
+.sf-orig .sf-action:hover{ background: var(--seal-hi); border-color: var(--seal-hi); }
+.sf-orig .sf-action:disabled{ opacity:.5; cursor:wait; }
+.sf-orig .sf-action-quiet{ background:transparent; color: var(--ink); border-color: var(--rule-hi); }
+.sf-orig .sf-action-quiet:hover{ background: var(--seal-wash); color: var(--seal-hi); border-color: var(--seal-hi); }
+.sf-orig .sf-chip{ display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border:1px solid var(--rule-hi);
+  border-radius:999px; background:transparent; color: var(--ink-2); font-family:inherit; font-size: var(--t-micro); transition: all var(--motion); }
+.sf-orig .sf-chip:hover{ background: var(--seal-wash); }
+.sf-orig .sf-chip-on{ background: var(--seal); border-color: var(--seal); color:#f6f1e3; }
+.sf-orig .sf-note{ font-family: var(--font-kai); font-size: var(--t-meta); color: var(--ink-3); line-height:1.9; }
+.sf-orig .sf-meta{ font-family: var(--font-mono); font-size: var(--t-micro); color: var(--gray); letter-spacing:.04em; }
+.sf-orig .sf-notice{ border:1px solid var(--rule-hi); border-radius: var(--r-card); background: var(--paper-hi);
+  color: var(--ink-2); font-size: var(--t-meta); line-height:1.8; padding:8px 10px; }
+.sf-orig .sf-field{ display:flex; flex-direction:column; gap:5px; font-size: var(--t-meta); color: var(--ink-3); }
+.sf-orig .sf-field > span{ font-family: var(--font-kai); font-size:11px; letter-spacing:.06em; }
+.sf-orig .sf-cards-search,.sf-orig .mem-search{ border:1px solid var(--rule); border-radius:2px; background: var(--paper-hi);
+  color: var(--ink); font-family: var(--font-mono); font-size:10.5px; padding:8px 10px; min-width:0; outline:0; }
+.sf-orig .sf-cards-search:focus,.sf-orig .mem-search:focus{ border-color: var(--seal); }
+.sf-orig .set-card-row input,.sf-orig .set-field input,.sf-orig .set-field textarea,.sf-orig .mem-field input,
+.sf-orig .sf-memory-editor input,.sf-orig .sf-memory-editor textarea{
+  border:1px solid var(--rule); border-radius:2px; background: var(--paper-hi); color: var(--ink);
+  font-family: var(--font-ui); font-size: var(--t-label); line-height:1.7; padding:7px 9px; max-width:100%; }
+.sf-orig .sf-memory-search .mem-search{ flex:1; max-width:260px; margin-left:auto; }
+/* 记忆页常驻本课右栏，所以这里不套 B 的整页底色，只借它的纸面元件。 */
+.sf-orig.sf-memory-page{ background:transparent; }
+.sf-orig.sf-memory{ background:transparent; }
+/* 展开设置的那一张卡：B 用 same-name 判断展开，这里让它在纸页里看得出来。 */
+.sf-orig .set-card.editing > .set-list-row{ background: var(--seal-wash); }
+/* 学情编辑：B 的编辑面在浮层里，纸面上保持同一张纸。 */
+.sf-orig .sf-memory-editor{ border:1px solid var(--rule); border-radius:3px; background: var(--paper-hi); padding: var(--s4); }
+
+/* ============================================================
+   状态二：笔记本主题打开。这一整层是 B 的 notebook.css（原文全部写在
+   `:root[data-hand="on"]` 下）照搬过来的：几何、纸面、便签与手写体。
+   data-sf-notebook 决定整页主题；data-sf-face 只控制题面，不能改变首页、学情或地图的字迹。
+   ============================================================ */
+body[data-sf-notebook="on"] .sf-orig{
+  --page:var(--nb-page); --desk:var(--nb-desk); --paper:var(--nb-paper); --paper-hi:var(--nb-hi); --slip:var(--nb-slip);
+  --seal:var(--nb-seal); --rule:var(--nb-rule); --rule-hi:var(--nb-rule-hi);
+  --pen:var(--nb-pen); --pen-wash:color-mix(in srgb, var(--nb-pen) 8%, transparent);
+  --paper-lines:var(--nb-lines); --paper-lines-size:var(--nb-lines-size);
+  --nb-dots:radial-gradient(rgba(120,108,80,.28) 1px,transparent 1.3px);
+  --shadow-slip:var(--nb-slip-shadow); --shadow-page:var(--nb-page-shadow);
+  background-color:var(--page);
+  background-image:var(--paper-lines); background-size:var(--paper-lines-size); background-position:0 -4px;
+}
+/* B: :root[data-hand="on"] :is(.home-wrap,.plain-wrap,.assets-wrap){max-width:1160px} */
+body[data-sf-notebook="on"] .sf-orig :is(.home-wrap,.plain-wrap){max-width:1160px}
+/* B: :root[data-hand="on"] #memWrap{max-width:900px;…;margin:28px auto;padding:32px 48px} —— 学情页那张纸 */
+body[data-sf-notebook="on"] .sf-orig.sf-memory-page .plain-wrap{
+  max-width:900px; margin:28px auto; padding:32px 48px;
+  background-color:var(--page); background-image:var(--paper-lines); background-size:var(--paper-lines-size);
+  background-position:0 -4px; box-shadow:var(--shadow-page);
+}
+body[data-sf-notebook="on"][data-sf-paper="fangge"] .sf-orig.sf-memory-page .plain-wrap{background-position:0 0}
+/* 学情页把纸画在 .plain-wrap 上；本课右栏那一份不另铺一张整页（见状态一的同一条规则）。 */
+body[data-sf-notebook="on"] .sf-orig:is(.sf-memory-page,.sf-memory){background-color:transparent; background-image:none}
+body[data-sf-notebook="on"] .sf-orig :is(.cal-grid,.cal-list){background:var(--paper-hi); box-shadow:var(--shadow-page)}
+/* B: :root[data-hand="on"] :is(#mapCanvas,.radial,.ext-wrap){background-color:var(--paper);background-image:var(--nb-dots);background-size:24px 24px;background-position:12px 12px} */
+body[data-sf-notebook="on"] .sf-orig :is(.sf-roadmap-canvas){background-color:var(--paper); background-image:var(--nb-dots); background-size:24px 24px; background-position:12px 12px}
+/* B: :root[data-hand="on"] .map-float{border-radius:0;box-shadow:var(--shadow-slip)} */
+body[data-sf-notebook="on"] .sf-orig .sf-roadmap-filter{border-radius:0; box-shadow:var(--shadow-slip)}
+body[data-sf-notebook="on"] .sf-orig :focus-visible{outline:2px solid var(--pen); outline-offset:3px}
+/* B: :root[data-hand="on"] :is(button,input,textarea,select){font-family:var(--font-ui)} */
+body[data-sf-notebook="on"] .sf-orig :is(button,input,textarea,select){font-family:var(--nb-print)}
+
+/* ── 手写面：B 的 data-hand="on" ─────────────────────────────── */
+body[data-sf-notebook="on"] .sf-orig{
+  --ink:var(--nb-ink); --ink-2:var(--nb-pen); --ink-3:var(--nb-pencil); --ink-4:var(--nb-pencil);
+  --gray:var(--nb-pencil); --pencil:var(--nb-pencil);
+  --font-song:var(--nb-hand); --font-kai:var(--nb-hand);
+}
+/* B: :root[data-hand="on"] :is(.sec-head h2,.home-greet h1){font-family:var(--f-hand);font-weight:400} */
+body[data-sf-notebook="on"] .sf-orig :is(.sec-head h2,.home-greet h1){font-family:var(--nb-hand); font-weight:400}
+body[data-sf-notebook="on"] .sf-orig .sec-head{gap:16px; margin:24px 0 20px}
+/* B: :root[data-hand="on"] :is(.btn.primary,.send,.prop-acts .yes){background:var(--pen);border-color:var(--pen);color:var(--paper-hi)} */
+body[data-sf-notebook="on"] .sf-orig :is(.btn.primary,.sf-action){background:var(--pen); border-color:var(--pen); color:var(--paper-hi)}
+body[data-sf-notebook="on"] .sf-orig :is(.btn.primary,.sf-action):hover{background:var(--pen); border-color:var(--pen)}
+/* B: :root[data-hand="on"] :is(.chip,.tk-tag,.dl-tag){color:var(--ink);border-color:var(--rule-hi)} + .chip.on{background:var(--ink);…} */
+body[data-sf-notebook="on"] .sf-orig :is(.chip,.sf-chip){color:var(--ink); border-color:var(--rule-hi)}
+body[data-sf-notebook="on"] .sf-orig :is(.chip.on,.sf-chip-on){background:var(--ink); border-color:var(--ink); color:var(--paper-hi)}
+body[data-sf-notebook="on"] .sf-orig .sec-head h2{font-size:24px; white-space:nowrap}
+body[data-sf-notebook="on"] .sf-orig :is(.sec-head .cnt,.mini-note,.sf-meta){color:var(--pencil); font-size:12px; line-height:1.7}
+/* B: :root[data-hand="on"] :is(.home-box,.continue-card,.home-act,.ext-card){border-radius:0;box-shadow:0 2px 5px #3c321a10;background:var(--slip)} */
+body[data-sf-notebook="on"] .sf-orig :is(.home-box,.continue-card,.home-act){border-radius:0; box-shadow:0 2px 5px #3c321a10; background:var(--slip)}
+body[data-sf-notebook="on"] .sf-orig .home-box{padding:20px 24px; border-top:3px double var(--rule-hi)}
+body[data-sf-notebook="on"] .sf-orig .home-box.now{border-color:var(--rule-hi); background:var(--slip)}
+body[data-sf-notebook="on"] .sf-orig .home-box .row{padding:8px 0; flex-wrap:wrap; border-bottom:1px dashed var(--rule)}
+body[data-sf-notebook="on"] .sf-orig .home-box .row .txt{font:17px/1.8 var(--nb-hand)}
+/* B: :root[data-hand="on"] .cal-c{min-height:110px;padding:10px 8px;display:flex;flex-direction:column;align-items:flex-start} 等 */
+body[data-sf-notebook="on"] .sf-orig .cal-c{min-height:110px; padding:10px 8px; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start}
+body[data-sf-notebook="on"] .sf-orig .cal-c i{font:18px/24px var(--nb-hand); color:var(--pencil)}
+body[data-sf-notebook="on"] .sf-orig .cal-c.today{background:var(--pen-wash); box-shadow:inset 0 0 0 1px var(--pen)}
+body[data-sf-notebook="on"] .sf-orig .cal-c .lb{font:15px/1.7 var(--nb-hand)}
+body[data-sf-notebook="on"] .sf-orig .cal-c .du{font:13px/1.7 var(--nb-hand); border-radius:2px; transform:rotate(-3deg)}
+/* B: :root[data-hand="on"] .mem-* —— 记忆块在纸上是「写上去的」，不是卡片 */
+body[data-sf-notebook="on"] .sf-orig .mem-toolbar{margin:var(--nb-row) 0; font-family:var(--font-ui)}
+body[data-sf-notebook="on"] .sf-orig .mem-block{border:0; border-radius:0; background:none; padding:var(--nb-row) 0; margin:0}
+body[data-sf-notebook="on"] .sf-orig .mem-block .mt{font:23px/var(--nb-row) var(--nb-hand); color:var(--pen)}
+body[data-sf-notebook="on"] .sf-orig .mem-block .brief{font:16px/var(--nb-row) var(--nb-hand); color:var(--pencil)}
+body[data-sf-notebook="on"] .sf-orig .mem-sec{color:var(--pencil); font:13px/var(--nb-row) var(--nb-hand); margin:var(--nb-row) 0 0}
+body[data-sf-notebook="on"] .sf-orig .mem-assert{font:var(--nb-size)/var(--nb-row) var(--nb-hand); color:var(--ink)}
+body[data-sf-notebook="on"] .sf-orig .mem-assert p{margin:0}
+body[data-sf-notebook="on"] .sf-orig .mem-block .mh{min-height:var(--nb-row); line-height:var(--nb-row)}
+body[data-sf-notebook="on"] .sf-orig .mem-old{font:var(--nb-size)/var(--nb-row) var(--nb-hand)}
+body[data-sf-notebook="on"] .sf-orig .mem-old p{margin:0}
+body[data-sf-notebook="on"] .sf-orig .mem-hrow{border:0; gap:16px; padding:0; font:16px/var(--nb-row) var(--nb-hand); color:var(--pencil)}
+body[data-sf-notebook="on"] .sf-orig .mem-hrow .hd{font:12px/var(--nb-row) var(--font-ui); color:var(--pencil); min-width:56px}
+body[data-sf-notebook="on"] .sf-orig .mem-hrow .ht{font:16px/var(--nb-row) var(--nb-hand); color:var(--pencil)}
+/* B: :root[data-hand="on"] .map-card{background:#fdf1b0;border-radius:1px;padding:20px 14px 12px;box-shadow:var(--shadow-slip);border:0} */
+body[data-sf-notebook="on"] .sf-orig .sf-roadmap-card{background:#fdf1b0; border-radius:1px; padding:20px 14px 12px; box-shadow:var(--shadow-slip); border:0}
+body[data-sf-notebook="on"] .sf-orig .sf-roadmap-card:nth-of-type(3n+2){background:#e6efdc}
+body[data-sf-notebook="on"] .sf-orig .sf-roadmap-card:nth-of-type(3n){background:#f7ded4}
+body[data-sf-notebook="on"] .sf-orig .sf-roadmap-card::before{content:""; position:absolute; top:-8px; left:80px; width:54px; height:17px; background:#e9ddb3aa; transform:rotate(-4deg); pointer-events:none}
+body[data-sf-notebook="on"] .sf-orig .sf-roadmap-card-placed{background:transparent; box-shadow:none; border:1.5px dashed var(--pencil)}
+/* A student-placed slip stays above the automatic layout, including after a
+   reload. Otherwise an automatic neighbour can cover its return-position action. */
+.sf-orig .sf-roadmap-card-placed{z-index:2}
+.sf-orig .sf-roadmap-card:focus-within{z-index:3}
+.sf-orig .sf-roadmap-card[data-held="true"]{z-index:4}
+body[data-sf-notebook="on"] .sf-orig .sf-roadmap-title{font:19px/1.45 var(--nb-hand)}
+body[data-sf-notebook="on"] .sf-orig .sf-roadmap-row{background:var(--slip); border:0; border-top:3px double var(--rule-hi); box-shadow:0 2px 5px #3c321a10}
+body[data-sf-notebook="on"] .sf-orig .sf-roadmap-row .sf-roadmap-title{font:19px/1.45 var(--nb-hand)}
+body[data-sf-notebook="on"] .sf-orig .sf-lessons button{font-family:var(--nb-hand); font-size:var(--nb-size)}
+
+/* B 的窄屏那一组：:root[data-hand="on"] … @media(max-width:760px) */
+@media(max-width:760px){
+  .sf-orig .cal-top .views{flex-basis:100%;margin-left:0;justify-content:flex-start}
+  .sf-orig .cal-top h2{flex:1;font-size:24px}
+  .sf-orig .cal-top .chip{padding:6px 10px;min-height:30px;font-size:12px}
+  body[data-sf-notebook="on"] .sf-orig :is(.home-wrap,.plain-wrap){max-width:1160px; padding:24px 16px}
+  body[data-sf-notebook="on"] .sf-orig.sf-memory-page .plain-wrap{margin:12px; width:calc(100% - 24px); padding:24px 20px}
+  body[data-sf-notebook="on"] .sf-orig :is(.home-actions,.home-box .home-actions){grid-template-columns:1fr}
+  body[data-sf-notebook="on"] .sf-orig .cal-c{min-height:88px; padding:6px 3px}
+  body[data-sf-notebook="on"] .sf-orig .cal-c .lb{font-size:12px}
+}

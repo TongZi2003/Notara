@@ -1,0 +1,86 @@
+[
+  {
+    "file": "screenshots/lesson-panel-rightbar.png",
+    "sha256": "b1e16782064b61495b4ce4337d8c417e414ebbe691db317b886c419cab9fd77f"
+  },
+  {
+    "file": "screenshots/narrow-390-lesson.png",
+    "sha256": "9508caf03be3d81f549b3ef0c7bd95052992687d8897bb92445139e22ccdafc6"
+  },
+  {
+    "file": "screenshots/notebook-390.png",
+    "sha256": "b9b4dcaee4c6f1b4b301d6df7954d4f555b4724f402f5bbb6c817f0b97dad4e1"
+  },
+  {
+    "file": "screenshots/notebook-calendar-1440.png",
+    "sha256": "7578b2bd6039891dcce8805271b1a1dc1c96dc127efd063319a572b889686328"
+  },
+  {
+    "file": "screenshots/notebook-calendar-390.png",
+    "sha256": "7d2c4b9678ffa65062c6ba7fd8be7953f762cbbbe4cd359a33bb416214c8769d"
+  },
+  {
+    "file": "screenshots/notebook-cards-1440.png",
+    "sha256": "5567ec0ed1bbcf7901a0c55139319cd79d049f571da544c230ab47b0367e890e"
+  },
+  {
+    "file": "screenshots/notebook-cards-390.png",
+    "sha256": "ce495103395e6ee5f129f42d8fab868fa06b739f79e29ed017198e12ba69494f"
+  },
+  {
+    "file": "screenshots/notebook-classroom.png",
+    "sha256": "da9e6e94451edeb1f02056ae102fa92813d3a800d16c85c57a6a2535e2673c6f"
+  },
+  {
+    "file": "screenshots/notebook-courses-1440.png",
+    "sha256": "28073c394896e9b9d332bc9167c62f5fc4cdd77e1411807a3b72c901c4ea6b27"
+  },
+  {
+    "file": "screenshots/notebook-courses-390.png",
+    "sha256": "4aa5ee90dd2381831bff1e7fb5b23fad033306b6acd787347c157a1d73c53314"
+  },
+  {
+    "file": "screenshots/notebook-dark.png",
+    "sha256": "d37dde66e37bdb676e54304051eb2a3d039e956d9a051a545aeae46eafb76f09"
+  },
+  {
+    "file": "screenshots/notebook-home-1440.png",
+    "sha256": "6475eb76723a0999b28904b7271a48a1e219a51d2cb554f60c3c6604054c4404"
+  },
+  {
+    "file": "screenshots/notebook-home-390.png",
+    "sha256": "ffdf10cb372da0117ca49cd64b3cfc7bfe67c17982325f994bc25699ae6b8dbc"
+  },
+  {
+    "file": "screenshots/notebook-materials-1440.png",
+    "sha256": "8dd70171ddb3afd13312ae299d009e2f2af8e9807a56964a1a9d3e441a3f6554"
+  },
+  {
+    "file": "screenshots/notebook-materials-390.png",
+    "sha256": "b5b860cd1166a9b080cb0ef41e48d96fdf76bf4d35119c59d5c5afe4a8af0f4b"
+  },
+  {
+    "file": "screenshots/notebook-memory-1440.png",
+    "sha256": "709aeb3b4d53740e664e2bac84613551303b0a8dba76d96f9d62f82483a89ec9"
+  },
+  {
+    "file": "screenshots/notebook-memory-390.png",
+    "sha256": "7513a2cbfb45af048b33433b6c6883659baa55767c47c4cabd42cd5eae7f748c"
+  },
+  {
+    "file": "screenshots/notebook-sets-1440.png",
+    "sha256": "c3bbae7abf4679e494a4d0d8f4c8d259cf251e20666e8e93240fc9b3dd41ee74"
+  },
+  {
+    "file": "screenshots/notebook-sets-390.png",
+    "sha256": "1e988da1ff65fe9fded7020ccca9214161f7bd4ac0760334151ff50d4dc9c6d0"
+  },
+  {
+    "file": "screenshots/notebook-settings.png",
+    "sha256": "90a86c8f58ba7f01b36fe29fc2e3f7459c9203959da4b92475329a09d519f087"
+  },
+  {
+    "file": "screenshots/teaching-settings.png",
+    "sha256": "815149a5854005a953c6fff2bc7cc46215eb16d2260d264708d07b9b049ae927"
+  }
+]

@@ -15,16 +15,20 @@ import type { SessionId } from '@studyforge/contracts';
 import { useCallback, useState } from 'react';
 import { CourseMap, NativeLessonList, type NativeLessonRow } from './CourseMap.tsx';
 import { PlanEditor } from '../planning/PlanEditor.tsx';
+// The ported page sheet; importing it here too keeps the course page styled in a
+// composition that registers this page without the organization page beside it.
+import '../planning/original-pages.css';
 
 /** This client's `main` key; it is the shell's courses row, not a new sidebar entry. */
 export const COURSES_PAGE_ID = 'studyforge.courses';
 
 const css = `
-.sf-courses-page{box-sizing:border-box;height:100%;min-height:0;overflow:auto;background:#fdfaf1;color:#26437c;font-family:"Songti SC","Noto Serif SC",serif;padding:24px clamp(20px,4vw,48px) 64px}
-.sf-courses-page-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;border-bottom:1px solid #d9d2bd;padding-bottom:14px;margin-bottom:16px;font-size:13px;letter-spacing:.08em}
-.sf-courses-tabs{display:flex;gap:8px;margin-bottom:18px}
-.sf-courses-block{display:flex;flex-direction:column;gap:12px;max-width:82ch;margin-bottom:32px}
-.sf-courses-block h2{font-size:18px;font-weight:500;margin:0;letter-spacing:.03em}
+.sf-courses-page{box-sizing:border-box;min-height:0;color:#26437c}
+.sf-courses-page .sec-head{margin-top:0}
+.sf-courses-page .plain-wrap{max-width:880px;padding-top:var(--s6)}
+.sf-courses-tabs{display:flex;gap:8px;margin:var(--s5) 0 18px}
+.sf-courses-block{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;margin-bottom:32px}
+.sf-courses-block h2{font-size:18px;font-weight:600;margin:0;letter-spacing:.03em;font-family:var(--font-song,"Songti SC",serif)}
 .sf-roadmap-filter{display:flex;flex-wrap:wrap;gap:12px;align-items:center;border:1px solid #e7e0cd;border-radius:4px;background:#fffdf6;padding:10px 12px}
 .sf-roadmap-filter label{display:flex;gap:6px;align-items:center;font-size:12px;color:#777d88}
 .sf-roadmap-filter input[type=date]{border:1px solid #d9d2bd;border-radius:3px;background:#fffdf6;color:#26437c;font:inherit;font-size:12px;padding:5px 7px}
@@ -72,7 +76,7 @@ const css = `
 .sf-plan-row{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;border-bottom:1px solid #eee7d6;padding:10px 2px}
 .sf-plan-open{border:0;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:14px;text-align:left;flex:1;min-width:160px;padding:0}
 .sf-plan-open:hover span{text-decoration:underline}
-@media(max-width:760px){.sf-courses-page{padding:18px 16px 48px}}
+@media(max-width:760px){.sf-courses-page .plain-wrap{padding:var(--s5) var(--s4) var(--s6)}}
 `;
 
 /**
@@ -100,19 +104,22 @@ export function registerCourses(ctx: Context): void {
       });
       const [tab, setTab] = useState<'roadmap' | 'plans'>('roadmap');
       const open = useCallback(onOpenLesson, []);
-      return <main className="sf-courses-page" data-testid={`studyforge-page-${COURSES_PAGE_ID}`}>
-        <header className="sf-courses-page-head"><span>课程</span><span>每节课都留着当时的样子</span></header>
-        <nav className="sf-courses-tabs" aria-label="课程页" data-testid="courses-tabs">
-          <button type="button" className={tab === 'roadmap' ? 'sf-chip sf-chip-on' : 'sf-chip'} data-testid="courses-tab-roadmap" onClick={() => { setTab('roadmap'); }}>课程与排课</button>
-          <button type="button" className={tab === 'plans' ? 'sf-chip sf-chip-on' : 'sf-chip'} data-testid="courses-tab-plans" onClick={() => { setTab('plans'); }}>计划</button>
-        </nav>
-        {tab === 'roadmap' ? <>
-          <section className="sf-courses-block" data-testid="course-lessons">
-            <h2>上过的课</h2>
-            <NativeLessonList lessons={lessons} loaded={list.phase === 'ready'} onOpenLesson={open} />
-          </section>
-          <CourseMap ctx={ctx} lessons={lessons} lessonsLoaded={list.phase === 'ready'} onOpenLesson={open} />
-        </> : <PlanEditor ctx={ctx} {...(list.current === undefined ? {} : { sessionId: list.current })} />}
+      return <main className="sf-orig sf-page-scroll sf-courses-page" data-testid={`studyforge-page-${COURSES_PAGE_ID}`}>
+        <div className="plain-wrap">
+          <div className="sec-head"><h2>课程</h2><span className="cnt">{tab === 'roadmap' ? `${String(lessons.length)} 节` : '排课'}</span><div className="line" /></div>
+          <p className="mini-note">上过的课留着当时的样子；排好的课在下面，点「开这节」才真开一节课。</p>
+          <nav className="sf-courses-tabs" aria-label="课程页" data-testid="courses-tabs">
+            <button type="button" className={tab === 'roadmap' ? 'chip on' : 'chip'} data-testid="courses-tab-roadmap" onClick={() => { setTab('roadmap'); }}>课程与排课</button>
+            <button type="button" className={tab === 'plans' ? 'chip on' : 'chip'} data-testid="courses-tab-plans" onClick={() => { setTab('plans'); }}>计划</button>
+          </nav>
+          {tab === 'roadmap' ? <>
+            <section className="sf-courses-block" data-testid="course-lessons">
+              <h2>上过的课</h2>
+              <NativeLessonList lessons={lessons} loaded={list.phase === 'ready'} onOpenLesson={open} />
+            </section>
+            <CourseMap ctx={ctx} lessons={lessons} lessonsLoaded={list.phase === 'ready'} onOpenLesson={open} />
+          </> : <PlanEditor ctx={ctx} {...(list.current === undefined ? {} : { sessionId: list.current })} />}
+        </div>
       </main>;
     },
   )), 'studyforge: course page');
