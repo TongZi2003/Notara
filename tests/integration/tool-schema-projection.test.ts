@@ -33,13 +33,14 @@ function value<T>(result: RemoteResult<T>): T { if (!result.ok) throw new Error(
 interface AssembleTool { name: string; description: string; parameters: Record<string, unknown>; }
 
 /** Tools this repository registers; the names fixed by the StudyForge host. */
-const studyforgeNames = ['list_materials', 'list_plans', 'list_sets', 'note_memory', 'note_method', 'preview_region',
+const studyforgeNames = ['delegate_assistant', 'delegate_peer', 'delegate_problem', 'delegate_search',
+  'list_cards', 'read_cards', 'list_materials', 'list_plans', 'list_sets', 'note_memory', 'note_method', 'preview_region',
   'propose_card', 'propose_handoff', 'propose_lesson_settings', 'propose_plan', 'propose_review', 'propose_route',
   'propose_set', 'propose_skeleton', 'query_evidence', 'read_card', 'read_handoff', 'read_lesson', 'read_material',
   'read_memory', 'read_method', 'read_plan', 'read_route', 'read_set', 'read_skeleton', 'record_review',
   'register_cards', 'revise_memory', 'revise_method', 'search_learning', 'search_memory', 'update_card'];
 /** Tools the released DSH runtime installs alongside them. */
-const builtinNames = ['delegate_assistant', 'delegate_peer', 'delegate_problem', 'delegate_search', 'edit', 'glob',
+const builtinNames = ['edit', 'glob',
   'grep', 'interrupt_agent', 'read', 'read_image', 'send_message', 'skill', 'subagent', 'web_fetch', 'web_search', 'write'];
 /** The subset a provider flatly refuses without an object root. */
 const requiredTools = ['propose_card', 'propose_handoff', 'propose_plan', 'propose_route', 'propose_set'];
@@ -92,7 +93,10 @@ test('every assembled tool the model received has an object root and a native-co
   const names = assembled!.map(tool => tool.name);
   expect(new Set(names).size, 'tool names must stay unique').toBe(names.length);
   expect([...names].sort()).toEqual([...studyforgeNames, ...builtinNames].sort());
-  expect(assembled!.length).toBe(48);
+  expect(assembled!.length).toBe(50);
+  const localSearch = assembled!.find(tool => tool.name === 'search_learning')!;
+  expect(localSearch.parameters).toMatchObject({ properties: { include: { items: { enum: ['material', 'card', 'knowledge'] } } } });
+  expect(assembled!.find(tool => tool.name === 'list_cards')?.parameters.required ?? []).toEqual([]);
   expect(names).toEqual(expect.arrayContaining(requiredTools));
 
   const unionRoots: string[] = [];

@@ -1,0 +1,28 @@
+
+> studyforge-dsh@0.0.0 typecheck
+> tsc --build
+
+
+> studyforge-dsh@0.0.0 typecheck:tests
+> tsc -p tsconfig.tests.json
+
+
+> studyforge-dsh@0.0.0 check:contracts
+> tsx scripts/check-contracts.ts
+
+PASS: 84 same-source JSON schemas; authority excluded; authored history headings preserved
+
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts tests/unit/card-discovery.test.ts tests/unit/plan-authoring-defaults.test.ts tests/unit/tool-schema.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |unit| tests/unit/plan-authoring-defaults.test.ts (5 tests) 160ms
+ ✓ |unit| tests/unit/card-discovery.test.ts (5 tests) 7ms
+ ✓ |unit| tests/unit/tool-schema.test.ts (5 tests) 204ms
+
+ Test Files  3 passed (3)
+      Tests  15 passed (15)
+   Start at  11:30:10
+   Duration  1.03s (transform 612ms, setup 0ms, import 1.59s, tests 371ms, environment 0ms)

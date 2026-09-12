@@ -36,6 +36,9 @@
  * all (an ordinary proposition card); neither is an error.
  */
 import { createHash } from 'node:crypto';
+import { CardListInputSchema, CardListResultSchema, type CardListInput, type CardListResult } from '@studyforge/contracts/cards';
+import type { SetView } from '@studyforge/contracts/sets';
+import { DaySchema } from '@studyforge/contracts/reviews';
 import { CardContentSchema, CardPatchSchema, MutationContextSchema } from '@studyforge/contracts';
 import type { CardContent, CardPatch, CardRecord, CardView, EntityRef, HostContext, MutationContext, ObjectChange, SourceAnchor, VersionToken } from '@studyforge/contracts';
 import { type MaterialResolver, resolveAnchor } from '../materials/read-material.ts';
@@ -83,6 +86,39 @@ export class CardError extends Error {
     this.problems = problems;
     this.name = 'CardError';
   }
+}
+
+/** Shared read-side selection: exact tags and chapter boundaries; no review writes. */
+export function selectCardRows(rows: readonly Saved<CardRecord>[], input: CardListInput, today: string, sets: readonly SetView[] = []): Saved<CardRecord>[] {
+  const query = CardListInputSchema.parse(input), date = DaySchema.parse(today);
+  const set = query.learningSetRef === undefined ? undefined : sets.find(set => set.ref === query.learningSetRef);
+  if (query.learningSetRef !== undefined && !set) throw new CardError('card_list_set_missing');
+  return rows.filter(row => {
+    const { content, review } = row.data;
+    if (query.state === 'due' && (!review || review.nextDue > date)) return false;
+    if (query.state === 'upcoming' && (!review || review.nextDue <= date)) return false;
+    if (query.state === 'unlearned' && review) return false;
+    if (!query.tags.every(tag => content.tags.includes(tag))) return false;
+    if (query.chapter && content.chapter !== query.chapter && !content.chapter?.startsWith(query.chapter + '/')) return false;
+    if (query.materialId && !content.sources.some(source => source.materialId === query.materialId)) return false;
+    if (set && !set.members.includes(row.ref) && !content.sources.some(source => set.materials.includes(source.materialId))) return false;
+    return true;
+  }).sort((a, b) => {
+    const left = a.data.review?.nextDue ?? '9999-99-99', right = b.data.review?.nextDue ?? '9999-99-99';
+    return left < right ? -1 : left > right ? 1 : a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0;
+  });
+}
+
+/** Candidate discovery does not present a full version and cannot authorize an edit. */
+export function listCardSummaries(rows: readonly Saved<CardRecord>[], input: CardListInput, today: string, sets: readonly SetView[] = []): CardListResult {
+  const query = CardListInputSchema.parse(input), selected = selectCardRows(rows, query, today, sets);
+  const end = query.offset + query.limit;
+  return CardListResultSchema.parse({ date: today,
+    cards: selected.slice(query.offset, end).map(({ ref, data }) => ({ ref, title: data.content.title,
+      tags: data.content.tags, chapter: data.content.chapter ?? null, nextDue: data.review?.nextDue ?? null,
+      state: !data.review ? 'unlearned' : data.review.nextDue <= today ? 'due' : 'upcoming' })),
+    nextOffset: end < selected.length ? end : null,
+  });
 }
 
 export class CardService {

@@ -1,0 +1,56 @@
+
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts tests/unit/card-discovery.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ❯ |unit| tests/unit/card-discovery.test.ts (4 tests | 3 failed) 3ms
+   × due lists actual learned cards, oldest first, without activating unseen cards or binding a version 1ms
+   × chapter boundaries, all selected tags and pagination preserve the query 0ms
+   × explicit set membership is a filter, an unknown set is an error rather than an empty answer 0ms
+   ✓ batch reads reject empty, repeated and oversized requests before reading 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |unit| tests/unit/card-discovery.test.ts > due lists actual learned cards, oldest first, without activating unseen cards or binding a version
+TypeError: (0 , __vite_ssr_import_2__.listCardSummaries) is not a function
+ ❯ tests/unit/card-discovery.test.ts:15:18
+     13| test('due lists actual learned cards, oldest first, without activating…
+     14|   const before = structuredClone(rows);
+     15|   const result = listCardSummaries(rows, { state: 'due' }, '2026-09-12…
+       |                  ^
+     16|   expect(result.cards.map(card => card.ref)).toEqual(['card:late', 'ca…
+     17|   expect(result.cards.every(card => card.state === 'due' && !('version…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |unit| tests/unit/card-discovery.test.ts > chapter boundaries, all selected tags and pagination preserve the query
+TypeError: (0 , __vite_ssr_import_2__.listCardSummaries) is not a function
+ ❯ tests/unit/card-discovery.test.ts:24:17
+     22| test('chapter boundaries, all selected tags and pagination preserve th…
+     23|   const query = { chapter: '数学/函数', tags: ['函数'], limit: 2 };
+     24|   const first = listCardSummaries(rows, query, '2026-09-12');
+       |                 ^
+     25|   expect(first.nextOffset).toBe(2);
+     26|   const second = listCardSummaries(rows, { ...query, offset: first.nex…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |unit| tests/unit/card-discovery.test.ts > explicit set membership is a filter, an unknown set is an error rather than an empty answer
+TypeError: (0 , __vite_ssr_import_2__.listCardSummaries) is not a function
+ ❯ tests/unit/card-discovery.test.ts:35:10
+     33|   const set: SetView = { ref: 'set:math', version: 1, name: '数学', subj…
+     34|     materials: [], members: ['card:today'], createdAt: '2026-09-01T00:…
+     35|   expect(listCardSummaries(rows, { learningSetRef: set.ref }, '2026-09…
+       |          ^
+     36|   expect(() => listCardSummaries(rows, { learningSetRef: 'set:absent' …
+     37| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 1 passed (4)
+   Start at  11:16:26
+   Duration  430ms (transform 100ms, setup 0ms, import 373ms, tests 3ms, environment 0ms)

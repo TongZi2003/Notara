@@ -25,6 +25,8 @@ import { TimestampSchema, type HostContext } from '@studyforge/contracts';
 import { DaySchema } from '@studyforge/contracts/reviews';
 import type { CardRecord } from '@studyforge/contracts/cards';
 import type { PlanView } from '@studyforge/contracts/plans';
+import type { SetView } from '@studyforge/contracts/sets';
+import { selectCardRows } from '../cards/card-service.ts';
 import type { RouteView } from '@studyforge/contracts/routes';
 import type { ActivityItem, CalendarDay, DateQuery, DaySave, RoadmapDateFilter, RoadmapFilterResult } from '@studyforge/contracts/calendar';
 import { isValidIanaTimeZone, type Clock } from '../clock.ts';
@@ -39,6 +41,7 @@ export interface DayInputs {
   readonly plans: readonly PlanView[];
   readonly route: RouteView;
   readonly saves: readonly DaySave[];
+  readonly sets?: readonly SetView[];
 }
 
 /** The four read sides; real `RecordStore`/`PlanService`/`RouteService` satisfy them. */
@@ -51,6 +54,7 @@ export interface DayReaders {
   readonly plans: DayPlanReader;
   readonly route: DayRouteReader;
   readonly saves: DaySaveReader;
+  readonly sets?: { list(ctx: HostContext): readonly SetView[] };
 }
 
 /** The route node's own target: the planned lesson, not the whole axis. */
@@ -101,10 +105,27 @@ export function readDay(query: DateQuery, asOf: string, inputs: DayInputs): Cale
 
   // Original arrangements: the plan line this day was scheduled for.
   for (const plan of [...inputs.plans].sort(byRef)) {
-    const onDay = plan.content.kind === 'book'
-      ? plan.content.entries.some(entry => entry.date === date)
-      : plan.content.schedule.some(day => day.date === date);
-    if (onDay) push({ kind: 'plan', title: plan.content.title, target: plan.ref, sourceRefs: [plan.ref] });
+    const content = plan.content;
+    if (content.kind === 'book') {
+      if (content.entries.some(entry => entry.date === date)) push({ kind: 'plan', title: content.title, target: plan.ref, sourceRefs: [plan.ref] });
+      continue;
+    }
+    if (date < content.start || date > content.end) continue;
+    if (content.schedule.length > 0) {
+      // An explicit schedule is the complete arrangement, even when a day is
+      // empty or exceeds the free-choice quota. Never auto-fill its gaps.
+      const scheduled = content.schedule.find(day => day.date === date);
+      if (scheduled) push({ kind: 'plan', title: content.title, target: plan.ref, sourceRefs: [plan.ref, ...scheduled.cards] });
+      continue;
+    }
+    // With no explicit schedule, select at most dailyCount learned due cards
+    // from the real pool. Past free-choice candidates cannot be reconstructed
+    // from today's schedule; keep the original arrangement without inventing them.
+    const candidates = relation === 'past' ? [] : selectCardRows(inputs.cards, {
+      state: 'due', tags: content.tags,
+      ...(content.learningSetRef ? { learningSetRef: content.learningSetRef } : {}),
+    }, date, inputs.sets).filter(card => content.cards.length === 0 || content.cards.includes(card.ref)).slice(0, content.dailyCount);
+    push({ kind: 'plan', title: content.title, target: plan.ref, sourceRefs: [plan.ref, ...candidates.map(card => card.ref)] });
   }
 
   // A lesson that really opened carries its native binding's own time.
@@ -173,6 +194,7 @@ export class CalendarProjection {
       plans: this.readers.plans.list(ctx),
       route: this.readers.route.read(ctx),
       saves: this.readers.saves.list(ctx),
+      ...(this.readers.sets ? { sets: this.readers.sets.list(ctx) } : {}),
     });
   }
 

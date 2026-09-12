@@ -1,0 +1,10 @@
+
+Running 3 tests using 1 worker
+
+(node:91255) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/coauthor-memory.spec.ts:74:1 › the student rewrites one judgement, keeps its evidence, and survives a conflict (19.4s)
+  ✓  2 tests/e2e/sets-calendar.spec.ts:9:1 › student set edits preserve their draft through a real concurrent update and persist at narrow width (10.1s)
+  ✓  3 tests/e2e/sets-calendar.spec.ts:34:1 › calendar opens the second actual planned lesson and daily settings survive a fresh page (16.0s)
+
+  3 passed (46.2s)

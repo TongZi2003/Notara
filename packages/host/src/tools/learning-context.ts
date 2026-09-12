@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { SessionId } from '@deepseek-ai/dsh-session';
-import { CardViewSchema } from '@studyforge/contracts/cards';
+import { CardViewSchema, CardBatchReadResultSchema } from '@studyforge/contracts/cards';
 import { KnowledgeViewSchema } from '@studyforge/contracts/knowledge';
 import type { MutationContext } from '@studyforge/contracts';
 import { z } from 'zod';
@@ -30,11 +30,17 @@ export async function observedVersion(host: Context, execution: ToolRunContext, 
       if (event.type !== 'tool/result') continue;
       const result = event.data.message.content[0];
       const name = calls.get(result.toolCallId);
-      if (result.isError || !name || !['read_card', 'update_card', 'read_method', 'note_method', 'revise_method', 'read_set', 'read_plan', 'read_route', 'read_skeleton', 'read_memory', 'note_memory', 'revise_memory', 'read_lesson'].includes(name)) continue;
+      if (result.isError || !name || !['read_card', 'read_cards', 'update_card', 'read_method', 'note_method', 'revise_method', 'read_set', 'read_plan', 'read_route', 'read_skeleton', 'read_memory', 'note_memory', 'revise_memory', 'read_lesson'].includes(name)) continue;
       for (const block of result.content) {
         if (block.type !== 'text') continue;
         try {
           const value: unknown = JSON.parse(block.text);
+          if (name === 'read_cards') {
+            const batch = CardBatchReadResultSchema.safeParse(value);
+            const card = batch.success ? batch.data.cards.find(card => card.ref === target) : undefined;
+            if (card) version = card.version;
+            continue;
+          }
           if (target.startsWith('memory:')) {
             const memory = MemoryViewSchema.safeParse(value);
             if (memory.success && memory.data.ref === target) version = memory.data.revision;

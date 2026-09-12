@@ -25,7 +25,8 @@ export * from './teaching.ts';
 export * from './handoffs.ts';
 
 import { z } from 'zod';
-import { CardContentSchema, CardPatchSchema, CardRecordSchema, CardViewSchema } from './cards.ts';
+import { CardContentSchema, CardPatchSchema, CardRecordSchema, CardViewSchema,
+  CardListInputSchema, CardListResultSchema, CardBatchReadInputSchema, CardBatchReadResultSchema } from './cards.ts';
 import { KnowledgeContentSchema, KnowledgeNoteSchema, KnowledgePatchSchema, KnowledgeRecordSchema, KnowledgeViewSchema, PublicTeachingRefSchema } from './knowledge.ts';
 import { MemoryContentSchema, MemoryDraftSchema, MemoryObservationSchema, MemoryRecordSchema, MemoryViewSchema, MemoryEditInputSchema, MemorySearchInputSchema, MemorySearchResultSchema, MemoryBasisViewSchema } from './memory.ts';
 import { HandoffRecordSchema, HandoffViewSchema, HandoffCloseInputSchema, HandoffCloseResultSchema } from './handoffs.ts';
@@ -62,6 +63,8 @@ export const CONTRACT_SCHEMAS = {
   'material-ref': MaterialRefSchema, 'material-read-input': ReadMaterialInputSchema, 'material-read': MaterialReadSchema,
   'skeleton-nodes': SkeletonNodesSchema, 'skeleton-record': SkeletonRecordSchema, 'skeleton-view': SkeletonViewSchema,
   'card-patch': CardPatchSchema, 'card-record': CardRecordSchema, 'card-view': CardViewSchema,
+  'card-list-input': CardListInputSchema, 'card-list-result': CardListResultSchema,
+  'card-batch-read-input': CardBatchReadInputSchema, 'card-batch-read-result': CardBatchReadResultSchema,
   'knowledge-note': KnowledgeNoteSchema, 'knowledge-patch': KnowledgePatchSchema, 'knowledge-record': KnowledgeRecordSchema,
   'knowledge-view': KnowledgeViewSchema, 'public-teaching-ref': PublicTeachingRefSchema,
   'review-occurrence': ReviewOccurrenceSchema, 'review-schedule': ReviewScheduleSchema, 'review-history': ReviewHistorySchema, 'ladder': LadderSchema,

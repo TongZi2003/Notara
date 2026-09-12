@@ -453,7 +453,7 @@ export function registerDelegationTools(host: Context, options: DelegationToolOp
     run: (args: z.output<I>, execution: ToolRunContext) => Promise<unknown>,
   ): void => {
     host.effect(() => host.tools.register({
-      name, description, parameters: toolSchema(input),
+      name, description: description + ' 专门的检索/命题/助教/同伴任务选对应delegate_*，它们也复用原生子会话；通用独立任务才用subagent。后台任务沿返回的真实childId用send_message/interrupt_agent管理，不重复另开。', parameters: toolSchema(input),
       output: { schema: toolSchema(output), render: (_args: unknown, value: unknown) => [{ type: 'text' as const, text: JSON.stringify(output.parse(value)) }] },
       async execute(args: unknown, execution: ToolRunContext) { return run(input.parse(args), execution); },
     }));

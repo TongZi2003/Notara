@@ -156,6 +156,12 @@ test('本人跨科读取完整，搜索按真实字段给位置', async () => {
   // An empty query lists what exists; a small limit reports truncation instead of hiding it.
   expect(fixture.service.search(READ, { query: '' }).hits).toHaveLength(2);
   expect(fixture.service.search(READ, { query: '', limit: 1 })).toMatchObject({ hasMore: true });
+  const firstPage = fixture.service.search(READ, { limit: 1 });
+  expect(firstPage.nextOffset).toBe(1);
+  const secondPage = fixture.service.search(READ, { limit: 1, offset: firstPage.nextOffset! });
+  expect(secondPage.hits).toHaveLength(1);
+  expect(secondPage.hits[0]!.ref).not.toBe(firstPage.hits[0]!.ref);
+  expect(secondPage.nextOffset).toBeNull();
   expect(fixture.service.search(READ, { query: '先猜', kinds: ['preference'] }).hits).toEqual([]);
   // Searching and reading never write.
   expect(fixture.records.list(READ)).toHaveLength(2);

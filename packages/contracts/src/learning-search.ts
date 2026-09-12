@@ -30,12 +30,18 @@ export type LearningSearchFocus = z.infer<typeof LearningSearchFocusSchema>;
 
 /** Query, limit and focus only rank and truncate; the reader's own scope is the workspace. */
 export const LearningSearchInputSchema = z.object({
-  query: z.string().default(''),
+  query: z.string().default('').describe('检索资料、卡片正文或知识；省略或空字符串列出现有条目，随后用对应read工具精读'),
   limit: z.number().int().positive().max(100).optional(),
   focus: LearningSearchFocusSchema.optional(),
   include: z.array(LearningSearchCorpusSchema).min(1).optional(),
 }).strict();
 export type LearningSearchInput = z.input<typeof LearningSearchInputSchema>;
+
+/** The model must never be offered the unavailable learner-memory corpus. */
+export const ModelLearningSearchInputSchema = LearningSearchInputSchema.extend({
+  include: z.array(LearningSearchCorpusSchema.exclude(['memory'])).min(1).optional()
+    .describe('material=资料原文，card=普通卡，knowledge=私人知识；学生学情必须用search_memory'),
+});
 
 /** Where a snippet really came from; offsets are UTF-16 inside `text`. */
 export const LearningSearchSnippetSchema = z.object({

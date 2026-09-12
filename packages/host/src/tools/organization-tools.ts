@@ -52,7 +52,7 @@ export function registerOrganizationTools(host: Context): void {
     z.object({ action: z.literal('create'), content: SetCreateSchema }).strict(),
     z.object({ action: z.literal('edit'), target: z.string().min(1), patch: SetPatchSchema }).strict(),
   ]);
-  proposal('propose_lesson_settings', '提议调整当前这节课的材料、学习集或教法，学生确认后修改同一节课。先用read_lesson查看当前内容。', CoursePatchSchema, async (args, execution) => {
+  proposal('propose_lesson_settings', '提议调整当前这节课的材料、学习集或教法，学生确认后修改同一节课。先用read_lesson查看当前内容。archived只表示把这节课归入归档，不是结束这节课；收课小结与结束状态要用propose_handoff。', CoursePatchSchema, async (args, execution) => {
     const context = await teacherContext(host, execution), target = courseRecordRef(context.sessionId!);
     return { title: '调整本课设置', items: [{ target, baseline: await observedVersion(host, execution, target), effect: { kind: 'lesson-edit', patch: CoursePatchSchema.parse(args) } }] };
   });
@@ -66,7 +66,7 @@ export function registerOrganizationTools(host: Context): void {
     z.object({ action: z.literal('create'), content: PlanContentSchema }).strict(),
     z.object({ action: z.literal('edit'), target: z.string().min(1), patch: PlanPatchSchema }).strict(),
   ]);
-  proposal('propose_plan', '提议新增计划或调整明确的已有计划。日期、日程保留学生的选择；确认后保存。', planInput, async (args, execution) => {
+  proposal('propose_plan', '提议新增计划或调整明确的已有计划。create的kind=book需要materialId与entries；kind=campaign只有title、dailyCount、start、end必填，learningSetRef/tags/cards/schedule都可省略，省略即按null与空数组保存，和学生确认后的形状一致。schedule非空表示学生明确的整份日程，此时dailyCount不再决定取卡；schedule省略或为空表示不排具体日子，按每天dailyCount张的额度选卡。edit用target加patch，先read_plan看清当前内容；日期与日程照学生实际选择，不自动顺延。', planInput, async (args, execution) => {
     const input = planInput.parse(args);
     if (input.action === 'create') return { title: input.content.title, items: [{ target: null, baseline: null, effect: { kind: 'plan-create', content: input.content } }] };
     return { title: '调整计划', items: [{ target: input.target, baseline: await observedVersion(host, execution, input.target), effect: { kind: 'plan-edit', patch: input.patch } }] };
@@ -77,7 +77,7 @@ export function registerOrganizationTools(host: Context): void {
     }).strict()).min(1) }).strict(),
     z.object({ action: z.literal('edit'), nodeId: z.string().min(1), patch: RouteNodePatchSchema }).strict(),
   ]);
-  proposal('propose_route', '提议计划课程：可以无材料或带混合材料。parent引用已有节点；同批树可用parentIndex引用前面的节点，从0开始。学生确认后仍未开课。', routeInput, async (args, execution) => {
+  proposal('propose_route', '提议计划课程：可以无材料或带混合材料，学生确认后仍未开课。先read_route看清现有节点与真实已开课绑定。action=add时每个节点的parent写read_route里已存在的节点标识，新起一支或没有可挂节点时写parent:null；要把本批前面刚加的新节点当父，就改用它在本次数组里的下标parentIndex（从0开始），此时parent必须为null。action=edit用节点标识nodeId加patch。', routeInput, async (args, execution) => {
     const input = routeInput.parse(args);
     if (input.action === 'add') return { title: '接下来的课程', items: input.nodes.map(({ parentIndex, ...content }, index) => {
       if (parentIndex !== undefined && (parentIndex >= index || content.parent !== null)) throw new Error('同批父节点必须在本节点前面，不能同时指定已有parent。');

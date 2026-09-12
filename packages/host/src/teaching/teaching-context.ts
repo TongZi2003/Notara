@@ -44,7 +44,7 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
   // Some native composition plugins register local tools after spawn's inherited
   // filter. These teacher-only capabilities must remain absent for every helper.
   const helperForbidden = new Set(['subagent', 'delegate_search', 'delegate_problem', 'delegate_assistant', 'delegate_peer',
-    'read_card', 'query_evidence', 'read_memory', 'search_memory', 'note_memory', 'revise_memory',
+    'read_card', 'read_cards', 'list_cards', 'query_evidence', 'read_memory', 'search_memory', 'note_memory', 'revise_memory',
     'register_cards', 'update_card', 'note_method', 'revise_method', 'record_review',
     'propose_card', 'propose_review', 'propose_set', 'propose_plan', 'propose_route', 'propose_skeleton', 'propose_handoff', 'read_lesson', 'propose_lesson_settings',
     'read', 'write', 'edit', 'glob', 'grep', 'read_image', 'run_code']);

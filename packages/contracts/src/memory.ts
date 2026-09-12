@@ -85,9 +85,10 @@ export type MemoryView = z.infer<typeof MemoryViewSchema>;
  * never ranks an inference: `kinds` only filters by the record's own category.
  */
 export const MemorySearchInputSchema = z.object({
-  query: z.string().default(''),
-  kinds: z.array(LearnerMemoryKindSchema).optional(),
+  query: z.string().default('').describe('省略或空字符串列出现有学情；非空检索学情正文和标题'),
+  kinds: z.array(LearnerMemoryKindSchema).optional().describe('按学情类别过滤，如ability/habit/preference；省略全部类别，空数组没有类别'),
   limit: z.number().int().positive().max(100).optional(),
+  offset: z.number().int().nonnegative().optional().describe('从0开始；后续页用返回的nextOffset，保持query和kinds不变'),
 }).strict();
 export type MemorySearchInput = z.input<typeof MemorySearchInputSchema>;
 
@@ -105,5 +106,6 @@ export const MemorySearchResultSchema = z.object({
   hits: z.array(MemorySearchHitSchema),
   /** True when the scan found more rows than `limit` returned. */
   hasMore: z.boolean(),
+  nextOffset: z.number().int().nonnegative().nullable(),
 }).strict();
 export type MemorySearchResult = z.infer<typeof MemorySearchResultSchema>;

@@ -24,7 +24,7 @@ import { MaterialContextSchema, type MaterialContext } from '@studyforge/contrac
 import { MaterialIdSchema } from '@studyforge/contracts/material-records';
 import { SetCreateSchema, SetPatchSchema, type SetCreateDraft, type SetPatchDraft, type SetView } from '@studyforge/contracts/sets';
 import { RouteNodeInputSchema, RouteNodePatchSchema, RoutePlacementSchema, type RouteNodeInputDraft, type RouteNodePatchDraft, type RouteOpenResult, type RoutePlacement, type RouteView } from '@studyforge/contracts/routes';
-import { PlanContentSchema, PlanPatchSchema, SkeletonChangeSchema, type PlanContent, type PlanPatch, type PlanView, type SkeletonChangeDraft, type SkeletonPreview } from '@studyforge/contracts/plans';
+import { PlanContentSchema, PlanPatchSchema, SkeletonChangeSchema, type PlanContent, type PlanContentDraft, type PlanPatch, type PlanView, type SkeletonChangeDraft, type SkeletonPreview } from '@studyforge/contracts/plans';
 import type { SkeletonView } from '@studyforge/contracts/skeleton';
 import { BookBreakdownIntentSchema, type BookBreakdownIntent, type BookStructure } from '@studyforge/contracts/book-exploration';
 import type { MaterialRefs, SetService } from '@studyforge/domain/sets';
@@ -217,13 +217,13 @@ export class StudyForgeOrganization extends TypertRemoteService {
 
   /** Preflight one whole plan draft against real books, chapters, cards and sets. */
   @Remote('checkPlan')
-  async checkPlan(input: { sessionId?: string; plan: PlanContent }): Promise<PlanContent> {
+  async checkPlan(input: { sessionId?: string; plan: PlanContentDraft }): Promise<PlanContent> {
     const parsed = BoundSchema.extend({ plan: PlanContentSchema }).strict().parse(input);
     return this.ctx.studyforgePlanService.check(await this.context(parsed.sessionId), parsed.plan);
   }
 
   @Remote('createPlan')
-  async createPlan(input: { operationId: string; sessionId?: string; plan: PlanContent }): Promise<PlanView> {
+  async createPlan(input: { operationId: string; sessionId?: string; plan: PlanContentDraft }): Promise<PlanView> {
     const parsed = WriteSchema.extend({ plan: PlanContentSchema }).strict().parse(input);
     return this.ctx.studyforgePlanService.create(await this.mutation(parsed.sessionId, parsed.operationId), parsed.plan);
   }

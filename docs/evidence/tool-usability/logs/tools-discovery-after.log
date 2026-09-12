@@ -1,0 +1,59 @@
+
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts tests/unit/card-discovery.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ❯ |unit| tests/unit/card-discovery.test.ts (4 tests | 3 failed) 2ms
+   × due lists actual learned cards, oldest first, without activating unseen cards or binding a version 1ms
+   × chapter boundaries, all selected tags and pagination preserve the query 0ms
+   × explicit set membership is a filter, an unknown set is an error rather than an empty answer 0ms
+   ✓ batch reads reject empty, repeated and oversized requests before reading 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |unit| tests/unit/card-discovery.test.ts > due lists actual learned cards, oldest first, without activating unseen cards or binding a version
+TypeError: Cannot read properties of undefined (reading 'parse')
+ ❯ listCardSummaries packages/domain/src/cards/card-service.ts:114:37
+    112| /** Candidate discovery does not present a full version and cannot aut…
+    113| export function listCardSummaries(rows: readonly Saved<CardRecord>[], …
+    114|   const query = CardListInputSchema.parse(input), selected = selectCar…
+       |                                     ^
+    115|   const end = query.offset + query.limit;
+    116|   return CardListResultSchema.parse({ date: today,
+ ❯ tests/unit/card-discovery.test.ts:15:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |unit| tests/unit/card-discovery.test.ts > chapter boundaries, all selected tags and pagination preserve the query
+TypeError: Cannot read properties of undefined (reading 'parse')
+ ❯ listCardSummaries packages/domain/src/cards/card-service.ts:114:37
+    112| /** Candidate discovery does not present a full version and cannot aut…
+    113| export function listCardSummaries(rows: readonly Saved<CardRecord>[], …
+    114|   const query = CardListInputSchema.parse(input), selected = selectCar…
+       |                                     ^
+    115|   const end = query.offset + query.limit;
+    116|   return CardListResultSchema.parse({ date: today,
+ ❯ tests/unit/card-discovery.test.ts:24:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |unit| tests/unit/card-discovery.test.ts > explicit set membership is a filter, an unknown set is an error rather than an empty answer
+TypeError: Cannot read properties of undefined (reading 'parse')
+ ❯ listCardSummaries packages/domain/src/cards/card-service.ts:114:37
+    112| /** Candidate discovery does not present a full version and cannot aut…
+    113| export function listCardSummaries(rows: readonly Saved<CardRecord>[], …
+    114|   const query = CardListInputSchema.parse(input), selected = selectCar…
+       |                                     ^
+    115|   const end = query.offset + query.limit;
+    116|   return CardListResultSchema.parse({ date: today,
+ ❯ tests/unit/card-discovery.test.ts:35:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 1 passed (4)
+   Start at  11:17:38
+   Duration  460ms (transform 109ms, setup 0ms, import 398ms, tests 2ms, environment 0ms)

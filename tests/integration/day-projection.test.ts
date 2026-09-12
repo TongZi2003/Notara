@@ -160,6 +160,33 @@ test('readDay 聚合真实活动与原安排，未学卡与知识不计 due，�
   expect(future.scheduledCourses).toEqual([]);
 });
 
+test('free campaigns select actual due cards within the daily quota without rewriting their learning history', async () => {
+  const fixture = await seed();
+  const plan = await fixture.planStore.create(write('free-campaign'), 'free-campaign', {
+    kind: 'campaign', title: '每日复习', learningSetRef: null, tags: [],
+    cards: ['card:card-a', 'card:card-b', 'card:card-over'], dailyCount: 1,
+    start: '2026-09-10', end: '2026-09-14', schedule: [],
+  });
+  const before = fixture.cardStore.list(READ);
+  const today = fixture.projection.readDay(READ, { date: '2026-09-12', timeZone: 'Asia/Shanghai' });
+  expect(today.activity.find(item => item.target === plan.ref)?.sourceRefs).toEqual([plan.ref, 'card:card-over']);
+  expect(fixture.projection.readDay(READ, { date: '2026-09-09', timeZone: 'Asia/Shanghai' }).activity.some(item => item.target === plan.ref)).toBe(false);
+  // Historical free-choice candidates were not stored; the projection must not invent them.
+  expect(fixture.projection.readDay(READ, { date: '2026-09-10', timeZone: 'Asia/Shanghai' }).activity.find(item => item.target === plan.ref)?.sourceRefs).toEqual([plan.ref]);
+  expect(fixture.cardStore.list(READ)).toEqual(before);
+});
+
+test('explicit campaign days override the quota and unscheduled days are not silently filled', async () => {
+  const fixture = await seed();
+  const plan = await fixture.planStore.create(write('explicit-campaign'), 'explicit-campaign', {
+    kind: 'campaign', title: '手排复习', learningSetRef: null, tags: [], cards: [], dailyCount: 1,
+    start: '2026-09-12', end: '2026-09-14', schedule: [{ date: '2026-09-12', cards: ['card:card-b', 'card:card-over'] }],
+  });
+  expect(fixture.projection.readDay(READ, { date: '2026-09-12', timeZone: 'Asia/Shanghai' }).activity.find(item => item.target === plan.ref)?.sourceRefs)
+    .toEqual([plan.ref, 'card:card-b', 'card:card-over']);
+  expect(fixture.projection.readDay(READ, { date: '2026-09-13', timeZone: 'Asia/Shanghai' }).activity.some(item => item.target === plan.ref)).toBe(false);
+});
+
 test('晚确认的复习按 occurredAt 落在旧日，不增加今天的复习数', async () => {
   const fixture = await seed();
   const yesterday = fixture.projection.readDay(READ, { date: '2026-09-11', timeZone: 'Asia/Shanghai' });

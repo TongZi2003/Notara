@@ -46,7 +46,7 @@ export class NativeCalendar {
     }
     return CalendarDaySchema.parse(readDay(input, host.studyforgeClock.now(), {
       cards: host.studyforgeCardRecords.list(context), plans: host.studyforgePlanService.list(context),
-      route: host.studyforgeRouteService.read(context), saves,
+      route: host.studyforgeRouteService.read(context), saves, sets: host.studyforgeSetService.list(context),
     }));
   }
 }

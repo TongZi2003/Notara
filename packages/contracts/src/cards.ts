@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { EntityRefSchema } from './core.ts';
 import { SourceAnchorSchema } from './materials.ts';
-import { ReviewHistorySchema, ReviewScheduleSchema } from './reviews.ts';
+import { DaySchema, ReviewHistorySchema, ReviewScheduleSchema } from './reviews.ts';
+import { MaterialIdSchema } from './material-records.ts';
 
 /** All headings belong to the author; system review/rewrite history lives outside content. */
 export const CardSectionSchema = z.object({ heading: z.string().min(1), body: z.string() }).strict();
@@ -74,3 +75,30 @@ export const CardViewSchema = z.object({
   review: ReviewScheduleSchema.optional(),
 }).strict();
 export type CardView = z.infer<typeof CardViewSchema>;
+
+/** Discovery summaries are not a content read or a learning observation. */
+export const CardListInputSchema = z.object({
+  state: z.enum(['all', 'due', 'upcoming', 'unlearned']).default('all').describe('due=今天到期或已逾期，upcoming=已学但尚未到期；今天由Host时区确定'),
+  tags: z.array(z.string().trim().min(1)).default([]).describe('必须同时包含这些已有标签；空数组不限制'),
+  chapter: z.string().trim().min(1).optional().describe('已有骨架路径，匹配本章及其下级，如数学/函数'),
+  materialId: MaterialIdSchema.optional().describe('只列来源包含这份原件的卡，引用来自list_materials'),
+  learningSetRef: EntityRefSchema.optional().describe('只列该集的显式成员及其资料派生的卡，引用来自list_sets；省略查整个学习空间'),
+  limit: z.number().int().positive().max(100).default(20),
+  offset: z.number().int().nonnegative().default(0).describe('下一页用上次返回的nextOffset；筛选条件保持不变，期间数据变化时从0重读'),
+}).strict();
+export type CardListInput = z.input<typeof CardListInputSchema>;
+export const CardListResultSchema = z.object({
+  date: DaySchema,
+  cards: z.array(z.object({
+    ref: EntityRefSchema, title: z.string(), tags: z.array(z.string()), chapter: z.string().nullable(),
+    state: z.enum(['due', 'upcoming', 'unlearned']), nextDue: DaySchema.nullable(),
+  }).strict()),
+  nextOffset: z.number().int().nonnegative().nullable(),
+}).strict();
+export type CardListResult = z.infer<typeof CardListResultSchema>;
+
+export const CardBatchReadInputSchema = z.object({
+  targets: z.array(EntityRefSchema).min(1).max(20).refine(values => new Set(values).size === values.length, 'targets不能重复')
+    .describe('list_cards或search_learning返回的实际card引用；1至20个且不重复'),
+}).strict();
+export const CardBatchReadResultSchema = z.object({ cards: z.array(CardViewSchema).min(1).max(20) }).strict();

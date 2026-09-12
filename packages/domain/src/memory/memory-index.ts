@@ -29,13 +29,15 @@ export class MemoryIndex {
     const query = (input.query ?? '').trim();
     const kinds = input.kinds === undefined ? undefined : new Set(input.kinds);
     const limit = Math.min(MAX_LIMIT, Math.max(1, Math.trunc(input.limit ?? DEFAULT_LIMIT)));
+    const offset = input.offset ?? 0;
     const hits: MemorySearchHit[] = [];
     for (const view of [...views].sort(byRef)) {
       if (kinds !== undefined && !kinds.has(view.content.kind)) continue;
       const hit = this.match(view, query);
       if (hit !== null) hits.push(hit);
     }
-    return { hits: hits.slice(0, limit), hasMore: hits.length > limit };
+    const end = offset + limit;
+    return { hits: hits.slice(offset, end), hasMore: hits.length > end, nextOffset: hits.length > end ? end : null };
   }
 
   private match(view: MemoryView, query: string): MemorySearchHit | null {
