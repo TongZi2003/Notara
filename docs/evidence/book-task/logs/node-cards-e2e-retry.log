@@ -1,0 +1,37 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/book-task-cards.spec.ts
+
+
+Running 1 test using 1 worker
+
+(node:19253) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart (38.4s)
+
+
+  1) tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByTestId('open-lesson')
+
+
+       95 |   await classroom.restart(); client = await connectRuntime(classroom);
+       96 |   await enterClassroom(page, classroom.authUrl);
+    >  97 |   await page.getByTestId('open-lesson').click();
+          |                                         ^
+       98 |   await expect(map.locator('[data-kind="book"]').first()).toBeVisible();
+       99 |   await map.locator('[data-kind="book"]').first().getByTestId('mindmap-expand').click();
+      100 |   await section.getByTestId('mindmap-expand').click();
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/book-task-cards.spec.ts:97:41
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:19259) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/book-task-cards-chapter-ta-3fc25-ng-confirmation-and-restart/error-context.md
+
+  1 failed
+    tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart

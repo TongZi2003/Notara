@@ -31,8 +31,17 @@ export function closeSheet(state: DeckState, id: string): DeckState {
 export interface RelationEdge { readonly from: string; readonly to: string; readonly label: string }
 /** Follow only recorded links and source anchors. Relations are edges, never invented parents. */
 export function lessonRelations(base: LessonMindProjection, cards: ReadonlyMap<string, CardView>, pinned: ReadonlyMap<string, CardView>, expanded: readonly string[], titleOf: (id: string) => string | undefined, hierarchy: readonly string[] = base.nodes.map(node => node.key)) {
-  const nodes = [...base.nodes], requests = new Map<string, LessonPaneRequest>(), views = new Map<string, CardView>();
   const visible = new Set(visibleMindNodes(base.nodes, hierarchy).map(node => node.key));
+  // Once a saved output is visible in its book, that is its node. Explicitly
+  // attached cards and fixed revisions remain separate reading references.
+  const inBook = new Map([...base.books].flatMap(([key, node]) => node.kind === 'card' && visible.has(key) ? [[node.target, key] as const] : []));
+  const aliases = new Map<string, string>();
+  for (const [key, row] of base.rows) {
+    const bookKey = row.target && inBook.get(row.target);
+    if (bookKey && row.kind === 'card' && row.cardVersion === undefined && row.origins.length > 0 && row.origins.every(origin => origin.from === 'output')) aliases.set(key, bookKey);
+  }
+  const nodes = base.nodes.filter(node => !aliases.has(node.key)), requests = new Map<string, LessonPaneRequest>(), views = new Map<string, CardView>();
+  const relationsOpen = new Set(expanded.map(key => aliases.get(key) ?? key));
   for (const node of nodes) {
     const row = base.rows.get(node.key), book = base.books.get(node.key);
     const target = row?.kind === 'card' ? row.target : book?.kind === 'card' ? book.target : undefined;
@@ -58,7 +67,7 @@ export function lessonRelations(base: LessonMindProjection, cards: ReadonlyMap<s
   // The loop can discover another explicitly expanded card; keys deduplicate cycles.
   for (let index = 0; index < nodes.length; index++) {
     const node = nodes[index]!, view = views.get(node.key);
-    if (!view || !expanded.includes(node.key) || (!visible.has(node.key) && !requests.has(node.key))) continue;
+    if (!view || !relationsOpen.has(node.key) || (!visible.has(node.key) && !requests.has(node.key))) continue;
     for (const ref of view.content.links) { const other = cards.get(ref); if (other) edge(node.key, addCard(other), '关联'); }
     for (const other of cards.values()) if (other.content.links.includes(view.ref)) edge(addCard(other), node.key, '关联');
     for (const anchor of view.content.sources) {

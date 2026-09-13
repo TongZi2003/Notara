@@ -22,17 +22,24 @@ export function bookMindNodes(structure: BookStructure): MindNode[] {
     key: node.key,
     title: node.title,
     kind: node.kind,
-    hint: bookHint(node),
+    hint: bookHint(node, structure.nodes),
     parent: node.parentKey,
     children: node.children,
   }));
 }
 
 /** What one book node says under its title, in the student's own words. */
-export function bookHint(node: BookNode): string {
+export function bookHint(node: BookNode, all?: readonly BookNode[]): string {
+  const byKey = new Map(all?.map(item => [item.key, item]));
+  const count = all?.filter(item => {
+    if (item.kind !== 'card') return false;
+    const parent = item.parentKey ? byKey.get(item.parentKey) : undefined;
+    return node.kind === 'book' || item.parentKey === node.key || node.kind === 'section' && parent?.kind === 'section' && parent.path.startsWith(node.path + '/');
+  }).length;
+  const suffix = count === undefined ? '' : count ? ` · ${String(count)} 张题卡` : ' · 尚无题卡';
   switch (node.kind) {
-    case 'book': return '书';
-    case 'section': return node.sources.length > 0 ? '原文' : '章节';
+    case 'book': return '书' + suffix;
+    case 'section': return (node.sources.length > 0 ? '原文' : '章节') + suffix;
     case 'card': return '卡片';
     case 'knowledge': return '知识';
   }
@@ -83,8 +90,9 @@ export function lessonMindProjection(input: LessonMindInput): LessonMindProjecti
     const structure = row.source === null ? undefined : input.structures.get(versionKeyOf(row.source.materialId, row.source.versionId));
     const book = row.source !== null && (mediaType === undefined || isBookFormat(mediaType));
     const children = structure === undefined ? [] : openBook(nodes, books, structure, key, `${key}/`);
+    const root = book ? structure?.nodes.find(node => node.kind === 'book') : undefined;
     nodes.push({
-      key, title: row.title ?? libraryTitle(row, input) ?? kindLabel(row.kind), kind: rowKind(row, book), hint: rowHint(row),
+      key, title: row.title ?? libraryTitle(row, input) ?? kindLabel(row.kind), kind: rowKind(row, book), hint: [rowHint(row), root && bookHint(root, structure!.nodes)].filter(Boolean).join(' · '),
       parent: undefined, children: [...children], ...(book && structure === undefined ? { expandable: true } : {}),
     });
   }
@@ -116,7 +124,7 @@ function openBook(nodes: MindNode[], books: Map<string, BookNode>, structure: Bo
     const key = prefix + node.key;
     books.set(key, node);
     const children = node.children.filter(child => byKey.has(child));
-    nodes.push({ key, title: node.title, kind: node.kind, hint: bookHint(node), parent: above, children: children.map(child => prefix + child) });
+    nodes.push({ key, title: node.title, kind: node.kind, hint: bookHint(node, structure.nodes), parent: above, children: children.map(child => prefix + child) });
     for (const child of children) { const found = byKey.get(child); if (found !== undefined) build(found, key); }
   };
   const children = root.children.filter(child => byKey.has(child));

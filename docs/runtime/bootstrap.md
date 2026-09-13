@@ -81,3 +81,9 @@ P0.2/P0.3 的 fixture 必须：
 ## 7. P0.2/P0.3 实施入口（2026-09-11 更新）
 
 以上保留P0.1建立时的CLI基线。当前已实现 `npm run build`、`npm run dev:isolated` 与 `npm run test:e2e`；启动器会装配本工程插件的临时构建副本，浏览器测试直接使用内存认证URL。真实Remote、页面/预览与生命周期证据见 `remote-contract.md`、`client-slots.md` 和 `../evidence/P0/review.md`。没有真实模型或学生课堂验收。
+
+## 8. 原生待插话显示接缝（2026-09-13）
+
+`postinstall` 的 `scripts/patch-sdk.ts` 同时运行 `patch-steering-display.ts`。rc.2 的待插话气泡绕过已入对话的消息节点插槽，新增 `conversation.chat.pending` 显示入口，将原生气泡作为默认回落及可复用渲染器；StudyForge 只清理显示文字中的固定来源片段。消息、队列、插话调度、图片、复制和事实写入不变，插件卸载时使用原生回落。不能通过重新声明整个 chat 视图的 children 来包装它，Slot 注册表会拒绝重复声明并导致插件装配中断。
+
+补丁只接受 `@deepseek-ai/dsh-client-ui-chat/lib/client.js` 原始 SHA256 `6527556d25c7b2a27f2e3bfb96cc2ae3d9244f1213147e245b17684ad8d9e396`，修改后为 `c67934947097b8e366541e217b99e625e335f57dddc1ebc3633ff5a5c0b1c8b5`；重复运行反向核验原始摘要。升级上游时必须重新审查此接缝。原生排队到插话、固定来源、图片及确认卡回归见 `../evidence/book-task/README.md`。

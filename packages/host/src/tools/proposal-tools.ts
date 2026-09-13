@@ -6,6 +6,7 @@ import { CardContentSchema } from '@studyforge/contracts/cards';
 import { ProposalViewSchema, type ProposalInput, type ProposalView } from '@studyforge/contracts/proposals';
 import { toolSchema } from './tool-schema.ts';
 import { observedVersion, teacherContext } from './learning-context.ts';
+import { bindTaskCard } from '../teaching/book-task.ts';
 
 /** Native call identity is the proposal owner, so tool replay never recreates a
  * draft from changed targets, time, policy or the student's later edits. */
@@ -32,7 +33,8 @@ export function registerProposalTools(host: Context): void {
       if (prior) return prior;
       if (input.kind === 'card') {
         const { kind: _kind, ...content } = input;
-        return proposeFromTool(host, execution, { title: content.title, items: [{ target: null, baseline: null, effect: { kind: 'card-create', content } }] });
+        const bound = await bindTaskCard(host, execution, await teacherContext(host, execution), content);
+        return proposeFromTool(host, execution, { title: bound.title, items: [{ target: null, baseline: null, effect: { kind: 'card-create', content: bound } }] });
       }
       const ctx = await teacherContext(host, execution), baseline = await observedVersion(host, execution, input.target);
       const method = host.studyforgeKnowledgeService.read(ctx, input.target, baseline);

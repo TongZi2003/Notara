@@ -1,0 +1,76 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/book-task-cards.spec.ts tests/e2e/source-roundtrip.spec.ts tests/e2e/inline-proposals.spec.ts --grep chapter task|pointer-selected image|proposals stay
+
+
+Running 3 tests using 1 worker
+
+(node:26839) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart (25.8s)
+(node:27058) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/e2e/inline-proposals.spec.ts:9:1 › proposals stay with their own reply, scroll with chat, and never cover the trajectory tab (18.2s)
+  ✘  3 tests/e2e/source-roundtrip.spec.ts:261:1 › pointer-selected image is attached before native sending and native queued steering preserves its frozen reference (25.1s)
+
+
+  1) tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart
+
+    Error: expect(locator).not.toContainText(expected) failed
+
+    Locator: locator('[data-queue-dock]')
+    Expected substring: not "studyforge-source"
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "not toContainText" locator('[data-queue-dock]') with timeout 15000ms
+      - waiting for locator('[data-queue-dock]')
+        28 × locator resolved to <div data-queue-dock="" class="_7yHdaG_dock">…</div>
+           - unexpected value "请把《算术练习》中的“算术”拆成题卡，先核对已有卡片，保留原题的条件与设问，交给我确认。 ```studyforge-source {"version":1,"context":{"selection":{"text":"","sources":[{"materialId":"mat_8b5241b839d11c51d16c0402","versionId":"ver_247933d1a8afea…"
+
+
+      63 |   const queue = page.locator('[data-queue-dock]');
+      64 |   await expect(queue).toContainText('拆成题卡');
+    > 65 |   await expect(queue).not.toContainText('studyforge-source');
+         |                           ^
+      66 |   await expect(queue).not.toContainText('materialId');
+      67 |   expect(value(await client.rpc<ProposalView[]>('studyforgeProposals/list', { input: { sessionId } }))).toHaveLength(0);
+      68 |   await queue.getByRole('button', { name: 'Steer queued message', exact: true }).click();
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/book-task-cards.spec.ts:65:27
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:26856) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/book-task-cards-chapter-ta-3fc25-ng-confirmation-and-restart/error-context.md
+
+  2) tests/e2e/source-roundtrip.spec.ts:261:1 › pointer-selected image is attached before native sending and native queued steering preserves its frozen reference
+
+    TimeoutError: locator.setInputFiles: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByTestId('material-file-input')
+
+
+      266 |   await writeFile(file, readerImage());
+      267 |   await page.getByRole('button', { name: '资料', exact: true }).first().click();
+    > 268 |   await page.getByTestId('material-file-input').setInputFiles(file);
+          |   ^
+      269 |   await page.getByTestId('material-row').first().getByRole('button').first().click();
+      270 |   await expect(page.getByTestId('material-image')).toBeVisible();
+      271 |   await page.getByTestId('material-open-classroom').click();
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/source-roundtrip.spec.ts:268:3
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:27242) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/source-roundtrip-pointer-s-bb34b-serves-its-frozen-reference/error-context.md
+
+  2 failed
+    tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart
+    tests/e2e/source-roundtrip.spec.ts:261:1 › pointer-selected image is attached before native sending and native queued steering preserves its frozen reference
+  1 passed (1.2m)

@@ -1,0 +1,40 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/book-task-cards.spec.ts
+
+
+Running 1 test using 1 worker
+
+(node:20299) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart (24.3s)
+
+
+  1) tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart
+
+    Error: locator.click: Error: strict mode violation: getByTestId('lesson-materials-map').locator('[data-kind="card"]').filter({ hasText: '加法原题' }).getByTestId('lesson-resource-open') resolved to 2 elements:
+        1) <button title="加法原题" type="button" aria-pressed="false" class="sf-mind-label" data-testid="lesson-resource-open">…</button> aka getByRole('button', { name: '加法原题 卡片' })
+        2) <button title="加法原题" type="button" aria-pressed="false" class="sf-mind-label" data-testid="lesson-resource-open">…</button> aka getByRole('button', { name: '加法原题 课上产出 · 卡片' })
+
+    Call log:
+      - waiting for getByTestId('lesson-materials-map').locator('[data-kind="card"]').filter({ hasText: '加法原题' }).getByTestId('lesson-resource-open')
+
+
+      106 |   await map.locator('[data-kind="book"]').first().getByTestId('mindmap-expand').click();
+      107 |   await section.getByTestId('mindmap-expand').click();
+    > 108 |   await map.locator('[data-kind="card"]').filter({ hasText: '加法原题' }).getByTestId('lesson-resource-open').click();
+          |                                                                                                           ^
+      109 |   await expect(page.getByTestId('card-detail-title')).toHaveText('加法原题');
+      110 |   await page.locator('[data-pane="card"]').getByRole('button', { name: '定位原文', exact: true }).click();
+      111 |   await expect(page.getByTestId('source-highlight').first()).toBeVisible();
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/book-task-cards.spec.ts:108:107
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:20305) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/book-task-cards-chapter-ta-3fc25-ng-confirmation-and-restart/error-context.md
+
+  1 failed
+    tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart

@@ -25,6 +25,7 @@ import { KnowledgeEditor } from '../cards/KnowledgeEditor.tsx';
 import { Mindmap, type MindNode } from './mindmap.tsx';
 import { kindLabel, lessonMindProjection, positionLabel, rowKey, versionKeyOf } from './lesson-materials-mindmap.ts';
 import { closeSheet, emptyDeck, lessonDecks, lessonRelations, openSheet, parentTrail, type DeckContent } from './lesson-deck.ts';
+import { bookNodeIntent, breakdownLabel, type BreakdownAction } from './book-breakdown.ts';
 import { SourcePane, type SourcePaneFace } from './SourcePane.tsx';
 import { heldSourceReferences } from './source-references-holder.ts';
 import { subscribeLessonPane } from './lesson-pane-request.ts';
@@ -94,6 +95,8 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
   const [pinnedCards, setPinnedCards] = useState<ReadonlyMap<string, CardView>>(() => new Map());
   const [busy, setBusy] = useState(false);
   const [focus, setFocus] = useState(0);
+  const [sending, setSending] = useState(false);
+  const attempt = useRef<{ key: string; id: string }>();
   const loaded = useRef<string | undefined>(undefined);
   /** The lesson on stage right now; an async tree read compares against it. */
   const staged = useRef(sessionId);
@@ -107,7 +110,8 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
   useEffect(() => {
     const update = (): void => { setFocus(n => n + 1); };
     window.addEventListener('focus', update);
-    return () => { window.removeEventListener('focus', update); };
+    window.addEventListener('studyforge:learning-changed', update);
+    return () => { window.removeEventListener('focus', update); window.removeEventListener('studyforge:learning-changed', update); };
   }, []);
   // The classroom's own clicks — a message's source, a saved object's original —
   // land in this same pane instead of opening a second rail beside the map.
@@ -237,6 +241,7 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
     const row = projection.rows.get(node.key);
     if (row !== undefined) {
       if (row.source !== null) {
+        if (node.kind === 'book' && !structures.has(versionKeyOf(row.source.materialId, row.source.versionId))) readBook(row.source);
         setOpen({ kind: 'source', title: node.title, anchors: [anchorOf(row.source)] }, node.key);
         return;
       }
@@ -262,6 +267,34 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
   function relate(node: MindNode, toggle = true): void {
     setDeck(old => ({ ...old, active: undefined, selected: node.key, related: old.related.includes(node.key) ? (toggle ? old.related.filter(key => key !== node.key) : old.related) : [...old.related, node.key] }));
   }
+  function breakdownTarget(node: MindNode): { tree: BookStructure; node: BookStructure['nodes'][number] } | undefined {
+    if (node.kind !== 'book' && node.kind !== 'section') return undefined;
+    const row = projection.rows.get(node.key);
+    if (row?.source) {
+      const tree = structures.get(versionKeyOf(row.source.materialId, row.source.versionId));
+      const root = tree?.nodes.find(item => item.kind === 'book');
+      return tree && root ? { tree, node: root } : undefined;
+    }
+    const target = projection.books.get(node.key);
+    const tree = target && [...structures.values()].find(value => value.nodes.includes(target));
+    return tree && target ? { tree, node: target } : undefined;
+  }
+  async function breakdown(node: MindNode, action: BreakdownAction): Promise<void> {
+    const target = breakdownTarget(node);
+    if (!target || sending) return;
+    const intent = bookNodeIntent(target.tree, target.node, action), key = JSON.stringify({ sessionId, intent });
+    if (attempt.current?.key !== key) attempt.current = { key, id: crypto.randomUUID() };
+    setSending(true); setNotice(undefined);
+    try {
+      const result = await ctx.remote.studyforgeOrganization.breakdown({ sessionId, operationId: attempt.current.id, intent });
+      if (staged.current !== sessionId) return;
+      if (!result.ok) { setNotice('这次没能开始整理。请刷新节点后重试，已有内容仍保留。'); return; }
+      attempt.current = undefined;
+      setDeck(old => ({ ...old, active: undefined, selected: node.key, expanded: [...new Set([...old.expanded, ...parentTrail(graph.nodes, node.key).map(parent => parent.key), node.key])] }));
+      setNotice(`已把“${node.title}”交给老师${action === 'cards' ? '拆成题卡' : '细分目录'}，结果会出现在本课对话里。`);
+    } catch { if (staged.current === sessionId) setNotice('暂时没有收到结果，再试会核对同一次整理。'); }
+    finally { setSending(false); }
+  }
   return <div className="sf-lesson-materials" data-testid="lesson-materials" data-view={deck.sheets.length ? 'deck' : 'map'}>
     <nav className="sf-deck-index" aria-label="工作台中打开的内容">
       <button type="button" className="sf-quiet" aria-pressed={deck.active === undefined} onClick={() => { setDeck(old => ({ ...old, active: undefined })); }}>关系图</button>
@@ -273,8 +306,9 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
     <p className="sf-deck-help">点便签读详情，展开看下一级 · 虚线是关联</p>
     {state.status !== 'ready' ? <p className="sf-note" role="status">{state.status === 'loading' ? '正在看这节课用到什么…' : '这节课用到的资料暂时取不到，稍后再看一次。'}</p> :
     <Mindmap testId="lesson-materials-map" label="这节课用到的资料" nodes={graph.nodes} mode="map" relations={graph.edges}
-      expanded={expanded} selected={selected} onPick={pick} onExpand={expand} busy={busy}
+      expanded={expanded} selected={selected} onPick={pick} onExpand={expand} busy={busy || sending}
       action={{ label: node => deck.related.includes(node.key) ? '收起关联' : '展开关联', when: node => graph.canRelate(node.key), run: relate }}
+      actions={(['directory', 'cards'] as const).map(action => ({ label: breakdownLabel(action), when: node => node.key === selected && breakdownTarget(node) !== undefined, run: node => { void breakdown(node, action); } }))}
       nodeTestId="lesson-resource-row" labelTestId="lesson-resource-open"
       empty="这节课还没有用到资料。" />}
     </section>
@@ -290,6 +324,8 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
         <nav className="sf-deck-trail" aria-label="父级与关系">
           {trail.map(parent => <button type="button" className="sf-quiet" data-testid="deck-parent" key={parent.key} onClick={() => { pick(parent); }}>↑ {parent.title}</button>)}
           {node && graph.canRelate(node.key) && <button type="button" className="sf-quiet" onClick={() => { relate(node, false); }}>查看关联</button>}
+          {node && breakdownTarget(node) && (['directory', 'cards'] as const).map(action => <button type="button" className="sf-quiet" key={action} disabled={sending}
+            onClick={() => { void breakdown(node, action); }}>{breakdownLabel(action)}</button>)}
         </nav>
         {open.kind === 'source'
           ? <SourcePane face={host} sessionId={sessionId} anchors={open.anchors} browseId={activeBrowseId} />

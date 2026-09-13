@@ -10,6 +10,7 @@ import { TeachingManifestSchema, type TeachingChoice } from '@studyforge/contrac
 import type { Agent } from '@deepseek-ai/dsh-agent';
 import { continuationBrief } from './lesson-brief.ts';
 import { providerToolSchemas } from '../tools/model-tool-schemas.ts';
+import { bookTaskInstructions, currentBookTask } from './book-task.ts';
 
 export class TeachingCatalog {
   readonly defaultId: string;
@@ -59,7 +60,14 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
     text: ({ agent }) => {
       if (!owns(agent)) return '';
       const course = host.studyforgeCourseMetadata.read({ workspaceId: host.studyforgeAccess.workspaceId, sessionId: agent.session.id, actor: 'teacher', purpose: 'learning' }).data;
-      return [catalog.base, catalog.body(course.teachingRef ?? catalog.defaultId),
+      const task = currentBookTask(agent.session.snapshotEvents());
+      const existing = task ? host.studyforgeCardRecords.list({ workspaceId: host.studyforgeAccess.workspaceId, sessionId: agent.session.id, actor: 'teacher', purpose: 'learning' })
+        .filter(row => row.data.content.sources.some(source => source.materialId === task.material.materialId)
+          && (!task.nodePath || row.data.content.chapter === task.nodePath || row.data.content.chapter?.startsWith(task.nodePath + '/')))
+        .map(row => ({ ref: row.ref, title: row.data.content.title, chapter: row.data.content.chapter ?? null })) : [];
+      return [catalog.base, catalog.body(task ? 'organize' : course.teachingRef ?? catalog.defaultId),
+        task ? bookTaskInstructions(task) : '',
+        task ? `目标范围现有 ${String(existing.length)} 张卡（这里只是清单，需修改时先read_card）：` + JSON.stringify(existing.slice(0, 20)) + (existing.length > 20 ? '\n其余用list_cards分页读取。' : '') : '',
         course.stance ? '本课重点：' + course.stance : '',
         course.temporaryInstructions ? '学生给本课的临时要求：\n' + course.temporaryInstructions : '',
         course.closure ? '这节课已经确认结束；可以继续讨论和更正，状态仍然结束。' : '',

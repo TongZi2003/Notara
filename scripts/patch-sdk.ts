@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import './patch-layout.ts';
 import './patch-sidebar.ts';
+import './patch-steering-display.ts';
 
 const project = join(dirname(fileURLToPath(import.meta.url)), '..');
 const file = join(project, 'node_modules/@deepseek-ai/dsh-typert-generator/lib/index.js');

@@ -8,6 +8,19 @@ const base = (view: CardView, pinned?: number): LessonMindProjection => ({
   books: new Map(), rows: new Map([['card', { kind: 'card', target: view.ref, title: view.ref, tabKey: 'card', source: null, quote: null, origins: [], ...(pinned === undefined ? {} : { cardVersion: pinned }) }]]),
 });
 describe('lesson deck navigation', () => {
+  it('saved outputs use the visible chapter node, while collapsed books and explicit fixed cards retain their entries', () => {
+    const a = card('card:a'), original = base(a);
+    const row = original.rows.get('card')!;
+    const projection: LessonMindProjection = { nodes: [...original.nodes, { key: 'output', kind: 'card', title: 'A', hint: '', children: [] }],
+      books: new Map([['card', { key: a.ref, kind: 'card', target: a.ref, title: 'A', children: [], sources: [] }]]),
+      rows: new Map([['output', { ...row, origins: [{ from: 'output', operationId: 'o1', revision: 1 }] }]]),
+    };
+    const graph = (hierarchy: string[]) => lessonRelations(projection, new Map([[a.ref, a]]), new Map(), [], () => undefined, hierarchy);
+    expect(graph([]).nodes.map(n => n.key)).toContain('output');
+    expect(graph(['root']).nodes.map(n => n.key)).not.toContain('output');
+    const fixed = { ...projection, rows: new Map([['output', { ...row, cardVersion: 1, origins: [{ from: 'course' as const }] }]]) };
+    expect(lessonRelations(fixed, new Map([[a.ref, a]]), new Map(), [], () => undefined).nodes.map(n => n.key)).toContain('output');
+  });
   it('keeps concurrent pages, deduplicates exact addresses, and closes only the chosen page', () => {
     const a = { kind: 'card' as const, target: 'card:a', title: 'A', version: 1 };
     const b = { ...a, target: 'card:b', title: 'B' };

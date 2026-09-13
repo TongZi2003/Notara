@@ -1,0 +1,44 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/book-task-cards.spec.ts tests/e2e/lesson-materials-mindmap.spec.ts tests/e2e/book-workspace.spec.ts tests/e2e/card-fixed-version.spec.ts tests/e2e/inline-proposals.spec.ts
+
+
+Running 5 tests using 1 worker
+
+(node:22116) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart (39.8s)
+(node:22439) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/e2e/book-workspace.spec.ts:23:1 › book expands along its real tree, opens a card and its original in place, and returns without writing (11.5s)
+  ✓  3 tests/e2e/card-fixed-version.spec.ts:22:1 › a frozen version shows its own text and offers no edit or newer redline (16.6s)
+  ✓  4 tests/e2e/inline-proposals.spec.ts:9:1 › proposals stay with their own reply, scroll with chat, and never cover the trajectory tab (17.9s)
+  ✓  5 tests/e2e/lesson-materials-mindmap.spec.ts:22:1 › the lesson right column is one material map that opens originals and cards in place (12.0s)
+
+
+  1) tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for locator('[data-pane="card"]').getByRole('button', { name: '定位原文', exact: true })
+
+
+      108 |   await map.locator('[data-kind="card"]').filter({ hasText: '加法原题' }).getByTestId('lesson-resource-open').click();
+      109 |   await expect(page.getByTestId('card-detail-title')).toHaveText('加法原题');
+    > 110 |   await page.locator('[data-pane="card"]').getByRole('button', { name: '定位原文', exact: true }).click();
+          |                                                                                               ^
+      111 |   await expect(page.getByTestId('source-highlight').first()).toBeVisible();
+      112 |   const tree = value(await client.rpc<BookStructure>('studyforgeOrganization/book', { input: { sessionId, material } }));
+      113 |   for (const card of saved) expect(tree.nodes.find(n => n.key === card.ref)?.parentKey).toBe('section:算术');
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/book-task-cards.spec.ts:110:95
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:22124) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/book-task-cards-chapter-ta-3fc25-ng-confirmation-and-restart/error-context.md
+
+  1 failed
+    tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart
+  4 passed (1.6m)

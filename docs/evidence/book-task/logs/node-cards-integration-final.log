@@ -1,0 +1,16 @@
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/book-exploration.test.ts tests/integration/teaching-current.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/book-exploration.test.ts (6 tests) 427ms
+ ✓ |integration| tests/integration/teaching-current.test.ts (3 tests) 27182ms
+   ✓ teacher lesson settings are a proposal over the exact observed current lesson, then the student confirms  7572ms
+   ✓ five configured teaching choices change the actual next native request and survive restart  12507ms
+   ✓ a saved-result followup retains teacher tools and can read back without a new student turn  7101ms
+
+ Test Files  2 passed (2)
+      Tests  9 passed (9)
+   Start at  09:56:35
+   Duration  27.32s (transform 256ms, setup 0ms, import 676ms, tests 27.61s, environment 0ms)

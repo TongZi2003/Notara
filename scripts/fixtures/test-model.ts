@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { LlmAdapter, LlmError, ReasoningEffortId, ToolCallId, type GenerateOptions, type StreamChunk, type LlmResolvedModelInfo } from '@deepseek-ai/dsh-llm';
-import { appendFile } from 'node:fs/promises';
+import { appendFile, readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { decodeSourceFragments } from '../../packages/contracts/src/source-context.ts';
 
@@ -26,12 +27,22 @@ export function apply(ctx: Context, config: { logPath: string }): void {
       const studentText = decodeSourceFragments(text).text.trim();
       let scripted = studentText.startsWith('[tools]') ? JSON.parse(studentText.slice(7)) as { name: string; arguments: unknown }[]
         : studentText.startsWith('[tool]') ? [JSON.parse(studentText.slice(6)) as { name: string; arguments: unknown }] : [];
+      // The test declares the model's replies separately from the real node
+      // action. This verifies UI/Host wiring, never semantic model behavior.
+      const task = decodeSourceFragments(text).fragments.findLast(fragment => fragment.bookTask)?.bookTask;
+      if (task) {
+        const plans = await readFile(join(dirname(config.logPath), 'book-task-replies.json'), 'utf8')
+          .then(raw => JSON.parse(raw) as { action: string; nodePath?: string; calls: { name: string; arguments: unknown }[] }[]).catch(() => []);
+        scripted = plans.find(plan => plan.action === (task.action ?? 'directory') && plan.nodePath === task.nodePath)?.calls ?? [];
+      }
       const childTool = !studentText.startsWith('[tool') && studentText.match(/\[child-tool\](\{[^\n]+\})/);
       if (childTool) scripted = [JSON.parse(childTool[1]!) as { name: string; arguments: unknown }];
       if (studentText.includes('[structured-problem]') && options.tools?.some(tool => tool.name === 'structured_output')) scripted = [{ name: 'structured_output',
         arguments: { problems: [{ title: '独立命题样题', front: '求 $2+3$。', solution: '5', notes: '', tags: [] }] },
       }];
-      let call = scripted[attempt];
+      const taskStep = task ? options.messages.slice(options.messages.lastIndexOf(user!) + 1)
+        .flatMap(message => message.content).filter(block => block.type === 'tool-call').length : attempt;
+      let call = scripted[taskStep];
       // Explicit receipt scenario: after confirmation the teacher reads its
       // lesson once. This exercises actual dispatch, not just a tool-name list.
       if (studentText.includes('[receipt-readback]')) {

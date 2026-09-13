@@ -1,0 +1,12 @@
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts tests/unit/source-context-codec.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |unit| tests/unit/source-context-codec.test.ts (3 tests) 6ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  10:02:27
+   Duration  193ms (transform 54ms, setup 0ms, import 118ms, tests 6ms, environment 0ms)

@@ -1,0 +1,14 @@
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts tests/unit/book-task.test.ts tests/unit/mindmap-projection.test.ts tests/unit/lesson-deck.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |unit| tests/unit/mindmap-projection.test.ts (9 tests) 5ms
+ ✓ |unit| tests/unit/lesson-deck.test.ts (5 tests) 5ms
+ ✓ |unit| tests/unit/book-task.test.ts (3 tests) 3ms
+
+ Test Files  3 passed (3)
+      Tests  17 passed (17)
+   Start at  09:55:44
+   Duration  274ms (transform 227ms, setup 0ms, import 397ms, tests 12ms, environment 0ms)

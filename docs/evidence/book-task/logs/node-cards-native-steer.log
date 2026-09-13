@@ -1,0 +1,44 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/book-task-cards.spec.ts tests/e2e/official-preview.spec.ts --grep chapter task|Chinese formula note
+
+
+Running 2 tests using 1 worker
+
+(node:25270) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart (25.8s)
+(node:25475) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/e2e/official-preview.spec.ts:159:1 › the materials page reads a Chinese formula note and an image without a lesson or a model call (11.1s)
+
+
+  1) tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 2
+    Received: 0
+
+    Call Log:
+    - Timeout 15000ms exceeded while waiting on the predicate
+
+      68 |   await queue.getByRole('button', { name: 'Steer queued message', exact: true }).click();
+      69 |   await expect(queue).toBeHidden();
+    > 70 |   await expect.poll(async () => value(await client.rpc<ProposalView[]>('studyforgeProposals/list', { input: { sessionId } })).length).toBe(2);
+         |                                                                                                                                       ^
+      71 |   await idle();
+      72 |   expect(submitted).toMatchObject({ sessionId, intent: { action: 'cards', nodePath: '算术', sources } });
+      73 |   expect(await sessions()).toHaveLength(1);
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/book-task-cards.spec.ts:70:135
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:25277) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/book-task-cards-chapter-ta-3fc25-ng-confirmation-and-restart/error-context.md
+
+  1 failed
+    tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart
+  1 passed (38.3s)

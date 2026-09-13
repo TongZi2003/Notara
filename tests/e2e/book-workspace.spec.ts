@@ -42,7 +42,9 @@ test('book expands along its real tree, opens a card and its original in place, 
   await expect(nodes.locator('[data-kind]')).toHaveCount(1);
   await expect(nodes.locator('[data-kind="book"]')).toContainText('函数原文');
   await expect(nodes.locator('[data-kind="book"]')).toHaveCSS('background-color', 'rgb(253, 241, 176)');
-  await expect(nodes.getByRole('button', { name: '继续拆解', exact: true })).toHaveCount(1);
+  await nodes.locator('[data-kind="book"]').getByTestId('mindmap-node').click();
+  await expect(nodes.getByRole('button', { name: '细分目录', exact: true })).toHaveCount(1);
+  await expect(nodes.getByRole('button', { name: '拆成题卡', exact: true })).toHaveCount(1);
   await expect(page.getByRole('button', { name: '刷新结构', exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath('book-map-root.png'), fullPage: true });
 
@@ -92,7 +94,8 @@ test('book expands along its real tree, opens a card and its original in place, 
 
   // Only 继续拆解 leaves the page: the selected section is the scope, and the
   // real organization lesson opens from it.
-  await nodes.locator('[data-key="section:函数/定义域"]').getByRole('button', { name: '继续拆解', exact: true }).click();
+  await nodes.locator('[data-key="section:函数/定义域"]').getByTestId('mindmap-node').click();
+  await nodes.locator('[data-key="section:函数/定义域"]').getByRole('button', { name: '细分目录', exact: true }).click();
   await expect(page.locator('[data-composer-input]')).toBeVisible();
   await expect.poll(async () => {
     const listed = value(await client.rpc<SessionListValue>('session/list', { _request: {} }));

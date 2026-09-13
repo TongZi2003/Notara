@@ -72,6 +72,7 @@ export function ProposalCard({ ctx, proposal, inline = false, onChanged }: Propo
   const pending = proposal.items.filter(item => item.status === 'pending');
 
   function take(view: ProposalView): void {
+    if (view.items.some(item => item.status === 'applied')) window.dispatchEvent(new Event('studyforge:learning-changed'));
     if (onChanged !== undefined) onChanged(view);
   }
 

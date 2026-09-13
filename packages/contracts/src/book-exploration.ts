@@ -12,7 +12,7 @@ import { SkeletonPathSchema } from './skeleton.ts';
  *
  * 入图只认真实关系，不认标题：
  *  - 骨架节点：真的读过那段原文（节点自带 anchors）；
- *  - 普通卡：`sources` 里真的有这本书（或 `chapter` 是本骨架里真实存在的节点）；
+ *  - 普通卡：`sources` 里真的有这本书，`chapter` 只决定在书内的放置位置；
  *  - 知识：`publicSources` 是公共教法的包条目、不是书锚，所以只有它真正关联的那张
  *    **在书卡**才能把知识带进来（`via` 记录这条关系），既不猜也不自动收录。
  */
@@ -83,6 +83,8 @@ export type BookStructure = z.infer<typeof BookStructureSchema>;
  * 的提案与确认。根节点用缺省的 `nodePath` 表示，尚未拆过的书允许没有 skeletonRevision。
  */
 export const BookBreakdownIntentSchema = z.object({
+  /** Older directory entries omitted this; current UI always names the intended output. */
+  action: z.enum(['directory', 'cards']).optional(),
   material: MaterialContextSchema,
   /** 缺省＝书根；给了就必须是这本书骨架里真实存在的节点。 */
   nodePath: SkeletonPathSchema.optional(),

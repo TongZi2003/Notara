@@ -179,7 +179,9 @@ test('the materials page reads a Chinese formula note and an image without a les
   // P6 adds a book root and an explicit breakdown action. Merely opening the
   // book still creates no section, lesson, model request or learning fact.
   await expect(page.getByTestId('book-nodes').locator('[data-kind]')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: '继续拆解', exact: true })).toBeVisible();
+  await page.getByTestId('book-nodes').locator('[data-kind="book"]').getByTestId('mindmap-node').click();
+  await expect(page.getByRole('button', { name: '细分目录', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '拆成题卡', exact: true })).toBeVisible();
   // The formula note is photographed on its own, before the reader switches files.
   await page.screenshot({ path: testInfo.outputPath('materials-read-md.png'), fullPage: true });
 

@@ -1,0 +1,13 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/book-task-cards.spec.ts tests/e2e/source-roundtrip.spec.ts tests/e2e/inline-proposals.spec.ts --grep chapter task|pointer-selected image|proposals stay
+
+
+Running 3 tests using 1 worker
+
+(node:31864) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart (37.7s)
+  ✓  2 tests/e2e/inline-proposals.spec.ts:9:1 › proposals stay with their own reply, scroll with chat, and never cover the trajectory tab (18.0s)
+  ✓  3 tests/e2e/source-roundtrip.spec.ts:261:1 › pointer-selected image is attached before native sending and native queued steering preserves its frozen reference (19.6s)
+
+  3 passed (1.3m)

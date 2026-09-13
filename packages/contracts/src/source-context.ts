@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { MessageEnvelopeSchema } from './materials.ts';
 import { EntityRefSchema, VersionTokenSchema } from './core.ts';
 import { MaterialReadSchema } from './material-read.ts';
+import { BookBreakdownIntentSchema } from './book-exploration.ts';
 
 /** One composer's teaching reference. The native accepted event supplies message identity. */
 export const SourceContextSchema = MessageEnvelopeSchema.shape.context;
@@ -10,6 +11,8 @@ export const SourceFragmentSchema = z.object({
   version: z.literal(1), context: SourceContextSchema,
   titles: z.array(z.object({ ref: z.string().min(1), title: z.string().min(1) }).strict()),
   objects: z.array(z.object({ ref: EntityRefSchema, version: VersionTokenSchema }).strict()).default([]),
+  /** An explicit node action, frozen with this native user message; ordinary browsing has none. */
+  bookTask: BookBreakdownIntentSchema.optional(),
 }).strict().refine(value => value.context.selection !== undefined || value.context.currentMaterial !== undefined, { message: 'a source fragment must name an actual reference', path: ['context'] });
 export type SourceFragment = z.infer<typeof SourceFragmentSchema>;
 export const FrozenSourceSchema = z.object({ fragment: SourceFragmentSchema, modelText: z.string(), images: z.array(MaterialReadSchema.shape.image.unwrap()) }).strict();

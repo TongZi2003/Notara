@@ -45,7 +45,7 @@ export class ReceiptDispatcher {
     if (!admitted) {
       const summary = `已收好《${entry.receipt.title}》。`;
       const message: UserMessage = { id, role: 'user', source: { kind: 'plugin', plugin: 'studyforge', form: 'notice', summary: summary.slice(0, 120) },
-        content: [{ type: 'text', text: `【单据·结果】${summary}\n这是已经完成的系统回执，不是学生原话；不要重复执行本次写入，继续教学。` }] };
+        content: [{ type: 'text', text: `【单据·结果】${summary}\n这是已经完成的系统回执，不是学生原话；不要重复执行本次写入，继续学生正在进行的任务。保存只确认本次结果，不授权更换任务或开始讲题、测验；原任务已完成就简短说明并等待下一步。` }] };
       resolved.agent.followup(message);
     }
     // If this flush fails, the receipt remains pending. Retry checks the same

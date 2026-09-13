@@ -40,6 +40,7 @@ export interface MindmapProps {
   readonly onPick: (node: MindNode) => void;
   readonly onExpand: (node: MindNode, open: boolean) => void;
   readonly action?: MindAction | undefined;
+  readonly actions?: readonly MindAction[] | undefined;
   readonly relations?: readonly { readonly from: string; readonly to: string; readonly label: string }[] | undefined;
   readonly busy?: boolean | undefined;
   /** What the map says when the projection really has no node at all. */
@@ -106,10 +107,9 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
       onClick={() => { props.onExpand(node, !props.expanded.includes(node.key)); }}>
       {props.expanded.includes(node.key) ? '− 收起' : node.children.length > 0 ? `+ 展开 ${String(node.children.length)} 项` : '+ 展开'}
     </button>;
-  const action = (node: MindNode): React.JSX.Element | null => props.action !== undefined && props.action.when(node)
-    ? <button type="button" className="sf-quiet sf-mind-action" disabled={props.busy === true}
-      onClick={() => { props.action?.run(node); }}>{typeof props.action.label === 'string' ? props.action.label : props.action.label(node)}</button>
-    : null;
+  const action = (node: MindNode): React.JSX.Element => <>{[...(props.action ? [props.action] : []), ...(props.actions ?? [])].filter(item => item.when(node)).map((item, i) =>
+    <button key={i} type="button" className="sf-quiet sf-mind-action" disabled={props.busy === true}
+      onClick={() => { item.run(node); }}>{typeof item.label === 'string' ? item.label : item.label(node)}</button>)}</>;
   const body = (node: MindNode): React.JSX.Element => <>
     <button type="button" className="sf-mind-label" title={node.title} onClick={() => { props.onPick(node); }} aria-pressed={props.selected === node.key}
       data-testid={props.labelTestId ?? 'mindmap-node'}>

@@ -39,6 +39,7 @@ import type { SkeletonAuthoring } from '@studyforge/domain/skeleton-authoring';
 import { validateBookBreakdown, type BookExploration } from '@studyforge/domain/book-exploration';
 import { nativeOpen } from './runtime/native-open.ts';
 import type { SessionRequestId } from '@deepseek-ai/dsh-api-session-controller';
+import { encodeSourceFragment } from '@studyforge/contracts/source-context';
 import { validateLessonMaterials } from './materials/validate-lesson-materials.ts';
 import { studentContext } from './learning-service.ts';
 
@@ -459,18 +460,24 @@ export class StudyForgeOrganization extends TypertRemoteService {
 
   /** An explicit student action, entering a native organisation lesson exactly once. */
   @Remote('breakdown')
-  async breakdown(input: { operationId: string; intent: BookBreakdownIntent }): Promise<{ sessionId: string }> {
-    const parsed = z.object({ operationId: z.string().min(1), intent: BookBreakdownIntentSchema }).strict().parse(input);
-    const context = await this.context(), structure = await this.ctx.studyforgeBookExploration.read(context, parsed.intent.material);
+  async breakdown(input: { operationId: string; intent: BookBreakdownIntent; sessionId?: string }): Promise<{ sessionId: string }> {
+    const parsed = z.object({ operationId: z.string().min(1), intent: BookBreakdownIntentSchema, sessionId: z.string().min(1).optional() }).strict().parse(input);
+    const context = await this.context(parsed.sessionId), structure = await this.ctx.studyforgeBookExploration.read(context, parsed.intent.material);
     const intent = validateBookBreakdown(structure, parsed.intent);
-    if (intent.skeletonRevision !== structure.skeletonRevision) throw new Error('book_skeleton_revision_mismatch');
-    const material = intent.sources[0] ?? intent.material;
-    const opened = await nativeOpen(this.ctx).open(context, { openingKey: 'book-breakdown:' + parsed.operationId,
-      title: structure.title + ' · 整理', materials: { materials: [{ kind: 'source', source: material }] },
+    const materials = { materials: (intent.sources.length ? intent.sources : [intent.material]).map(source => ({ kind: 'source' as const, source })) };
+    await validateLessonMaterials(this.ctx, context, materials);
+    const opened = parsed.sessionId ? { sessionId: parsed.sessionId } : await nativeOpen(this.ctx).open(context, { openingKey: 'book-breakdown:' + parsed.operationId,
+      title: structure.title + ' · 整理', materials,
       decl: { teachingRef: 'organize', stance: intent.nodePath ? `继续整理 ${intent.nodePath}；保持其他章节。` : '从书根开始整理下一层结构。' },
     });
+    const verb = intent.action === 'cards' ? '拆成题卡，先核对已有卡片，保留原题的条件与设问，交给我确认' : '细分下一层目录，保留其他章节和卡片，交给我确认';
+    const text = `请把《${structure.title}》${intent.nodePath ? `中的“${intent.nodePath}”` : '从书根开始'}${verb}。`;
+    const fragment = encodeSourceFragment({ version: 1, bookTask: intent, objects: [],
+      titles: [{ ref: intent.material.materialId, title: structure.title }],
+      context: intent.sources.length ? { selection: { text: '', sources: intent.sources } } : { currentMaterial: { kind: 'source', source: intent.material } },
+    });
     await this.ctx.sessionController.prompt({ sessionId: SessionId(opened.sessionId), requestId: parsed.operationId as SessionRequestId, mode: 'queue',
-      content: [{ type: 'text', text: `请先读取本课固定版本的《${structure.title}》原文和已有目录，${intent.nodePath ? `从“${intent.nodePath}”` : '从书根'}继续拆解下一层。需要保存的目录或卡片请交给我确认，保留其他章节和卡片。` }],
+      content: [{ type: 'text', text: text + fragment }],
     }, AbortSignal.timeout(30_000));
     return { sessionId: opened.sessionId };
   }

@@ -13,7 +13,10 @@ import Storage from '@deepseek-ai/dsh-storage';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CardRecordSchema } from '../../packages/contracts/src/cards.ts';
+import { CardContentSchema, CardRecordSchema } from '../../packages/contracts/src/cards.ts';
+import { bindTaskCard } from '../../packages/host/src/teaching/book-task.ts';
+import { encodeSourceFragment } from '../../packages/contracts/src/source-context.ts';
+import type { ToolRunContext } from '@deepseek-ai/dsh-tools';
 import type { BookStructure } from '../../packages/contracts/src/book-exploration.ts';
 import { visibleNodes } from '../../packages/contracts/src/book-exploration.ts';
 import type { HostContext, MutationContext } from '../../packages/contracts/src/execution.ts';
@@ -292,4 +295,35 @@ test('新增支路只添它自己：兄弟章的来源与卡都保全', async ()
   expect(find(after, card.ref).parentKey).toBe('section:第一章/第一节');
   expect(cardTargets(after)).toEqual(cardTargets(before));
   expect(after.skeletonRevision).toBe(before.skeletonRevision! + 1);
+});
+
+test('拆卡挂点在提案前固定；旁支改动可继续，错误章节、书籍、版本和已改范围被拒', async () => {
+  const fixture = await open();
+  const book = await fixture.importBook('task-book', '三角函数.md', TRIG);
+  await fixture.skeletonStore.create(create('task-skeleton'), book.materialId, { materialId: book.materialId,
+    nodes: [node('第一节', lineAnchor(book, 3)), node('别处', lineAnchor(book, 4))] });
+  const structure = await fixture.exploration.read(READ, book);
+  const task = { action: 'cards' as const, material: book, nodePath: '第一节', skeletonRevision: structure.skeletonRevision, sources: [lineAnchor(book, 3)] };
+  const fragment = encodeSourceFragment({ version: 1, context: { selection: { text: '', sources: task.sources } }, titles: [], objects: [], bookTask: task });
+  const events = [{ type: 'user/message', data: { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: fragment }] } }, { type: 'tool/call', data: { callId: 'task-call' } }];
+  const execution = { callId: 'task-call', agent: { session: { snapshotEvents: () => events } } } as unknown as ToolRunContext;
+  const host = { studyforgeBookExploration: fixture.exploration, studyforgeCardService: fixture.cards } as unknown as Context;
+  const card = CardContentSchema.parse({ title: '本节题卡', front: '保留原题', sources: task.sources });
+  await expect(bindTaskCard(host, execution, HOST, card)).resolves.toMatchObject({ chapter: '第一节', sources: task.sources });
+  await expect(bindTaskCard(host, execution, HOST, { ...card, chapter: '别处' })).rejects.toThrow('不在本次所选节点下');
+  for (const sources of [[], [lineAnchor({ ...book, materialId: 'other' }, 3)], [lineAnchor({ ...book, versionId: 'other' }, 3)]]) {
+    await expect(bindTaskCard(host, execution, HOST, { ...card, sources })).rejects.toThrow('准确来源');
+  }
+  const current = await fixture.skeletons.read(READ, book.materialId);
+  await fixture.skeletonStore.update(create('task-side-change', current.revision), objectRef(SKELETON_KIND, book.materialId), {},
+    row => ({ ...row, nodes: [...row.nodes, node('新旁支', lineAnchor(book, 5))] }));
+  await expect(bindTaskCard(host, execution, HOST, card)).resolves.toMatchObject({ chapter: '第一节' });
+  const after = await fixture.exploration.read(READ, book);
+  expect(refusalCode(() => validateBookBreakdown({ ...after, nodes: after.nodes.filter(n => n.key !== 'section:第一节') }, task))).toBe('book_node_missing');
+  expect(refusalCode(() => validateBookBreakdown({ ...after, nodes: after.nodes.map(n => n.key === 'section:第一节' ? { ...n, sources: [lineAnchor(book, 4)] } : n) }, task))).toBe('book_node_changed');
+  const ordinary = { callId: 'ordinary', agent: { session: { snapshotEvents: () => [...events,
+    { type: 'user/message', data: { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '现在记录另外一道题' }] } },
+    { type: 'tool/call', data: { callId: 'ordinary' } }] } } } as unknown as ToolRunContext;
+  await expect(bindTaskCard(host, ordinary, HOST, { ...card, sources: [], chapter: '别处' })).resolves.toMatchObject({ sources: [], chapter: '别处' });
+  expect(fixture.cardStore.list(READ)).toHaveLength(0);
 });

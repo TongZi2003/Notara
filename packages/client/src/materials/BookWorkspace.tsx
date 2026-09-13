@@ -21,6 +21,7 @@ import { KnowledgeEditor } from '../cards/KnowledgeEditor.tsx';
 import { ReviewScreen } from '../review/ReviewScreen.tsx';
 import { Mindmap } from './mindmap.tsx';
 import { bookMindNodes } from './lesson-materials-mindmap.ts';
+import { bookNodeIntent, breakdownLabel, type BreakdownAction } from './book-breakdown.ts';
 
 /** One book's structure, drawn and opened in place. */
 export function BookWorkspace({ ctx, source, onSource }: { ctx: Context; source: MaterialContext; onSource(source: SourceAnchor): void }): React.JSX.Element {
@@ -48,10 +49,9 @@ export function BookWorkspace({ ctx, source, onSource }: { ctx: Context; source:
   const node: BookNode | undefined = structure?.nodes.find(item => item.key === selected);
   /** The exact node the student picked is the scope of anything this area does. */
   const nodes = structure === undefined ? [] : bookMindNodes(structure);
-  async function breakdown(item: BookNode): Promise<void> {
+  async function breakdown(item: BookNode, action: BreakdownAction): Promise<void> {
     if (!structure || item.kind !== 'book' && item.kind !== 'section') return;
-    const intent: BookBreakdownIntent = { material: structure.material, sources: item.sources,
-      ...(item.kind === 'section' ? { nodePath: item.path } : {}), ...(structure.skeletonRevision ? { skeletonRevision: structure.skeletonRevision } : {}) };
+    const intent: BookBreakdownIntent = bookNodeIntent(structure, item, action);
     const key = JSON.stringify(intent);
     if (attempt.current?.key !== key) attempt.current = { key, id: crypto.randomUUID() };
     setBusy(true);
@@ -76,8 +76,8 @@ export function BookWorkspace({ ctx, source, onSource }: { ctx: Context; source:
       expanded={expanded} selected={selected} busy={busy}
       onPick={item => { setSelected(item.key); setStudying(undefined); setDetail(true); }}
       onExpand={(item, open) => { setExpanded(old => open ? (old.includes(item.key) ? old : [...old, item.key]) : old.filter(key => key !== item.key)); }}
-      action={{ label: '继续拆解', when: item => item.kind === 'book' || item.kind === 'section',
-        run: item => { const target = structure.nodes.find(candidate => candidate.key === item.key); if (target !== undefined) void breakdown(target); } }} />}
+      actions={(['directory', 'cards'] as const).map(action => ({ label: breakdownLabel(action), when: item => item.key === selected && (item.kind === 'book' || item.kind === 'section'),
+        run: item => { const target = structure.nodes.find(candidate => candidate.key === item.key); if (target !== undefined) void breakdown(target, action); } }))} />}
     {detail && node !== undefined && <section className="sf-book-detail" data-testid="book-node-detail">
       <header className="sf-book-detail-head">
         <h3>{node.title}</h3>

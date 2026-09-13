@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
-import type { StoredEntry, SlotMap, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots';
+import type { StoredEntry, SlotMap, SnapshotSelectorHook, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type { SessionSnapshot } from '@deepseek-ai/dsh-api-session-controller/client';
-import type { ChatNodeViewProps, ChatViewSlotProps } from '@deepseek-ai/dsh-client-ui-chat/client';
+import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewSlotProps } from '@deepseek-ai/dsh-client-ui-chat/client';
 import { useMemo, useState, type ComponentType } from 'react';
 import { decodeSourceFragments, encodeSourceFragment, type SourceFragment } from '@studyforge/contracts/source-context';
 import { openLessonSource } from './native-preview-adapter.ts';
@@ -10,6 +10,16 @@ import { requestLessonPane } from './lesson-pane-request.ts';
 import { LESSON_TAB_KIND } from '../classroom/LessonPanel.tsx';
 
 type Block = { readonly type: string; readonly text?: string };
+interface PendingMessageProps {
+  content: readonly Block[];
+  renderMessageImages: ChatNodeOwnerProps['renderMessageImages'];
+  t: ChatViewSlotProps['t'];
+}
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface SlotMap {
+    'conversation.chat.pending': { kind: 'single'; scope: 'session'; owner: PendingMessageProps & { native: ComponentType<PendingMessageProps> } };
+  }
+}
 function cleanContent<T extends Block>(blocks: readonly T[]): T[] {
   return blocks.map(block => block.type === 'text' && block.text !== undefined
     ? { ...block, text: decodeSourceFragments(block.text).text } : block);
@@ -108,6 +118,10 @@ function decorate(ctx: Context, name: keyof SlotMap & string, cell: string, wrap
 }
 
 export function registerSourceDisplay(ctx: Context): void {
+  // Pending steering has not become a keyed message yet. Keep the native
+  // bubble and its image/copy behavior, projecting only the visible content.
+  ctx.effect(() => ctx.slots.inject('conversation.chat.pending', () => ctx.slots.register({ name: 'conversation.chat.pending' },
+    ({ native: Native, ...props }: PropsRuntime<'conversation.chat.pending'>) => <Native {...props} content={cleanContent(props.content)} />)));
   for (const kind of ['user', 'steering'] as const) decorate(ctx, 'conversation.chat.node', kind, Native => {
     const View = Native as unknown as ComponentType<ChatNodeViewProps<typeof kind>>;
     return ((props: ChatNodeViewProps<typeof kind>) => {

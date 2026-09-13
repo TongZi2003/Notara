@@ -60,6 +60,13 @@ test('five configured teaching choices change the actual next native request and
   expect(value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId } }))).toEqual(course);
   const resumed = await send('重开后继续');
   expect(transcript(resumed)).toContain('本轮优先核对官方来源。');
+  course = value(await client.rpc<CourseView>('studyforgeCourses/update', { input: { sessionId, operationId: crypto.randomUUID(), expectedVersion: course.version,
+    patch: { teachingRef: 'organize', temporaryInstructions: '' } } }));
+  const organizing = await send('你继续把卡拆出来吧');
+  const instructions = organizing.messages.filter(message => message.role === 'system').flatMap(message => message.content.flatMap(block => block.type === 'text' ? [block.text] : [])).join('\n');
+  expect(instructions).toContain('拆卡是制作题卡');
+  expect(instructions).toContain('不是开始讲题或测验的授权');
+  expect(organizing.toolNames).toContain('propose_card');
 }, 45_000);
 
 test('a saved-result followup retains teacher tools and can read back without a new student turn', async () => {
@@ -86,6 +93,8 @@ test('a saved-result followup retains teacher tools and can read back without a 
   expect(receipt.toolNames).toContain('read_lesson');
   expect(receipt.toolNames).toContain('read_card');
   expect(receipt.toolNames).toContain('propose_card');
+  const notice = receipt.messages.findLast(message => message.role === 'user')!;
+  expect(notice.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')).toContain('继续学生正在进行的任务');
   value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '现在继续学这张卡' }] } }));
   await expect.poll(async () => transcript((await requests()).at(-1)!)).toContain('现在继续学这张卡');
   expect((await requests()).at(-1)!.toolNames).toContain('read_card');

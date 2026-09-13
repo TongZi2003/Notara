@@ -146,7 +146,7 @@ export function validateBookBreakdown(structure: BookStructure, intent: BookBrea
     && !structure.nodes.some(node => node.kind === 'section' && node.path === target.nodePath)) {
     throw new BookExplorationError('book_node_missing', [target.nodePath]);
   }
-  if (target.skeletonRevision !== undefined && structure.skeletonRevision !== target.skeletonRevision) {
+  if (target.action !== 'cards' && target.skeletonRevision !== undefined && structure.skeletonRevision !== target.skeletonRevision) {
     throw new BookExplorationError('book_skeleton_revision_mismatch', [
       String(target.skeletonRevision), structure.skeletonRevision === undefined ? '无骨架' : String(structure.skeletonRevision),
     ]);
@@ -155,6 +155,10 @@ export function validateBookBreakdown(structure: BookStructure, intent: BookBrea
     if (source.materialId !== structure.material.materialId) {
       throw new BookExplorationError('book_source_mismatch', [source.materialId, structure.material.materialId]);
     }
+  }
+  if (target.action === 'cards' && target.nodePath !== undefined) {
+    const node = structure.nodes.find(node => node.kind === 'section' && node.path === target.nodePath)!;
+    if (JSON.stringify(node.sources) !== JSON.stringify(target.sources)) throw new BookExplorationError('book_node_changed');
   }
   return target;
 }
