@@ -1,0 +1,16 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/book-workspace.spec.ts tests/e2e/notebook-pages.spec.ts tests/e2e/coauthor-memory.spec.ts tests/e2e/coauthor-organization.spec.ts tests/e2e/learning-records-handout.spec.ts --grep book expands|original notebook pages|student rewrites one|a plan is edited|a real mark --output=.runtime/linear-tree-final-ui
+
+
+Running 5 tests using 1 worker
+
+(node:84020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/book-workspace.spec.ts:24:1 › book expands along its real tree, opens a card and its original in place, and returns without writing (12.1s)
+  ✓  2 tests/e2e/coauthor-memory.spec.ts:66:1 › the student rewrites one judgement, keeps its evidence, and survives a conflict (17.4s)
+  ✓  3 tests/e2e/coauthor-organization.spec.ts:166:1 › a plan is edited by its own target, keeps the draft on a stale save, and never rewrites another plan (24.0s)
+  ✓  4 tests/e2e/learning-records-handout.spec.ts:53:1 › a real mark becomes one record, and the handout only holds what is due (7.7s)
+  ✓  5 tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths (17.6s)
+
+  5 passed (1.3m)

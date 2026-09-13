@@ -108,7 +108,7 @@ export function registerCourses(ctx: Context): void {
       return <main className={'sf-orig sf-page-scroll sf-courses-page' + (tab === 'roadmap' ? ' sf-courses-map-page' : '')} data-testid={`studyforge-page-${COURSES_PAGE_ID}`}>
           <nav className="sf-courses-tabs" aria-label="课程页" data-testid="courses-tabs">
             <button type="button" className={tab === 'roadmap' ? 'chip on' : 'chip'} data-testid="courses-tab-roadmap" onClick={() => { setTab('roadmap'); }}>路线图</button>
-            <button type="button" className={tab === 'list' ? 'chip on' : 'chip'} data-testid="courses-tab-list" onClick={() => { setTab('list'); }}>课程列表</button>
+            <button type="button" className={tab === 'list' ? 'chip on' : 'chip'} data-testid="courses-tab-list" onClick={() => { setTab('list'); }}>课程树</button>
             <button type="button" className={tab === 'plans' ? 'chip on' : 'chip'} data-testid="courses-tab-plans" onClick={() => { setTab('plans'); }}>计划</button>
           </nav>
           {tab === 'roadmap' ? <CourseRoadmap ctx={ctx} lessons={lessons} {...(list.current ? { currentSessionId: list.current } : {})} onOpenLesson={open} />

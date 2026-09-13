@@ -130,7 +130,7 @@ export function RouteEditor({ route, node, materials, cards, choices, pending, n
     <fieldset>
       <legend>这一节用什么</legend>
       <p className="sf-note">可以一样都不用；用了就按下面的顺序摆在课堂上，点开头那颗点亮的就是先打开的那一份。</p>
-      <ol className="sf-route-materials" data-testid="route-editor-materials">
+      <ol className="sf-route-materials sf-linear-tree" data-testid="route-editor-materials">
         {materialsDraft.map((item, index) => <li key={item.key} data-testid="route-editor-material">
           <label className="sf-route-material-first">
             <input type="radio" name="route-editor-initial" checked={initialIndex === index || (initialIndex === undefined && index === 0)}

@@ -103,7 +103,7 @@ export function MemoryPanel({ ctx, sessionId, target, onSource }: MemoryPanelPro
       <button type="button" className="sf-quiet" data-testid="memory-one-retry" onClick={reload}>再读一次</button>
     </div>}
     {!oneFailed && one === undefined && <p className="sf-note" data-testid="memory-loading">正在读…</p>}
-    {!oneFailed && one !== undefined && <div className="sf-memory-list">
+    {!oneFailed && one !== undefined && <div className="sf-memory-list sf-linear-tree">
       <MemoryCard memory={one} {...(onSource === undefined ? {} : { onSource })}
         onEdit={edited => { setEditing({ target: edited.ref, seed: edited }); }} />
     </div>}
@@ -135,7 +135,7 @@ export function MemoryPanel({ ctx, sessionId, target, onSource }: MemoryPanelPro
     {!unavailable && ordered !== undefined && ordered.length === 0 && <p className="sf-note" data-testid="memory-empty">
       {found === undefined ? '还没有长期认识，从第一节课开始积累。' : '没有匹配的记忆块。'}
     </p>}
-    {!unavailable && ordered !== undefined && ordered.length > 0 && <div className="sf-memory-list" data-testid="memory-list">
+    {!unavailable && ordered !== undefined && ordered.length > 0 && <div className="sf-memory-list sf-linear-tree" data-testid="memory-list">
       {ordered.map(memory => <MemoryCard key={memory.ref} memory={memory}
         {...(onSource === undefined ? {} : { onSource })}
         onEdit={edited => { setEditing({ target: edited.ref, seed: edited }); }} />)}

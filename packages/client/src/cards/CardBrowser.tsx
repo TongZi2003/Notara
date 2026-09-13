@@ -135,10 +135,10 @@ export function CardBrowser({ ctx, sessionId, refreshToken, onSource, onLearn, o
     </div>}
 
     {mode === 'radial' ? <RadialMap cards={cards} onOpen={ref => { setOpen(ref); }} />
-      : <ul className="sf-card-list" data-testid="card-list">
+      : <ul className="sf-card-list sf-linear-tree" data-testid="card-list">
         {mode === 'book' ? groupByBook(cards).map(([chapter, rows]) => <li key={chapter} className="sf-card-group">
           <h3 className="sf-card-group-title">{chapter}</h3>
-          <ul>{rows.map(card => <CardRow key={card.ref} card={card} onOpen={setOpen} onLearn={onLearn} />)}</ul>
+          <ul className="sf-linear-tree">{rows.map(card => <CardRow key={card.ref} card={card} onOpen={setOpen} onLearn={onLearn} />)}</ul>
         </li>) : cards.map(card => <CardRow key={card.ref} card={card} onOpen={setOpen} onLearn={onLearn} />)}
         {knowledge.map(note => <li key={note.ref} className="sf-card-row" data-testid="card-row" data-kind="knowledge">
           <button type="button" className="sf-card-row-open" data-testid="card-row-open" onClick={() => { setOpenKnowledge(note.ref); }}>
@@ -208,7 +208,7 @@ function RadialMap({ cards, onOpen }: {
         </g>;
       })}
     </svg>
-    <ul className="sf-radial-list" data-testid="card-radial-list">
+    <ul className="sf-radial-list sf-linear-tree" data-testid="card-radial-list">
       {cards.map(card => <li key={card.ref}><button type="button" className="sf-quiet" data-testid="card-radial-open"
         onClick={() => { onOpen(card.ref); }}>{card.content.title}</button></li>)}
     </ul>

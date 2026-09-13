@@ -81,3 +81,4 @@ function registerProbe(ctx: Context): void {
   }
   ctx.effect(() => ctx.slots.register({ name: 'root', priority: -10 }, ProbePanel));
 }
+import '../shell/linear-tree.css';

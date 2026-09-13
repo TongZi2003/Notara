@@ -145,7 +145,7 @@ export function Today({ ctx, lessons, lessonsLoaded, onStartLesson, onPage, onOp
       {unavailable && <p className="mini-note" role="status">今天的安排暂时无法读取。</p>}
 
       {todo.length > 0
-        ? box('今天要做的', todo, `${todo.length} 件`, ' now')
+        ? box('今天要做的', <div className="sf-linear-tree">{todo}</div>, `${todo.length} 件`, ' now')
         : box('今天要做的', unavailable
           // Nothing was read, so nothing may be claimed: this is a read failure, not an empty day.
           ? <p className="mini-note" data-testid="today-unavailable">今天的安排暂时读不出来。稍后再看一次，别当成今天没事。</p>
@@ -172,13 +172,13 @@ export function Today({ ctx, lessons, lessonsLoaded, onStartLesson, onPage, onOp
       {notice !== undefined && <p className="mini-note" role="status" data-testid="home-notice">{notice}</p>}
 
       {box('今天的痕迹', recentToday.length > 0
-        ? <><div className="home-ledger-main">{recentToday.map(row => <button className="ledger-row" key={row.id} data-testid="today-lesson" onClick={() => { onOpenLesson(row.id); }}>
+        ? <><div className="home-ledger-main sf-linear-tree">{recentToday.map(row => <button className="ledger-row" key={row.id} data-testid="today-lesson" onClick={() => { onOpenLesson(row.id); }}>
           <span className="dot free" /><div className="t">{row.title}<small>对话</small></div>
           <span className="time">{new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(row.updatedAt)}</span></button>)}</div>
           {olderToday.length > 0 && <details className="home-ledger-more"><summary>还有 {olderToday.length} 节今天的记录</summary>
-            {olderToday.map(row => <button className="ledger-row" key={row.id} data-testid="today-lesson" onClick={() => { onOpenLesson(row.id); }}>
+            <div className="sf-linear-tree">{olderToday.map(row => <button className="ledger-row" key={row.id} data-testid="today-lesson" onClick={() => { onOpenLesson(row.id); }}>
               <span className="dot free" /><div className="t">{row.title}<small>对话</small></div>
-              <span className="time">{new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(row.updatedAt)}</span></button>)}
+              <span className="time">{new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(row.updatedAt)}</span></button>)}</div>
             <button className="home-all-lessons" data-testid="home-all-lessons" onClick={() => { onPage('studyforge.courses'); }}>查看全部课程 →</button></details>}</>
         : <p className="mini-note">{lessonsLoaded ? '今天还没有学习记录。' : '正在读今天的记录…'}</p>)}
     </div>

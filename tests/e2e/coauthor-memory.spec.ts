@@ -15,7 +15,7 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
-import { enterClassroom, sendInput } from './fixtures/classroom.ts';
+import { enterClassroom, sendInput, openRoot } from './fixtures/classroom.ts';
 import type { MemoryView } from '@studyforge/contracts/memory';
 
 const test = base.extend<{ dsh: IsolatedRuntime }>({
@@ -35,20 +35,12 @@ async function dismissNotices(page: Page): Promise<void> {
 }
 
 /**
- * The lesson's own entry: the native header's 本课 opens this lesson's page in
- * the right bar, and 学情与偏好 is a section inside it. A creation session has
- * no such entry, so the header button is also what proves this is a real lesson.
+ * Open the current student-facing memory page; it shares the same records and
+ * editor as the lesson settings, without relying on the retired rightbar section.
  */
 async function openMemory(page: Page): Promise<void> {
   await dismissNotices(page);
-  if (await page.getByTestId('memory-panel').count() === 0) {
-    const lessonPanel = page.getByTestId('studyforge-lesson-panel');
-    if (!(await lessonPanel.isVisible().catch(() => false))) {
-      await page.getByRole('button', { name: '本课', exact: true }).first().click();
-    }
-    await expect(lessonPanel).toBeVisible({ timeout: 15_000 });
-    await lessonPanel.getByTestId('lesson-memory').click();
-  }
+  await openRoot(page, '学情');
   await expect(page.getByTestId('memory-panel')).toBeVisible({ timeout: 15_000 });
 }
 

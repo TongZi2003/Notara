@@ -288,7 +288,7 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
         </>}
         {filesShown.length > 0 && <>
           <div className="sf-sec-head"><h2>文件</h2><span className="cnt">{filesShown.length} 份 · 图片与文本原件</span><span className="line" /></div>
-          <ul className="sf-cardgrid">
+          <ul className="sf-cardgrid sf-linear-tree">
             {filesShown.map(view => <MaterialRow
               key={view.materialId}
               view={view}
@@ -308,7 +308,7 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
           {cardList.status === 'failed' && <p className="sf-note" role="status">卡片列表暂时取不到，稍后再看一次。</p>}
           {cardList.status === 'ready' && cards.length === 0
             && <p className="sf-note" data-testid="materials-cards-empty">还没有卡片。上课存下的题卡和笔记会列在这里。</p>}
-          {cardList.status === 'ready' && cards.length > 0 && <ul className="sf-cardgrid">
+          {cardList.status === 'ready' && cards.length > 0 && <ul className="sf-cardgrid sf-linear-tree">
             {cards.map(card => <li className="sf-material-row" key={card.ref} data-testid="materials-card-row">
               <button type="button" className="sf-acard" data-card-ref={card.ref}
                 onClick={() => {

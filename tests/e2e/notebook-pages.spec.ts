@@ -73,8 +73,26 @@ test('original notebook pages show real books, cards, calendar and learning reco
         await expect(surface.getByTestId('material-row')).toHaveCount(3);
         await expect(surface.locator('.sf-shelf .cover').first()).toHaveCSS('width', '112px');
       }
-      if (route === 'cards') await expect(surface.getByTestId('card-row')).toHaveCount(3);
-      if (route === 'calendar') await expect(surface.getByTestId('calendar-course')).toHaveCount(3);
+      if (route === 'cards') {
+        await expect(surface.getByTestId('card-row')).toHaveCount(3);
+        await expect(surface.getByTestId('card-list')).toHaveCSS('display', 'block');
+        const rows = await surface.getByTestId('card-row').all();
+        const boxes = await Promise.all(rows.map(row => row.boundingBox()));
+        for (let i = 1; i < boxes.length; i++) {
+          expect(boxes[i]!.x).toBeCloseTo(boxes[0]!.x, 0);
+          expect(boxes[i]!.y).toBeGreaterThanOrEqual(boxes[i - 1]!.y + boxes[i - 1]!.height);
+        }
+      }
+      if (route === 'courses') {
+        await surface.getByTestId('courses-tab-list').click();
+        await expect(surface.getByTestId('roadmap-nodes')).toHaveCSS('display', 'block');
+        await expect(surface.getByTestId('roadmap-node')).toHaveCount(3);
+      }
+      if (route === 'calendar') {
+        await expect(surface.getByTestId('calendar-course')).toHaveCount(3);
+        await surface.getByTestId('calendar-view-list').click();
+        await expect(surface.getByTestId('calendar-list')).toHaveCSS('display', 'block');
+      }
       expect(await surface.evaluate(element => element.scrollWidth <= element.clientWidth + 1), label + ' content width ' + width).toBe(true);
       await page.screenshot({ path: info.outputPath(`notebook-${route}-${width}.png`), fullPage: true });
       if (route === 'materials' && width === 1440) {

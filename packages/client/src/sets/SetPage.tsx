@@ -93,7 +93,7 @@ export function SetPage({ ctx, onMaterial, onSource }: { ctx: Context; onMateria
           <button type="button" className="btn ghost" disabled={busy} onClick={() => { setEditing(false); }}>取消</button></div>
       </form>}
 
-      {sets.map(set => <div className={`set-card${set.ref === selected ? ' editing' : ''}`} key={set.ref} data-setcard={set.ref}>
+      <div className="sf-linear-tree">{sets.map(set => <div className={`set-card${set.ref === selected ? ' editing' : ''}`} key={set.ref} data-setcard={set.ref}>
         <div className="set-list-row">
           <button className="set-shelf" data-set-shelf={set.ref} onClick={() => { select(set.ref); setEditing(false); setDetail(undefined); setStudying(undefined); }}>
             <span className="set-card-name">{set.name}</span>
@@ -118,17 +118,17 @@ export function SetPage({ ctx, onMaterial, onSource }: { ctx: Context; onMateria
             <button type="button" className="btn ghost" onClick={() => { edit(set); }}>调整学习集</button></div>
           <p className="mini-note">{set.subjects.join(' · ') || '不限学科'} · {set.ladder ? `复习间隔：${set.ladder.join(' → ')} 天` : `使用默认复习间隔（${DEFAULT_LADDER}）`}</p>
           <h3>书架</h3>
-          {materials.filter(m => set.materials.includes(m.materialId)).map(m => <button key={m.materialId} className="cal-lrow" onClick={() => { onMaterial(m); }}>{m.title}<small>打开原文与结构</small></button>)}
+          <div className="sf-linear-tree">{materials.filter(m => set.materials.includes(m.materialId)).map(m => <button key={m.materialId} className="cal-lrow" onClick={() => { onMaterial(m); }}>{m.title}<small>打开原文与结构</small></button>)}</div>
           {materials.every(m => !set.materials.includes(m.materialId)) && <p className="mini-note">这个集还没有放资料。</p>}
           <h3>卡片 · {owned.length}</h3>
-          {owned.map(c => <button key={c.ref} className="cal-lrow" onClick={() => { setDetail(c.ref); }}>{c.content.title}<small>{c.review ? '已学' : '还没学'}</small></button>)}
+          <div className="sf-linear-tree">{owned.map(c => <button key={c.ref} className="cal-lrow" onClick={() => { setDetail(c.ref); }}>{c.content.title}<small>{c.review ? '已学' : '还没学'}</small></button>)}</div>
         </>}
 
         {set.ref === selected && studying && <div className="set-editor"><ReviewScreen ctx={ctx} start={studying} onBack={() => { setStudying(undefined); void reload(); }} /></div>}
         {set.ref === selected && !studying && detail && <div className="set-editor">
           <button className="btn" onClick={() => { setStudying(detail); }}>开始学习</button>
           <CardDetail ctx={ctx} target={detail} onBack={() => { setDetail(undefined); }} onSource={onSource} /></div>}
-      </div>)}
+      </div>)}</div>
     </div>
   </main>;
 }

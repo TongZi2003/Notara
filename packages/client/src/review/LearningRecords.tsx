@@ -49,7 +49,7 @@ export function LearningRecords({ ctx, onOpen }: LearningRecordsProps): React.JS
   return <div className="sf-records" data-testid="learning-records">
     {groupByDay(state.records).map(group => <section className="sf-records-day" key={group.day} data-testid="records-day">
       <h3>{group.day === today ? `今天 · ${group.day}` : group.day}</h3>
-      <ul>
+      <ul className="sf-linear-tree">
         {group.records.map(record => <li className="sf-record" key={`${record.target}:${record.fact.occurrence.id}`} data-testid="learning-record">
           <div className="sf-record-head">
             <span className="sf-record-mark" data-mark={record.fact.mark}>{record.fact.mark}</span>

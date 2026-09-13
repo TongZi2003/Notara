@@ -80,6 +80,8 @@ test('a date range narrows the roadmap, keeps ancestors as context, and clearing
 
   const stored = await rowTitles(page);
   expect(stored).toHaveLength(4);
+  const parentNode = page.getByTestId('roadmap-node').filter({ has: page.getByTestId('roadmap-node-title').filter({ hasText: '三月总复习' }) });
+  await expect(parentNode.locator(':scope > ul > [data-testid="roadmap-node"]')).toContainText('三月里的第一节');
   await expect(page.getByTestId('roadmap-filter-count')).toHaveText('4 节');
   await page.screenshot({ path: testInfo.outputPath('roadmap-all.png'), fullPage: true });
 

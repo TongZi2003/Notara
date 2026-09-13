@@ -20,6 +20,7 @@ import type { RouteNode, RouteNodeInputDraft, RouteNodePatchDraft, RouteView } f
 import type { TeachingChoice } from '@studyforge/contracts/teaching';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RouteEditor } from './RouteEditor.tsx';
+import { linearTreeRows } from '../shell/linear-tree.tsx';
 import { civilDayIn, dayLabel, effectiveDecl, materialLabel, refusalCode, walkRoute } from './format.ts';
 
 /** One native lesson, as the frame's own Session list spells it. */
@@ -289,11 +290,11 @@ export function CourseMap({ ctx, lessons, lessonsLoaded, onOpenLesson }: CourseM
         </div>;
       })}
     </div>}
-    {!arranging && <ol className="sf-roadmap" data-testid="roadmap-nodes">
-      {ordered.map(({ node, depth }) => <li key={node.id} className={context.has(node.id) && !matched.has(node.id) ? 'sf-roadmap-row sf-roadmap-context' : 'sf-roadmap-row'}
+    {!arranging && <ol className="sf-roadmap sf-linear-tree" data-testid="roadmap-nodes">
+      {linearTreeRows(ordered.map(row => row.node), node => node.id, node => node.parent, (node, children) => <li key={node.id} className={context.has(node.id) && !matched.has(node.id) ? 'sf-roadmap-row sf-roadmap-context' : 'sf-roadmap-row'}
         data-testid="roadmap-node" data-node-id={node.id} data-route-ref={`route:${node.id}`}>
         {placedByNode.get(node.id) !== undefined && <span className="sf-meta" data-testid="roadmap-position">已自己摆位</span>}
-        <div className="sf-roadmap-row-head" style={{ marginLeft: `${String(depth * 16)}px` }}>
+        <div className="sf-roadmap-row-head">
           <span className="sf-roadmap-title" data-testid="roadmap-node-title">{node.title}</span>
           {node.opening !== undefined && node.session === undefined && <span className="sf-meta">正在开课…</span>}
           {node.session !== undefined && <span className="sf-meta" data-testid="roadmap-node-opened">已开课</span>}
@@ -324,6 +325,7 @@ export function CourseMap({ ctx, lessons, lessonsLoaded, onOpenLesson }: CourseM
             </select>
           </label>
         </div>}
+        {children}
       </li>)}
     </ol>}
     {editing === undefined
@@ -344,7 +346,7 @@ export function NativeLessonList({ lessons, loaded, onOpenLesson }: {
 }): React.JSX.Element {
   if (!loaded) return <p className="sf-note" role="status">正在看你的课…</p>;
   if (lessons.length === 0) return <p className="sf-note" data-testid="native-lessons-empty">还没有课。回到课堂写下想学的主题，就会开出第一节。</p>;
-  return <ul className="sf-lessons" data-testid="studyforge-lessons">
+  return <ul className="sf-lessons sf-linear-tree" data-testid="studyforge-lessons">
     {lessons.map(lesson => <li key={lesson.id}>
       <button type="button" data-testid="native-lesson-open" onClick={() => { onOpenLesson(lesson.id); }}>
         <span>{lesson.title}</span>

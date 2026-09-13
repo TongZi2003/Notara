@@ -75,9 +75,25 @@ test('book expands along its real tree, opens a card and its original in place, 
   await detail.getByTestId('book-detail-back').click();
   await expect(page.getByTestId('book-node-detail')).toHaveCount(0);
   await expect(cardNode).toHaveAttribute('data-selected', 'true');
-  // The list view shares that state instead of starting over.
-  await page.getByRole('button', { name: '列表', exact: true }).click();
+  // The linear tree follows real parent links and shares the map's state.
+  await page.getByRole('button', { name: '目录树', exact: true }).click();
+  await expect(nodes).toHaveAttribute('data-mode', 'tree');
+  const section = nodes.locator('[data-key="section:函数/定义域"]');
+  await expect(section.locator(':scope > ul > [data-kind="card"]')).toHaveCount(1);
   await expect(page.getByTestId('book-nodes').locator('[data-kind="card"]').filter({ hasText: '定义域卡片' })).toHaveAttribute('data-selected', 'true');
+  await section.locator(':scope > .sf-tree-line').getByTestId('mindmap-expand').click();
+  await expect(nodes.locator('[data-kind="card"]')).toHaveCount(0);
+  await section.locator(':scope > .sf-tree-line').getByTestId('mindmap-expand').click();
+  await nodes.locator('[data-kind="card"]').getByRole('button', { name: /定义域卡片/ }).click();
+  await expect(page.getByTestId('book-node-detail')).toContainText('定义域卡片');
+  await page.getByTestId('book-detail-back').click();
+  await page.screenshot({ path: info.outputPath('book-linear-tree.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: '结构', exact: true }).click();
+  await expect(nodes).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('book-linear-tree-narrow.png'), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 950 });
   await page.getByRole('button', { name: '脑图', exact: true }).click();
   await expect(page.getByTestId('book-nodes').locator('[data-key="section:函数/定义域"]')).toBeVisible();
 

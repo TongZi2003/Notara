@@ -264,7 +264,7 @@ export function PlanEditor({ ctx, sessionId, target }: PlanEditorProps): React.J
       <h3>计划</h3>
       <p className="sf-note">计划排的是「哪天做什么」；排课在课程页。每一份计划各改各的，不会互相覆盖。</p>
       {plans.length === 0 && <p className="sf-note" data-testid="plan-empty">还没有计划。</p>}
-      <ul className="sf-plan-list" data-testid="plan-list">
+      <ul className="sf-plan-list sf-linear-tree" data-testid="plan-list">
         {plans.map(plan => <li key={plan.ref} className="sf-plan-row" data-testid="plan-row" data-plan-ref={plan.ref} data-plan-version={String(plan.version)}>
           <button type="button" className="sf-plan-open" data-testid="plan-row-open"
             onClick={() => { void (plan.content.kind === 'campaign' ? openCampaign(plan) : openBook(plan)); }}>
@@ -293,7 +293,7 @@ export function PlanEditor({ ctx, sessionId, target }: PlanEditorProps): React.J
       <fieldset>
         <legend>要在计划里的卡</legend>
         <p className="sf-note">没点名的时段按当天到期卡自由取；点名了的就按点名的来，不往后顺延。</p>
-        <ul className="sf-route-materials" data-testid="plan-editor-cards">
+        <ul className="sf-route-materials sf-linear-tree" data-testid="plan-editor-cards">
           {draft.cards.map(ref => <li key={ref}>
             <span className="sf-route-material-label">{cards.find(card => card.ref === ref)?.content.title ?? ref}</span>
             <button type="button" className="sf-quiet" data-testid="plan-editor-card-remove" onClick={() => { setDraft({ ...draft, cards: draft.cards.filter(item => item !== ref) }); }}>去掉</button>
@@ -335,7 +335,7 @@ export function PlanEditor({ ctx, sessionId, target }: PlanEditorProps): React.J
   return <section className="sf-plan-editor" data-testid="plan-editor">
     <h3 data-testid="plan-editor-heading">这份书的安排</h3>
     <p className="sf-meta" data-testid="plan-editor-target" data-plan-ref={mode.target.ref}>这份书的安排 · 第 {mode.target.version} 版</p>
-    <ul className="sf-plan-list" data-testid="plan-book-entries">
+    <ul className="sf-plan-list sf-linear-tree" data-testid="plan-book-entries">
       {book.kind === 'book' && book.entries.map(entry => <li key={`${entry.date}:${entry.chapter ?? ''}`} className="sf-plan-row" data-testid="plan-book-entry">
         <span>{dayLabel(entry.date)}</span><span className="sf-meta">{entry.chapter ?? '未分章'}</span>
       </li>)}

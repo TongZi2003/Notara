@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { layoutMind, visibleMindNodes, type MindLayout, type MindNode } from './mindmap-model.ts';
 import './mindmap.css';
+import { linearTreeRows } from '../shell/linear-tree.tsx';
 
 // The model, its visibility rule and its geometry are pure and live in
 // `mindmap-model.ts`; this module draws them and re-exports the same names.
@@ -146,7 +147,7 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
     : <button type="button" className="sf-mind-toggle" data-testid="mindmap-expand" aria-expanded={props.expanded.includes(node.key)}
       aria-label={(props.expanded.includes(node.key) ? '收起' : '展开') + node.title}
       onClick={() => { props.onExpand(node, !props.expanded.includes(node.key)); }}>
-      {props.expanded.includes(node.key) ? '− 收起' : node.children.length > 0 ? `+ 展开 ${String(node.children.length)} 项` : '+ 展开'}
+      {mode === 'list' ? props.expanded.includes(node.key) ? '−' : '+' : props.expanded.includes(node.key) ? '− 收起' : node.children.length > 0 ? `+ 展开 ${String(node.children.length)} 项` : '+ 展开'}
     </button>;
   const action = (node: MindNode): React.JSX.Element => <>{[...(props.action ? [props.action] : []), ...(props.actions ?? [])].filter(item => item.when(node)).map((item, i) =>
     <button key={i} type="button" className="sf-quiet sf-mind-action" disabled={props.busy === true}
@@ -161,10 +162,11 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
     {action(node)}
   </>;
 
-  if (mode === 'list') return <ul className="sf-mindmap-list" data-testid={props.testId} aria-label={props.label}>
-    {visible.map(node => <li key={node.key} className="sf-mindmap-node" data-kind={node.kind} data-key={node.key} data-selected={props.selected === node.key}
-      data-testid={props.nodeTestId ?? 'mindmap-node'}
-      style={{ marginInlineStart: (layout.depth.get(node.key) ?? 0) * 16 }}>{body(node)}</li>)}
+  if (mode === 'list') return <ul className="sf-mindmap-tree sf-linear-tree" data-testid={props.testId} aria-label={props.label} data-mode="tree">
+    {linearTreeRows(visible, node => node.key, node => node.parent, (node, children) =>
+      <li key={node.key} data-kind={node.kind} data-key={node.key} data-selected={props.selected === node.key} data-testid={props.nodeTestId ?? 'mindmap-node'}>
+        <div className="sf-tree-line sf-mindmap-node">{body(node)}</div>{children}
+      </li>)}
   </ul>;
 
   const nodeWidth = 170, gap = 36, padding = 20;

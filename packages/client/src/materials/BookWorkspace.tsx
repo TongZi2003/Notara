@@ -67,7 +67,7 @@ export function BookWorkspace({ ctx, source, onSource }: { ctx: Context; source:
       <h3>书的结构</h3>
       <nav className="sf-book-modes" aria-label="结构视图">
         <button type="button" className="sf-quiet" aria-pressed={mode === 'map'} onClick={() => { setMode('map'); }}>脑图</button>
-        <button type="button" className="sf-quiet" aria-pressed={mode === 'list'} onClick={() => { setMode('list'); }}>列表</button>
+        <button type="button" className="sf-quiet" aria-pressed={mode === 'list'} onClick={() => { setMode('list'); }}>目录树</button>
       </nav>
       <button type="button" className="sf-quiet" onClick={() => { setRefresh(n => n + 1); }}>刷新结构</button>
     </div>

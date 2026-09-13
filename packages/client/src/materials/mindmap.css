@@ -36,15 +36,15 @@
   font:11px var(--op-hand,"Kaiti SC","STKaiti",serif);padding:1px 6px;cursor:pointer}
 .sf-mindmap-node .sf-mind-toggle:hover{text-decoration:underline}
 .sf-mindmap-node .sf-mind-action{align-self:center;font:11px var(--op-hand,"Kaiti SC","STKaiti",serif);padding:2px 8px}
-.sf-mindmap-list{list-style:none;margin:0;padding:0}
-.sf-mindmap-list .sf-mindmap-node{position:static;display:flex;flex-direction:column;align-items:stretch;gap:3px;
-  border-bottom:1px solid var(--op-rule,#d9d2bd);padding:6px 0}
-.sf-mindmap-list .sf-mind-label{flex-direction:row;justify-content:flex-start;min-height:0;border:0;background:none;text-align:left;padding:0}
-.sf-mindmap-list .sf-mind-label:hover{color:var(--op-seal,#c93a2e)}
-.sf-mindmap-list .sf-mindmap-node[data-selected="true"] .sf-mind-label{box-shadow:none;color:var(--op-seal,#c93a2e)}
-.sf-mindmap-list .sf-mind-title{font-family:var(--op-print,"Songti SC","STSong",serif);font-size:14px}
-.sf-mindmap-list .sf-mind-hint{margin-left:8px}
-.sf-mindmap-list .sf-mind-toggle,.sf-mindmap-list .sf-mind-action{align-self:flex-start}
+.sf-mindmap-tree{overflow:auto;padding-block:14px!important}
+.sf-mindmap-tree .sf-tree-line{position:static;display:grid;grid-template-columns:22px minmax(0,1fr);align-items:start;gap:2px 6px;min-width:155px}
+.sf-mindmap-tree .sf-mind-label{grid-column:2;grid-row:1;align-items:flex-start;justify-content:flex-start;min-height:0;border:0;background:none;text-align:left;padding:0;box-shadow:none}
+.sf-mindmap-tree .sf-mind-title{font:21px/1.5 var(--nb-hand,"Kaiti SC",serif);color:var(--nb-pen,#26437c)}
+.sf-mindmap-tree .sf-mind-hint{font:11px/1.6 var(--nb-print,serif)}
+.sf-mindmap-tree .sf-mind-toggle{grid-column:1;grid-row:1;margin-top:6px;padding:0;width:18px;height:18px;line-height:16px;border:1px solid var(--op-rule-hi,#b9b19c);border-radius:3px 1px 4px 2px}
+.sf-mindmap-tree .sf-mind-action{grid-column:2;justify-self:start;border:0;background:none;padding:2px 0;font-size:12px}
+.sf-mindmap-tree [data-selected=true]>.sf-tree-line .sf-mind-label{box-shadow:none;background:var(--op-seal-wash,rgba(201,58,46,.06));outline:1px dashed var(--nb-pen,#26437c);outline-offset:4px}
+.sf-tree-line:not(:has(.sf-mind-toggle))::before{content:"";grid-column:1;grid-row:1;width:5px;height:5px;margin:13px 0 0 6px;border:1px solid var(--op-rule-hi,#b9b19c);border-radius:50%}
 /* The original notebook's map-card stickers, shared by book and lesson maps. */
 .sf-mindmap > .sf-mindmap-node{box-sizing:border-box;padding:16px 10px 9px;border-radius:1px;background:#fdf1b0;box-shadow:var(--nb-slip-shadow,0 1px 1px #3c321a29,0 6px 14px #3c321a21);color:#3a3531}
 .sf-mindmap > .sf-mindmap-node:nth-of-type(3n+2){background:#e6efdc}

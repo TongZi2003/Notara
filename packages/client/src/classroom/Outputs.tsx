@@ -40,7 +40,7 @@ export function Outputs({ projection, onOpen }: OutputsProps): React.JSX.Element
   const pending = projection.entries.filter(entry => entry.status === 'pending').length;
   return <section>
     <h3>本课产出</h3>
-    <ul data-testid="studyforge-lesson-outputs">
+    <ul className="sf-linear-tree" data-testid="studyforge-lesson-outputs">
       {projection.entries.map((entry, index) => <li key={entryKey(entry, index)} data-output-status={entry.status}>
         <button type="button" className="sf-output-row" data-testid="studyforge-output-open" onClick={() => { onOpen(entry); }}>
           <span className="sf-output-title">{entry.title ?? '还没有标题'}</span>

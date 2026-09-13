@@ -1,0 +1,40 @@
+/* Shared paper lists. Only explicitly marked product lists join this style;
+   prose, option menus and the native conversation keep their own semantics. */
+body .sf-linear-tree{--sf-tree-ink:color-mix(in srgb,var(--nb-pen,#26437c) 48%,transparent);display:block!important;grid-template-columns:none!important;gap:0!important;list-style:none;margin:0;padding:0 0 0 24px!important;border:0;min-width:0}
+body .sf-linear-tree>.sf-linear-tree{padding-left:24px}
+body .sf-mindmap-tree.sf-linear-tree{padding-block:14px!important;background:var(--nb-paper,#efe7d2)}
+body .sf-linear-tree.sf-linear-tree>:not(.sf-note):not(.empty-hint){position:relative;box-sizing:border-box;margin:0;padding:10px 6px 18px 10px;border:0;border-radius:0;background:transparent;box-shadow:none;min-width:0;max-width:100%;transform:none}
+body .sf-linear-tree.sf-linear-tree>:not(.sf-note):not(.empty-hint)::before{content:"";position:absolute;left:-15px;right:auto;top:0;bottom:0;width:5px;height:auto;margin:0;border:0;border-left:1.2px solid var(--sf-tree-ink);border-radius:0;background:none;box-shadow:none;opacity:1;transform:skewX(-.35deg);transform-origin:top;pointer-events:none}
+body .sf-linear-tree.sf-linear-tree>:last-child:not(.sf-note):not(.empty-hint)::before{bottom:auto;height:26px}
+body .sf-linear-tree>:not(.sf-note):not(.empty-hint)::after{content:"";position:absolute;left:-16px;top:17px;width:25px;height:14px;background:var(--sf-tree-ink);mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 25 14'%3E%3Cpath d='M1 0C1 6 1 9 7 9Q15 10 24 8' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E") center/100% 100% no-repeat;pointer-events:none}
+body .sf-linear-tree .sf-linear-tree{margin-top:6px;padding-left:24px}
+body .sf-linear-tree :is(.sf-card-row-title,.sf-card-group-title,.sf-roadmap-title,.set-card-name,.mt,.sf-plan-open,.cal-ldate,.a-title){font:21px/1.5 var(--nb-hand,"Kaiti SC","STKaiti",serif);color:var(--nb-pen,#26437c);letter-spacing:0;overflow-wrap:anywhere}
+body .sf-linear-tree :is(.sf-meta,.mini-note,.sf-mind-hint,.a-meta){color:var(--nb-pencil,#756e61)}
+body .sf-linear-tree>li:hover,body .sf-linear-tree>.set-card:hover{box-shadow:none;transform:none}
+body .sf-linear-tree.sf-lessons button{padding:0;background:none;text-align:left}
+body .sf-linear-tree.sf-lessons button>span:first-child,body .sf-linear-tree>.cal-lrow,body .sf-linear-tree>.ledger-row{font:20px/1.6 var(--nb-hand,"Kaiti SC",serif);color:var(--nb-pen,#26437c)}
+body .sf-linear-tree.sf-plan-list .sf-plan-row{gap:4px 14px}
+body .sf-linear-tree.sf-card-list .sf-card-row-open{background:none;border:0;box-shadow:none;padding:0;text-align:left}
+body .sf-linear-tree.sf-linear-tree .sf-card-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:start;min-height:0}
+body .sf-linear-tree.sf-card-list .sf-card-face-preview{font:14px/1.8 var(--nb-print,serif);max-height:3.6em;overflow:hidden}
+body .sf-linear-tree.sf-cardgrid .sf-acard{display:block!important;width:100%;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;transform:none!important;translate:none!important;text-align:left}
+body .sf-linear-tree.sf-cardgrid .sf-acard::before{display:none}
+body .sf-linear-tree.sf-cardgrid .a-head,body .sf-linear-tree.sf-cardgrid .a-foot{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+body .sf-linear-tree.sf-cardgrid .a-front{display:block;max-height:3.6em;overflow:hidden;margin:5px 0;font:14px/1.8 var(--nb-print,serif)}
+body .sf-linear-tree .sf-roadmap-actions{border-top:0;padding-top:4px}
+body .sf-linear-tree .sf-roadmap-row-head{margin-left:0}
+body .sf-linear-tree .sf-roadmap-row>.sf-meta{margin:0}
+body .sf-linear-tree .sf-roadmap-row.sf-roadmap-context{opacity:1}
+body .sf-linear-tree .sf-roadmap-context>:not(.sf-linear-tree){opacity:.4}
+body .sf-linear-tree .set-list-row{border:0;background:none}
+body .sf-linear-tree .set-shelf{padding:0;background:none;box-shadow:none}
+body .sf-linear-tree.sf-memory-list>.mem-block{padding-top:10px}
+body .sf-linear-tree .mem-block .mh{border:0;padding:0}
+body .sf-linear-tree .mem-block .mem-sec{border:0}
+body .sf-linear-tree .cal-ldate{margin:0 0 6px}
+body .sf-linear-tree>.cal-lrow{display:flex;width:100%;text-align:left;align-items:baseline;gap:12px}
+body .sf-linear-tree>.ledger-row{width:100%;text-align:left}
+body .sf-linear-tree>.ledger-row .dot{display:none}
+body .sf-linear-tree .row .txt,body .sf-linear-tree>.ledger-row .t{font:19px/1.6 var(--nb-hand,"Kaiti SC",serif)}
+body .sf-linear-tree button:focus-visible{outline:1px dashed var(--nb-pen,#26437c);outline-offset:3px}
+@media(max-width:760px){body .sf-linear-tree{padding-left:18px!important}body .sf-linear-tree .sf-linear-tree{padding-left:18px!important}}

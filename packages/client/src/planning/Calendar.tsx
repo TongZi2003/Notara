@@ -99,7 +99,7 @@ export function Calendar({ ctx, onOpen }: { ctx: Context; onOpen(target: string)
           <button className="chip" data-testid="calendar-new-route" onClick={() => { ctx.layout.selectPanel('studyforge.courses' as MainPanelId); }}>新建排课</button>
           <button className="chip" onClick={() => { setReport(!report); }}>{report ? '返回日历' : '查看日报'}</button>
           {!report && <><button className={`chip${view === 'month' ? ' on' : ''}`} data-testid="calendar-view-month" onClick={() => { setView('month'); }}>月</button>
-            <button className={`chip${view === 'list' ? ' on' : ''}`} data-testid="calendar-view-list" onClick={() => { setView('list'); }}>列表</button></>}
+            <button className={`chip${view === 'list' ? ' on' : ''}`} data-testid="calendar-view-list" onClick={() => { setView('list'); }}>日程树</button></>}
         </div>
       </div>
 
@@ -123,15 +123,15 @@ export function Calendar({ ctx, onOpen }: { ctx: Context; onOpen(target: string)
         </div>
       </>}
 
-      {!report && view === 'list' && <div className="cal-list" data-testid="calendar-list">
+      {!report && view === 'list' && <div className="cal-list sf-linear-tree" data-testid="calendar-list">
         {listDays.length === 0
           ? <div className="empty-hint">未来两周没有排课、安排或到期，日拱一卒的小兵正在休息……</div>
           : listDays.map(day => <div className={`cal-lday${day === today(zone) ? ' today' : ''}`} key={day}>
             <div className="cal-ldate">{day.slice(5)} 周{WEEKDAYS[new Date(day + 'T12:00:00Z').getUTCDay()]}{day === today(zone) ? ' · 今天' : ''}</div>
-            {(nodesByDay.get(day) ?? []).map(node => <button className="cal-lrow" key={node.id} onClick={() => { open(`route:${node.id}`); }}>
+            <div className="sf-linear-tree">{(nodesByDay.get(day) ?? []).map(node => <button className="cal-lrow" key={node.id} onClick={() => { open(`route:${node.id}`); }}>
               <span className="k">路线</span>◇ {node.title}{node.session !== undefined && <small>已开课</small>}</button>)}
             {(dueByDay.get(day) ?? 0) > 0 && <button className="cal-lrow" onClick={() => { setDate(day); }}>
-              <span className="k dim">期</span>到期 {dueByDay.get(day) ?? 0} 张</button>}
+              <span className="k dim">期</span>到期 {dueByDay.get(day) ?? 0} 张</button>}</div>
           </div>)}
       </div>}
 
@@ -148,11 +148,11 @@ export function Calendar({ ctx, onOpen }: { ctx: Context; onOpen(target: string)
         <h2>{date}</h2>
         <p data-testid="calendar-due">{day.relation === 'future' ? '预计到期' : '当天到期'}：{day.dueCount} 张{day.relation === 'today' ? ` · 之前到期未复习：${day.overdueCount} 张` : ''}</p>
         <h3>{day.relation === 'future' ? '已安排' : '原有安排'}</h3>
-        {day.scheduledCourses.length ? day.scheduledCourses.map(course => <button className="cal-lrow" key={course.target} data-testid="calendar-course" onClick={() => { open(course.target); }}>{course.title}<span>{course.opened ? '回到这节课' : '打开这节课'}</span></button>) : <p className="mini-note">没有安排课程。</p>}
+        {day.scheduledCourses.length ? <div className="sf-linear-tree">{day.scheduledCourses.map(course => <button className="cal-lrow" key={course.target} data-testid="calendar-course" onClick={() => { open(course.target); }}>{course.title}<span>{course.opened ? '回到这节课' : '打开这节课'}</span></button>)}</div> : <p className="mini-note">没有安排课程。</p>}
         <h3>实际活动</h3>
-        {day.activity.length ? day.activity.map((item, i) => <div className="cal-lrow" key={`${item.target ?? item.kind}:${String(i)}`}>
+        {day.activity.length ? <div className="sf-linear-tree">{day.activity.map((item, i) => <div className="cal-lrow" key={`${item.target ?? item.kind}:${String(i)}`}>
           <span>{item.title}</span>{item.target && <button className="sf-quiet" onClick={() => { open(item.kind === 'course' ? item.sourceRefs.find(ref => ref.startsWith('session:')) ?? item.target! : item.target!); }}>查看</button>}
-        </div>) : <p className="mini-note">这一天还没有学习活动记录。</p>}
+        </div>)}</div> : <p className="mini-note">这一天还没有学习活动记录。</p>}
       </div>}
       {target && <LearningObject key={target} ctx={ctx} target={target} onBack={() => { setTarget(undefined); }} />}
       <details className="mini-note" data-testid="calendar-legend"><summary style={{ cursor: 'pointer' }}>图例 ▸</summary>

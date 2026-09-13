@@ -1,0 +1,49 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/book-workspace.spec.ts tests/e2e/notebook-pages.spec.ts tests/e2e/planning-overview-v2.spec.ts tests/e2e/sets-calendar.spec.ts tests/e2e/coauthor-memory.spec.ts --output=.runtime/linear-tree-ui
+
+
+Running 8 tests using 1 worker
+
+(node:81672) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/book-workspace.spec.ts:24:1 › book expands along its real tree, opens a card and its original in place, and returns without writing (12.3s)
+  ✘  2 tests/e2e/coauthor-memory.spec.ts:74:1 › the student rewrites one judgement, keeps its evidence, and survives a conflict (25.6s)
+(node:81997) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths (17.4s)
+  ✓  4 tests/e2e/planning-overview-v2.spec.ts:67:1 › a date range narrows the roadmap, keeps ancestors as context, and clearing restores the tree (17.2s)
+  ✓  5 tests/e2e/planning-overview-v2.spec.ts:124:1 › an opened planned lesson stays visible in the whole roadmap and keeps its real lesson (10.7s)
+  ✓  6 tests/e2e/planning-overview-v2.spec.ts:156:1 › a card the student really placed keeps its coordinate, and a content edit does not lose it (16.9s)
+  ✓  7 tests/e2e/sets-calendar.spec.ts:9:1 › student set edits preserve their draft through a real concurrent update and persist at narrow width (10.7s)
+  ✓  8 tests/e2e/sets-calendar.spec.ts:34:1 › calendar opens the second actual planned lesson and daily settings survive a fresh page (16.4s)
+
+
+  1) tests/e2e/coauthor-memory.spec.ts:74:1 › the student rewrites one judgement, keeps its evidence, and survives a conflict
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByTestId('studyforge-lesson-panel').getByTestId('lesson-memory')
+
+
+      48 |     }
+      49 |     await expect(lessonPanel).toBeVisible({ timeout: 15_000 });
+    > 50 |     await lessonPanel.getByTestId('lesson-memory').click();
+         |                                                    ^
+      51 |   }
+      52 |   await expect(page.getByTestId('memory-panel')).toBeVisible({ timeout: 15_000 });
+      53 | }
+        at openMemory (/Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/coauthor-memory.spec.ts:50:52)
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/coauthor-memory.spec.ts:80:3
+
+    attachment #1: host-log (text/plain) ───────────────────────────────────────────────────────────
+    (node:81788) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/linear-tree-ui/coauthor-memory-the-studen-82a18-nce-and-survives-a-conflict/error-context.md
+
+  1 failed
+    tests/e2e/coauthor-memory.spec.ts:74:1 › the student rewrites one judgement, keeps its evidence, and survives a conflict
+  7 passed (2.1m)
