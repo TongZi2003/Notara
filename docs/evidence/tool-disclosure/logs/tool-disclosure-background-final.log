@@ -1,0 +1,18 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/native-delegation.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/native-delegation.test.ts (5 tests) 34530ms
+   ✓ a real lesson delegates to native helpers that never receive its conversation  7639ms
+   ✓ the real native search child can read its fixed material through the product access boundary  7003ms
+   ✓ structured output from a native problem child is registered once as the same ordinary unlearned card  6285ms
+   ✓ a prose-only problem child is refused by the Host and registers no card  6233ms
+   ✓ a progressively loaded background search can be followed up and stopped, while its child cannot load teacher tools  7370ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  13:56:15
+   Duration  34.65s (transform 34ms, setup 0ms, import 49ms, tests 34.53s, environment 0ms)

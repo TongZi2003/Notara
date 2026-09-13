@@ -23,6 +23,7 @@ import { join } from 'node:path';
 import { assertSupportedJsonSchema } from '@deepseek-ai/dsh-tools';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { SessionCreateValue, SessionListValue, SessionPage } from '@deepseek-ai/dsh-api-session-controller';
+import type { CourseView } from '@studyforge/contracts/courses';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 
@@ -33,15 +34,16 @@ function value<T>(result: RemoteResult<T>): T { if (!result.ok) throw new Error(
 interface AssembleTool { name: string; description: string; parameters: Record<string, unknown>; }
 
 /** Tools this repository registers; the names fixed by the StudyForge host. */
-const studyforgeNames = ['delegate_assistant', 'delegate_peer', 'delegate_problem', 'delegate_search',
+const studyforgeNames = ['load_tools', 'delegate_assistant', 'delegate_peer', 'delegate_problem', 'delegate_search',
   'list_cards', 'read_cards', 'list_materials', 'list_plans', 'list_sets', 'note_memory', 'note_method', 'preview_region',
   'propose_card', 'propose_handoff', 'propose_lesson_settings', 'propose_plan', 'propose_review', 'propose_route',
   'propose_set', 'propose_skeleton', 'query_evidence', 'read_card', 'read_handoff', 'read_lesson', 'read_material',
   'read_memory', 'read_method', 'read_plan', 'read_route', 'read_set', 'read_skeleton', 'record_review',
   'register_cards', 'revise_memory', 'revise_method', 'search_learning', 'search_memory', 'update_card'];
 /** Tools the released DSH runtime installs alongside them. */
-const builtinNames = ['edit', 'glob',
-  'grep', 'interrupt_agent', 'read', 'read_image', 'send_message', 'skill', 'subagent', 'web_fetch', 'web_search', 'write'];
+// Native write/edit remain registered for creation, but are unavailable to learning.
+const builtinNames = ['glob',
+  'grep', 'interrupt_agent', 'read', 'read_image', 'send_message', 'skill', 'subagent', 'web_fetch', 'web_search'];
 /** The subset a provider flatly refuses without an object root. */
 const requiredTools = ['propose_card', 'propose_handoff', 'propose_plan', 'propose_route', 'propose_set'];
 
@@ -68,8 +70,10 @@ test('every assembled tool the model received has an object root and a native-co
   const sessionId = value(await client.rpc<SessionCreateValue>('session/create', {
     request: { cwd: join(runtime.root, 'classroom'), agentPreset: 'studyforge-learning' },
   })).sessionId;
+  const course = value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId } }));
+  value(await client.rpc('studyforgeCourses/update', { input: { sessionId, operationId: 'schema-diagnose', expectedVersion: course.version, patch: { teachingRef: 'diagnose' } } }));
   value(await client.rpc('session/prompt', {
-    request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '用一句话说明今天要做什么。' }] },
+    request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tool]' + JSON.stringify({ name: 'load_tools', arguments: { names: [...studyforgeNames, ...builtinNames] } }) }] },
   }));
   for (let attempt = 0; attempt < 80; attempt++) {
     const running = value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(item => item.sessionId === sessionId)?.running;
@@ -82,18 +86,21 @@ test('every assembled tool the model received has an object root and a native-co
   const page = value(await client.rpc<SessionPage>('session/page', { request: { address: { kind: 'session', sessionId }, throughSeq: cursor, maxMessages: 300 } }));
   const headers = page.records.filter(record => record.type === 'event' && record.event.type === 'request/header');
   expect(headers.length, runtime.log()).toBeGreaterThan(0);
-  const assembled = headers
+  const surfaces = headers
     .map(header => (header.event.data as { header?: { tools?: AssembleTool[] } }).header?.tools)
-    .filter((tools): tools is AssembleTool[] => Array.isArray(tools))
-    .at(-1);
+    .filter((tools): tools is AssembleTool[] => Array.isArray(tools));
+  const assembled = surfaces.at(-1);
   expect(assembled, runtime.log()).toBeDefined();
 
-  // The assembled surface is exactly the two known groups: every StudyForge
-  // tool, every released built-in, no duplicate, no silent third party.
+  const initial = surfaces[0]!;
+  expect(initial).toHaveLength(8);
+  expect(initial.map(tool => tool.name)).not.toContain('propose_card');
+  // After explicit loading, sweep every eligible tool, including diagnostic
+  // registration; unavailable classroom write/edit never enter this request.
   const names = assembled!.map(tool => tool.name);
   expect(new Set(names).size, 'tool names must stay unique').toBe(names.length);
   expect([...names].sort()).toEqual([...studyforgeNames, ...builtinNames].sort());
-  expect(assembled!.length).toBe(50);
+  expect(assembled!.length).toBe(49);
   const localSearch = assembled!.find(tool => tool.name === 'search_learning')!;
   expect(localSearch.parameters).toMatchObject({ properties: { include: { items: { enum: ['material', 'card', 'knowledge'] } } } });
   expect(assembled!.find(tool => tool.name === 'list_cards')?.parameters.required ?? []).toEqual([]);
@@ -164,6 +171,9 @@ test('every assembled tool the model received has an object root and a native-co
   expect((card.parameters.oneOf as { type?: unknown }[]).map(branch => branch.type)).toEqual(['object', 'object']);
 
   console.log(JSON.stringify({
+    initialTools: initial.length,
+    initialSchemaBytes: Buffer.byteLength(JSON.stringify(initial)),
+    loadedSchemaBytes: Buffer.byteLength(JSON.stringify(assembled)),
     assembledTools: assembled!.length,
     studyforgeTools: names.filter(name => studyforgeNames.includes(name)).length,
     builtinTools: names.filter(name => builtinNames.includes(name)).length,

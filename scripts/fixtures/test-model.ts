@@ -23,7 +23,7 @@ export function apply(ctx: Context, config: { logPath: string }): void {
       const text = user?.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n') ?? '';
       const key = `${options.purpose}:${options.sessionId}:${user?.id}`, attempt = this.attempts.get(key) ?? 0;
       this.attempts.set(key, attempt + 1);
-      await appendFile(config.logPath, JSON.stringify({ sessionId: options.sessionId, purpose: options.purpose, provider: options.provider, model: options.model, reasoningEffort: options.reasoningEffort, messages: options.messages, toolNames: options.tools?.map(tool => tool.name) ?? [], at: Date.now() }) + '\n');
+      await appendFile(config.logPath, JSON.stringify({ sessionId: options.sessionId, purpose: options.purpose, provider: options.provider, model: options.model, reasoningEffort: options.reasoningEffort, messages: options.messages, toolNames: options.tools?.map(tool => tool.name) ?? [], toolSchemaBytes: Buffer.byteLength(JSON.stringify(options.tools ?? [])), at: Date.now() }) + '\n');
       const studentText = decodeSourceFragments(text).text.trim();
       let scripted = studentText.startsWith('[tools]') ? JSON.parse(studentText.slice(7)) as { name: string; arguments: unknown }[]
         : studentText.startsWith('[tool]') ? [JSON.parse(studentText.slice(6)) as { name: string; arguments: unknown }] : [];
@@ -35,13 +35,20 @@ export function apply(ctx: Context, config: { logPath: string }): void {
           .then(raw => JSON.parse(raw) as { action: string; nodePath?: string; calls: { name: string; arguments: unknown }[] }[]).catch(() => []);
         scripted = plans.find(plan => plan.action === (task.action ?? 'directory') && plan.nodePath === task.nodePath)?.calls ?? [];
       }
-      const childTool = !studentText.startsWith('[tool') && studentText.match(/\[child-tool\](\{[^\n]+\})/);
+      // Native send_message arrives as an agent-attributed message rather than
+      // a student's message. Script the latest explicit child directive there.
+      const childDirective = options.messages.findLast(message => message.role === 'user'
+        && message.content.some(block => block.type === 'text' && block.text.includes('[child-tool]')));
+      const childText = childDirective?.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n') ?? '';
+      const childTool = !studentText.startsWith('[tool') && childText.match(/\[child-tool\](\{[^\n]+\})/);
       if (childTool) scripted = [JSON.parse(childTool[1]!) as { name: string; arguments: unknown }];
       if (studentText.includes('[structured-problem]') && options.tools?.some(tool => tool.name === 'structured_output')) scripted = [{ name: 'structured_output',
         arguments: { problems: [{ title: '独立命题样题', front: '求 $2+3$。', solution: '5', notes: '', tags: [] }] },
       }];
       const taskStep = task ? options.messages.slice(options.messages.lastIndexOf(user!) + 1)
-        .flatMap(message => message.content).filter(block => block.type === 'tool-call').length : attempt;
+        .flatMap(message => message.content).filter(block => block.type === 'tool-call').length
+        : childTool && childDirective ? options.messages.slice(options.messages.indexOf(childDirective) + 1)
+          .flatMap(message => message.content).filter(block => block.type === 'tool-call').length : attempt;
       let call = scripted[taskStep];
       // Explicit receipt scenario: after confirmation the teacher reads its
       // lesson once. This exercises actual dispatch, not just a tool-name list.

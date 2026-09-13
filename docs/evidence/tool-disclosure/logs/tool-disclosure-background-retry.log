@@ -1,0 +1,33 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/native-delegation.test.ts -t progressively loaded background
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ❯ |integration| tests/integration/native-delegation.test.ts (5 tests | 1 failed | 4 skipped) 6664ms
+   ↓ a real lesson delegates to native helpers that never receive its conversation
+   ↓ the real native search child can read its fixed material through the product access boundary
+   ↓ structured output from a native problem child is registered once as the same ordinary unlearned card
+   ↓ a prose-only problem child is refused by the Host and registers no card
+   × a progressively loaded background search can be followed up and stopped, while its child cannot load teacher tools 6663ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |integration| tests/integration/native-delegation.test.ts > a progressively loaded background search can be followed up and stopped, while its child cannot load teacher tools
+AssertionError: [{"type":"tool-result","toolCallId":"612479bf-a883-4d7e-9a79-60872514f81a","content":[{"type":"text","text":"{\"loaded\":[\"delegate_search\",\"interrupt_agent\",\"send_message\"],\"available\":\"next_step\",\"scope\":\"current_lesson\"}"}],"isError":false},{"type":"tool-result","toolCallId":"f196fb19-7783-4e14-8e32-6ad6c3b36590","content":[{"type":"text","text":"Error: delegation_background_unavailable: 本课没有可回话的原生子会话通道，请改用前台检索"}],"isError":true}]: expected undefined to be defined
+ ❯ tests/integration/native-delegation.test.ts:180:45
+    178|     try { return block.text ? [JSON.parse(block.text) as { background?…
+    179|   }).find(result => result.background === true && typeof result.childI…
+    180|   expect(accepted, JSON.stringify(results)).toBeDefined();
+       |                                             ^
+    181|   const childId = accepted!.childId!;
+    182|   await expect.poll(async () => (await modelLog()).filter(row => row.s…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 4 skipped (5)
+   Start at  13:09:46
+   Duration  6.77s (transform 32ms, setup 0ms, import 44ms, tests 6.66s, environment 0ms)

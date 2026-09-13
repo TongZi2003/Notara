@@ -1,0 +1,33 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/native-delegation.test.ts -t progressively loaded background
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ❯ |integration| tests/integration/native-delegation.test.ts (5 tests | 1 failed | 4 skipped) 6702ms
+   ↓ a real lesson delegates to native helpers that never receive its conversation
+   ↓ the real native search child can read its fixed material through the product access boundary
+   ↓ structured output from a native problem child is registered once as the same ordinary unlearned card
+   ↓ a prose-only problem child is refused by the Host and registers no card
+   × a progressively loaded background search can be followed up and stopped, while its child cannot load teacher tools 6701ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |integration| tests/integration/native-delegation.test.ts > a progressively loaded background search can be followed up and stopped, while its child cannot load teacher tools
+AssertionError: expected undefined to be defined
+ ❯ tests/integration/native-delegation.test.ts:172:17
+    170|   ]);
+    171|   const child = value(await client.rpc<SessionListValue>('session/list…
+    172|   expect(child).toBeDefined();
+       |                 ^
+    173|   await expect.poll(async () => (await modelLog()).filter(row => row.s…
+    174|   const first = (await modelLog()).find(row => row.sessionId === child…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 4 skipped (5)
+   Start at  13:08:00
+   Duration  6.81s (transform 32ms, setup 0ms, import 44ms, tests 6.70s, environment 0ms)

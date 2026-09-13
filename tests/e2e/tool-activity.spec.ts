@@ -12,6 +12,7 @@ test('tool rows speak plainly until expanded and retain the native inspection ro
   await enterClassroom(page, classroom.authUrl);
   await sendInput(page, '[tools]' + JSON.stringify([
     { name: 'list_cards', arguments: { state: 'due' } },
+    { name: 'load_tools', arguments: { names: ['propose_card'] } },
     { name: 'propose_card', arguments: { kind: 'card', title: '先检查象限', front: '观察角的范围。' } },
     { name: 'read_card', arguments: { target: 'card:missing-fixture' } },
   ]));
@@ -21,14 +22,16 @@ test('tool rows speak plainly until expanded and retain the native inspection ro
     return sessions.ok && sessions.value.items.length > 0 && sessions.value.items.every(item => !item.running);
   }).toBe(true);
   const process = page.getByTestId('tool-process-toggle');
-  await expect(process).toContainText('老师的准备过程 · 3 步');
+  await expect(process).toContainText('老师的准备过程 · 4 步');
   if (await process.getAttribute('aria-expanded') !== 'true') await process.click();
   const rows = page.getByTestId('tool-activity');
-  await expect(rows).toHaveCount(3);
+  await expect(rows).toHaveCount(4);
   await expect(rows.first()).toContainText('查看今天该复习的卡片');
-  await expect(rows.nth(1)).toContainText('提案已准备好');
-  await expect(rows.nth(1).getByTestId('tool-activity-summary')).toContainText('准备卡片“先检查象限”');
-  await expect(rows.nth(1)).not.toContainText('已保存');
+  await expect(rows.nth(1).getByTestId('tool-activity-summary')).toContainText('准备这一步需要的操作');
+  await expect(rows.nth(1).getByTestId('tool-activity-summary')).not.toContainText('load_tools');
+  await expect(rows.nth(2)).toContainText('提案已准备好');
+  await expect(rows.nth(2).getByTestId('tool-activity-summary')).toContainText('准备卡片“先检查象限”');
+  await expect(rows.nth(2)).not.toContainText('已保存');
   await expect(rows.last()).toHaveAttribute('data-tool-state', 'error');
   for (const row of await rows.all()) {
     await expect(row.getByTestId('tool-activity-details')).toHaveCount(0);
@@ -51,7 +54,7 @@ test('tool rows speak plainly until expanded and retain the native inspection ro
   await rows.last().getByTestId('tool-activity-summary').click();
   await expect(rows.last().getByTestId('tool-activity-details')).toHaveCount(0);
   await page.reload();
-  await expect(page.getByTestId('tool-process-toggle')).toContainText('3 步');
+  await expect(page.getByTestId('tool-process-toggle')).toContainText('4 步');
   expect(errors).toEqual([]);
 });
 

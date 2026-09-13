@@ -2,6 +2,7 @@ export type ToolDisplayState = 'running' | 'ok' | 'error' | 'stopped';
 
 /** Describes the action, never an unverified learning or persistence outcome. */
 const ACTIONS: Record<string, string> = {
+  load_tools: '准备这一步需要的操作',
   list_materials: '查找书架上的资料', read_material: '阅读原文', preview_region: '查看书页细节',
   list_cards: '查找相关卡片', read_card: '阅读这张卡片', read_cards: '阅读选中的卡片', search_learning: '查找相关知识和资料',
   read_method: '查看已有的方法笔记', note_method: '记下方法笔记', revise_method: '修改方法笔记',

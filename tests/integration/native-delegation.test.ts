@@ -75,7 +75,7 @@ test('a real lesson delegates to native helpers that never receive its conversat
     explanation: '两边同除 cos 就得到 tan',
   } };
   value(await client.rpc('session/prompt', {
-    request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tools]' + JSON.stringify([assistant, peer]) }] },
+    request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tools]' + JSON.stringify([{ name: 'load_tools', arguments: { names: ['delegate_assistant', 'delegate_peer'] } }, assistant, peer]) }] },
   }));
   await expect.poll(async () => value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(item => item.sessionId === sessionId)?.running, { timeout: 45_000 }).toBe(false);
 
@@ -96,6 +96,8 @@ test('a real lesson delegates to native helpers that never receive its conversat
     expect(textOf(request!)).toContain(marker);
     expect(textOf(request!)).not.toContain('delegate_assistant');
     expect(textOf(request!)).not.toContain('[tools]');
+    expect(request!.toolNames).not.toContain('load_tools');
+    expect(systemOf(request!)).not.toContain('按需取得工具');
   }
   // Two children left the lesson's own session alone.
   expect(log.filter(entry => entry.sessionId === sessionId).length).toBeGreaterThan(0);
@@ -108,7 +110,10 @@ test('the real native search child can read its fixed material through the produ
   const book = value(await client.rpc<MaterialView>('studyforgeMaterials/import', { input: { operationId: 'child-book', material: { title: '检索原文', fileName: '检索.txt', mediaType: 'text/plain' }, base64: Buffer.from('真正读取的材料正文').toString('base64') } }));
   const { sessionId } = value(await client.rpc<SessionCreateValue>('session/create', { request: { cwd: join(runtime.root, 'classroom'), agentPreset: 'studyforge-learning' } }));
   const child = { name: 'read_material', arguments: { source: { materialId: book.materialId, versionId: book.currentVersion.versionId } } };
-  value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tool]' + JSON.stringify({ name: 'delegate_search', arguments: { task: '[child-tool]' + JSON.stringify(child) } }) }] } }));
+  value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tools]' + JSON.stringify([
+    { name: 'load_tools', arguments: { names: ['delegate_search'] } },
+    { name: 'delegate_search', arguments: { task: '[child-tool]' + JSON.stringify(child) } },
+  ]) }] } }));
   await expect.poll(async () => value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(item => item.sessionId === sessionId)?.running, { timeout: 45_000 }).toBe(false);
   const children = value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.filter(item => item.parentSessionId === sessionId);
   expect(children).toHaveLength(1);
@@ -149,4 +154,42 @@ test('a prose-only problem child is refused by the Host and registers no card', 
   expect(value(await client.rpc<CardView[]>('studyforgeLearning/cards', {})).filter(card => card.content.presentation === 'problem')).toEqual([]);
   const log = await modelLog();
   expect(log.some(entry => entry.sessionId !== sessionId), '子会话请求为 0：delegate_problem 还没接进 Host，命题帮手从未被派出').toBe(true);
+}, 60_000);
+
+test('a progressively loaded background search can be followed up and stopped, while its child cannot load teacher tools', async () => {
+  runtime = await startIsolated({ testModel: true });
+  const client = await connectRuntime(runtime);
+  const { sessionId } = value(await client.rpc<SessionCreateValue>('session/create', { request: { cwd: join(runtime.root, 'classroom'), agentPreset: 'studyforge-learning' } }));
+  const send = async (calls: { name: string; arguments: unknown }[]) => {
+    const before = await modelLog().then(rows => rows.filter(row => row.sessionId === sessionId).length).catch(() => 0);
+    value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tools]' + JSON.stringify(calls) }] } }));
+    await expect.poll(async () => (await modelLog()).filter(row => row.sessionId === sessionId).length, { timeout: 30_000 }).toBeGreaterThan(before);
+    await expect.poll(async () => value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(row => row.sessionId === sessionId)?.running, { timeout: 30_000 }).toBe(false);
+  };
+  await send([
+    { name: 'load_tools', arguments: { names: ['delegate_search'] } },
+    { name: 'delegate_search', arguments: { task: '检索任务测试：这次只确认收到任务，不访问外网。', background: true } },
+  ]);
+  // A continuable child's address comes from the accepted native delegation;
+  // the ordinary lesson list need not list resident background agents.
+  const prepared = (await modelLog()).filter(row => row.sessionId === sessionId).at(-1)!;
+  const results = prepared.messages.flatMap(message => message.content).filter(block => block.type === 'tool-result');
+  const accepted = results.flatMap(block => block.content ?? []).flatMap(block => {
+    try { return block.text ? [JSON.parse(block.text) as { background?: boolean; childId?: string }] : []; } catch { return []; }
+  }).find(result => result.background === true && typeof result.childId === 'string');
+  expect(accepted, JSON.stringify(results)).toBeDefined();
+  const childId = accepted!.childId!;
+  await expect.poll(async () => (await modelLog()).filter(row => row.sessionId === childId).length).toBeGreaterThan(0);
+  const first = (await modelLog()).find(row => row.sessionId === childId)!;
+  expect(first.toolNames).toEqual(expect.arrayContaining(['web_search', 'read_material', 'send_message']));
+  expect(first.toolNames).not.toContain('load_tools');
+  await send([{ name: 'send_message', arguments: { agent_id: childId,
+    message: '[child-tool]' + JSON.stringify({ name: 'load_tools', arguments: { names: ['note_memory'] } }) } }]);
+  await expect.poll(async () => (await modelLog()).filter(row => row.sessionId === childId).map(textOf).join('\n'), { timeout: 30_000 })
+    .toMatch(/UNKNOWN_TOOL|unknown tool|只有主课堂|not found|not visible|not callable/i);
+  for (const row of (await modelLog()).filter(row => row.sessionId === childId)) expect(row.toolNames).not.toContain('note_memory');
+  await send([{ name: 'interrupt_agent', arguments: { agent_id: childId } }]);
+  const parent = (await modelLog()).filter(row => row.sessionId === sessionId).at(-1)!;
+  expect(parent.toolNames).toEqual(expect.arrayContaining(['delegate_search', 'send_message', 'interrupt_agent']));
+  expect(textOf(parent)).toContain('interrupt requested for agent');
 }, 60_000);

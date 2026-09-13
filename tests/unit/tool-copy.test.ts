@@ -16,6 +16,7 @@ describe('student tool progress', () => {
     expect(toolDisplayCopy('delegate_assistant', 'ok')).not.toContain('完成');
   });
   it('uses only known semantic options outside the expanded details', () => {
+    expect(toolDisplayCopy('load_tools', 'running', '{"names":["propose_route","private_tool"]}')).toBe('正在准备这一步需要的操作…');
     expect(toolDisplayCopy('list_cards', 'running', '{"state":"due","target":"card:private-id"}')).toBe('正在查看今天该复习的卡片…');
     expect(toolDisplayCopy('propose_card', 'running', '{"kind":"method"}')).toBe('正在准备收录锦囊…');
     expect(toolDisplayCopy('unknown_private_tool', 'error', '{"path":"/private/internal"}')).toBe('这次没能处理这一步');

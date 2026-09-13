@@ -2,7 +2,7 @@
 
 核对日期：2026-09-13。范围为当前 StudyForge DSH 产品，不包含开发用 Codex Skills 或旧 Pi 前端。
 
-当前内置 **5 个教学 Skill、38 个 StudyForge 工具、12 个 DSH 原生工具**。隔离运行时重新装配得到50个工具，`tool-schema-projection.test.ts` PASS；没有向实际课堂发送消息。
+当前内置 **5 个教学 Skill、39 个 StudyForge 工具（含新增的 `load_tools`）、12 个 DSH 原生工具**。注册总数51，主课堂实行渐进披露：新课默认仅发送8个完整工具接口，其余通过简短目录按需加载。普通课堂最多可加载48个，诊断课49个；学习会话不提供原生write/edit，制作会话的组合保持原样。完整机制见[工具渐进披露](tool-disclosure.md)。
 
 ## 1. 会话预设与教学 Skill
 
@@ -18,9 +18,15 @@
 
 这五个 Skill 和教学选项来自同一组提示文本，共用 `resources/teaching/base.md` 的课堂规则。`skill` 工具加载文本；课程的 `teachingRef` 决定动态注入哪份教学预设。切换教学方式不改变工具权限。章节整理任务会按固定任务上下文采用资料整理规则。
 
-## 2. StudyForge 工具（38）
+## 2. StudyForge 工具（39）
 
 “待确认”表示产生提案，教学内容在学生确认后才保存；“直接保存”表示满足用途、来源和版本要求后直接写入。“只读”不代表学生已经学过。
+
+### 工具加载（1）
+
+| Tool | 功能 | 效果 |
+|---|---|---|
+| `load_tools` | 根据目录中的精确名称，一次加载一个或多个完整工具接口；下一步再调用 | 仅改变本课模型请求的工具展示；不执行所选工具、不保存学习事实，跨轮/重启保留，新课重置 |
 
 ### 资料和检索（4）
 
@@ -111,15 +117,15 @@
 | `read_image` | 读取本地图片 | 受读取范围及模型图像能力限制 |
 | `glob` | 按文件路径模式找文件 | 受会话范围限制 |
 | `grep` | 用正则搜索文件正文 | 受会话范围限制 |
-| `write` | 创建或整份替换文本文件 | 学习会话禁止；制作会话只能写选定作品 |
-| `edit` | 用精确文本替换编辑文件 | 学习会话禁止；制作会话只能写选定作品 |
+| `write` | 创建或整份替换文本文件 | 不进入学习课堂目录或schema；制作会话只能写选定作品 |
+| `edit` | 用精确文本替换编辑文件 | 不进入学习课堂目录或schema；制作会话只能写选定作品 |
 | `web_search` | 检索外网信息 | 外部检索，不自动成为本地资料 |
 | `web_fetch` | 读取明确URL的内容 | 返回实际内容及截断/错误信息 |
 | `subagent` | 创建原生子任务，可后台运行并持续交互 | 学习预设使用spawn；生命周期交给DSH |
 | `send_message` | 给直接子任务继续发消息；子任务可回父任务 | 忙时插入，空闲时启动下一轮；仅确认送达 |
 | `interrupt_agent` | 请求停止后台任务的当前回合 | 保留任务供后续继续；已完成者为no-op |
 
-50是主课堂实际装配数，包含已注册但执行时受用途限制的write/edit。制作会话的组合不同；工具能出现在注册表，不代表任何角色都可以执行。当前课堂不开放任意shell/run_code。
+51是注册总数，不是每次发送给主课堂的接口数量。教学方式改变默认行为，不强制加载整组工具；诊断专用register_cards仍受原有用途限制。加载subagent或delegate_search时会同时提供send_message/interrupt_agent，以保持后台任务可追问、可停止。制作会话及帮手工具范围不受主课堂展示裁剪影响。当前课堂不开放任意shell/run_code。
 
 ## 4. 功能对应关系
 
@@ -147,4 +153,4 @@
 - `packages/host/src/teaching/native-delegation.ts`：四种专用委派及命题保存行为。
 - `packages/host/presets/*/agent.cordis.yml`：学习/制作原生插件组合。
 - `packages/host/src/access/context.ts`、`packages/domain/src/access/`：用途与文件权限。
-- 本次装配核查：[装配日志](../evidence/linear-lists/logs/skill-tool-inventory.log)，50个工具，1个集成用例PASS。
+- 最新装配核查：[渐进披露证据](../evidence/tool-disclosure/README.md)：新课8个完整接口，显式加载后扫验49个课堂可用接口（含诊断专用工具），对象根schema兼容修正仍有效。

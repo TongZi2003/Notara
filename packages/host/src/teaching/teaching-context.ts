@@ -11,6 +11,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent';
 import { continuationBrief } from './lesson-brief.ts';
 import { providerToolSchemas } from '../tools/model-tool-schemas.ts';
 import { bookTaskInstructions, currentBookTask } from './book-task.ts';
+import { installToolDisclosure } from '../tools/tool-disclosure.ts';
 
 export class TeachingCatalog {
   readonly defaultId: string;
@@ -55,6 +56,7 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
     && (host.sessionProjections.snapshot(agent.session, ['agentPreset']).values.agentPreset ?? agent.session.header.agentPreset) === 'studyforge-learning'
     && agent.session.header.origin !== 'subagent'
     && !!agent.session.header.cwd && realpathSync(agent.session.header.cwd) === host.studyforgeAccess.root;
+  const disclose = installToolDisclosure(host, owns);
   host.effect(() => host.systemPrompt.section({
     name: 'studyforge:teaching', order: 20000,
     text: ({ agent }) => {
@@ -82,7 +84,8 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
     // Confirmation/idempotency belong to the writers, not a blanket tool ban
     // that contradicts the receipt's instruction to continue teaching.
     const visible = helper(context.agent) ? result.tools.filter(tool => !helperForbidden.has(tool.name)) : result.tools;
-    return { ...result, tools: providerToolSchemas(visible) };
+    const projected = disclose({ ...result, tools: visible }, context.agent);
+    return { ...projected, tools: providerToolSchemas(projected.tools) };
   });
   host.effect(() => host.tools.guard(execution => {
     if (helper(execution.agent) && helperForbidden.has(execution.name)) return '这次独立任务只读取材料和返回结果，不能读取学情、写入学习事实或继续委派。';

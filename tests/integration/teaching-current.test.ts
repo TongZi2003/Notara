@@ -48,32 +48,40 @@ test('five configured teaching choices change the actual next native request and
   }
   const first = await send('从当前问题开始');
   expect(transcript(first)).toContain('# 苏格拉底授课');
-  expect(first.toolNames).toContain('read_memory');
+  expect(first.toolNames).not.toContain('read_memory');
+  expect(transcript(first)).toContain('read_memory —');
   let course = value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId } }));
   course = value(await client.rpc<CourseView>('studyforgeCourses/update', { input: { sessionId, operationId: crypto.randomUUID(), expectedVersion: course.version, patch: { teachingRef: 'search', temporaryInstructions: '本轮优先核对官方来源。' } } }));
   const changed = await send('现在按这个要求继续');
   expect(changed.sessionId).toBe(sessionId);
   expect(transcript(changed)).toContain('# 搜索');
   expect(transcript(changed)).toContain('本轮优先核对官方来源。');
-  expect(changed.toolNames).toContain('web_search');
+  expect(changed.toolNames).not.toContain('web_search');
+  const searching = await send('[tool]' + JSON.stringify({ name: 'load_tools', arguments: { names: ['web_search', 'read_memory'] } }));
+  expect(searching.toolNames).toEqual(expect.arrayContaining(['web_search', 'read_memory']));
   await runtime.restart(); client = await connectRuntime(runtime);
   expect(value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId } }))).toEqual(course);
   const resumed = await send('重开后继续');
   expect(transcript(resumed)).toContain('本轮优先核对官方来源。');
+  expect(resumed.toolNames).toEqual(searching.toolNames);
   course = value(await client.rpc<CourseView>('studyforgeCourses/update', { input: { sessionId, operationId: crypto.randomUUID(), expectedVersion: course.version,
     patch: { teachingRef: 'organize', temporaryInstructions: '' } } }));
   const organizing = await send('你继续把卡拆出来吧');
   const instructions = organizing.messages.filter(message => message.role === 'system').flatMap(message => message.content.flatMap(block => block.type === 'text' ? [block.text] : [])).join('\n');
   expect(instructions).toContain('拆卡是制作题卡');
   expect(instructions).toContain('不是开始讲题或测验的授权');
-  expect(organizing.toolNames).toContain('propose_card');
+  expect(organizing.toolNames).not.toContain('propose_card');
+  expect(instructions).toContain('propose_card —');
 }, 45_000);
 
 test('a saved-result followup retains teacher tools and can read back without a new student turn', async () => {
   runtime = await startIsolated({ testModel: true });
   const client = await connectRuntime(runtime);
   const { sessionId } = value(await client.rpc<SessionCreateValue>('session/create', { request: { cwd: join(runtime.root, 'classroom'), agentPreset: 'studyforge-learning' } }));
-  value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tool]' + JSON.stringify({ name: 'propose_card', arguments: { kind: 'card', title: '[receipt-readback]题卡', presentation: 'problem', front: '题面', sections: [], notes: '', sources: [], tags: [], links: [] } }) }] } }));
+  value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tools]' + JSON.stringify([
+    { name: 'load_tools', arguments: { names: ['propose_card'] } },
+    { name: 'propose_card', arguments: { kind: 'card', title: '[receipt-readback]题卡', presentation: 'problem', front: '题面', sections: [], notes: '', sources: [], tags: [], links: [] } },
+  ]) }] } }));
   await expect.poll(async () => value(await client.rpc<ProposalView[]>('studyforgeProposals/list', { input: { sessionId } })).length).toBe(1);
   await expect.poll(async () => value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(row => row.sessionId === sessionId)?.running).toBe(false);
   const proposal = value(await client.rpc<ProposalView[]>('studyforgeProposals/list', { input: { sessionId } }))[0]!;

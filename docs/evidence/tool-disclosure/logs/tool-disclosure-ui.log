@@ -1,0 +1,15 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/tool-activity.spec.ts tests/e2e/book-workspace.spec.ts tests/e2e/teaching-presets.spec.ts --output=.runtime/tool-disclosure-ui
+
+
+Running 4 tests using 1 worker
+
+(node:8399) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/book-workspace.spec.ts:24:1 › book expands along its real tree, opens a card and its original in place, and returns without writing (12.3s)
+  ✓  2 tests/e2e/teaching-presets.spec.ts:10:1 › five teaching choices preserve the native draft and same lesson; a temporary requirement reaches the next actual request (18.0s)
+  ✓  3 tests/e2e/tool-activity.spec.ts:8:1 › tool rows speak plainly until expanded and retain the native inspection route (11.5s)
+  ✓  4 tests/e2e/tool-activity.spec.ts:61:1 › an expanded image read keeps the native attachment preview (10.5s)
+
+  4 passed (53.0s)

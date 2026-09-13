@@ -283,7 +283,9 @@ export class TeachingDelegation {
    * needs `send_message`, which is what carries its answer back to the parent.
    */
   surface(role: DelegationRole, parent: DelegationParent, options: { readonly background?: boolean } = {}): readonly string[] {
-    const visible = new Set(this.host.tools.schemas(parent.ctx).map(schema => schema.name));
+    // The registry's scope key is the Agent, not its registration Context.
+    // Native control tools are agent-local and absent from a context-object view.
+    const visible = new Set(this.host.tools.schemas(parent).map(schema => schema.name));
     const wanted = options.background === true ? [...ROLES[role].allow, 'send_message'] : ROLES[role].allow;
     return wanted.filter(name => visible.has(name));
   }
