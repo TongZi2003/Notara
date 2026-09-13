@@ -1,0 +1,30 @@
+.sf-lesson-start{box-sizing:border-box;min-height:100%;padding:34px clamp(16px,5%,36px);background:var(--nb-page,#f6f1e3);color:var(--nb-ink,#3a3531);font:14px/1.8 var(--nb-print,"Songti SC",serif);container-type:inline-size}
+.sf-start-actions,.sf-start-upload{max-width:480px;margin-inline:auto}
+.sf-start-actions{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--nb-rule-hi,#cfc7ae);padding-bottom:20px}
+.sf-lesson-start .sf-start-entry{padding:0;text-align:left;border:0;background:none;color:var(--nb-pen,#26437c);font:26px/1.6 var(--nb-hand,"Kaiti SC",serif);cursor:pointer}
+.sf-start-entry span{display:inline-block;transition:transform .15s ease}
+.sf-start-entry:hover span{transform:translateX(4px)}
+.sf-start-settings{border:0;border-bottom:1px dotted var(--nb-pencil,#756e61);padding:0 0 2px;background:none;color:var(--nb-pencil,#756e61);font:14px/1.8 var(--nb-print,"Songti SC",serif);cursor:pointer}
+.sf-start-settings:hover{color:var(--nb-pen,#26437c)}
+.sf-start-upload{margin-top:34px}
+.sf-start-upload header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin-bottom:14px}
+.sf-start-upload h3{margin:0;font:20px/1.6 var(--nb-hand,"Kaiti SC",serif);color:var(--nb-ink,#3a3531)}
+.sf-start-upload header>span{color:var(--nb-pencil,#756e61);font-size:10px}
+.sf-lesson-start .sf-import-drop{align-items:center;background:transparent;border-color:var(--nb-rule-hi,#cfc7ae);border-radius:2px;padding:28px 12px 24px;gap:10px;transition:background-color .15s,border-color .15s}
+.sf-lesson-start .sf-import-glyph{width:56px;height:64px;stroke:var(--nb-pen,#26437c);stroke-width:1.25;stroke-linecap:round;stroke-linejoin:round;margin:0 0 6px;transition:transform .15s}
+.sf-lesson-start .sf-import-drop:focus-within,.sf-lesson-start .sf-import-drop:hover{border-color:var(--nb-pen,#26437c)}
+.sf-lesson-start .sf-import-drop-over .sf-import-glyph{transform:translateY(-4px) rotate(-3deg)}
+.sf-lesson-start .sf-import-drop-over{background:var(--nb-paper,#efe7d2);border-color:var(--nb-pen,#26437c)}
+.sf-lesson-start .sf-import-drop button.sf-action{background:none;border:0;border-bottom:1px solid var(--nb-pen,#26437c);border-radius:0;box-shadow:none;color:var(--nb-pen,#26437c);font:22px/1.5 var(--nb-hand,"Kaiti SC",serif);padding:3px 10px;cursor:pointer}
+.sf-lesson-start .sf-note{color:var(--nb-pencil,#756e61);font:12px/1.8 var(--nb-print,serif)}
+.sf-start-upload ul{list-style:none;padding:0;margin:14px 0}
+.sf-start-upload li{display:flex;flex-wrap:wrap;gap:4px 10px;padding:10px 0;border-bottom:1px solid var(--nb-rule,#d9d2bd);overflow-wrap:anywhere}
+.sf-start-upload li>small{width:100%;color:var(--nb-pencil,#756e61)}
+.sf-start-upload li>button{border:0;border-bottom:1px dotted var(--nb-rule-hi,#cfc7ae);background:none;color:var(--nb-pen,#26437c);font:inherit;padding:0;text-align:left;cursor:pointer;overflow-wrap:anywhere}
+.sf-lesson-start button:disabled{opacity:.5;cursor:default}
+.sf-lesson-start button:focus-visible{outline:1px dashed var(--nb-pen,#26437c);outline-offset:5px}
+@media(prefers-reduced-motion:reduce){.sf-start-entry span,.sf-lesson-start .sf-import-glyph,.sf-lesson-start .sf-import-drop{transition:none}}
+/* DSH rc.2 ships this control directly in InputBar, without a button slot.
+   Keep native paste/attachment drafts intact; learning imports now live in 开始.
+   Creator sessions keep the native entry. Both shipped locales are covered. */
+body:has([data-testid="open-lesson"]) [data-composer-card] button:is([aria-label="Add attachment"],[aria-label="添加附件"]){display:none}

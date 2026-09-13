@@ -1,0 +1,50 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/lesson-start.spec.ts tests/e2e/teaching-presets.spec.ts tests/e2e/book-workspace.spec.ts tests/e2e/lesson-materials-mindmap.spec.ts tests/e2e/coauthor-handoff.spec.ts tests/e2e/book-task-cards.spec.ts --output=.runtime/zoom-start-final-ui
+
+
+Running 10 tests using 1 worker
+
+(node:55459) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/book-task-cards.spec.ts:19:1 › chapter task stays in this lesson; proposals attach to its frozen chapter after browsing, confirmation and restart (37.5s)
+  ✓   2 tests/e2e/book-workspace.spec.ts:24:1 › book expands along its real tree, opens a card and its original in place, and returns without writing (11.7s)
+  ✓   3 tests/e2e/coauthor-handoff.spec.ts:100:1 › 学生改写小结正文后确认：截止点与清单不动，小结与关闭一次写入且重启仍在 (17.0s)
+  ✓   4 tests/e2e/coauthor-handoff.spec.ts:153:1 › 更正写出新的一版，接续课固定在明确选定的旧版上 (11.1s)
+  ✓   5 tests/e2e/coauthor-handoff.spec.ts:197:1 › 课后小结在课上可读可改，并能从这一版真的开出一节接续课 (11.3s)
+  ✓   6 tests/e2e/coauthor-handoff.spec.ts:265:1 › 同一次开课重试只开一节课，也不按日期自动顺延 (11.0s)
+  ✘   7 tests/e2e/lesson-materials-mindmap.spec.ts:23:1 › the lesson right column is one material map that opens originals and cards in place (25.9s)
+(node:56636) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   8 tests/e2e/lesson-start.spec.ts:12:1 › 开始 owns settings and imports; lost replies retry the same writes, preserve the draft, and open the saved original (11.3s)
+  ✓   9 tests/e2e/lesson-start.spec.ts:75:1 › 开始 imports stay with the original lesson during a switch; composer paste is not intercepted (10.5s)
+  ✓  10 tests/e2e/teaching-presets.spec.ts:10:1 › five teaching choices preserve the native draft and same lesson; a temporary requirement reaches the next actual request (17.6s)
+
+
+  1) tests/e2e/lesson-materials-mindmap.spec.ts:23:1 › the lesson right column is one material map that opens originals and cards in place
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '打开工作台 →', exact: true })
+
+
+      143 |   await page.getByRole('button', { name: /^(打开右侧边栏|Open right sidebar)$/u }).click();
+      144 |   await expect(page.getByTestId('lesson-deck-reopen')).toBeVisible();
+    > 145 |   await page.getByRole('button', { name: '打开工作台', exact: true }).click();
+          |                                                                    ^
+      146 |   await expect(page.getByTestId('lesson-materials-pane')).toHaveCount(3);
+      147 |   await expect(map.locator('[data-key$="section:函数/定义域"]')).toBeVisible();
+      148 |   await page.getByRole('tab').filter({ hasText: '工作台' }).locator('[data-dockkit-tab-close]').click();
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/lesson-materials-mindmap.spec.ts:145:68
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:56438) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/zoom-start-final-ui/lesson-materials-mindmap-t-f615a-riginals-and-cards-in-place/error-context.md
+
+  1 failed
+    tests/e2e/lesson-materials-mindmap.spec.ts:23:1 › the lesson right column is one material map that opens originals and cards in place
+  9 passed (2.8m)

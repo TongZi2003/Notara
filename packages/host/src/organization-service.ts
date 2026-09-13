@@ -464,7 +464,11 @@ export class StudyForgeOrganization extends TypertRemoteService {
     const parsed = z.object({ operationId: z.string().min(1), intent: BookBreakdownIntentSchema, sessionId: z.string().min(1).optional() }).strict().parse(input);
     const context = await this.context(parsed.sessionId), structure = await this.ctx.studyforgeBookExploration.read(context, parsed.intent.material);
     const intent = validateBookBreakdown(structure, parsed.intent);
-    const materials = { materials: (intent.sources.length ? intent.sources : [intent.material]).map(source => ({ kind: 'source' as const, source })) };
+    // Lesson references carry coordinates; authored quotes stay in the frozen
+    // task/selection below, rather than crossing the strict MaterialContext boundary.
+    const materials = { materials: (intent.sources.length ? intent.sources : [intent.material]).map(({ materialId, versionId, locator }) => ({
+      kind: 'source' as const, source: { materialId, versionId, ...(locator ? { locator } : {}) },
+    })) };
     await validateLessonMaterials(this.ctx, context, materials);
     const opened = parsed.sessionId ? { sessionId: parsed.sessionId } : await nativeOpen(this.ctx).open(context, { openingKey: 'book-breakdown:' + parsed.operationId,
       title: structure.title + ' · 整理', materials,

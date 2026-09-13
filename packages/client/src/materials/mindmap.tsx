@@ -13,7 +13,7 @@
  * for every leaf, so a narrow rail scrolls instead of stacking nodes on top of
  * each other.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { layoutMind, visibleMindNodes, type MindLayout, type MindNode } from './mindmap-model.ts';
 import './mindmap.css';
 
@@ -60,6 +60,47 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
   // push its own root off the panel. Expansion is a drawing decision.
   const layout = useMemo(() => layoutMind(visible), [visible]);
   const wrap = useRef<HTMLDivElement>(null);
+  const drawing = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(1);
+  const anchor = useRef<{ x: number; y: number; worldX: number; worldY: number }>();
+  const changeZoom = useCallback((next: number, point?: { x: number; y: number }): void => {
+    const viewport = wrap.current, map = drawing.current;
+    if (!viewport || !map) return;
+    const scale = Math.max(.25, Math.min(2, next));
+    if (scale === zoomRef.current) return;
+    const bounds = viewport.getBoundingClientRect(), drawn = map.getBoundingClientRect();
+    const x = point?.x ?? bounds.left + viewport.clientWidth / 2;
+    const y = point?.y ?? bounds.top + viewport.clientHeight / 2;
+    // Read the rendered scale, including when several wheel events arrive
+    // before React paints. The same point stays beneath the cursor after zoom.
+    const current = drawn.width / map.offsetWidth;
+    anchor.current = { x: x - bounds.left, y: y - bounds.top, worldX: (x - drawn.left) / current, worldY: (y - drawn.top) / current };
+    zoomRef.current = scale;
+    setZoom(scale);
+  }, []);
+  useLayoutEffect(() => {
+    const viewport = wrap.current, map = drawing.current, point = anchor.current;
+    if (!viewport || !map || !point) return;
+    const bounds = viewport.getBoundingClientRect(), drawn = map.getBoundingClientRect();
+    viewport.scrollLeft += drawn.left - bounds.left + point.worldX * zoom - point.x;
+    viewport.scrollTop += drawn.top - bounds.top + point.worldY * zoom - point.y;
+    anchor.current = undefined;
+  }, [zoom]);
+  useEffect(() => {
+    const viewport = wrap.current;
+    if (!viewport || mode !== 'map') return;
+    const wheel = (event: WheelEvent): void => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.clientHeight : 1);
+      changeZoom(zoomRef.current * Math.exp(-delta * .005), { x: event.clientX, y: event.clientY });
+    };
+    // Trackpad pinch is a Ctrl-wheel event in Chromium. A passive React wheel
+    // handler cannot stop it from zooming the whole notebook instead.
+    viewport.addEventListener('wheel', wheel, { passive: false });
+    return () => { viewport.removeEventListener('wheel', wheel); };
+  }, [mode, visible.length > 0, changeZoom]);
   const [available, setAvailable] = useState(0);
   const [heights, setHeights] = useState<ReadonlyMap<string, number>>(() => new Map());
   useEffect(() => {
@@ -143,8 +184,18 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
     top: tops[layout.depth.get(key) ?? 0] ?? padding,
   });
   const edges = visible.flatMap(node => node.parent === undefined ? [] : [{ parent: node.parent, key: node.key }]);
-  return <div className="sf-mindmap-wrap" ref={wrap}>
-    <div className="sf-mindmap" data-testid={props.testId} aria-label={props.label} data-mode="map" style={{ width, height }}>
+  return <div className="sf-mindmap-shell" style={{ height: Math.min(height, 560) }}>
+    <div className="sf-mindmap-wrap" ref={wrap} tabIndex={0} role="region" aria-label={`${props.label}画布`}
+      onKeyDown={event => {
+        if (event.target !== event.currentTarget) return;
+        if (['+', '=', '-', '0'].includes(event.key)) {
+          event.preventDefault();
+          changeZoom(event.key === '0' ? 1 : zoomRef.current + (event.key === '-' ? -.25 : .25));
+        }
+      }}>
+    <div className="sf-mindmap-extent" style={{ width: width * zoom, height: height * zoom }}>
+    <div className="sf-mindmap" ref={drawing} data-testid={props.testId} aria-label={props.label} data-mode="map" data-zoom={zoom}
+      style={{ width, height, transform: `scale(${String(zoom)})`, transformOrigin: '0 0' }}>
       <svg className="sf-mindmap-edges" width={width} height={height} aria-hidden="true">
         {(props.relations ?? []).filter(edge => layout.depth.has(edge.from) && layout.depth.has(edge.to)).map(edge => {
           const from = spot(edge.from), to = spot(edge.to);
@@ -163,6 +214,13 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
       {visible.map(node => <div key={node.key} className="sf-mindmap-node" data-kind={node.kind} data-key={node.key} data-selected={props.selected === node.key}
         data-testid={props.nodeTestId ?? 'mindmap-node'}
         style={{ ...spot(node.key), width: nodeWidth }}>{body(node)}</div>)}
+    </div>
+    </div>
+    </div>
+    <div className="sf-mindmap-zoom" role="group" aria-label="关系图缩放">
+      <button type="button" aria-label="缩小关系图" title="缩小" disabled={zoom <= .25} onClick={() => { changeZoom(zoomRef.current - .25); }}>−</button>
+      <button type="button" aria-label="恢复关系图大小" title="恢复 100%" onClick={() => { changeZoom(1); }}>{Math.round(zoom * 100)}%</button>
+      <button type="button" aria-label="放大关系图" title="放大" disabled={zoom >= 2} onClick={() => { changeZoom(zoomRef.current + .25); }}>+</button>
     </div>
   </div>;
 }

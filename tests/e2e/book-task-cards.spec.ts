@@ -31,7 +31,8 @@ test('chapter task stays in this lesson; proposals attach to its frozen chapter 
   const book = value(await client.rpc<MaterialView>('studyforgeMaterials/import', { input: { operationId: 'task-book',
     material: { title: '算术练习', fileName: '算术.md', mediaType: 'text/markdown' }, base64: Buffer.from('计算2+3\n计算7-4\n别的内容\n').toString('base64') } }));
   const material = { materialId: book.materialId, versionId: book.currentVersion.versionId };
-  const source = (line: number) => ({ ...material, locator: { kind: 'text' as const, start: { line, column: 0 }, end: { line, column: line === 3 ? 4 : 5 } } });
+  const source = (line: number) => ({ ...material, quote: ['计算2+3', '计算7-4', '别的内容'][line - 1]!,
+    locator: { kind: 'text' as const, start: { line, column: 0 }, end: { line, column: line === 3 ? 4 : 5 } } });
   const sources = [source(1), source(2)];
   value(await client.rpc('studyforgeOrganization/saveSkeleton', { input: { operationId: 'task-skeleton', materialId: book.materialId, expectedVersion: 0,
     change: { nodes: [{ path: '算术', sources }, { path: '别处', sources: [source(3)] }] } } }));
@@ -41,7 +42,7 @@ test('chapter task stays in this lesson; proposals attach to its frozen chapter 
   value(await client.rpc('studyforgeCourses/update', { input: { sessionId, operationId: 'task-materials', expectedVersion: before.version,
     patch: { lessonMaterials: { materials: [{ kind: 'source', source: material }] } } } }));
   await writeFile(join(classroom.root, 'book-task-replies.json'), JSON.stringify([{ action: 'cards', nodePath: '算术', calls: [
-    ...sources.map(anchor => ({ name: 'read_material', arguments: { source: anchor } })),
+    ...sources.map(({ quote: _quote, ...source }) => ({ name: 'read_material', arguments: { source } })),
     ...['加法原题', '减法原题'].map((title, i) => ({ name: 'propose_card', arguments: { kind: 'card', title, presentation: 'problem', front: i ? '计算7-4' : '计算2+3', sources: [sources[i]] } })),
   ] }]));
   const requests = async (): Promise<Request[]> => (await readFile(join(classroom.root, 'model-requests.jsonl'), 'utf8')).trim().split('\n').map(line => JSON.parse(line) as Request).filter(r => r.purpose !== 'session-title');

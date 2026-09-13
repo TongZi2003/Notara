@@ -21,7 +21,7 @@ import type { ProposalView } from '@studyforge/contracts/proposals';
 import type { RouteOpenResult, RouteView } from '@studyforge/contracts/routes';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
-import { enterClassroom, sendInput, openRoot } from './fixtures/classroom.ts';
+import { enterClassroom, sendInput, openRoot, openLessonSettings } from './fixtures/classroom.ts';
 
 const test = base.extend<{ dsh: IsolatedRuntime }>({
   dsh: async ({}, use, testInfo) => {
@@ -205,7 +205,7 @@ test('课后小结在课上可读可改，并能从这一版真的开出一节�
   const proposal = page.getByTestId('inline-proposal').filter({ hasText: '单调性收课小结' });
   await proposal.getByTestId('proposal-confirm').click();
   await expect(proposal.locator('summary')).toContainText('已经保存');
-  await page.getByTestId('open-lesson-settings').click();
+  await openLessonSettings(page);
   const panel = page.getByTestId('lesson-settings-modal');
 
   const editor = panel.getByTestId('handoff-editor');

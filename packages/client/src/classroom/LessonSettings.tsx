@@ -1,8 +1,7 @@
 /**
  * 本课设置: everything that is *about* this lesson — its own state, the
  * student's learning profile for it, the outputs it saved, its closeout and the
- * teaching configuration — in one modal opened from the conversation's own
- * heading.
+ * teaching configuration — in one modal opened from the native 开始 page.
  *
  * That is what lets the right column stay a single container: the classroom
  * shows the lesson's material map, and settings never compete with it. The
@@ -16,6 +15,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import type { CourseUsage, CourseView } from '@studyforge/contracts/courses';
 import type { OutputProjection } from '@studyforge/domain/outputs';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { requestLessonPane } from '../materials/lesson-pane-request.ts';
 import { MemoryPanel } from '../memory/MemoryPanel.tsx';
 import { HandoffEditor } from './HandoffEditor.tsx';
@@ -43,7 +43,7 @@ type PanelState =
   | { readonly status: 'unavailable' }
   | { readonly status: 'ready'; readonly view: CourseView };
 
-/** One lesson's own settings, in a dialog the heading opened. */
+/** One lesson's settings, portalled above docked and floating 开始 tabs. */
 export function LessonSettingsModal({ ctx, sessionId, title, readCourse, refreshToken, onClose }: LessonSettingsProps): React.JSX.Element {
   const [state, setState] = useState<PanelState>({ status: 'loading' });
   const [usage, setUsage] = useState<UsageState>({ status: 'loading' });
@@ -86,7 +86,7 @@ export function LessonSettingsModal({ ctx, sessionId, title, readCourse, refresh
     ? { lesson: state.view.data.closure !== null ? '已结束' : state.view.data.archived ? '已归入归档' : '进行中',
       set: state.view.data.learningSetRef === null ? '未归入' : '已归入' }
     : { lesson: state.status === 'loading' ? '未加载' : '暂不可用', set: state.status === 'loading' ? '未加载' : '暂不可用' };
-  return <div className="sf-lesson-modal" data-testid="lesson-settings-modal" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+  return createPortal(<div className="sf-lesson-modal" data-testid="lesson-settings-modal" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
     <div className="sf-lesson-modal-card" role="dialog" aria-modal="true" aria-label="本课设置" tabIndex={-1} ref={dialog}>
       <header className="sf-lesson-modal-head">
         <h2>本课设置</h2>
@@ -124,5 +124,5 @@ export function LessonSettingsModal({ ctx, sessionId, title, readCourse, refresh
       </details>}
       <NativeUsage state={usage} />
     </div>
-  </div>;
+  </div>, document.body);
 }

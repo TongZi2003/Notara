@@ -29,7 +29,8 @@
 .sf-deck-index button[aria-pressed="true"]{color:var(--nb-pen,#26437c);text-decoration:underline;text-underline-offset:5px}
 .sf-deck-surface{display:flex;flex:1;min-height:0;gap:14px;overflow-x:auto;overscroll-behavior-x:contain;align-items:stretch;min-width:0;padding:4px 2px 12px;scroll-snap-type:x proximity}
 .sf-deck-map,.sf-deck-sheet{box-sizing:border-box;flex:1 0 min(280px,100%);min-width:0;overflow:auto;scroll-snap-align:start;scrollbar-width:thin}
-.sf-deck-map{background:var(--nb-paper,#efe7d2)}
+.sf-deck-map{background:var(--nb-paper,#efe7d2);display:flex;flex-direction:column;overflow:hidden}
+.sf-deck-map>.sf-mindmap-shell{height:100%!important;max-height:none;flex:1}
 .sf-deck-map:only-child{flex-basis:100%}
 .sf-deck-sheet{background:var(--nb-page,#f6f1e3);border-left:1px solid var(--nb-rule-hi,#d9d2bd);padding:10px 12px}
 .sf-deck-sheet[data-active="true"]{border-left-color:var(--nb-pen,#26437c)}
@@ -39,5 +40,3 @@
 .sf-deck-trail{display:flex;flex-wrap:wrap;gap:5px;font-size:12px}
 .sf-lesson .sf-deck-trail button{border:0;border-bottom:1px dotted var(--nb-rule-hi,#d9d2bd);background:none;padding:3px 4px}
 .sf-deck-trail:empty{display:none}
-.sf-deck-reopen{padding:36px 24px;color:var(--nb-ink,#3a3531);background:var(--nb-page,#f6f1e3);height:100%}
-.sf-deck-reopen button{font:18px/1.8 var(--nb-hand,serif);color:var(--nb-pen,#26437c)}

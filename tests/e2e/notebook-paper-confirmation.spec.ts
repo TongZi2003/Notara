@@ -40,7 +40,7 @@ test('the whole conversation uses paper, wide tables stay inside, and confirmati
     return table.width < wrap.width && Math.abs((table.left + table.right) - (wrap.left + wrap.right)) < 2;
   })).toBe(true);
   await expect(page.getByTestId('open-lesson')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  await expect(page.getByTestId('open-lesson-settings')).toHaveCSS('border-top-width', '0px');
+  await expect(page.locator('[data-slot="conversation.session.header.actions"] [data-testid="open-lesson-settings"]')).toHaveCount(0);
   await expect(tables.first().locator('td').first()).toHaveCSS('font-family', /SF Long Cang/);
   const proposal = page.getByTestId('inline-proposal');
   const slip = proposal.getByTestId('proposal-slip');

@@ -1,4 +1,5 @@
-import { test, expect, enterClassroom, sendInput } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, sendInput, openLessonSettings } from './fixtures/classroom.ts';
+import { checkMapZoom } from './fixtures/mindmap.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { MaterialView } from '@studyforge/contracts/material-records';
@@ -97,6 +98,7 @@ test('the lesson right column is one material map that opens originals and cards
   await map.locator('[data-key$="section:函数/定义域"]').getByTestId('mindmap-expand').click();
   await expect(map.locator('[data-kind="card"]').filter({ hasText: '在书卡' })).toHaveCount(1);
   await page.screenshot({ path: info.outputPath('lesson-map-book-open.png'), fullPage: true });
+  await checkMapZoom(page, map);
 
   // A section with a real anchor reads the exact original in the same column.
   await map.locator('[data-key$="section:函数/定义域"]').getByTestId('lesson-resource-open').click();
@@ -140,7 +142,7 @@ test('the lesson right column is one material map that opens originals and cards
   await expect(panel).toHaveCount(0);
   await page.getByRole('button', { name: /^(打开右侧边栏|Open right sidebar)$/u }).click();
   await expect(page.getByTestId('lesson-deck-reopen')).toBeVisible();
-  await page.getByRole('button', { name: '打开工作台 →', exact: true }).click();
+  await page.getByRole('button', { name: '打开工作台', exact: true }).click();
   await expect(page.getByTestId('lesson-materials-pane')).toHaveCount(3);
   await expect(map.locator('[data-key$="section:函数/定义域"]')).toBeVisible();
   await page.getByRole('tab').filter({ hasText: '工作台' }).locator('[data-dockkit-tab-close]').click();
@@ -161,8 +163,8 @@ test('the lesson right column is one material map that opens originals and cards
   // Reading opened no original session and called no model.
   expect(await requests()).toBe(quiet);
 
-  // 本课设置 is the heading's modal now: usage and the learning profile live there.
-  await page.getByTestId('open-lesson-settings').click();
+  // 本课设置 is reached from 开始; it still owns usage and the learning profile.
+  await openLessonSettings(page);
   const modal = page.getByTestId('lesson-settings-modal');
   await expect(modal).toBeVisible();
   await expect(modal).toContainText('本课设置');
@@ -174,6 +176,7 @@ test('the lesson right column is one material map that opens originals and cards
   await page.screenshot({ path: info.outputPath('lesson-settings-modal.png'), fullPage: true });
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('lesson-settings-modal')).toHaveCount(0);
+  await page.getByTestId('open-lesson').click();
 
   // Narrow: the map stays inside its own column and the page does not go wide.
   await page.setViewportSize({ width: 390, height: 844 });

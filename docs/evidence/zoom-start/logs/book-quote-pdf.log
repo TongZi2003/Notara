@@ -1,0 +1,5 @@
+Warning: Unable to read optional content config: TypeError: Cannot read properties of null (reading 'get')
+Warning: TT: undefined function: 3
+Warning: loadFont - translateFont failed: "UnknownErrorException: Ensure that the `cMapUrl` API parameter is provided.".
+Warning: Error during font loading: Ensure that the `cMapUrl` API parameter is provided.
+{"node":"题型一：和差公式","quotePresent":true,"page":1,"pageCount":7,"image":true,"textLayer":true,"result":"PASS","writes":0}

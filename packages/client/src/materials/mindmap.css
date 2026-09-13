@@ -2,7 +2,14 @@
    Scoped to `.sf-mindmap*` so the native frame, the composer and the other
    notebook pages keep their own rules; the paper/ink tokens come from the
    surrounding page and fall back to the printed palette when it is off. */
-.sf-mindmap-wrap{overflow:auto;min-width:0}
+.sf-mindmap-shell{position:relative;display:flex;min-width:0;min-height:140px;max-height:65vh;background:var(--nb-paper,#efe7d2)}
+.sf-mindmap-wrap{overflow:auto;min-width:0;min-height:0;width:100%;scrollbar-width:thin;overscroll-behavior:contain;overflow-anchor:none}
+.sf-mindmap-wrap:focus-visible{outline:1px dashed var(--op-pen,#26437c);outline-offset:-2px}
+.sf-mindmap-extent{position:relative;overflow:hidden;margin-inline:auto}
+.sf-mindmap-zoom{position:absolute;bottom:8px;left:8px;z-index:4;display:flex;align-items:center;background:var(--nb-page,#f6f1e3);border:1px solid var(--nb-rule,#d9d2bd);border-radius:4px;box-shadow:0 2px 6px #3c321a12}
+.sf-mindmap-shell .sf-mindmap-zoom button{min-width:30px;height:30px;padding:0 6px;border:0;background:none;color:var(--nb-pen,#26437c);font:13px/1 var(--nb-hand,"Kaiti SC",serif);cursor:pointer}
+.sf-mindmap-shell .sf-mindmap-zoom button:disabled{opacity:.35;cursor:default}
+.sf-mindmap-shell .sf-mindmap-zoom button:focus-visible{outline:1px dashed currentColor;outline-offset:-3px}
 .sf-mindmap{position:relative;min-height:140px;background-color:var(--op-paper,#efe7d2);background-image:radial-gradient(var(--op-rule,#d9d2bd) 1px,transparent 1px);background-size:24px 24px}
 .sf-mindmap-edges{position:absolute;left:0;top:0;pointer-events:none}
 .sf-mindmap-edges path{fill:none;stroke:var(--op-rule-hi,#b9b19c);stroke-width:1.4}

@@ -63,6 +63,19 @@ export async function openCoursesList(page: Page): Promise<void> {
   await page.getByTestId('courses-tab-list').click();
   await expect(page.getByTestId('course-lessons')).toBeVisible();
 }
+/** Settings and imports live in the native rightbar's 开始 page. */
+export async function openLessonStart(page: Page): Promise<void> {
+  await page.getByTestId('open-lesson').click();
+  const start = page.getByRole('tab').filter({ hasText: /开始|Start/ });
+  if (await start.count()) await start.first().click();
+  else await page.getByRole('button', { name: /^(新标签页|New tab)$/ }).first().click();
+  await expect(page.getByTestId('lesson-deck-reopen')).toBeVisible();
+}
+export async function openLessonSettings(page: Page): Promise<void> {
+  await openLessonStart(page);
+  await page.getByTestId('open-lesson-settings').click();
+  await expect(page.getByTestId('lesson-settings-modal')).toBeVisible();
+}
 export async function typeInput(page: Page, text: string): Promise<void> {
   const input = page.locator('[data-composer-input]');
   await input.click();

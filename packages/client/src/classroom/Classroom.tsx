@@ -4,8 +4,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client';
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import { LESSON_TAB_ID, LESSON_TAB_KIND, LessonPanel, type LessonPanelInjected } from './LessonPanel.tsx';
-import { useEffect, useRef, useState } from 'react';
-import { LessonSettingsModal } from './LessonSettings.tsx';
+import { useEffect } from 'react';
+import { LessonStart } from './LessonStart.tsx';
 import { registerConversationProposals } from '../proposals/ConversationProposals.tsx';
 
 /** The one native composition that owns learning surfaces; creation is not a lesson. */
@@ -18,8 +18,6 @@ const LEARNING_PRESET = 'studyforge-learning';
  */
 export function registerClassroom(ctx: Context): void {
   const initiallyOpened = new Set<string>();
-  /** The preset value the native Session really carries; unknown stays unknown. */
-  function presetOf(value: unknown): string | undefined { return typeof value === 'string' ? value : undefined; }
   function LessonEntry({ sessionId, useSessions }: PropsRuntime<'conversation.session.header.actions'>): React.JSX.Element | null {
     const selected = useSessions(state => state.current === sessionId);
     const preset = useSessions(state => {
@@ -53,26 +51,6 @@ export function registerClassroom(ctx: Context): void {
     // Unknown compositions stay hidden rather than offering a refused panel.
     if (preset !== LEARNING_PRESET) return null;
     return <button type="button" className="sf-lesson-entry" data-testid="open-lesson" onClick={() => { ctx.sidebarRight.openTab(LESSON_TAB_KIND); }}>本课资料</button>;
-  }
-  /**
-   * 本课设置 lives beside the lesson's own name in the conversation heading.
-   * The right column is then one container — the material map — and settings
-   * never take a rail of their own.
-   */
-  function LessonSettingsEntry({ sessionId, useSessions }: PropsRuntime<'conversation.session.header.actions'>): React.JSX.Element | null {
-    const preset = useSessions(state => presetOf(state.byId[sessionId]?.projectionValues?.agentPreset));
-    const running = useSessions(state => state.byId[sessionId]?.running);
-    const title = useSessions(state => state.byId[sessionId]?.title ?? '');
-    const [open, setOpen] = useState(false);
-    const trigger = useRef<HTMLButtonElement>(null);
-    if (preset !== LEARNING_PRESET) return null;
-    return <>
-      <button type="button" className="sf-lesson-entry sf-lesson-entry-quiet" data-testid="open-lesson-settings" ref={trigger}
-        onClick={() => { setOpen(true); }}>本课设置</button>
-      {open && <LessonSettingsModal ctx={ctx} sessionId={sessionId} title={title || '自由学习'}
-        readCourse={input => ctx.remote.studyforgeCourses.read(input)} refreshToken={running ?? false}
-        onClose={() => { setOpen(false); trigger.current?.focus(); }} />}
-    </>;
   }
   // One stable business face per plugin apply: the panel's effect depends on this
   // callback identity, so re-evaluating the inject factory must not refetch.
@@ -109,11 +87,8 @@ export function registerClassroom(ctx: Context): void {
     const unsubscribe = ctx.sessions.list.subscribe(sync);
     return () => { unsubscribe(); dispose(); };
   }, 'studyforge: lesson tab type');
-  function LessonGuide({ useTabInfo }: PropsRuntime<'sidebar.right.tab.guide'> & { matched: boolean }): React.JSX.Element {
-    const info = useTabInfo();
-    return <section className="sf-deck-reopen" data-testid="lesson-deck-reopen">
-      <button type="button" className="sf-quiet" onClick={() => { info.tab.actions.openTab(LESSON_TAB_KIND, { replaceTab: true }); }}>打开工作台 →</button>
-    </section>;
+  function LessonGuide(props: PropsRuntime<'sidebar.right.tab.guide'> & { matched: boolean }): React.JSX.Element {
+    return <LessonStart {...props} ctx={ctx} key={props.sessionId} />;
   }
   ctx.effect(() => ctx.slots.inject('sidebar.right.tab.guide', () => ctx.slots.register({
     name: 'sidebar.right.tab.guide', priority: -20,
@@ -130,8 +105,5 @@ export function registerClassroom(ctx: Context): void {
   ctx.effect(() => ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register(
     { name: 'conversation.session.header.actions', id: 'studyforge.lesson', order: 10 }, LessonEntry,
   )), 'studyforge: lesson header entry');
-  ctx.effect(() => ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register(
-    { name: 'conversation.session.header.actions', id: 'studyforge.lesson-settings', order: 11 }, LessonSettingsEntry,
-  )), 'studyforge: lesson settings entry');
   registerConversationProposals(ctx);
 }

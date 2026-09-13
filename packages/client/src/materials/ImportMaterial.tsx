@@ -12,19 +12,25 @@ export interface ImportMaterialProps {
   readonly pending: boolean;
   /** Every picked file, in the order the student chose them. */
   readonly onFiles: (files: readonly File[]) => void;
+  /** Embedded next to the composer: only consume paste inside this control. */
+  readonly pasteScope?: 'page' | 'control';
+  readonly active?: boolean;
+  readonly appearance?: 'sheet';
 }
 
 /** Accept list for the file picker; the page still validates what arrives. */
 const ACCEPT = '.pdf,.docx,.png,.jpg,.jpeg,.webp,.gif,.svg,.md,.markdown,.html,.htm,.txt';
 
 /** Pick, drop, or paste one original into the materials list. */
-export function ImportMaterial({ pending, onFiles }: ImportMaterialProps): React.JSX.Element {
+export function ImportMaterial({ pending, onFiles, pasteScope = 'page', active = true, appearance }: ImportMaterialProps): React.JSX.Element {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const controlRef = useRef<HTMLElement | null>(null);
   const [over, setOver] = useState(false);
 
   // Pasting is a page-level gesture: a screenshot has no file path to pick.
   useEffect(() => {
     function onPaste(event: ClipboardEvent): void {
+      if (!active || pending || event.defaultPrevented || (pasteScope === 'control' && !controlRef.current?.contains(event.target as Node))) return;
       const files = [...(event.clipboardData?.files ?? [])];
       if (files.length === 0) return;
       event.preventDefault();
@@ -32,20 +38,21 @@ export function ImportMaterial({ pending, onFiles }: ImportMaterialProps): React
     }
     window.addEventListener('paste', onPaste);
     return () => { window.removeEventListener('paste', onPaste); };
-  }, [onFiles]);
+  }, [onFiles, pending, active, pasteScope]);
 
-  return <section className="sf-import" aria-label="导入资料">
+  return <section className="sf-import" data-appearance={appearance} aria-label="导入资料" ref={controlRef}>
     <input
       ref={inputRef}
       className="sf-import-input"
       type="file"
       multiple
+      disabled={pending || !active}
       accept={ACCEPT}
       data-testid="material-file-input"
       onChange={event => {
         const files = [...(event.target.files ?? [])];
         event.target.value = '';
-        if (files.length > 0) onFiles(files);
+        if (files.length > 0 && !pending && active) onFiles(files);
       }}
     />
     <div
@@ -57,15 +64,20 @@ export function ImportMaterial({ pending, onFiles }: ImportMaterialProps): React
         event.preventDefault();
         setOver(false);
         const files = [...event.dataTransfer.files];
-        if (files.length > 0) onFiles(files);
+        if (files.length > 0 && !pending && active) onFiles(files);
       }}
       title="把文件拖到这里，或直接粘贴一张图"
     >
-      <button type="button" className="sf-action" disabled={pending} data-testid="material-pick"
+      {appearance === 'sheet' && <svg className="sf-import-glyph" viewBox="0 0 64 72" fill="none" aria-hidden="true">
+        <path d="M14 7 43 5l10 12-2 47-39 2 2-59Z" />
+        <path d="m42 6-1 14 12-2M23 29l17-1M23 37l12-1M23 45l10-1" />
+        <path d="M46 43v18m-9-9h18" />
+      </svg>}
+      <button type="button" className="sf-action" disabled={pending || !active} data-testid="material-pick"
         onClick={() => { inputRef.current?.click(); }}>
-        {pending ? '正在收下…' : '导入资料'}
+        {pending ? '正在收下…' : appearance === 'sheet' ? '选择文件' : '导入资料'}
       </button>
-      <p className="sf-note">拖进来，或粘贴一张图</p>
+      <p className="sf-note">{appearance === 'sheet' ? '也可以拖到这里，或粘贴图片' : '拖进来，或粘贴一张图'}</p>
     </div>
   </section>;
 }

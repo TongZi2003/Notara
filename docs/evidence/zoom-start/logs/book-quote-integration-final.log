@@ -1,0 +1,15 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/book-breakdown-quotes.test.ts tests/integration/book-exploration.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/book-exploration.test.ts (6 tests) 406ms
+ ✓ |integration| tests/integration/book-breakdown-quotes.test.ts (1 test) 7096ms
+   ✓ quoted chapter sources start both directory and card tasks, preserving quotes only in the frozen reference  7096ms
+
+ Test Files  2 passed (2)
+      Tests  7 passed (7)
+   Start at  11:08:15
+   Duration  7.31s (transform 292ms, setup 0ms, import 780ms, tests 7.50s, environment 0ms)

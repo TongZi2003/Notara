@@ -1,4 +1,5 @@
 import { test, expect, enterClassroom } from './fixtures/classroom.ts';
+import { checkMapZoom } from './fixtures/mindmap.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { MaterialView } from '@studyforge/contracts/material-records';
@@ -57,6 +58,7 @@ test('book expands along its real tree, opens a card and its original in place, 
   await expect(cardNode).toHaveCount(1);
   await expect(cardNode).toBeVisible();
   await page.screenshot({ path: info.outputPath('book-map-expanded.png'), fullPage: true });
+  await checkMapZoom(page, nodes);
 
   // The card opens its detail in the structural area, not on top of the page.
   await cardNode.getByTestId('mindmap-node').click();

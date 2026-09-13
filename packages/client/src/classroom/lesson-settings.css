@@ -1,5 +1,5 @@
-/* 本课设置: the one modal the conversation heading opens. Fixed over the whole
-   window (the heading's own action opened it), with the lesson's settings on a
+/* 本课设置: the one modal the native 开始 page opens. Fixed over the whole
+   window through a portal, with the lesson's settings on a
    paper card; the right column keeps its single material map behind it. */
 .sf-lesson-modal{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;
   background:rgba(38,32,24,.28);padding:min(8vh,64px) 16px 24px;overflow:auto}

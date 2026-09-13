@@ -14,7 +14,7 @@ export const LESSON_TAB_KIND = 'studyforge-lesson';
  *
  * The pane starts with the lesson's material map. Everything about the lesson (its settings,
  * learning profile, outputs, closeout and usage) lives in the modal the
- * conversation heading opens, so two right rails never compete here.
+ * native 开始 page opens, so two right rails never compete here.
  */
 export interface LessonPanelInjected {
   ctx: Context;

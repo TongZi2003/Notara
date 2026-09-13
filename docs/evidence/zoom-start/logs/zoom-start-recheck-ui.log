@@ -1,0 +1,15 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/lesson-materials-mindmap.spec.ts tests/e2e/material-import.spec.ts --output=.runtime/zoom-start-recheck-ui
+
+
+Running 4 tests using 1 worker
+
+(node:57336) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/lesson-materials-mindmap.spec.ts:23:1 › the lesson right column is one material map that opens originals and cards in place (12.0s)
+  ✓  2 tests/e2e/material-import.spec.ts:22:1 › an imported original is read directly and never opens a lesson (6.5s)
+  ✓  3 tests/e2e/material-import.spec.ts:52:1 › a second file with the same name is refused with a next action (6.4s)
+  ✓  4 tests/e2e/material-import.spec.ts:67:1 › a new version is explicit, keeps the old bytes readable, and a refresh keeps both (8.8s)
+
+  4 passed (34.4s)
