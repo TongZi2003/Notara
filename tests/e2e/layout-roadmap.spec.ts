@@ -20,6 +20,15 @@ test('the default roadmap shows real lessons, places and mounts them on the same
   await enterClassroom(page, classroom.authUrl);
   await page.getByRole('button', { name: '课程', exact: true }).first().click();
   const canvas = page.getByTestId('roadmap-canvas'); await expect(canvas).toBeVisible();
+  const paper = () => page.getByTestId('studyforge-page-studyforge.courses').evaluate(el => {
+    const css = getComputedStyle(el), header = el.querySelector('header')!.getBoundingClientRect();
+    return { color: css.backgroundColor, image: css.backgroundImage, size: css.backgroundSize, position: css.backgroundPosition, top: header.top, height: header.height };
+  });
+  const before = await paper();
+  await page.getByTestId('courses-view').selectOption('list');
+  await expect(page.getByTestId('course-lessons')).toBeVisible();
+  expect(await paper()).toEqual(before);
+  await page.getByTestId('courses-view').selectOption('roadmap'); await expect(canvas).toBeVisible();
   await expect(canvas.locator('.sf-map-title')).toContainText(['自己开的函数课']);
   await expect(canvas.getByTestId('map-edge')).toHaveCount(1);
   expect(value(await client.rpc<RouteView>('studyforgeOrganization/route', {}))).toEqual(child);
@@ -61,20 +70,20 @@ test('the default roadmap shows real lessons, places and mounts them on the same
   expect(errors).toEqual([]);
 });
 
-test('five navigation entries are visible and learning-space management remains reachable through settings', async ({ page, classroom }, info) => {
+test('six navigation entries are visible and learning-space management remains reachable through settings', async ({ page, classroom }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   const client = await connectRuntime(classroom);
   const set = value(await client.rpc<SetView>('studyforgeOrganization/createSet', { input: { operationId: 'layout-set', set: { name: '函数学习', subjects: ['数学'], materials: [], members: [] } } }));
   await enterClassroom(page, classroom.authUrl);
   const navigation = page.getByRole('navigation', { name: '学习导航', exact: true });
-  for (const label of ['首页', '课程', '资料', '日历', '学情']) await expect(navigation.getByRole('button', { name: label, exact: true })).toBeVisible();
+  for (const label of ['首页', '学习集', '课程', '资料', '日历', '学情']) await expect(navigation.getByRole('button', { name: label, exact: true })).toBeVisible();
   await expect(page.locator('.sf-side-more,.sf-side-archive')).toHaveCount(0);
   await expect(navigation.getByRole('button', { name: '卡片', exact: true })).toHaveCount(0);
   await page.getByRole('combobox', { name: '打开学习集', exact: true }).selectOption(set.ref);
   await expect(page.getByTestId('studyforge-page-studyforge.sets')).toBeVisible();
   await expect(page.locator(`[data-setcard="${set.ref}"]`)).toHaveClass(/editing/);
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
-  await page.getByRole('button', { name: '卡片与笔记', exact: true }).first().click();
+  await page.getByRole('button', { name: '整理与复习', exact: true }).first().click();
   await expect(page.getByTestId('studyforge-page-studyforge.cards')).toBeVisible();
   await expect(navigation.getByRole('button', { name: '资料', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.getByRole('button', { name: '← 资料', exact: true }).click();

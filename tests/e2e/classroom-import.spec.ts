@@ -1,3 +1,4 @@
+import { openAppearance, closeAppearance } from './fixtures/classroom.ts';
 import { test, expect, enterClassroom, sendInput, typeInput } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
@@ -23,7 +24,7 @@ test('conversation import saves directly, retries an uncertain reply once, and k
   const composer = page.getByTestId('composer-import');
   await expect(empty.getByRole('button', { name: '导入资料', exact: true })).toBeVisible();
   await expect(page.getByText('这节课还没有用到资料。', { exact: true })).toHaveCount(0);
-  await expect(page.locator('[data-composer-card]').getByTestId('composer-import')).toBeVisible();
+  await expect(page.locator('.sf-composer-more summary')).toBeVisible();
   await typeInput(page, '这句话先不发送');
   await page.screenshot({ path: info.outputPath('classroom-import-empty.png'), fullPage: true });
 
@@ -34,7 +35,8 @@ test('conversation import saves directly, retries an uncertain reply once, and k
     await route.fetch(); await route.abort('failed');
   });
   const chooser = page.waitForEvent('filechooser');
-  await composer.getByTestId('material-pick').click();
+  await page.locator('.sf-composer-more summary').click();
+  await page.getByRole('button', { name: '上传新资料到资料库', exact: true }).click();
   await (await chooser).setFiles({ name: '现场讲义.md', mimeType: 'text/markdown', buffer: Buffer.from('# 现场讲义\n先确定自变量的范围。') });
   const results = composer.getByTestId('composer-import-results');
   await expect(results.getByRole('button', { name: '重试', exact: true })).toBeVisible();
@@ -69,8 +71,9 @@ test('empty desk imports a dropped batch even when its first saved file replaces
   const sessionId = value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(row => !row.blank && row.origin !== 'subagent')!.sessionId;
   const empty = page.getByTestId('lesson-materials-empty');
   await expect(empty).toBeVisible();
-  await page.getByTestId('notebook-settings').click();
+  await openAppearance(page);
   await page.getByTestId('notebook-tone').selectOption('white');
+  await closeAppearance(page);
   await page.getByTestId('notebook-sidebar').getByRole('button', { name: /回到这节课/u }).click();
   await expect(empty).toBeVisible();
   await page.screenshot({ path: info.outputPath('classroom-import-white.png'), fullPage: true });
@@ -92,7 +95,7 @@ test('empty desk imports a dropped batch even when its first saved file replaces
   // The rightbar is an overlay at phone width; close it before using the input.
   await page.getByRole('button', { name: 'Collapse right sidebar', exact: true }).click();
   await expect(page.getByTestId('studyforge-lesson-panel')).toBeHidden();
-  await expect(composer.getByTestId('material-pick')).toBeVisible();
+  await expect(page.locator('.sf-composer-more summary')).toBeVisible();
   const popup = composer.getByTestId('composer-import-results');
   await expect(popup).toBeVisible();
   await popup.getByRole('button', { name: '单调性', exact: true }).hover();

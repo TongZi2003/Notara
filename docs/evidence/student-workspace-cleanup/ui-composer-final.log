@@ -1,0 +1,43 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/conversation-home.spec.ts tests/e2e/content-history.spec.ts tests/e2e/layout-roadmap.spec.ts
+
+
+Running 4 tests using 1 worker
+
+(node:37105) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/content-history.spec.ts:9:1 › book coverage and classroom back-links use saved ranges and actual native turns (11.4s)
+  ✘  2 tests/e2e/conversation-home.spec.ts:6:1 › learning modes stay inside the native composer and real recommendations hide only after acceptance (10.6s)
+(node:37227) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 tests/e2e/layout-roadmap.spec.ts:10:1 › the default roadmap shows real lessons, places and mounts them on the same route, and survives refresh (10.5s)
+  ✓  4 tests/e2e/layout-roadmap.spec.ts:64:1 › six navigation entries are visible and learning-space management remains reachable through settings (9.5s)
+
+
+  1) tests/e2e/conversation-home.spec.ts:6:1 › learning modes stay inside the native composer and real recommendations hide only after acceptance
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      52 |   await page.setViewportSize({ width: 500, height: 800 });
+      53 |   await expect(mode).toBeVisible();
+    > 54 |   expect(await page.locator('[data-composer-seat]').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+         |                                                                                                           ^
+      55 |   await page.screenshot({ path: info.outputPath('home-modes-narrow.png'), fullPage: true });
+      56 |   expect(errors).toEqual([]);
+      57 | });
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/conversation-home.spec.ts:54:107
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:37166) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/conversation-home-learning-728bd--hide-only-after-acceptance/error-context.md
+
+  1 failed
+    tests/e2e/conversation-home.spec.ts:6:1 › learning modes stay inside the native composer and real recommendations hide only after acceptance
+  3 passed (42.9s)

@@ -1,0 +1,14 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/workbench-library.spec.ts tests/e2e/classroom-import.spec.ts tests/e2e/lesson-materials-mindmap.spec.ts --output=.runtime/ui-workbench-final-results
+
+
+Running 4 tests using 1 worker
+
+(node:44043) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/classroom-import.spec.ts:13:1 › conversation import saves directly, retries an uncertain reply once, and keeps the draft and original accessible (10.6s)
+  ✓  2 tests/e2e/classroom-import.spec.ts:65:1 › empty desk imports a dropped batch even when its first saved file replaces the empty state (10.8s)
+  ✓  3 tests/e2e/lesson-materials-mindmap.spec.ts:23:1 › the lesson right column is one material map that opens originals and cards in place (11.7s)
+  ✓  4 tests/e2e/workbench-library.spec.ts:9:1 › whiteboard defaults to the library and filters actual lesson references without writing on browse (10.3s)
+
+  4 passed (43.9s)

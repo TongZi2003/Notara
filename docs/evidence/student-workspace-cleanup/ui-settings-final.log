@@ -1,0 +1,11 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/notebook-theme.spec.ts --grep notebook fonts --output=.runtime/ui-settings-final-results
+
+
+Running 1 test using 1 worker
+
+(node:39987) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/notebook-theme.spec.ts:11:1 › notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft (12.0s)
+
+  1 passed (12.3s)

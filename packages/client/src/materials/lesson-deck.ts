@@ -6,6 +6,7 @@ import { visibleMindNodes, type MindNode } from './mindmap-model.ts';
 export type DeckContent = LessonPaneRequest | { readonly kind: 'object'; readonly title: string; readonly target: string };
 export interface DeckSheet { readonly id: string; readonly content: DeckContent; readonly nodeKey?: string | undefined }
 export interface DeckState {
+  readonly scope?: 'all' | 'lesson';
   readonly sheets: readonly DeckSheet[];
   readonly active: string | undefined;
   readonly expanded: readonly string[];

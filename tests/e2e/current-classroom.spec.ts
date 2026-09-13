@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { test as base, expect, type Page } from '@playwright/test';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
 import { enterClassroom, openRoot, openSetManagement } from './fixtures/classroom.ts';
+import { connectRuntime } from '../fixtures/http-runtime.ts';
+import type { SessionCreateValue } from '@deepseek-ai/dsh-api-session-controller';
 
 /**
  * This spec exercises a real lesson, so it boots the isolated runtime with the
@@ -27,7 +29,6 @@ const test = base.extend<{ dsh: IsolatedRuntime }>({
 /** The native model control's accessible name, whichever locale the app boots in. */
 const MODEL_TRIGGER = /^(Select model|选择模型)/;
 const STUDENT_PAGES = [
-  { label: '首页', page: 'studyforge.home' },
   { label: '课程', page: 'studyforge.courses' },
   { label: '资料', page: 'studyforge.materials' },
   { label: '管理学习集', page: 'studyforge.sets' },
@@ -76,12 +77,11 @@ test('native classroom keeps its own composer and carries the student lesson sur
       if (entry.page === 'studyforge.courses') {
         expect(await surface.innerText()).not.toMatch(/studyforge\.|sessionId|schema|\/Users\//);
         // The default course page is the roadmap; the lesson list is its own tab.
-        await page.getByTestId('courses-tab-list').click();
-        await expect(page.getByTestId('native-lessons-empty')).toContainText('还没有课');
+        await page.getByTestId('courses-view').selectOption('list');
+        await expect(page.getByTestId('native-lessons-empty')).toContainText('暂无课堂记录');
       }
     }
     await openRoot(page, '首页');
-    await page.getByTestId('open-classroom').click();
     await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('home-back-to-classroom.png') });
 
@@ -97,17 +97,17 @@ test('native classroom keeps its own composer and carries the student lesson sur
 
     // The lesson entry opens this client's own rightbar page type; the read is real
     // (this lesson has no material yet, and the panel says exactly that).
-    const lessonEntry = page.getByRole('button', { name: '本课资料', exact: true });
+    const lessonEntry = page.getByTestId('open-lesson');
     await expect(lessonEntry).toBeVisible();
     await lessonEntry.click();
     const panel = page.getByTestId('studyforge-lesson-panel');
     await expect(panel).toBeVisible();
     await expect(panel.getByRole('heading')).toHaveCount(0);
-    await expect(panel).toContainText('这节课还没有用到资料。');
+    await expect(panel.getByTestId('lesson-materials-empty')).toBeVisible();
     // The docked panel slides in: assert controls and content actually land in the
     // viewport before the evidence shot, so a mid-transition frame cannot pass.
     await expect(panel.getByTestId('lesson-materials-refresh')).toBeInViewport({ ratio: 1 });
-    await expect(panel.getByText('这节课还没有用到资料。')).toBeInViewport({ ratio: 1 });
+    await expect(panel.getByTestId('material-pick')).toBeInViewport({ ratio: 1 });
     await expect(panel).toBeInViewport({ ratio: 0.95 });
     expect(await panel.innerText()).not.toMatch(/studyforge\.|sessionId|schema|\/Users\/|\.jsonl/);
     await page.screenshot({ path: testInfo.outputPath('lesson-panel-rightbar.png') });
@@ -116,9 +116,9 @@ test('native classroom keeps its own composer and carries the student lesson sur
     await page.getByTestId('notebook-sidebar').getByRole('button', { name: '课程', exact: true }).click();
     const courses = page.getByTestId('studyforge-page-studyforge.courses');
     await expect(courses).toBeVisible();
-    await page.getByTestId('courses-tab-list').click();
+    await page.getByTestId('courses-view').selectOption('list');
     await expect(page.getByTestId('studyforge-lessons')).toBeVisible({ timeout: 20_000 });
-    await expect(courses).not.toContainText('还没有课');
+    await expect(courses).toContainText('一次函数');
     await page.screenshot({ path: testInfo.outputPath('courses-after-lesson.png') });
 
     // Narrower and smallest supported viewports keep the classroom and the entries usable.
@@ -126,13 +126,13 @@ test('native classroom keeps its own composer and carries the student lesson sur
     await openRoot(page, '首页');
     // 开始学习 now deliberately starts a new lesson. Return via the real history
     // entry to exercise the same lesson's panel at the smaller viewport.
-    await page.getByTestId('home-last-transcript').click();
+    await page.getByTestId('notebook-sidebar').getByRole('button', { name: /一次函数/ }).last().click();
     await expect(page.locator('[data-composer-input]')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
     await page.screenshot({ path: testInfo.outputPath('classroom-1024.png') });
 
     await page.setViewportSize({ width: 390, height: 844 });
-    if (!await panel.isVisible()) await page.getByRole('button', { name: '本课资料', exact: true }).click();
+    if (!await panel.isVisible()) await page.getByTestId('open-lesson').click();
     // At the smallest width the native rightbar covers the viewport, so the lesson
     // panel itself is what the student reads there; a browser reload resets the
     // in-memory layout and the navigation is reachable again.
@@ -140,7 +140,7 @@ test('native classroom keeps its own composer and carries the student lesson sur
     await expect(narrowPanel).toBeVisible();
     await expect(narrowPanel.getByRole('heading')).toHaveCount(0);
     await expect(narrowPanel.getByTestId('lesson-materials-refresh')).toBeInViewport({ ratio: 1 });
-    await expect(narrowPanel.getByText('这节课还没有用到资料。')).toBeInViewport({ ratio: 1 });
+    await expect(narrowPanel.getByTestId('material-pick')).toBeInViewport({ ratio: 1 });
     await page.screenshot({ path: testInfo.outputPath('narrow-390-lesson.png') });
     await page.reload();
     await dismissNotices(page);
@@ -163,11 +163,15 @@ test('a creation session keeps the classroom and hides the learning lesson surfa
   try {
     await enter(page, dsh.authUrl);
 
-    // Pick the native creation composition from the blank-session hero, then start
-    // from the same composer: this client never rewrites the composition.
-    await page.getByRole('button', { name: '学习', exact: true }).click();
-    const option = page.getByRole('menuitem', { name: /制作/ }).or(page.getByText('制作', { exact: true }));
-    await option.first().click();
+    // Seed an existing native creation session; the learning homepage no longer
+    // offers a coding/creation switch. Verify its native composer still works.
+    const client = await connectRuntime(dsh);
+    const created = await client.rpc<SessionCreateValue>('session/create', { request: { cwd: join(dsh.root, 'classroom'), agentPreset: 'studyforge-creation' } });
+    if (!created.ok) throw new Error('creation fixture refused');
+    await client.rpc('session/prompt', { request: { sessionId: created.value.sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '准备制作封面' }] } });
+    await client.rpc('session/rename', { request: { sessionId: created.value.sessionId, title: '制作封面测试' } });
+    await page.reload();
+    await page.getByTestId('notebook-sidebar').getByRole('button', { name: /制作封面测试/ }).click();
 
     await page.locator('[data-composer-input]').click();
     await page.keyboard.insertText('帮我做一张封面');
@@ -179,7 +183,7 @@ test('a creation session keeps the classroom and hides the learning lesson surfa
     await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
     await expect(page.locator('[data-composer-input]')).toBeVisible();
     await expect(page.getByRole('button', { name: MODEL_TRIGGER })).toBeVisible();
-    await expect(page.getByRole('button', { name: '本课资料', exact: true })).toHaveCount(0);
+    await expect(page.getByTestId('open-lesson')).toHaveCount(0);
     await expect(page.getByTestId('studyforge-lesson-panel')).toHaveCount(0);
     await page.getByRole('button', { name: 'Open right sidebar', exact: true }).click();
     await expect(page.getByRole('tab').filter({ hasText: 'Files' })).toBeVisible();

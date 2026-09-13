@@ -21,7 +21,7 @@ export async function enterClassroom(page: Page, authUrl: string): Promise<void>
 }
 
 /** The accepted sidebar: five roots plus a set picker; cards and sets are reached from pages. */
-export const SIDEBAR_ROOTS = ['首页', '课程', '资料', '日历', '学情'] as const;
+export const SIDEBAR_ROOTS = ['首页', '学习集', '课程', '资料', '日历', '学情'] as const;
 
 /** The expanded sidebar body (pickers and actions) hides behind the fold. */
 async function expandSidebar(page: Page): Promise<void> {
@@ -37,17 +37,17 @@ export async function openRoot(page: Page, label: (typeof SIDEBAR_ROOTS)[number]
   await page.getByTestId('notebook-sidebar').getByRole('button', { name: label, exact: true }).click();
 }
 
-/** The card library is a materials action ("卡片与笔记"), not a sidebar root. */
+/** Organize and review cards from the materials page. */
 export async function openCards(page: Page): Promise<void> {
   await openRoot(page, '资料');
-  await page.getByTestId('studyforge-page-studyforge.materials').getByRole('button', { name: '卡片与笔记', exact: true }).click();
+  await page.getByTestId('materials-open-cards').click();
   await expect(page.getByTestId('studyforge-cards')).toBeVisible();
 }
 
 /** Learning-set management lives behind the sidebar's 管理学习集 entry. */
 export async function openSetManagement(page: Page): Promise<void> {
   await expandSidebar(page);
-  await page.getByTestId('notebook-sidebar').getByRole('button', { name: '管理学习集', exact: true }).click();
+  await page.getByTestId('notebook-sidebar').getByRole('button', { name: '学习集', exact: true }).click();
   await expect(page.getByTestId('studyforge-page-studyforge.sets')).toBeVisible();
 }
 
@@ -60,7 +60,7 @@ export async function openCourses(page: Page): Promise<void> {
 /** Existing row-editor flows still exist, but the student chooses the list tab. */
 export async function openCoursesList(page: Page): Promise<void> {
   await openCourses(page);
-  await page.getByTestId('courses-tab-list').click();
+  await page.getByTestId('courses-view').selectOption('list');
   await expect(page.getByTestId('course-lessons')).toBeVisible();
 }
 /** Settings and imports live in the native rightbar's 开始 page. */
@@ -87,4 +87,14 @@ export async function typeInput(page: Page, text: string): Promise<void> {
 export async function sendInput(page: Page, text: string): Promise<void> {
   await typeInput(page, text);
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
+}
+
+export async function openAppearance(page: Page): Promise<void> {
+  await page.getByRole('button', { name: /^(Settings|设置)$/ }).click();
+  await page.getByRole('button', { name: '字体与纸张', exact: true }).click();
+  await expect(page.getByTestId('notebook-appearance')).toBeVisible();
+}
+export async function closeAppearance(page: Page): Promise<void> {
+  await page.getByTestId('notebook-sidebar').getByRole('button', { name: /^(Close|关闭)$/ }).click();
+  await expect(page.getByTestId('notebook-appearance')).toHaveCount(0);
 }

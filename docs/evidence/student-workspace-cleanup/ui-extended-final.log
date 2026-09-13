@@ -1,0 +1,45 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/planning-overview-v2.spec.ts tests/e2e/notebook-pages.spec.ts tests/e2e/notebook-theme.spec.ts --grep original notebook pages|notebook fonts|a date range --output=.runtime/ui-extended-final-results
+
+
+Running 3 tests using 1 worker
+
+(node:38855) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths (17.5s)
+  ✘  2 tests/e2e/notebook-theme.spec.ts:11:1 › notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft (27.1s)
+(node:38974) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 tests/e2e/planning-overview-v2.spec.ts:67:1 › a date range narrows the roadmap, keeps ancestors as context, and clearing restores the tree (16.7s)
+
+
+  1) tests/e2e/notebook-theme.spec.ts:11:1 › notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 290
+    Received:   106
+
+    Call Log:
+    - Timeout 15000ms exceeded while waiting on the predicate
+
+      79 |   await page.setViewportSize({ width: 390, height: 844 });
+      80 |   await expect(page.getByTestId('notebook-appearance')).toBeVisible();
+    > 81 |   await expect.poll(async () => (await page.getByTestId('notebook-appearance').boundingBox())?.width ?? 0).toBeGreaterThan(290);
+         |                                                                                                            ^
+      82 |   expect(await page.getByTestId('notebook-appearance').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+      83 |   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      84 |   await page.screenshot({ path: info.outputPath('notebook-390.png'), fullPage: true });
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/notebook-theme.spec.ts:81:108
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:38911) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/ui-extended-final-results/notebook-theme-notebook-fo-f734e-native-lesson-and-its-draft/error-context.md
+
+  1 failed
+    tests/e2e/notebook-theme.spec.ts:11:1 › notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft
+  2 passed (1.0m)

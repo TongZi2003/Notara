@@ -35,7 +35,7 @@ async function dismissNotices(page: Page): Promise<void> {
 async function openCards(page: Page): Promise<void> {
   await dismissNotices(page);
   await openRoot(page, '资料');
-  await page.getByTestId('studyforge-page-studyforge.materials').getByRole('button', { name: '卡片与笔记', exact: true }).click();
+  await page.getByTestId('studyforge-page-studyforge.materials').getByRole('button', { name: '整理与复习', exact: true }).click();
   await expect(page.getByTestId('studyforge-cards')).toBeVisible();
 }
 

@@ -47,13 +47,6 @@ interface Loaded {
 
 type Range = { readonly from: string; readonly to: string };
 
-/** The automatic spot for one node when the student has not placed it themselves. */
-function autoSpot(index: number, depth: number): { readonly x: number; readonly y: number } {
-  // B's mapAutoLayout: one column per generation (280px), one row per node (150px).
-  // The floating filter bar sits above this board rather than over it, so row one starts at 20.
-  return { x: 40 + depth * 280, y: 20 + index * 150 };
-}
-
 const REFUSAL_COPY: Readonly<Record<string, string>> = {
   route_node_conflict: '这一节刚被别人改过，已经读到最新的一版；你的改动还在，可以再存一次。',
   route_cycle: '不能把一节课挂到它自己的下面。',
@@ -71,9 +64,6 @@ export function CourseMap({ ctx, lessons, lessonsLoaded, onOpenLesson }: CourseM
   const [match, setMatch] = useState<RoadmapFilterResult | undefined>(undefined);
   const [editing, setEditing] = useState<{ node: RouteNode | null } | undefined>(undefined);
   const [mounting, setMounting] = useState<string | undefined>(undefined);
-  const [arranging, setArranging] = useState(false);
-  const [holding, setHolding] = useState<{ readonly id: string; readonly x: number; readonly y: number } | undefined>(undefined);
-  const drag = useRef<{ id: string; pointerX: number; pointerY: number; originX: number; originY: number; x: number; y: number; moved: boolean } | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const ids = useRef<{ signature: string; value: string }>({ signature: '', value: '' });
@@ -172,54 +162,10 @@ export function CourseMap({ ctx, lessons, lessonsLoaded, onOpenLesson }: CourseM
       const reply = await ctx.remote.studyforgeOrganization.openPlannedLesson({ operationId: operationId('open:' + node.id), nodeId: node.id });
       if (!reply.ok) { setNotice(refusalCopy(refusalCode(reply.error), '这节课现在开不了。')); return; }
       setLoaded(current => current === undefined ? current : { ...current, route: { ...current.route, nodes: current.route.nodes.map(item => item.id === node.id ? reply.value.node : item) } });
+      await ctx.sessions.refresh();
       onOpenLesson(reply.value.sessionId);
     } catch { setNotice('这节课现在开不了。'); }
     finally { setBusy(false); }
-  }
-
-  /**
-   * Save where the student really put one card. Only this node's coordinate is
-   * sent, so a drag can never rewrite another node's placement or its content;
-   * `null` puts the node back into the automatic order.
-   */
-  async function place(nodeId: string, position: { readonly x: number; readonly y: number } | null): Promise<void> {
-    setBusy(true); setNotice('');
-    try {
-      const reply = await ctx.remote.studyforgeOrganization.setRouteLayout({
-        operationId: operationId('place:' + nodeId + ':' + (position === null ? 'auto' : `${String(position.x)},${String(position.y)}`)),
-        positions: [{ nodeId, position }],
-      });
-      if (reply.ok) { setLoaded(current => current === undefined ? current : { ...current, route: reply.value }); return; }
-      setNotice(refusalCopy(refusalCode(reply.error), '这次没挪成，请再试一次。'));
-    } catch { setNotice('这次没挪成，请再试一次。'); }
-    finally { setBusy(false); }
-  }
-
-  /** One pointer drag on the canvas: the card follows the pointer, the save happens on release. */
-  function beginDrag(event: React.PointerEvent<HTMLDivElement>, nodeId: string, at: { readonly x: number; readonly y: number }): void {
-    if ((event.target as HTMLElement).closest('button') !== null) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    drag.current = { id: nodeId, pointerX: event.clientX, pointerY: event.clientY, originX: at.x, originY: at.y, x: at.x, y: at.y, moved: false };
-  }
-
-  function moveDrag(event: React.PointerEvent<HTMLDivElement>): void {
-    const at = drag.current;
-    if (at === undefined) return;
-    const dx = event.clientX - at.pointerX, dy = event.clientY - at.pointerY;
-    if (!at.moved && Math.abs(dx) + Math.abs(dy) < 3) return;
-    at.moved = true;
-    at.x = Math.max(0, Math.round(at.originX + dx));
-    at.y = Math.max(0, Math.round(at.originY + dy));
-    setHolding({ id: at.id, x: at.x, y: at.y });
-  }
-
-  function endDrag(): void {
-    const at = drag.current;
-    drag.current = undefined;
-    setHolding(undefined);
-    // A tap is not a placement: only a real move writes a coordinate.
-    if (at === undefined || !at.moved) return;
-    void place(at.id, { x: at.x, y: at.y });
   }
 
   if (loaded === undefined) {
@@ -234,21 +180,10 @@ export function CourseMap({ ctx, lessons, lessonsLoaded, onOpenLesson }: CourseM
   const context = new Set((match?.context ?? []).map(stripRoute));
   const visible = loaded.route.nodes.filter(node => match === undefined || matched.has(node.id) || context.has(node.id));
   const ordered = walkRoute(visible);
-  const placedByNode = new Map(loaded.route.layout.map(entry => [entry.nodeId, entry] as const));
-  const spots = ordered.map(({ node, depth }, index) => ({
-    node, saved: placedByNode.get(node.id), auto: autoSpot(index, depth),
-  }));
-  const canvasHeight = Math.max(320, ...spots.map(spot => (spot.saved ?? spot.auto).y + 124));
-  const canvasWidth = Math.max(320, ...spots.map(spot => (spot.saved ?? spot.auto).x + 290));
-  /** Where one card is right now: the pointer's own spot while it is being dragged. */
-  type Spot = { readonly node: RouteNode; readonly saved: RouteView['layout'][number] | undefined; readonly auto: { readonly x: number; readonly y: number } };
-  const liveOf = (spot: Spot): { readonly x: number; readonly y: number } =>
-    (holding?.id === spot.node.id ? holding : spot.saved ?? spot.auto);
-  const byNode = new Map(spots.map(spot => [spot.node.id, spot] as const));
-
   return <section className="sf-courses-block" data-testid="course-map">
-    <div className="sec-head"><h2>排课</h2><span className="cnt">{String(loaded.route.nodes.length)} 节</span><div className="line" /></div>
-    <div className="sf-roadmap-filter" data-testid="roadmap-filter">
+    <div className="sec-head sf-schedule-heading"><h2>学习安排</h2>{loaded.route.nodes.length > 0 && <span className="cnt">{loaded.route.nodes.length} 节</span>}
+      <button type="button" className="btn primary" data-testid="roadmap-create" disabled={busy} onClick={() => { setEditing({ node: null }); setNotice(''); }}>安排一节课</button></div>
+    {loaded.route.nodes.length > 0 && <details className="sf-route-filter"><summary>筛选日期</summary><div className="sf-roadmap-filter" data-testid="roadmap-filter">
       <div className="sf-chip-row">
         <button type="button" className={chipClass(range === undefined)} data-testid="roadmap-filter-all" onClick={() => { void applyRange(undefined); }}>全部</button>
         <button type="button" className={chipClass(range !== undefined && range.from === today && range.to === today)} data-testid="roadmap-filter-today"
@@ -258,42 +193,12 @@ export function CourseMap({ ctx, lessons, lessonsLoaded, onOpenLesson }: CourseM
       </div>
       <label>从 <input type="date" data-testid="roadmap-filter-from" value={range?.from ?? ''} onChange={event => { const value = event.target.value; if (value === '') { void applyRange(undefined); } else { void applyRange({ from: value, to: range?.to ?? value }); } }} /></label>
       <label>到 <input type="date" data-testid="roadmap-filter-to" value={range?.to ?? ''} onChange={event => { const value = event.target.value; if (value === '') { void applyRange(undefined); } else { void applyRange({ from: range?.from ?? value, to: value }); } }} /></label>
-      <span className="sf-meta" data-testid="roadmap-filter-count">{match === undefined ? `${String(loaded.route.nodes.length)} 节` : `命中 ${String(matched.size)} 节`}</span>
       {range !== undefined && <button type="button" className="sf-quiet" data-testid="roadmap-filter-clear" onClick={() => { void applyRange(undefined); }}>清除筛选</button>}
-      <button type="button" className="sf-quiet" data-testid="roadmap-arrange" onClick={() => { setArranging(current => !current); }}>
-        {arranging ? '看顺序' : '自己摆'}
-      </button>
-    </div>
-    {ordered.length === 0 && <p className="sf-note" data-testid="roadmap-empty">还没有排课。写下想去哪，再点「排一节」。</p>}
-    {arranging && <div className="sf-roadmap-canvas" data-testid="roadmap-canvas" style={{ height: `${String(canvasHeight)}px` }}>
-      {/* B's map draws the mount edges; a child's line starts at its parent's right edge. */}
-      <svg className="sf-roadmap-edges" width={canvasWidth} height={canvasHeight} aria-hidden="true">
-        {spots.flatMap(spot => {
-          const parent = spot.node.parent === undefined ? undefined : byNode.get(spot.node.parent);
-          if (parent === undefined) return [];
-          const from = liveOf(parent), to = liveOf(spot);
-          return [<path key={spot.node.id} className={spot.node.session === undefined ? 'planned' : 'opened'}
-            d={`M ${String(from.x + 230)} ${String(from.y + 42)} C ${String(from.x + 300)} ${String(from.y + 42)}, ${String(to.x - 70)} ${String(to.y + 42)}, ${String(to.x)} ${String(to.y + 42)}`} />];
-        })}
-      </svg>
-      {spots.map(({ node, saved, auto }) => {
-        const live = holding?.id === node.id ? holding : saved ?? auto;
-        return <div key={node.id} className={saved === undefined ? 'sf-roadmap-card' : 'sf-roadmap-card sf-roadmap-card-placed'}
-          data-testid="roadmap-canvas-node" data-node-id={node.id} data-x={String(live.x)} data-y={String(live.y)}
-          data-held={holding?.id === node.id}
-          style={{ left: `${String(live.x)}px`, top: `${String(live.y)}px` }}
-          onPointerDown={event => { beginDrag(event, node.id, live); }} onPointerMove={moveDrag} onPointerUp={endDrag}>
-          <span className="sf-roadmap-title">{node.title}</span>
-          {node.session !== undefined && <span className="sf-meta">已开课</span>}
-          {saved !== undefined && <button type="button" className="sf-quiet" data-testid="roadmap-node-auto" disabled={busy}
-            onClick={() => { void place(node.id, null); }}>排回原位</button>}
-        </div>;
-      })}
-    </div>}
-    {!arranging && <ol className="sf-roadmap sf-linear-tree" data-testid="roadmap-nodes">
+    </div></details>}
+    {ordered.length === 0 && <p className="sf-note" data-testid="roadmap-empty">{range ? '这个日期范围内没有课程。' : '暂无学习安排'}</p>}
+    <ol className="sf-roadmap sf-linear-tree" data-testid="roadmap-nodes">
       {linearTreeRows(ordered.map(row => row.node), node => node.id, node => node.parent, (node, children) => <li key={node.id} className={context.has(node.id) && !matched.has(node.id) ? 'sf-roadmap-row sf-roadmap-context' : 'sf-roadmap-row'}
         data-testid="roadmap-node" data-node-id={node.id} data-route-ref={`route:${node.id}`}>
-        {placedByNode.get(node.id) !== undefined && <span className="sf-meta" data-testid="roadmap-position">已自己摆位</span>}
         <div className="sf-roadmap-row-head">
           <span className="sf-roadmap-title" data-testid="roadmap-node-title">{node.title}</span>
           {node.opening !== undefined && node.session === undefined && <span className="sf-meta">正在开课…</span>}
@@ -327,10 +232,8 @@ export function CourseMap({ ctx, lessons, lessonsLoaded, onOpenLesson }: CourseM
         </div>}
         {children}
       </li>)}
-    </ol>}
-    {editing === undefined
-      ? <button type="button" className="sf-action" data-testid="roadmap-create" disabled={busy} onClick={() => { setEditing({ node: null }); setNotice(''); }}>排一节</button>
-      : <RouteEditor route={loaded.route} node={editing.node} materials={loaded.materials} cards={loaded.cards} choices={loaded.choices}
+    </ol>
+    {editing !== undefined && <RouteEditor route={loaded.route} node={editing.node} materials={loaded.materials} cards={loaded.cards} choices={loaded.choices}
           pending={busy} notice={notice} onCreate={draft => { void createNode(draft); }}
           onEdit={patch => { const node = editing.node; if (node !== null) void editNode(node.id, patch); }}
           onCancel={() => { setEditing(undefined); setNotice(''); }} />}
@@ -345,7 +248,7 @@ export function NativeLessonList({ lessons, loaded, onOpenLesson }: {
   onOpenLesson(id: string): void;
 }): React.JSX.Element {
   if (!loaded) return <p className="sf-note" role="status">正在看你的课…</p>;
-  if (lessons.length === 0) return <p className="sf-note" data-testid="native-lessons-empty">还没有课。回到课堂写下想学的主题，就会开出第一节。</p>;
+  if (lessons.length === 0) return <p className="sf-note" data-testid="native-lessons-empty">暂无课堂记录</p>;
   return <ul className="sf-lessons sf-linear-tree" data-testid="studyforge-lessons">
     {lessons.map(lesson => <li key={lesson.id}>
       <button type="button" data-testid="native-lesson-open" onClick={() => { onOpenLesson(lesson.id); }}>

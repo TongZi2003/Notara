@@ -1,3 +1,4 @@
+import { openAppearance, closeAppearance } from './fixtures/classroom.ts';
 import { test, expect, enterClassroom, sendInput, typeInput, openCards, openSetManagement } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
@@ -20,11 +21,11 @@ test('notebook fonts, paper controls and browser routes preserve the actual nati
   await expect(page.locator('[data-chat-flow-kind="assistant-step"] p').first()).toHaveCSS('font-family', /SF Long Cang/);
   await page.screenshot({ path: info.outputPath('notebook-classroom.png'), fullPage: true });
   await typeInput(page, '这条草稿和原来的课堂都保留。');
-  await page.getByTestId('notebook-settings').click();
+  await openAppearance(page);
   await expect(page.getByTestId('notebook-appearance')).toBeVisible();
   await expect.poll(async () => (await page.getByTestId('notebook-appearance').boundingBox())?.width ?? 0).toBeGreaterThan(290);
   expect(await page.getByTestId('notebook-appearance').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
-  await expect(page).toHaveURL(/#studyforge\/appearance$/);
+  await expect(page.getByTestId('notebook-appearance')).toBeVisible();
   await page.getByTestId('notebook-paper').selectOption('fangge');
   await page.getByTestId('notebook-tone').selectOption('white');
   await expect(page.getByTestId('notebook-appearance')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
@@ -39,17 +40,17 @@ test('notebook fonts, paper controls and browser routes preserve the actual nati
   await expect(page.getByTestId('notebook-appearance')).toHaveCSS('background-color', 'rgb(40, 37, 31)');
   await page.screenshot({ path: info.outputPath('notebook-dark.png'), fullPage: true });
   await page.emulateMedia({ colorScheme: 'light' });
-  await page.getByTestId('notebook-back').click();
+  await closeAppearance(page);
   await expect(page.locator('[data-composer-input]')).toContainText('这条草稿和原来的课堂都保留。');
   await openCards(page);
   await expect(page).toHaveURL(/#studyforge\/cards$/);
-  await page.getByTestId('notebook-settings').click();
-  await expect(page).toHaveURL(/#studyforge\/appearance$/);
-  await page.reload();
+  await openAppearance(page);
   await expect(page.getByTestId('notebook-appearance')).toBeVisible();
+  await page.reload();
+  await openAppearance(page);
   await expect(page.getByTestId('notebook-tone')).toHaveValue('white');
   await expect(page.getByTestId('notebook-appearance')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
-  await page.getByTestId('notebook-back').click();
+  await closeAppearance(page);
   await expect(page.getByTestId('studyforge-page-studyforge.cards')).toBeVisible();
   await page.getByRole('button', { name: '日历', exact: true }).first().click();
   await expect(page).toHaveURL(/#studyforge\/calendar$/);
@@ -64,18 +65,18 @@ test('notebook fonts, paper controls and browser routes preserve the actual nati
     if (route === 'cards') await openCards(page);
     else if (route === 'sets') await openSetManagement(page);
     else await page.getByRole('button', { name: title, exact: true }).first().click();
-    await expect(page).toHaveURL(new RegExp('#studyforge/' + route + '$'));
-    await expect(page.getByTestId('studyforge-page-studyforge.' + route)).toBeVisible();
+    await expect(page).toHaveURL(new RegExp('#studyforge/' + (route === 'home' ? 'classroom' : route) + '$'));
+    await expect(route === 'home' ? page.locator('[data-slot="main.conversation"]') : page.getByTestId('studyforge-page-studyforge.' + route)).toBeVisible();
     if (route === 'courses') {
-      await expect(page.getByTestId('roadmap-canvas')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+      await expect(page.getByTestId('studyforge-page-studyforge.courses')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
       await expect(page.getByTestId('roadmap-canvas')).toHaveCSS('background-image', 'none');
     }
   }
+  await openAppearance(page);
   await page.getByTestId('notebook-toggle').click();
   await expect(page.locator('body')).toHaveAttribute('data-sf-notebook', 'off');
   await page.getByTestId('notebook-toggle').click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByTestId('notebook-settings').click();
   await expect(page.getByTestId('notebook-appearance')).toBeVisible();
   await expect.poll(async () => (await page.getByTestId('notebook-appearance').boundingBox())?.width ?? 0).toBeGreaterThan(290);
   expect(await page.getByTestId('notebook-appearance').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);

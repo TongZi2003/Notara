@@ -258,6 +258,25 @@
 .sf-materials .sf-materials-body{display:block;flex:1;min-height:0;overflow:auto;border-top:1px solid var(--op-rule);padding:0}
 .sf-materials .sf-shelf-page{display:block;width:100%;max-width:1160px;margin:0 auto;padding:20px 32px 64px;box-sizing:border-box}
 .sf-materials .sf-scope-row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.sf-materials .sf-library-section{margin:12px 0 34px}
+.sf-materials .sf-library-section .sf-sec-head{margin-bottom:18px}
+.sf-materials .sf-library-empty{padding:clamp(32px,10vh,90px) 16px 36px;text-align:center}
+.sf-materials .sf-library-empty h2{font:28px/1.5 var(--op-hand);color:var(--op-ink);margin:0 0 10px}
+.sf-materials .sf-library-empty>p{font:15px/1.7 var(--op-print);color:var(--op-pencil);margin:0 0 22px}
+.sf-materials .sf-library-empty .sf-import{justify-content:center}
+.sf-materials .sf-library-manage{margin-left:auto;padding:5px 0;border:0;background:none;color:var(--op-pen);font:15px/1.6 var(--op-hand);cursor:pointer}
+.sf-materials .sf-library-manage:hover{text-decoration:underline;text-underline-offset:4px}
+.sf-materials .sf-original-list{display:block;margin:0;padding-left:22px;list-style:none}
+.sf-materials .sf-original-list>.sf-material-row{display:flex;align-items:center;gap:16px;padding:12px 0;min-width:0}
+.sf-materials .sf-original-open{display:flex;align-items:center;gap:18px;flex:1;min-width:0;padding:6px 0;border:0;background:transparent;text-align:left;color:var(--op-ink);cursor:pointer}
+.sf-materials .sf-original-kind{flex:0 0 58px;font:12px/1.5 var(--op-print);color:var(--op-pencil)}
+.sf-materials .sf-original-copy{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}
+.sf-materials .sf-original-copy strong{font:22px/1.45 var(--op-hand);overflow-wrap:anywhere}
+.sf-materials .sf-original-copy small{font:11px/1.5 var(--op-mono);color:var(--op-pencil)}
+.sf-materials .sf-original-arrow{opacity:0;transition:opacity 120ms;color:var(--op-pen)}
+.sf-materials .sf-original-open:hover .sf-original-arrow,.sf-materials .sf-original-open:focus-visible .sf-original-arrow{opacity:1}
+.sf-materials .sf-original-list .sf-material-version{flex:none;font-size:12px;color:var(--op-pencil)}
+@media(max-width:600px){.sf-materials .sf-shelf-page{padding:16px 18px 40px}.sf-materials .sf-original-list>.sf-material-row{gap:8px}.sf-materials .sf-original-open{gap:8px}.sf-materials .sf-original-kind{flex-basis:42px}.sf-materials .sf-original-copy strong{font-size:19px}.sf-materials .sf-original-arrow{display:none}}
 .sf-materials .sf-reader-page{display:grid;grid-template-columns:220px minmax(0,1fr);flex:1;min-height:0;padding:0 24px 24px;box-sizing:border-box}
 .sf-materials .sf-reader-outline{border-right:1px solid var(--op-rule);padding:12px 12px 32px 0;overflow:auto;min-width:0}
 .sf-materials .sf-reader-page .sf-material-reader{border-left:0;padding:0 0 0 20px;overflow:auto;min-width:0}
@@ -320,6 +339,19 @@ body[data-sf-notebook="on"] .sf-materials .sf-reader-outline .sf-tree-row.leaf{f
   padding:10px 6px;border-bottom:1px dashed var(--op-rule-hi)}
 body[data-sf-notebook="on"] .sf-materials .sf-reader-page .sf-material-reader{
   background-color:var(--op-page);background-image:var(--op-lines);background-size:var(--op-lines-size)}
+
+.sf-materials .sf-book-structure{display:flex;flex-direction:column;align-self:start;width:100%;height:max(420px,calc(100dvh - 245px));min-width:0;overflow:hidden}
+.sf-book-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex:none;padding:8px 0 12px}
+.sf-book-toolbar h3{font:400 20px/1.4 var(--nb-hand,serif);margin:0 auto 0 0}
+.sf-book-toolbar .sf-quiet{font:12px/1.4 var(--dsw-font-family,sans-serif);white-space:nowrap}
+.sf-book-toolbar .sf-book-refresh{display:grid;place-items:center;width:28px;height:28px;padding:4px;border:0;background:transparent}
+.sf-book-map{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto}
+.sf-book-map[hidden]{display:none}
+.sf-book-map>.sf-mindmap-shell{flex:1;min-height:240px;max-height:none;background:transparent}
+.sf-book-map .sf-mindmap{background-color:transparent}
+.sf-book-map>.sf-book-detail{flex:none}
+.sf-book-records{flex:1;min-height:0;overflow:auto;padding:4px 6px 20px 0}
+@media(max-width:760px){.sf-materials .sf-book-columns[data-view=original] .sf-book-structure{display:none}}
 
 @media(max-width:900px){
   .sf-materials .sf-assets-grid{grid-template-columns:1fr;gap:16px;padding:0 16px 24px}

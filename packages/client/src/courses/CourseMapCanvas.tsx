@@ -155,7 +155,7 @@ export function CourseMapCanvas({ nodes, selected, busy, toolbar, onSelect, onOp
           onClick={() => { if (!suppressClick.current) onSelect(node.key); }}
           onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onSelect(node.key); } }}>
           <div className="sf-map-meta"><i style={{ background: color(node) }} />{node.planned ? '◇ 还没上' : node.archived ? '已归档' : node.current ? '当前课' : '上过的课'}{node.date && ' · ' + node.date.slice(5)}</div>
-          <div className="sf-map-title">{node.title}</div><div className="sf-map-preview">{node.preview || (node.planned ? '还没定材料' : '还没有课后小结')}</div>
+          <div className="sf-map-title">{node.title}</div>{node.preview && <div className="sf-map-preview">{node.preview}</div>}
           <div className="sf-map-actions"><button type="button" disabled={busy} onClick={event => { event.stopPropagation(); onOpen(node.key); }}>{node.planned ? '开这节' : '打开'}</button>
             <button type="button" onClick={event => { event.stopPropagation(); onSelect(node.key); }}>详情</button>
             {node.position && <button type="button" data-testid="roadmap-node-auto" disabled={busy} onClick={event => { event.stopPropagation(); void onPlace(node.key, null); }}>排回原位</button>}</div>
@@ -172,7 +172,7 @@ export function CourseMapCanvas({ nodes, selected, busy, toolbar, onSelect, onOp
       <button type="button" data-testid="map-fit" title="适应全部课程" onClick={fit}>{Math.round(camera.z * 100)}%</button>
       <button type="button" data-testid="map-zoom-in" aria-label="放大路线图" onClick={() => zoom(1.2)}>＋</button>
     </div>
-    {!nodes.length && <p className="sf-map-empty" data-testid="roadmap-empty">还没有课。安排下一节，或回课堂写下想学的主题。</p>}
+    {!nodes.length && <p className="sf-map-empty" data-testid="roadmap-empty">暂无课程</p>}
     <span className="sf-map-hint">拖动空白移动 · 滚轮缩放 · 拖动卡片摆位</span>
   </div>;
 }

@@ -45,7 +45,7 @@ test('an imported original is read directly and never opens a lesson', async ({ 
 
   // Importing is not enrolling: no lesson, no learning set was created.
   await page.getByRole('button', { name: '课程', exact: true }).first().click();
-  await expect(page.getByTestId('studyforge-page-studyforge.courses')).toContainText('还没有课');
+  await expect(page.getByTestId('studyforge-page-studyforge.courses')).toContainText('暂无课程');
   expect(errors).toEqual([]);
 });
 
@@ -76,7 +76,7 @@ test('a new version is explicit, keeps the old bytes readable, and a refresh kee
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-file-input').setInputFiles(first);
   const row = page.getByTestId('material-row').filter({ hasText: '三角函数笔记' });
-  await expect(row).toContainText('1 个文件');
+  await expect(row).toContainText('Markdown');
 
   await row.getByTestId('material-new-version-input').setInputFiles(second);
   await expect(row).toContainText('2 个版本');

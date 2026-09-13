@@ -9,8 +9,8 @@
  */
 import type { Context } from '@deepseek-ai/cordis';
 import type { MemoryView } from '@studyforge/contracts/memory';
-import { useEffect, useState } from 'react';
-import { kindLabel, MemoryCard } from './MemoryCard.tsx';
+import { useEffect, useRef, useState } from 'react';
+import { MemoryCard } from './MemoryCard.tsx';
 import { MemoryEditor } from './MemoryEditor.tsx';
 
 export interface MemoryPanelProps {
@@ -39,8 +39,8 @@ export function MemoryPanel({ ctx, sessionId, target, onSource }: MemoryPanelPro
   const [one, setOne] = useState<MemoryView | undefined>(undefined);
   const [oneFailed, setOneFailed] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  // B's own two orders: the order the records came in, or grouped by what they are about.
-  const [sort, setSort] = useState<'time' | 'tag'>('time');
+  const [filtering, setFiltering] = useState(false);
+  const searchRequest = useRef(0);
   const pinned = target !== undefined && !showAll;
 
   useMemoryStyles();
@@ -69,13 +69,16 @@ export function MemoryPanel({ ctx, sessionId, target, onSource }: MemoryPanelPro
   function reload(): void { setRevision(value => value + 1); }
 
   async function search(): Promise<void> {
+    const request = ++searchRequest.current;
     const text = query.trim();
     if (text === '') { setFound(undefined); return; }
-    const result = await ctx.remote.studyforgeMemory.search({ query: text });
-    if (!result.ok) { setUnavailable(true); return; }
-    // A hit names a record; the panel shows the real record rather than a snippet build.
-    const reads = await Promise.all(result.value.hits.map(hit => ctx.remote.studyforgeMemory.read({ target: hit.ref })));
-    setFound(reads.flatMap(read => (read.ok ? [read.value] : [])));
+    try {
+      const result = await ctx.remote.studyforgeMemory.search({ query: text });
+      if (request !== searchRequest.current) return;
+      if (!result.ok) { setUnavailable(true); return; }
+      const reads = await Promise.all(result.value.hits.map(hit => ctx.remote.studyforgeMemory.read({ target: hit.ref })));
+      if (request === searchRequest.current) { setUnavailable(false); setFound(reads.flatMap(read => (read.ok ? [read.value] : []))); }
+    } catch { if (request === searchRequest.current) setUnavailable(true); }
   }
 
   if (editing !== undefined) return <section className="sf-orig sf-memory" data-testid="memory-panel">
@@ -89,8 +92,8 @@ export function MemoryPanel({ ctx, sessionId, target, onSource }: MemoryPanelPro
   // B's screen head: 记忆 · N 块, one line, and the one write the student owns.
   const head = (count: number | undefined, extra?: React.ReactNode): React.JSX.Element =>
     <div className="sec-head" data-testid="memory-panel-head">
-      <h2>记忆</h2>
-      {count !== undefined && <span className="cnt">{count} 块</span>}
+      <h2>学情</h2>
+      {count !== undefined && count > 0 && <span className="cnt">{count} 条</span>}
       <div className="line" />
       {extra}
     </div>;
@@ -110,30 +113,29 @@ export function MemoryPanel({ ctx, sessionId, target, onSource }: MemoryPanelPro
   </section>;
 
   const shown = found ?? records;
-  const ordered = sort === 'tag' && shown !== undefined
-    ? [...shown].sort((left, right) => kindLabel(left.content.kind).localeCompare(kindLabel(right.content.kind), 'zh'))
-    : shown;
+  const observedAt = (memory: MemoryView): string => memory.history.at(-1)?.basis.map(item => item.occurredAt).sort().at(-1) ?? '';
+  const ordered = shown && [...shown].sort((left, right) => observedAt(right).localeCompare(observedAt(left)));
   return <section className="sf-orig sf-memory" data-testid="memory-panel">
     {head(ordered?.length,
       <button type="button" className="btn primary" data-testid="memory-create" onClick={() => { setEditing({}); }}>新建学情</button>)}
-    <p className="mini-note">这里记的是关于你的长期认识，每条都挂着你自己的原话。没有就是没记过。</p>
-    <div className="sf-memory-search">
-      <input className="mem-search" data-testid="memory-search" placeholder="关键词 · 找一条判断" value={query}
-        onChange={event => { setQuery(event.target.value); if (event.target.value.trim() === '') setFound(undefined); }}
-        onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void search(); } }} />
-      <button type="button" className="btn" data-testid="memory-search-run" onClick={() => { void search(); }}>查</button>
-    </div>
+    <p className="mini-note">从课堂中积累的学习观察，可以查看依据，也可以纠正。</p>
     <div className="mem-toolbar">
-      <button type="button" className={sort === 'time' ? 'chip on' : 'chip'} data-testid="memory-sort-time" onClick={() => { setSort('time'); }}>按时间</button>
-      <button type="button" className={sort === 'tag' ? 'chip on' : 'chip'} data-testid="memory-sort-tag" onClick={() => { setSort('tag'); }}>按标签</button>
+      <button type="button" className={!filtering ? 'chip on' : 'chip'} aria-pressed={!filtering} data-testid="memory-sort-time" onClick={() => { searchRequest.current++; setFiltering(false); setQuery(''); setFound(undefined); }}>按时间</button>
+      <button type="button" className={filtering ? 'chip on' : 'chip'} aria-pressed={filtering} data-testid="memory-sort-tag" onClick={() => setFiltering(true)}>按关键词筛选</button>
     </div>
+    {filtering && <div className="sf-memory-search">
+      <input autoFocus className="mem-search" aria-label="筛选学情关键词" data-testid="memory-search" placeholder="输入想查的内容" value={query}
+        onChange={event => { searchRequest.current++; setQuery(event.target.value); if (event.target.value.trim() === '') setFound(undefined); }}
+        onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void search(); } }} />
+      <button type="button" className="btn" data-testid="memory-search-run" onClick={() => { void search(); }}>筛选</button>
+    </div>}
     {unavailable && <div className="sf-notice" data-testid="memory-unavailable">
       <p>这些判断现在读不出来。</p>
       <button type="button" className="btn" data-testid="memory-retry" onClick={reload}>再读一次</button>
     </div>}
     {!unavailable && shown === undefined && <p className="sf-note" data-testid="memory-loading">正在读…</p>}
     {!unavailable && ordered !== undefined && ordered.length === 0 && <p className="sf-note" data-testid="memory-empty">
-      {found === undefined ? '还没有长期认识，从第一节课开始积累。' : '没有匹配的记忆块。'}
+      {found === undefined ? '课堂中的学习观察会记录在这里。' : '没有找到包含这个关键词的学情。'}
     </p>}
     {!unavailable && ordered !== undefined && ordered.length > 0 && <div className="sf-memory-list sf-linear-tree" data-testid="memory-list">
       {ordered.map(memory => <MemoryCard key={memory.ref} memory={memory}

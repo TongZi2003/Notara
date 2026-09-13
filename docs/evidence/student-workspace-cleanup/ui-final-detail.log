@@ -1,0 +1,82 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/book-workspace.spec.ts tests/e2e/current-classroom.spec.ts --output=.runtime/ui-final-detail-results
+
+
+Running 3 tests using 1 worker
+
+(node:44364) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/book-workspace.spec.ts:25:1 › book expands along its real tree, opens a card and its original in place, and returns without writing (11.7s)
+  ✘  2 tests/e2e/current-classroom.spec.ts:53:1 › native classroom keeps its own composer and carries the student lesson surfaces (24.3s)
+(node:44877) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  3 tests/e2e/current-classroom.spec.ts:159:1 › a creation session keeps the classroom and hides the learning lesson surfaces (24.4s)
+
+
+  1) tests/e2e/current-classroom.spec.ts:53:1 › native classroom keeps its own composer and carries the student lesson surfaces
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('studyforge-page-studyforge.home')
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByTestId('studyforge-page-studyforge.home') with timeout 15000ms
+      - waiting for getByTestId('studyforge-page-studyforge.home')
+
+
+      72 |       else await openRoot(page, entry.label);
+      73 |       const surface = page.getByTestId(`studyforge-page-${entry.page}`);
+    > 74 |       await expect(surface).toBeVisible();
+         |                             ^
+      75 |       await expect(page.locator('[data-conversation-scroll]')).toHaveCount(0);
+      76 |       if (entry.page === 'studyforge.courses') {
+      77 |         expect(await surface.innerText()).not.toMatch(/studyforge\.|sessionId|schema|\/Users\//);
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/current-classroom.spec.ts:74:29
+
+    attachment #1: browser-console (text/plain) ────────────────────────────────────────────────────
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: host-log (text/plain) ───────────────────────────────────────────────────────────
+    (node:44419) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/ui-final-detail-results/current-classroom-native-c-2ed85-the-student-lesson-surfaces/error-context.md
+
+  2) tests/e2e/current-classroom.spec.ts:159:1 › a creation session keeps the classroom and hides the learning lesson surfaces
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '学习', exact: true })
+
+
+      166 |     // Pick the native creation composition from the blank-session hero, then start
+      167 |     // from the same composer: this client never rewrites the composition.
+    > 168 |     await page.getByRole('button', { name: '学习', exact: true }).click();
+          |                                                                 ^
+      169 |     const option = page.getByRole('menuitem', { name: /制作/ }).or(page.getByText('制作', { exact: true }));
+      170 |     await option.first().click();
+      171 |
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/current-classroom.spec.ts:168:65
+
+    attachment #1: browser-console (text/plain) ────────────────────────────────────────────────────
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: host-log (text/plain) ───────────────────────────────────────────────────────────
+    (node:44883) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/ui-final-detail-results/current-classroom-a-creati-aea11-he-learning-lesson-surfaces/error-context.md
+
+  2 failed
+    tests/e2e/current-classroom.spec.ts:53:1 › native classroom keeps its own composer and carries the student lesson surfaces
+    tests/e2e/current-classroom.spec.ts:159:1 › a creation session keeps the classroom and hides the learning lesson surfaces
+  1 passed (1.0m)

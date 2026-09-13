@@ -48,6 +48,35 @@
 /* B token names end here; everything below is copied from B's stylesheet. */
 
 /* ===== 通用元件 ===== */
+.sf-orig.sf-calendar-page{overflow:hidden;background-image:none}
+body[data-sf-notebook=on] .sf-orig.sf-calendar-page{background-image:none}
+.sf-calendar-header{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;padding:24px 28px 18px;border-bottom:1px solid var(--rule)}
+.sf-calendar-period,.sf-calendar-actions,.sf-calendar-actions nav{display:flex;align-items:center;gap:8px}
+.sf-calendar-period h1{font:28px/1.4 var(--nb-hand,var(--font-song));margin:0 14px 0 0}
+.sf-calendar-actions{gap:18px}
+.sf-calendar-workspace{display:flex;position:relative;flex:1;min-height:0;overflow:hidden}
+.sf-calendar-main{display:flex;flex-direction:column;flex:1;min-width:0;padding:16px 28px 24px;overflow:auto}
+.sf-calendar-page .cal-grid{flex:1;grid-template-rows:repeat(6,minmax(68px,1fr));min-height:408px;box-shadow:none}
+.sf-calendar-page .cal-c{min-height:0;padding:10px 8px;display:flex;flex-direction:column;justify-content:flex-start}
+.sf-calendar-page .cal-c[aria-pressed=true]{box-shadow:inset 0 0 0 2px var(--pen);background:var(--pen-wash)}
+.sf-calendar-page .cal-c i{font:16px/1.5 var(--nb-hand,var(--font-kai));margin-bottom:6px}
+.sf-calendar-page .cal-dow{font-size:12px;min-height:28px}
+.sf-calendar-day-link{border:0;background:none;color:var(--ink);font:inherit;cursor:pointer;padding:0}
+.sf-calendar-detail{flex:0 0 310px;box-sizing:border-box;min-width:0;overflow:auto;background:var(--paper-hi);border-left:1px solid var(--rule);padding:20px 22px}
+.sf-calendar-detail>header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:18px}
+.sf-calendar-detail>header h2{font:24px/1.5 var(--nb-hand,var(--font-song))}
+.sf-calendar-date-picker{display:flex;gap:6px;align-items:center;margin-bottom:24px}
+.sf-calendar-date-picker input{flex:1;min-width:0;width:0;border:0;border-bottom:1px solid var(--rule);background:transparent;color:var(--ink);font:14px/1.6 var(--font-ui);padding:5px 0}
+.sf-calendar-detail section{margin:0 0 24px}
+.sf-calendar-detail h3{margin:0 0 10px;font:18px/1.5 var(--nb-hand,var(--font-song))}
+.sf-calendar-detail .cal-lrow{white-space:normal;overflow-wrap:anywhere}
+.sf-calendar-detail .cal-lrow small{margin-left:auto;flex:none}
+.sf-calendar-detail[data-panel=plans]{flex-basis:390px;width:390px}
+.sf-calendar-detail .sf-plan-editor{max-width:100%;border:0;background:none;padding:0}
+.sf-calendar-detail .sf-plan-editor>h2{display:none}
+@media(max-width:1150px){.sf-calendar-detail{position:absolute;inset:0 0 0 auto;width:320px;max-width:100%;z-index:12;box-shadow:-8px 0 28px #3c321a18}}
+@media(max-width:600px){.sf-calendar-header{padding:16px;gap:14px}.sf-calendar-period{flex-wrap:wrap}.sf-calendar-period h1{font-size:24px;margin-right:6px}.sf-calendar-actions{justify-content:space-between;width:100%}.sf-calendar-main{padding:12px}.sf-calendar-page .cal-c{padding:6px 4px}.sf-calendar-page .cal-c i{font-size:14px}.sf-calendar-page .cal-c .lb{font-size:10px}}
+
 .sf-orig .btn{ padding:6px 14px; border:1px solid var(--rule-hi); border-radius: var(--r-control); background:transparent;
   color: var(--ink); font-size: var(--t-label); transition: all var(--motion); }
 .sf-orig .btn:hover{ border-color: var(--seal-hi); color: var(--seal-hi); background: var(--seal-wash); }

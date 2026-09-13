@@ -126,7 +126,6 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
   // student can narrow the view, and picking another original by hand is not a
   // jump from a card any more — the card's own lesson no longer owns this
   // reading, so its 返回 goes away with the same call the card used.
-  const [scope, setScope] = useState<'all' | 'shelf' | 'files' | 'cards'>('all');
   // The 资料 page also shows the student's own saved cards. They are the card
   // library's facts, not this page's: the list is read from the same Host call
   // the library uses, and opening one goes through the library's own page.
@@ -222,12 +221,8 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
     : active.versions.find(version => version.versionId === selected?.versionId) ?? active.currentVersion;
 
   const open = active !== undefined && activeVersion !== undefined ? { view: active, version: activeVersion } : undefined;
-  const books = materials.filter(view => isBookFormat(view.mediaType));
-  const files = materials.filter(view => !isBookFormat(view.mediaType));
   const cards = cardList.status === 'ready' ? cardList.cards : [];
-  const shelfShown = scope === 'all' || scope === 'shelf' ? books : [];
-  const filesShown = scope === 'all' || scope === 'files' ? files : [];
-  const showCards = scope === 'all' || scope === 'cards';
+  const empty = list.status === 'ready' && cardList.status === 'ready' && !materials.length && !cards.length;
 
   return <main className="sf-page sf-materials" data-reading={open === undefined ? 'false' : 'true'}
     data-studyforge-page={MATERIALS_PAGE_ID} data-testid={`studyforge-page-${MATERIALS_PAGE_ID}`}>
@@ -240,10 +235,7 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
         if (id) { ctx.sessions.open(id); ctx.layout.selectPanel(null); }
       }}>← 回到《{originLesson.title || '原来的课'}》</button>}
       <div className="sf-assets-right">
-        {open === undefined && <ImportMaterial pending={pending} onFiles={files => { void importFiles(files); }} />}
-        {open === undefined && <button type="button" className="sf-action sf-action-quiet" data-testid="materials-open-cards"
-          onClick={() => { ctx.layout.selectPanel('studyforge.cards' as MainPanelId); }}>卡片与笔记</button>}
-        <span className="sf-page-date">{todayLabel()}</span>
+        {open === undefined && !empty && <ImportMaterial pending={pending} onFiles={files => { void importFiles(files); }} />}
       </div>
     </header>
     <div className="sf-materials-body">
@@ -255,77 +247,41 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
       </button>}
 
       {open === undefined && <div className="sf-shelf-page">
-        <nav className="sf-scope-row" aria-label="资料范围">
-          <button type="button" className={scope === 'all' ? 'sf-chip sf-chip-on' : 'sf-chip'} aria-pressed={scope === 'all'} onClick={() => { setScope('all'); }}>全部资料</button>
-          <button type="button" className={scope === 'shelf' ? 'sf-chip sf-chip-on' : 'sf-chip'} aria-pressed={scope === 'shelf'} onClick={() => { setScope('shelf'); }}>书架 {books.length}</button>
-          <button type="button" className={scope === 'files' ? 'sf-chip sf-chip-on' : 'sf-chip'} aria-pressed={scope === 'files'} onClick={() => { setScope('files'); }}>文件 {files.length}</button>
-          <button type="button" className={scope === 'cards' ? 'sf-chip sf-chip-on' : 'sf-chip'} aria-pressed={scope === 'cards'} onClick={() => { setScope('cards'); }}>卡片 {cardList.status === 'ready' ? cards.length : '—'}</button>
-        </nav>
-        {list.status === 'loading' && <p className="sf-note" role="status">正在看你的资料…</p>}
-        {list.status === 'failed' && <p className="sf-note" role="status">资料列表暂时取不到，稍后再看一次。</p>}
-        {list.status === 'ready' && materials.length === 0
-          && <p className="sf-note" data-testid="materials-empty">还没有资料。右上角放一份文件进来，就能直接读。</p>}
-        {shelfShown.length > 0 && <>
-          <div className="sf-sec-head"><h2>书架</h2><span className="cnt">{shelfShown.length} 本 · 导入的原文</span><span className="line" /></div>
-          <ul className="sf-shelf" data-testid="materials-list">
-            {shelfShown.map(view => <MaterialRow
-              key={view.materialId}
-              view={view}
-              selected={false}
-              pending={pending}
+        {list.status === 'loading' && <p className="sf-note" role="status">正在读取资料…</p>}
+        {list.status === 'failed' && <p className="sf-note" role="status">资料暂时读不出来。<button className="sf-quiet" onClick={() => { void reload(); }}>重试</button></p>}
+        {empty && <section className="sf-library-empty" data-testid="materials-empty">
+          <h2>从一份资料开始</h2>
+          <p>放进书、讲义、图片或自己的笔记。</p>
+          <ImportMaterial appearance="sheet" pending={pending} onFiles={files => { void importFiles(files); }} />
+        </section>}
+        {materials.length > 0 && <section className="sf-library-section">
+          <div className="sf-sec-head"><h2>上传的资料</h2><span className="cnt">{materials.length} 份</span></div>
+          <ul className="sf-original-list sf-linear-tree" data-testid="materials-list">
+            {materials.map(view => <MaterialRow key={view.materialId} view={view} selected={false} pending={pending}
               onOpen={() => { chooseMaterial(view.materialId, view.currentVersion.versionId); }}
-              onAddVersion={file => { void addVersion(view, file); }}
-            />)}
-            <li className="sf-material-row"><label className="sf-book-add" data-testid="materials-shelf-import">
-              导入书籍<br />PDF / md
-              <input type="file" multiple className="sf-import-input" accept=".pdf,.md,.markdown,.txt,.docx" onChange={event => {
-                const picked = [...(event.target.files ?? [])];
-                event.target.value = '';
-                if (picked.length > 0) void importFiles(picked);
-              }} />
-            </label></li>
+              onAddVersion={file => { void addVersion(view, file); }} />)}
           </ul>
-        </>}
-        {filesShown.length > 0 && <>
-          <div className="sf-sec-head"><h2>文件</h2><span className="cnt">{filesShown.length} 份 · 图片与文本原件</span><span className="line" /></div>
-          <ul className="sf-cardgrid sf-linear-tree">
-            {filesShown.map(view => <MaterialRow
-              key={view.materialId}
-              view={view}
-              selected={false}
-              pending={pending}
-              onOpen={() => { chooseMaterial(view.materialId, view.currentVersion.versionId); }}
-              onAddVersion={file => { void addVersion(view, file); }}
-            />)}
-          </ul>
-        </>}
-        {showCards && <>
-          <div className="sf-sec-head"><h2>卡片</h2>
-            <span className="cnt">{cardList.status === 'ready' ? `${String(cards.length)} 张 · 你存下的题卡与笔记` : '你存下的题卡与笔记'}</span>
-            <button type="button" className="sf-quiet" data-testid="materials-cards-refresh" onClick={() => { setCardRefresh(count => count + 1); }}>刷新</button>
-            <span className="line" /></div>
-          {cardList.status === 'loading' && <p className="sf-note" role="status">正在看你的卡片…</p>}
-          {cardList.status === 'failed' && <p className="sf-note" role="status">卡片列表暂时取不到，稍后再看一次。</p>}
-          {cardList.status === 'ready' && cards.length === 0
-            && <p className="sf-note" data-testid="materials-cards-empty">还没有卡片。上课存下的题卡和笔记会列在这里。</p>}
-          {cardList.status === 'ready' && cards.length > 0 && <ul className="sf-cardgrid sf-linear-tree">
+        </section>}
+        <section className="sf-library-section sf-library-notes">
+          <div className="sf-sec-head">
+            {cards.length > 0 && <><h2>学习笔记与题卡</h2><span className="cnt">{cards.length} 张</span></>}
+            <button type="button" className="sf-library-manage" data-testid="materials-open-cards"
+              onClick={() => { ctx.layout.selectPanel('studyforge.cards' as MainPanelId); }}>整理与复习 <span aria-hidden="true">→</span></button>
+          </div>
+          {cardList.status === 'loading' && <p className="sf-note" role="status">正在读取学习笔记…</p>}
+          {cardList.status === 'failed' && <p className="sf-note" role="status">学习笔记暂时读不出来。<button className="sf-quiet" data-testid="materials-cards-refresh" onClick={() => { setCardRefresh(count => count + 1); }}>重试</button></p>}
+          {cards.length > 0 && <ul className="sf-cardgrid sf-linear-tree">
             {cards.map(card => <li className="sf-material-row" key={card.ref} data-testid="materials-card-row">
               <button type="button" className="sf-acard" data-card-ref={card.ref}
-                onClick={() => {
-                  cardOpenRequest.request(card.ref);
-                  ctx.layout.selectPanel('studyforge.cards' as MainPanelId);
-                }}>
+                onClick={() => { cardOpenRequest.request(card.ref); ctx.layout.selectPanel('studyforge.cards' as MainPanelId); }}>
                 <span className="a-head"><span className="a-title">{card.content.title}</span>
                   <span className="a-meta">{PRESENTATION_LABELS[card.content.presentation]}</span></span>
                 {card.content.front !== '' && <span className="a-front">{card.content.front}</span>}
-                <span className="a-foot"><span className="a-meta">{[card.content.chapter, ...card.content.tags].filter(Boolean).join(' · ') || '未归书'}</span>
-                  <span className="a-src">打开</span></span>
+                {[card.content.chapter, ...card.content.tags].filter(Boolean).length > 0 && <span className="a-foot"><span className="a-meta">{[card.content.chapter, ...card.content.tags].filter(Boolean).join(' · ')}</span></span>}
               </button>
             </li>)}
           </ul>}
-        </>}
-        {shelfShown.length === 0 && filesShown.length === 0 && !showCards
-          && <p className="sf-note">这一类里还没有资料。</p>}
+        </section>
       </div>}
 
       {/* One reading branch, one column: a book is the original on the left and
@@ -352,7 +308,7 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
   </main>;
 }
 
-/** One original on the shelf: a book cover for 书-form originals, a paper card for the rest. */
+/** All imported formats share one title-first list; their original readers stay unchanged. */
 function MaterialRow({ view, selected, pending, onOpen, onAddVersion }: {
   readonly view: MaterialView;
   readonly selected: boolean;
@@ -363,27 +319,15 @@ function MaterialRow({ view, selected, pending, onOpen, onAddVersion }: {
   const versionInput = `${MATERIALS_PAGE_ID}-version-${view.materialId}`;
   const versions = view.versions.length > 1 ? `${String(view.versions.length)} 个版本` : '1 个文件';
   const size = byteLabel(view.currentVersion.byteLength);
-  const book = isBookFormat(view.mediaType);
   return <li className={selected ? 'sf-material-row sf-material-row-on' : 'sf-material-row'} data-testid="material-row"
     data-material-title={view.title} aria-current={selected}>
-    {book
-      ? <button type="button" className="sf-book" onClick={onOpen} aria-current={selected}>
-        <span className="cover">
-          <span className="spine"><span>{view.title.slice(0, 10)}</span></span>
-          <span className="face">
-            <span className="tag">{kindLabel(view.mediaType)}</span>
-            <h4>{view.title}</h4>
-            <span className="foot"><span className="rev">{size}</span><span className="rev">{versions}</span></span>
-          </span>
-        </span>
-        <span className="under"><span className="nm">{view.title}</span></span>
-      </button>
-      : <button type="button" className="sf-acard" onClick={onOpen} aria-current={selected}>
-        <span className="a-head"><span className="a-title">{view.title}</span><span className="a-meta">{kindLabel(view.mediaType)}</span></span>
-        <span className="a-foot"><span className="a-meta">{size} · {versions}</span>{selected && <span className="a-src">正在读</span>}</span>
-      </button>}
+    <button type="button" className="sf-original-open" onClick={onOpen} aria-current={selected}>
+      <span className="sf-original-kind">{kindLabel(view.mediaType)}</span>
+      <span className="sf-original-copy"><strong>{view.title}</strong><small>{size}{view.versions.length > 1 ? ' · ' + versions : ''}</small></span>
+      <span className="sf-original-arrow" aria-hidden="true">↗</span>
+    </button>
     <label className="sf-material-version" htmlFor={versionInput} data-testid="material-new-version">
-      新版本
+      更新原文
       <input id={versionInput} type="file" data-testid="material-new-version-input" disabled={pending} onChange={event => {
         const file = event.target.files?.[0];
         event.target.value = '';
@@ -483,24 +427,23 @@ function MaterialReader({ view, version, host, references, sessionId, readCurren
   return <>
     <header className="sf-material-head">
       <h2>{view.title}</h2>
-      <p className="sf-meta">{kindLabel(version.mediaType)} · {byteLabel(version.byteLength)} · {formatDay(version.importedAt)}</p>
+      <p className="sf-meta">{kindLabel(version.mediaType)} · {byteLabel(version.byteLength)} · {formatDay(version.importedAt)}上传</p>
       <div className="sf-material-head-actions">
         {view.versions.length > 1 && <label className="sf-material-versions">
           <span>版本</span>
           <select data-testid="material-version-select" value={version.versionId} onChange={event => { onSelectVersion(event.target.value); }}>
             {view.versions.map((item, index) => <option key={item.versionId} value={item.versionId}>
-              第 {String(index + 1)} 版 · {formatDay(item.importedAt)} · {byteLabel(item.byteLength)}{item.versionId === view.currentVersion.versionId ? ' · 当前' : ''}
+              第 {String(index + 1)} 版 · {formatDay(item.importedAt)}上传 · {byteLabel(item.byteLength)}{item.versionId === view.currentVersion.versionId ? ' · 当前' : ''}
             </option>)}
           </select>
         </label>}
         <button type="button" className="sf-action sf-action-quiet" data-testid="material-open-classroom"
           disabled={sessionId === undefined || opening}
-          title={sessionId === undefined ? '先开一节课，才能在课堂右栏里读' : '在这节课的右栏打开'}
+          title={sessionId === undefined ? '开始一节课后，可带着这份资料一起学' : '回到当前课堂，并打开这份资料'}
           onClick={() => { void openInClassroom(); }}>
-          在课堂右栏打开
+          带到课堂一起学
         </button>
       </div>
-      {sessionId === undefined && <p className="sf-note">还没有正在上的课：这里先直接读；右栏预览需要一节课。</p>}
     </header>
     {isBookFormat(version.mediaType) && <nav className="sf-book-mobile-tabs"><button className="sf-quiet" onClick={() => setMobileView('original')}>原文</button><button className="sf-quiet" onClick={() => setMobileView('structure')}>结构</button></nav>}
     <div className={isBookFormat(version.mediaType) ? 'sf-book-columns' : undefined} data-view={mobileView}>
@@ -569,8 +512,4 @@ function sourceTextOfVersion(version: MaterialVersion, data: Uint8Array): string
 function formatDay(timestamp: string): string {
   const time = new Date(timestamp);
   return Number.isNaN(time.getTime()) ? timestamp : new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric' }).format(time);
-}
-
-function todayLabel(): string {
-  return new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date());
 }

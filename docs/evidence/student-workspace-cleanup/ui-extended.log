@@ -1,0 +1,120 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/planning-overview-v2.spec.ts tests/e2e/coauthor-organization.spec.ts tests/e2e/notebook-pages.spec.ts tests/e2e/notebook-theme.spec.ts --output=.runtime/ui-extended-results
+
+
+Running 10 tests using 1 worker
+
+(node:37816) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/coauthor-organization.spec.ts:78:1 › a planned node really opens one native lesson, and a restart keeps it bound (16.8s)
+  ✓   2 tests/e2e/coauthor-organization.spec.ts:120:1 › two writers move different nodes from the same read, and only the same node refuses (22.6s)
+  ✓   3 tests/e2e/coauthor-organization.spec.ts:166:1 › a plan is edited by its own target, keeps the draft on a stale save, and never rewrites another plan (23.3s)
+  ✓   4 tests/e2e/coauthor-organization.spec.ts:259:1 › at 390 the course page really widens after the sidebar collapses, and the canvas still fits (9.6s)
+  ✘   5 tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths (25.4s)
+(node:38070) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   6 tests/e2e/notebook-theme.spec.ts:11:1 › notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft (10.1s)
+(node:38120) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   7 tests/e2e/notebook-theme.spec.ts:89:1 › notebook card slips open the real card and its source returns to the originating lesson without recording study (10.6s)
+  ✘   8 tests/e2e/planning-overview-v2.spec.ts:67:1 › a date range narrows the roadmap, keeps ancestors as context, and clearing restores the tree (16.7s)
+(node:38263) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   9 tests/e2e/planning-overview-v2.spec.ts:119:1 › an opened planned lesson stays visible in the whole roadmap and keeps its real lesson (10.4s)
+  ✓  10 tests/e2e/planning-overview-v2.spec.ts:152:1 › a card the student really placed keeps its coordinate, and a content edit does not lose it (16.2s)
+
+
+  1) tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 290
+    Received:   0
+
+    Call Log:
+    - Timeout 15000ms exceeded while waiting on the predicate
+
+      67 |         await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+      68 |       }
+    > 69 |       await expect.poll(async () => (await surface.boundingBox())?.width ?? 0).toBeGreaterThan(290);
+         |                                                                                ^
+      70 |       await page.evaluate(async () => { await document.fonts.ready; });
+      71 |       if (route === 'home') await expect(surface.getByTestId('learning-mode')).toBeVisible();
+      72 |       if (route === 'materials') {
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/notebook-pages.spec.ts:69:80
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:38003) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/ui-extended-results/notebook-pages-original-no-b163e-at-desktop-and-phone-widths/error-context.md
+
+  2) tests/e2e/notebook-theme.spec.ts:11:1 › notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft
+
+    Error: locator.click: Error: strict mode violation: getByRole('button', { name: /^(Close|关闭)$/ }) resolved to 2 elements:
+        1) <button type="button" class="VOzbGW_close">…</button> aka getByTestId('notebook-sidebar').getByRole('button', { name: 'Close' })
+        2) <button type="button" aria-label="Close" class="_tabClose_17p4l_314" data-dockkit-tab-close="tab2">…</button> aka getByLabel('Close')
+
+    Call log:
+      - waiting for getByRole('button', { name: /^(Close|关闭)$/ })
+
+
+       at fixtures/classroom.ts:98
+
+       96 | }
+       97 | export async function closeAppearance(page: Page): Promise<void> {
+    >  98 |   await page.getByRole('button', { name: /^(Close|关闭)$/ }).click();
+          |                                                            ^
+       99 |   await expect(page.getByTestId('notebook-appearance')).toHaveCount(0);
+      100 | }
+      101 |
+        at closeAppearance (/Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/fixtures/classroom.ts:98:60)
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/notebook-theme.spec.ts:43:9
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:38076) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/ui-extended-results/notebook-theme-notebook-fo-f734e-native-lesson-and-its-draft/error-context.md
+
+  3) tests/e2e/planning-overview-v2.spec.ts:67:1 › a date range narrows the roadmap, keeps ancestors as context, and clearing restores the tree
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 6
+    + Received  + 1
+
+    - Array [
+    -   "没有日期的方向",
+    -   "今天这一节",
+    -   "三月总复习",
+    -   "三月里的第一节",
+    - ]
+    + Array []
+
+      113 |   // The read is a real Remote call, so wait for it rather than sampling the DOM
+      114 |   // the moment the page mounts.
+    > 115 |   expect(await rowTitles(page)).toEqual(stored);
+          |                                 ^
+      116 |   expect(errors).toEqual([]);
+      117 | });
+      118 |
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/planning-overview-v2.spec.ts:115:33
+
+    attachment #1: host-log (text/plain) ───────────────────────────────────────────────────────────
+    (node:38213) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/ui-extended-results/planning-overview-v2-a-dat-75a12--clearing-restores-the-tree/error-context.md
+
+  3 failed
+    tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths
+    tests/e2e/notebook-theme.spec.ts:11:1 › notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft
+    tests/e2e/planning-overview-v2.spec.ts:67:1 › a date range narrows the roadmap, keeps ancestors as context, and clearing restores the tree
+  7 passed (2.7m)

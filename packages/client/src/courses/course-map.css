@@ -1,8 +1,20 @@
 /* Original B@3831987 map composition, scoped to the DSH course workspace. */
-.sf-courses-page.sf-courses-map-page{padding:0;overflow:hidden;display:flex;flex-direction:column;height:100%;min-height:0}
-.sf-courses-map-page>.sf-courses-tabs{flex:none;margin:0;padding:10px 20px;border-bottom:1px solid var(--rule);background:var(--paper-hi)}
-.sf-courses-map-page>.sf-course-map{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;overflow:hidden}
-.sf-map-canvas{position:relative;flex:1;min-height:360px;overflow:hidden;cursor:grab;touch-action:none;background-color:var(--paper);background-image:radial-gradient(rgba(90,104,138,.16) 1px,transparent 1.2px);background-size:26px 26px}
+.sf-orig.sf-courses-page{padding:0;overflow:hidden;display:flex;flex-direction:column;height:100%;min-height:0}
+/* One stationary sheet and tab bar for every course view. */
+.sf-orig.sf-courses-page,body[data-sf-notebook=on] .sf-orig.sf-courses-page{background-color:var(--paper);background-image:radial-gradient(rgba(90,104,138,.16) 1px,transparent 1.2px);background-size:26px 26px;background-position:0 0}
+.sf-courses-page>.sf-courses-tabs{flex:none;margin:0;padding:10px 20px;border-bottom:1px solid var(--rule);background:var(--paper-hi)}
+.sf-courses-page>.sf-course-map{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;overflow:hidden}
+.sf-courses-content{flex:1;min-height:0;overflow:auto}
+.sf-courses-tabs{align-items:center;justify-content:space-between}
+.sf-courses-tabs h1{font:26px/1.5 var(--nb-hand,var(--font-song));margin:0;color:var(--ink)}
+.sf-courses-tabs select{font:15px/1.5 var(--nb-hand,var(--font-song));color:var(--ink);background:transparent;border:1px solid var(--rule);padding:6px 12px;border-radius:4px}
+.sf-courses-page .sf-schedule-heading{align-items:center;gap:12px;margin-bottom:8px}
+.sf-schedule-heading .btn{margin-left:auto}
+.sf-route-filter{margin-bottom:12px;font-size:13px;color:var(--ink-3)}
+.sf-route-filter summary{cursor:pointer;padding:4px 0}
+.sf-route-filter .sf-roadmap-filter{margin-top:10px;box-shadow:none;background:transparent}
+.sf-courses-page .sf-roadmap-row{box-shadow:none;border:0;background:transparent}
+.sf-map-canvas{position:relative;flex:1;min-height:360px;overflow:hidden;cursor:grab;touch-action:none;background:transparent}
 .sf-map-world{position:absolute;left:0;top:0;transform-origin:0 0}
 .sf-map-edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
 .sf-map-card{box-sizing:border-box;position:absolute;width:230px;min-height:118px;background:var(--paper-hi);border:1px solid var(--rule);border-radius:3px;padding:9px 11px 8px;cursor:pointer;user-select:none;touch-action:none;transition:opacity .16s,box-shadow .16s}
@@ -64,5 +76,5 @@ body[data-sf-notebook=on] .sf-map-title{font-family:var(--nb-hand);font-size:19p
 body[data-sf-notebook=on] .sf-map-panel h3{font-family:var(--nb-hand)}
 @keyframes sf-map-panel-in{from{transform:translateX(100%)}to{transform:translateX(0)}}
 @media(max-width:1050px){.sf-map-filter{top:60px;width:min(420px,calc(100% - 28px))}.sf-map-controls{left:14px;right:auto}.sf-map-hint{font-size:10px}}
-@media(max-width:600px){.sf-courses-map-page>.sf-courses-tabs{padding:8px}.sf-map-filter{left:8px;max-width:calc(100% - 16px);width:420px;padding:8px}.sf-map-controls{left:8px;top:10px}.sf-map-controls button{padding:5px}.sf-map-panel{width:100%}.sf-map-canvas{min-height:480px}.sf-map-hint{left:8px;max-width:270px}.sf-map-filter input[type=date]{width:108px}}
+@media(max-width:600px){.sf-courses-page>.sf-courses-tabs{padding:8px}.sf-map-filter{left:8px;max-width:calc(100% - 16px);width:420px;padding:8px}.sf-map-controls{left:8px;top:10px}.sf-map-controls button{padding:5px}.sf-map-panel{width:100%}.sf-map-canvas{min-height:480px}.sf-map-hint{left:8px;max-width:270px}.sf-map-filter input[type=date]{width:108px}}
 @media(prefers-reduced-motion:reduce){.sf-map-panel{animation:none}.sf-map-card{transition:none}}

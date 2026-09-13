@@ -31,11 +31,14 @@ test('student set edits preserve their draft through a real concurrent update an
   await page.screenshot({ path: info.outputPath('set-narrow.png'), fullPage: true });
 });
 
-test('calendar opens the second actual planned lesson and daily settings survive a fresh page', async ({ page, classroom }, info) => {
+test('calendar opens date details in a recoverable right pane and keeps review plans reachable', async ({ page, classroom }, info) => {
   const client = await connectRuntime(classroom), date = '2026-09-20';
   for (const title of ['第一节课', '第二节课']) value(await client.rpc<RouteView>('studyforgeOrganization/addRouteNode', { input: { operationId: title, node: { title, date } } }));
   await enterClassroom(page, classroom.authUrl);
   await openRoot(page, '日历');
+  await expect(page.getByText('定时日报', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '查看日报' })).toHaveCount(0);
+  await page.getByRole('button', { name: '今天', exact: true }).click();
   await page.getByLabel('查看日期').fill(date);
   await expect(page.getByTestId('calendar-course')).toHaveCount(2);
   await expect(page.getByTestId('calendar-due')).toContainText('0 张');
@@ -47,18 +50,17 @@ test('calendar opens the second actual planned lesson and daily settings survive
   const sessions = value(await client.rpc<SessionListValue>('session/list', { _request: {} }));
   expect(sessions.items.some(item => item.sessionId === route.nodes[1]?.session?.sessionId)).toBe(true);
   await page.getByRole('button', { name: '日历', exact: true }).first().click();
-  await page.getByText('定时日报', { exact: true }).click();
-  await page.getByLabel('启用定时日报').check();
-  await page.getByLabel('日报时间').fill('21:00');
-  await page.getByLabel('日报时区').fill('Asia/Shanghai');
-  await page.getByRole('button', { name: '保存日报设置' }).click();
-  await expect(page.getByText('日报设置已保存。')).toBeVisible();
-  await enterClassroom(page, classroom.authUrl);
-  await page.getByRole('button', { name: '日历', exact: true }).first().click();
-  await page.getByText('定时日报', { exact: true }).click();
-  await expect(page.getByLabel('启用定时日报')).toBeChecked();
-  await expect(page.getByLabel('日报时间')).toHaveValue('21:00');
-  await page.getByRole('button', { name: '查看日报' }).click();
+  await page.getByRole('button', { name: '今天', exact: true }).click();
+  await expect(page.getByRole('complementary', { name: '当天安排' })).toBeVisible();
+  await page.getByRole('button', { name: '关闭日期详情' }).click();
+  await expect(page.getByTestId('calendar-detail')).toHaveCount(0);
+  await page.getByTestId('calendar-cell').filter({ hasText: '20' }).first().click();
   await expect(page.getByTestId('calendar-day')).toBeVisible();
-  await page.screenshot({ path: info.outputPath('daily-report.png'), fullPage: true });
+  await page.screenshot({ path: info.outputPath('calendar-day-pane.png'), fullPage: true });
+  await page.getByTestId('calendar-review-plans').click();
+  await expect(page.getByTestId('plan-create-campaign')).toBeVisible();
+  await page.getByTestId('plan-create-campaign').click();
+  await expect(page.getByTestId('plan-editor')).toBeVisible();
+  await page.setViewportSize({ width: 500, height: 800 });
+  expect(await page.getByTestId('calendar-detail').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
 });

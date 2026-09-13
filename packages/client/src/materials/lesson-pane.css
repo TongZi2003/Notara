@@ -6,6 +6,9 @@
 .sf-lesson .sf-lesson-materials-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .sf-lesson .sf-lesson-materials-head .sf-quiet{margin-bottom:10px;font-size:11px}
 .sf-lesson-materials{display:flex;flex-direction:column;gap:8px;min-width:0}
+.sf-workbench-filter{display:flex;align-items:center;min-height:28px;padding-right:66px}
+.sf-workbench-filter select{border:0;background:transparent;color:var(--nb-pen,#26437c);font:13px/1.4 var(--dsw-font-family,sans-serif);padding:4px;max-width:100%;cursor:pointer}
+.sf-workbench-empty{margin:auto;text-align:center;color:var(--nb-pencil,#756e61);font:13px/1.6 var(--dsw-font-family,sans-serif)}
 .sf-lesson-pane{display:flex;flex-direction:column;gap:10px;min-width:0}
 .sf-lesson-pane-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .sf-lesson-pane-title{font-family:var(--op-print,"Songti SC","STSong",serif);font-size:15px;color:var(--op-ink,#3a3531)}

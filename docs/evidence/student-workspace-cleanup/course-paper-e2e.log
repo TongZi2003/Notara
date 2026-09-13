@@ -1,0 +1,75 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/layout-roadmap.spec.ts
+
+
+Running 2 tests using 1 worker
+
+(node:30856) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/layout-roadmap.spec.ts:10:1 › the default roadmap shows real lessons, places and mounts them on the same route, and survives refresh (11.2s)
+(node:30889) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  2 tests/e2e/layout-roadmap.spec.ts:64:1 › five navigation entries are visible and learning-space management remains reachable through settings (9.9s)
+
+
+  1) tests/e2e/layout-roadmap.spec.ts:10:1 › the default roadmap shows real lessons, places and mounts them on the same route, and survives refresh
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 4
+
+    - Array []
+    + Array [
+    +   "slot \"conversation.session.header.lineage\" is already declared (by an entry in \"conversation.session.header\" (Ba))",
+    +   "slot \"conversation.session.header.lineage\" is already declared (by an entry in \"conversation.session.header\" (Ba))",
+    + ]
+
+      59 |   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+      60 |   await page.screenshot({ path: info.outputPath('course-map-narrow.png'), fullPage: true });
+    > 61 |   expect(errors).toEqual([]);
+         |                  ^
+      62 | });
+      63 |
+      64 | test('five navigation entries are visible and learning-space management remains reachable through settings', async ({ page, classroom }, info) => {
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/layout-roadmap.spec.ts:61:18
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:30867) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/layout-roadmap-the-default-2b0e9--route-and-survives-refresh/error-context.md
+
+  2) tests/e2e/layout-roadmap.spec.ts:64:1 › five navigation entries are visible and learning-space management remains reachable through settings
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   "slot \"conversation.session.header.lineage\" is already declared (by an entry in \"conversation.session.header\" (Ba))",
+    + ]
+
+      83 |   await expect(page.getByTestId('learning-space-settings')).toBeVisible();
+      84 |   await page.screenshot({ path: info.outputPath('learning-space-settings.png'), fullPage: true });
+    > 85 |   expect(errors).toEqual([]);
+         |                  ^
+      86 | });
+      87 |
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/layout-roadmap.spec.ts:85:18
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:30898) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/layout-roadmap-five-naviga-b93ad--reachable-through-settings/error-context.md
+
+  2 failed
+    tests/e2e/layout-roadmap.spec.ts:10:1 › the default roadmap shows real lessons, places and mounts them on the same route, and survives refresh
+    tests/e2e/layout-roadmap.spec.ts:64:1 › five navigation entries are visible and learning-space management remains reachable through settings

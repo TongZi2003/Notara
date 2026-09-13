@@ -1,0 +1,12 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/current-classroom.spec.ts --output=.runtime/ui-native-final-results
+
+
+Running 2 tests using 1 worker
+
+(node:45085) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/current-classroom.spec.ts:54:1 › native classroom keeps its own composer and carries the student lesson surfaces (21.4s)
+  ✓  2 tests/e2e/current-classroom.spec.ts:159:1 › a creation session keeps the classroom and hides the learning lesson surfaces (10.4s)
+
+  2 passed (32.1s)

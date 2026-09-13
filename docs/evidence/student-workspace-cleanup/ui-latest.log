@@ -1,0 +1,87 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/conversation-home.spec.ts tests/e2e/book-workspace.spec.ts tests/e2e/content-history.spec.ts --output=.runtime/ui-latest-results
+
+
+Running 3 tests using 1 worker
+
+(node:42340) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/book-workspace.spec.ts:25:1 › book expands along its real tree, opens a card and its original in place, and returns without writing (24.7s)
+(node:42407) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/e2e/content-history.spec.ts:9:1 › book coverage and classroom back-links use saved ranges and actual native turns (10.6s)
+  ✘  3 tests/e2e/conversation-home.spec.ts:6:1 › learning modes stay inside the native composer and real recommendations hide only after acceptance (9.8s)
+
+
+  1) tests/e2e/book-workspace.spec.ts:25:1 › book expands along its real tree, opens a card and its original in place, and returns without writing
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '资料', exact: true }).first()
+        - locator resolved to <button class="" title="资料" type="button">…</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div aria-hidden="true" class="VOzbGW_mask"></div> from <footer class="sf-side-foot">…</footer> subtree intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div aria-hidden="true" class="VOzbGW_mask"></div> from <footer class="sf-side-foot">…</footer> subtree intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        29 × waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <div aria-hidden="true" class="VOzbGW_mask"></div> from <footer class="sf-side-foot">…</footer> subtree intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+
+
+      35 |   await openAppearance(page);
+      36 |   await page.getByTestId('notebook-tone').selectOption('white');
+    > 37 |   await page.getByRole('button', { name: '资料', exact: true }).first().click();
+         |                                                                       ^
+      38 |   await page.getByTestId('material-row').filter({ hasText: '函数原文' }).getByRole('button').first().click();
+      39 |
+      40 |   // A real map: the book root alone, with the breakdown action on it.
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/book-workspace.spec.ts:37:71
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:42348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/ui-latest-results/book-workspace-book-expand-8edec-and-returns-without-writing/error-context.md
+
+  2) tests/e2e/conversation-home.spec.ts:6:1 › learning modes stay inside the native composer and real recommendations hide only after acceptance
+
+    TypeError: Cannot read properties of null (reading 'x')
+
+      49 |   await expect(model).toBeVisible();
+      50 |   const modelBox = (await model.boundingBox())!;
+    > 51 |   expect(modelBox.x).toBeGreaterThan(m.x);
+         |                   ^
+      52 |   expect(Math.abs(modelBox.y - m.y)).toBeLessThan(12);
+      53 |   expect(modelBox.x - m.x - m.width).toBeLessThan(24);
+      54 |   expect(await mode.evaluate(el => getComputedStyle(el).fontFamily)).not.toMatch(/hand|Kaiti|KaiTi|手写/i);
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/conversation-home.spec.ts:51:19
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:42481) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/ui-latest-results/conversation-home-learning-728bd--hide-only-after-acceptance/error-context.md
+
+  2 failed
+    tests/e2e/book-workspace.spec.ts:25:1 › book expands along its real tree, opens a card and its original in place, and returns without writing
+    tests/e2e/conversation-home.spec.ts:6:1 › learning modes stay inside the native composer and real recommendations hide only after acceptance
+  1 passed (45.9s)

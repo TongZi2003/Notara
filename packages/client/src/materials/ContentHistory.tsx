@@ -16,7 +16,7 @@ function rangeLabel(source: SourceAnchor): string {
   }
   return positionLabel(at);
 }
-export function ContentHistory({ ctx, query, onSource, onRefine, refreshToken }: { ctx: Context; query: ContentHistoryQuery; onSource?: ((source: SourceAnchor) => void) | undefined; onRefine?: ((source: SourceAnchor) => void) | undefined; refreshToken?: unknown }): React.JSX.Element {
+export function ContentHistory({ ctx, query, onSource, onRefine, refreshToken, expanded = false }: { ctx: Context; query: ContentHistoryQuery; onSource?: ((source: SourceAnchor) => void) | undefined; onRefine?: ((source: SourceAnchor) => void) | undefined; refreshToken?: unknown; expanded?: boolean }): React.JSX.Element {
   const [history, setHistory] = useState<History>(), [failed, setFailed] = useState(false), [refresh, setRefresh] = useState(0);
   // Quotes belong to the original excerpt, not to the strict position query.
   const request: ContentHistoryQuery = query.source ? { source: { materialId: query.source.materialId, versionId: query.source.versionId,
@@ -33,8 +33,8 @@ export function ContentHistory({ ctx, query, onSource, onRefine, refreshToken }:
     } catch { setFailed(true); }
   }
   return <section className="sf-content-history" data-testid="content-history">
-    {query.source && history && <Coverage history={history} source={query.source} onSource={onSource} onRefine={onRefine} />}
-    <details><summary>相关课堂{history ? ` · ${history.classrooms.length}` : ''}</summary>
+    {query.source && history && <Coverage expanded={expanded} history={history} source={query.source} onSource={onSource} onRefine={onRefine} />}
+    <details open={expanded || undefined}><summary>相关课堂{history ? ` · ${history.classrooms.length}` : ''}</summary>
       {failed ? <p role="status">相关课堂暂时读不出来。<button onClick={() => setRefresh(n => n + 1)}>重试</button></p> : !history ? <p>正在查阅…</p> : <>
         {history.classrooms.map(lesson => <details key={lesson.sessionId} className="sf-content-lesson">
           <summary>{lesson.title} <time>{lesson.occurredAt.slice(0, 10)}</time>{lesson.archived ? ' · 已归档' : ''}</summary>
@@ -55,14 +55,14 @@ export function ContentHistory({ ctx, query, onSource, onRefine, refreshToken }:
   </section>;
 }
 
-function Coverage({ history, source, onSource, onRefine }: { history: History; source: NonNullable<ContentHistoryQuery['source']>; onSource?: ((source: SourceAnchor) => void) | undefined; onRefine?: ((source: SourceAnchor) => void) | undefined }): React.JSX.Element {
+function Coverage({ history, source, onSource, onRefine, expanded }: { history: History; source: NonNullable<ContentHistoryQuery['source']>; onSource?: ((source: SourceAnchor) => void) | undefined; onRefine?: ((source: SourceAnchor) => void) | undefined; expanded: boolean }): React.JSX.Element {
   const [picked, setPicked] = useState<SourceAnchor>();
   const pick = (anchor: SourceAnchor): void => { setPicked(anchor); onSource?.(anchor); };
   const coverage = history.coverage;
   const selected = history.classrooms.flatMap(lesson => lesson.occurrences).filter(row => row.use === 'cited' || row.use === 'message').flatMap(row => row.source?.locator ? [row.source] : []);
   const citedPages = new Set(selected.flatMap(item => item.locator?.kind === 'pdf' ? [item.locator.page] : []));
   const label = (anchors: readonly SourceAnchor[]): string => anchors.map(rangeLabel).join('、');
-  return <details className="sf-source-coverage" data-testid="source-coverage"><summary>整理范围{citedPages.size ? ` · 课堂引用 ${citedPages.size} 页` : ''}</summary>
+  return <details open={expanded || undefined} className="sf-source-coverage" data-testid="source-coverage"><summary>整理范围{citedPages.size ? ` · 课堂引用 ${citedPages.size} 页` : ''}</summary>
     <div className="sf-coverage-key"><span data-level="outline">未细化</span><span data-level="located">已定位</span><span data-level="refined">已保存细化</span></div>
     {coverage.pageCount && !source.locator && <div className="sf-coverage-pages">{Array.from({ length: coverage.pageCount }, (_, i) => {
       const page = i + 1, onPage = (anchor: SourceAnchor): boolean => anchor.locator.kind === 'pdf' && anchor.locator.page === page;

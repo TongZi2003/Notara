@@ -21,7 +21,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 type Props = PropsRuntime<'sidebar.content'>;
 type Panel = { id: MainPanelId; title: string };
-const PRIMARY = ['studyforge.home', 'studyforge.courses', 'studyforge.materials', 'studyforge.calendar', 'studyforge.memory'];
+const PRIMARY = ['studyforge.home', 'studyforge.sets', 'studyforge.courses', 'studyforge.materials', 'studyforge.calendar', 'studyforge.memory'];
 
 /** Original navigation composition; every action delegates to native services. */
 export function registerNotebookSidebar(ctx: Context): void {
@@ -73,8 +73,7 @@ export function registerNotebookSidebar(ctx: Context): void {
         <button className="sf-side-fold" title={collapsed ? '展开侧栏' : '收起侧栏'} aria-label={collapsed ? '展开侧栏' : '收起侧栏'} onClick={() => ctx.layout.toggleSidebar()}>{collapsed ? '›' : '‹'}</button></div>
       {!collapsed && <div className="sf-side-set-picker"><select aria-label="打开学习集" value={sets.some(set => set.ref === selectedSet) ? selectedSet : ''} onChange={event => {
         const ref = event.target.value || undefined; setNavigation.show(ref); openPanel((ref ? 'studyforge.sets' : 'studyforge.materials') as MainPanelId);
-      }}><option value="">全部学习</option>{sets.map(set => <option key={set.ref} value={set.ref}>{set.name}</option>)}</select>
-        <button type="button" onClick={() => openPanel('studyforge.sets' as MainPanelId)}>管理学习集</button></div>}
+      }}><option value="">全部学习</option>{sets.map(set => <option key={set.ref} value={set.ref}>{set.name}</option>)}</select></div>}
       <nav className="sf-side-nav" aria-label="学习导航">
         {PRIMARY.flatMap(id => { const row = entries.find(entry => entry.id === id); return row ? [row.id === 'studyforge.courses' ? <div className="sf-side-course-row" key={row.id}>{link(row)}<button type="button" title="开始新课" aria-label="New session" onClick={() => ctx.uiWorkspace.startSession()}>＋</button></div> : link(row)] : []; })}
       </nav>

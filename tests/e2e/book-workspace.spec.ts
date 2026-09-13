@@ -1,3 +1,4 @@
+import { openAppearance, closeAppearance } from './fixtures/classroom.ts';
 import { test, expect, enterClassroom } from './fixtures/classroom.ts';
 import { checkMapZoom } from './fixtures/mindmap.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
@@ -31,8 +32,9 @@ test('book expands along its real tree, opens a card and its original in place, 
     content: CardContentSchema.parse({ title: '定义域卡片', front: '自变量允许的范围', chapter: '函数/定义域', sources: [source] }) } }));
   await page.setViewportSize({ width: 1440, height: 950 });
   await enterClassroom(page, classroom.authUrl);
-  await page.getByTestId('notebook-settings').click();
+  await openAppearance(page);
   await page.getByTestId('notebook-tone').selectOption('white');
+  await closeAppearance(page);
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-row').filter({ hasText: '函数原文' }).getByRole('button').first().click();
 
@@ -46,7 +48,12 @@ test('book expands along its real tree, opens a card and its original in place, 
   await nodes.locator('[data-kind="book"]').getByTestId('mindmap-node').click();
   await expect(nodes.getByRole('button', { name: '细分目录', exact: true })).toHaveCount(1);
   await expect(nodes.getByRole('button', { name: '拆成题卡', exact: true })).toHaveCount(1);
-  await expect(page.getByRole('button', { name: '刷新结构', exact: true })).toBeVisible();
+  await expect.poll(() => nodes.evaluate(el => {
+    const extent = el.closest('.sf-mindmap-extent')!.getBoundingClientRect();
+    return [...el.querySelectorAll(':scope > [data-key]')].every(node => node.getBoundingClientRect().bottom <= extent.bottom + 1);
+  })).toBe(true);
+  await expect(page.getByRole('button', { name: '刷新目录', exact: true })).toBeVisible();
+  await expect(page.locator('.sf-material-head .sf-meta')).toContainText('上传');
   await page.screenshot({ path: info.outputPath('book-map-root.png'), fullPage: true });
 
   // Expansion follows the depth the book really has, node by node.
@@ -75,6 +82,10 @@ test('book expands along its real tree, opens a card and its original in place, 
   await detail.getByTestId('book-detail-back').click();
   await expect(page.getByTestId('book-node-detail')).toHaveCount(0);
   await expect(cardNode).toHaveAttribute('data-selected', 'true');
+  await page.getByTestId('book-workspace').getByRole('button', { name: '学习记录', exact: true }).click();
+  await expect(nodes).toBeHidden();
+  await page.getByRole('button', { name: '返回目录', exact: true }).click();
+  await expect(cardNode).toHaveAttribute('data-selected', 'true');
   // The linear tree follows real parent links and shares the map's state.
   await page.getByRole('button', { name: '目录树', exact: true }).click();
   await expect(nodes).toHaveAttribute('data-mode', 'tree');
@@ -91,6 +102,7 @@ test('book expands along its real tree, opens a card and its original in place, 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: '结构', exact: true }).click();
   await expect(nodes).toBeVisible();
+  await expect.poll(() => page.getByTestId('book-workspace').evaluate(el => el.clientWidth >= el.parentElement!.clientWidth - 2)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath('book-linear-tree-narrow.png'), fullPage: true });
   await page.setViewportSize({ width: 1440, height: 950 });

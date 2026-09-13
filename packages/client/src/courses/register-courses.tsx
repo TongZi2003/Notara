@@ -15,7 +15,6 @@ import type { SessionId } from '@studyforge/contracts';
 import { useCallback, useState } from 'react';
 import { CourseMap, NativeLessonList, type NativeLessonRow } from './CourseMap.tsx';
 import { CourseRoadmap } from './CourseRoadmap.tsx';
-import { PlanEditor } from '../planning/PlanEditor.tsx';
 // The ported page sheet; importing it here too keeps the course page styled in a
 // composition that registers this page without the organization page beside it.
 import '../planning/original-pages.css';
@@ -27,7 +26,7 @@ const css = `
 .sf-courses-page{box-sizing:border-box;min-height:0;color:#26437c}
 .sf-courses-page .sec-head{margin-top:0}
 .sf-courses-page .plain-wrap{max-width:880px;padding-top:var(--s6)}
-.sf-courses-tabs{display:flex;gap:8px;margin:var(--s5) 0 18px}
+.sf-courses-tabs{display:flex;gap:8px}
 .sf-courses-block{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;margin-bottom:32px}
 .sf-courses-block h2{font-size:18px;font-weight:600;margin:0;letter-spacing:.03em;font-family:var(--font-song,"Songti SC",serif)}
 .sf-roadmap-filter{display:flex;flex-wrap:wrap;gap:12px;align-items:center;border:1px solid #e7e0cd;border-radius:4px;background:#fffdf6;padding:10px 12px}
@@ -103,22 +102,22 @@ export function registerCourses(ctx: Context): void {
           ? []
           : [{ id: session.id, title: session.title ?? '未命名的一课', running: session.running }];
       });
-      const [tab, setTab] = useState<'roadmap' | 'list' | 'plans'>('roadmap');
+      const [tab, setTab] = useState<'roadmap' | 'list'>('roadmap');
       const open = useCallback(onOpenLesson, []);
-      return <main className={'sf-orig sf-page-scroll sf-courses-page' + (tab === 'roadmap' ? ' sf-courses-map-page' : '')} data-testid={`studyforge-page-${COURSES_PAGE_ID}`}>
-          <nav className="sf-courses-tabs" aria-label="课程页" data-testid="courses-tabs">
-            <button type="button" className={tab === 'roadmap' ? 'chip on' : 'chip'} data-testid="courses-tab-roadmap" onClick={() => { setTab('roadmap'); }}>路线图</button>
-            <button type="button" className={tab === 'list' ? 'chip on' : 'chip'} data-testid="courses-tab-list" onClick={() => { setTab('list'); }}>课程树</button>
-            <button type="button" className={tab === 'plans' ? 'chip on' : 'chip'} data-testid="courses-tab-plans" onClick={() => { setTab('plans'); }}>计划</button>
-          </nav>
+      return <main className="sf-orig sf-page-scroll sf-courses-page" data-testid={`studyforge-page-${COURSES_PAGE_ID}`}>
+          <header className="sf-courses-tabs" data-testid="courses-tabs"><h1>课程</h1>
+            <select aria-label="课程视图" data-testid="courses-view" value={tab} onChange={event => setTab(event.target.value as 'roadmap' | 'list')}>
+              <option value="roadmap">路线图</option><option value="list">课程树</option>
+            </select>
+          </header>
           {tab === 'roadmap' ? <CourseRoadmap ctx={ctx} lessons={lessons} {...(list.current ? { currentSessionId: list.current } : {})} onOpenLesson={open} />
-          : <div className="plain-wrap">{tab === 'list' ? <>
+          : <div className="sf-courses-content"><div className="plain-wrap">
             <section className="sf-courses-block" data-testid="course-lessons">
-              <h2>上过的课</h2>
+              <h2>课堂记录</h2>
               <NativeLessonList lessons={lessons} loaded={list.phase === 'ready'} onOpenLesson={open} />
             </section>
             <CourseMap ctx={ctx} lessons={lessons} lessonsLoaded={list.phase === 'ready'} onOpenLesson={open} />
-          </> : <PlanEditor ctx={ctx} {...(list.current === undefined ? {} : { sessionId: list.current })} />}</div>}
+          </div></div>}
       </main>;
     },
   )), 'studyforge: course page');

@@ -15,9 +15,9 @@ export function NativeUsage({ state }: { readonly state: UsageState }): React.JS
   </section>;
 }
 
-function UsageBody({ usage }: { readonly usage: CourseUsage }): React.JSX.Element {
+function UsageBody({ usage }: { readonly usage: CourseUsage }): React.JSX.Element | null {
   if (usage.totals === null) {
-    return <p className="sf-note" data-testid="usage-empty">这节课还没有完成的回合，暂时没有用量。</p>;
+    return null;
   }
   const { totals } = usage;
   // A bucket the Host did not prove is never printed as a number: an exact

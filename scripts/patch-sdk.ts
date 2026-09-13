@@ -62,10 +62,11 @@ console.log('Verified rc.2 native rename projection checkpoint');
 const inputFile = join(project, 'node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js');
 const inputOriginal = '81314dfd95864f2522f8edb812e3f8e08b04a8ef2141913e6e8cbdaae1ffc37f';
 const inputPendingPatched = 'a52d95fd35a71d1244fd34f3470cefbaf6414640c87ddc0442f2baeb1ee259f4';
-const inputPatched = '8963925948b55e88e636018441dd43651649005710719cc7e2bfd9d500740229';
+const inputDockPatched = '8963925948b55e88e636018441dd43651649005710719cc7e2bfd9d500740229';
+const inputPatched = '677c5fa3788255531d3655917fafc2f55077ad7803d4da10cda7739c68f873cf';
 const inputSource = readFileSync(inputFile, 'utf8');
 if (sha(inputSource) !== inputPatched) {
-  if (![inputOriginal, inputPendingPatched].includes(sha(inputSource))) throw new Error('Unknown DSH native input artifact');
+  if (![inputOriginal, inputPendingPatched, inputDockPatched].includes(sha(inputSource))) throw new Error('Unknown DSH native input artifact');
   let result = inputSource;
   for (const [before, after] of [
   [
@@ -97,7 +98,13 @@ if (sha(inputSource) !== inputPatched) {
   [
     'variant === "composer" && input !== void 0 && sessionId !== void 0 ? renderSlot("conversation.composer.dock", {}) : null',
     'input !== void 0 && sessionId !== void 0 ? renderSlot("conversation.composer.dock", {}) : null'
-  ]
+  ],
+  // rc.2 locale namespaces have one owner and no overlay API. Keep the native
+  // editor and its blocking/error placeholders; localize only ordinary prompts.
+  ['"placeholder.hero": "描述你想要构建的内容, / 调用指令, @ 文件或对话"', '"placeholder.hero": "写下你想学习的内容…"'],
+  ['"placeholder.default": "发消息或创建任务, / 调用指令, @ 文件或对话"', '"placeholder.default": "写下你想学习的内容…"'],
+  ['"placeholder.hero": "Describe what you want to build, / commands, @ files or sessions"', '"placeholder.hero": "写下你想学习的内容…"'],
+  ['"placeholder.default": "Message or run a task, / commands, @ files or sessions"', '"placeholder.default": "写下你想学习的内容…"']
 ]) result = result.replace(before!, after!);
   if (sha(result) !== inputPatched) throw new Error('DSH native pending display patch digest mismatch');
   writeFileSync(inputFile, result);

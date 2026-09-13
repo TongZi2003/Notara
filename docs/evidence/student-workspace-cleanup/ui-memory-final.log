@@ -1,0 +1,11 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/coauthor-memory.spec.ts --output=.runtime/ui-memory-results
+
+
+Running 1 test using 1 worker
+
+(node:38153) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/coauthor-memory.spec.ts:66:1 › the student rewrites one judgement, keeps its evidence, and survives a conflict (17.5s)
+
+  1 passed (17.8s)

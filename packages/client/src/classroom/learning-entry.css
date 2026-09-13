@@ -1,16 +1,29 @@
-.sf-learning-entry{padding:18px 8px 0;width:100%;box-sizing:border-box;color:var(--nb-pencil,var(--dsw-alias-label-secondary));position:relative}
-.sf-learning-choices{display:flex;gap:12px;justify-content:center}
-.sf-learning-choices button,.sf-learning-paths button{font:20px/1.35 var(--nb-hand,serif);color:inherit;background:transparent;border:1px solid var(--nb-rule,var(--dsw-alias-border-l2));border-radius:7px 5px 6px 4px;padding:7px 17px;cursor:pointer}
-.sf-learning-choices button[aria-pressed=true]{border-color:var(--nb-pen);color:var(--nb-pen);background:color-mix(in srgb,var(--nb-pen) 4%,transparent)}
-.sf-learning-entry button:hover:not(:disabled){color:var(--nb-pen);border-color:var(--nb-pen)}.sf-learning-entry button:disabled{opacity:.5;cursor:wait}
-.sf-learning-entry p{margin:8px 0 0;text-align:center;font-size:14px}
-.sf-learning-paths{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto;margin:0 auto 16px;max-width:520px}
-.sf-learning-paths button{display:flex;justify-content:space-between;gap:12px;text-align:left}.sf-learning-paths span{opacity:.7}
-/* The native blank hero is centered; active Chat retains its bottom composer. */
+body[data-sf-learning-ui] [data-composer-seat] [class*="_tools"] button[class*="_add"],body[data-sf-learning-ui] [data-composer-seat] [class*="_tools"]>[class*="_modes"]{display:none}
+.sf-learning-mode select{font:13px/1.4 var(--dsw-font-family,var(--nb-print,sans-serif));color:inherit;border:0;background:transparent;max-width:105px;padding:5px 2px;cursor:pointer}
+.sf-learning-mode select:disabled{cursor:default;opacity:.65}
+body[data-sf-learning-ui] [data-slot="conversation.input.model"] button,body[data-sf-learning-ui] .sf-learning-mode select{font:13px/1.4 var(--dsw-font-family,var(--nb-print,sans-serif))}
+.sf-learning-mode{position:relative}
+.sf-learning-mode [role=status]{position:absolute;bottom:100%;left:0;white-space:nowrap;font-size:12px;background:var(--nb-hi,#fff);padding:6px 9px;border:1px solid var(--nb-rule,#ddd)}
+.sf-composer-more{position:relative;flex:none}
+.sf-composer-more>summary{list-style:none;font:24px/30px sans-serif;width:30px;height:30px;text-align:center;border-radius:50%;cursor:pointer;color:var(--nb-pen,#26437c)}
+.sf-composer-more>summary::-webkit-details-marker{display:none}
+.sf-composer-more>summary:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.sf-composer-menu{position:absolute;bottom:calc(100% + 8px);left:0;width:174px;z-index:20;background:var(--dsw-specific-menu,#fff);border:1px solid var(--nb-rule,#ddd);padding:6px;box-shadow:0 6px 22px #30251016;border-radius:6px}
+.sf-composer-menu button{display:block;width:100%;border:0;background:none;color:inherit;font:13px/1.6 var(--dsw-font-family,var(--nb-print,sans-serif));padding:8px 10px;text-align:left;cursor:pointer}
+.sf-composer-menu button:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.sf-composer-menu hr{border:0;border-top:1px solid var(--nb-rule,#ddd);margin:5px 4px}
+body[data-sf-learning-ui] [data-testid="composer-import"]>.sf-import{display:none}
+.sf-learning-entry{padding:16px 0 0;width:100%;box-sizing:border-box;color:var(--nb-pencil,var(--dsw-alias-label-secondary))}
+.sf-learning-suggestions{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;padding:2px 1px 10px}
+.sf-learning-suggestions>button{flex:0 0 210px;max-width:70vw;scroll-snap-align:start;display:flex;flex-direction:column;gap:6px;text-align:left;background:transparent;border:1px solid var(--nb-rule,#ddd);border-radius:6px;padding:10px 14px;color:inherit;cursor:pointer}
+.sf-learning-suggestions small{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
+.sf-learning-suggestions span{font:18px/1.4 var(--nb-hand,serif);color:var(--nb-pen,#26437c);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sf-learning-entry p{margin:6px 0;font-size:13px;text-align:center}
+.sf-learning-entry p button{border:0;background:none;color:var(--nb-pen);font:inherit;text-decoration:underline;margin-left:8px}
 body[data-sf-notebook="on"] [data-slot="main.conversation"]>[data-phase=hero]{background-image:none!important}
 [data-slot="main.conversation"]>[data-phase=hero] [data-conversation-scroll]{justify-content:center;padding-bottom:8vh;box-sizing:border-box}
 [data-slot="main.conversation"]>[data-phase=hero] [data-composer-seat]{margin:0}
 [data-slot="main.conversation"]>[data-phase=hero] [class*="_composerHero"]{max-width:720px;padding-bottom:0}
-[data-slot="main.conversation"]>[data-phase=hero]:has(.sf-learning-entry) [class*="_heroWorkspaceRow"]{display:none}
+[data-slot="main.conversation"]>[data-phase=hero] [class*="_heroWorkspaceRow"]{display:none}
 [data-slot="main.conversation"]>[data-phase=hero] .sf-notebook-welcome{font-size:38px;letter-spacing:.02em}
-@media(max-width:600px){.sf-learning-choices{gap:10px}.sf-learning-choices button{font-size:19px;padding:7px 14px}.sf-learning-entry{padding-top:14px}[data-slot="main.conversation"]>[data-phase=hero] .sf-notebook-welcome{font-size:32px}}
+@media(max-width:600px){.sf-learning-mode select{max-width:90px}[data-slot="main.conversation"]>[data-phase=hero] .sf-notebook-welcome{font-size:30px}.sf-learning-suggestions>button{flex-basis:185px}}

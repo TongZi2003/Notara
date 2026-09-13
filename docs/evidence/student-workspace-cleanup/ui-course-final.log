@@ -1,0 +1,11 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/layout-roadmap.spec.ts --grep default roadmap --output=.runtime/ui-course-final-results
+
+
+Running 1 test using 1 worker
+
+(node:39867) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/layout-roadmap.spec.ts:10:1 › the default roadmap shows real lessons, places and mounts them on the same route, and survives refresh (10.6s)
+
+  1 passed (10.9s)

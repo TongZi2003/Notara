@@ -80,10 +80,9 @@ export function SetPage({ ctx, onMaterial, onSource }: { ctx: Context; onMateria
   return <main className="sf-orig sf-page-scroll" data-testid="studyforge-page-studyforge.sets">
     <div className="plain-wrap">
       <div className="sec-head"><h2>学习集</h2><div className="line" /><button className="btn primary" onClick={() => { edit(); }}>新建学习集</button></div>
-      <p className="mini-note">每个学习集是一组书、卡片和学习安排。打开一个集进入它的书架，需要时再调整设置。</p>
       {notice && <p role="status" className="mini-note" data-testid="set-notice">{notice}</p>}
       {!ready && <p className="mini-note">正在读取…</p>}
-      {ready && sets.length === 0 && !editing && <p className="mini-note">还没有学习集。新建后就可以往里面放书和卡片。</p>}
+      {ready && sets.length === 0 && !editing && <p className="mini-note">暂无学习集</p>}
 
       {editing && baseline === undefined && <form className="set-editor" data-testid="set-editor" onSubmit={event => { event.preventDefault(); void save(); }}>
         <h2>新建学习集</h2>

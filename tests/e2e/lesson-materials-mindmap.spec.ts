@@ -68,7 +68,7 @@ test('the lesson right column is one material map that opens originals and cards
   const panel = page.getByTestId('studyforge-lesson-panel');
   await expect(panel).toBeVisible();
   await expect(page.getByTestId('lesson-materials-pane')).toHaveCount(0);
-  await page.getByRole('button', { name: '本课资料', exact: true }).first().click();
+  await page.getByTestId('open-lesson').click();
   // The lesson's deck was just changed outside this pane; 刷新 is the student's
   // own re-read, and it is what makes the new rows appear without a reload.
   await page.getByTestId('lesson-materials-refresh').click();
@@ -82,7 +82,9 @@ test('the lesson right column is one material map that opens originals and cards
   const map = page.getByTestId('lesson-materials-map');
   await expect(map).toBeVisible();
   const panelBox = (await panel.boundingBox())!, mapBox = (await map.boundingBox())!;
-  expect(mapBox.y - panelBox.y).toBeLessThanOrEqual(16);
+  const scopeBox = (await panel.getByTestId('workbench-scope').boundingBox())!;
+  expect(scopeBox.y - panelBox.y).toBeLessThanOrEqual(16);
+  expect(mapBox.y - scopeBox.y - scopeBox.height).toBeLessThanOrEqual(16);
   // A book is a node; a card that belongs to no book is its own node.
   const bookNode = map.locator('[data-kind="book"]').filter({ hasText: '函数原文' });
   await expect(bookNode).toHaveCount(1);

@@ -1,0 +1,120 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/conversation-home.spec.ts tests/e2e/book-workspace.spec.ts tests/e2e/workbench-library.spec.ts tests/e2e/classroom-import.spec.ts tests/e2e/lesson-materials-mindmap.spec.ts --output=.runtime/ui-workbench-results
+
+
+Running 6 tests using 1 worker
+
+(node:43548) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/book-workspace.spec.ts:25:1 › book expands along its real tree, opens a card and its original in place, and returns without writing (12.3s)
+  ✓  2 tests/e2e/classroom-import.spec.ts:13:1 › conversation import saves directly, retries an uncertain reply once, and keeps the draft and original accessible (11.2s)
+  ✘  3 tests/e2e/classroom-import.spec.ts:65:1 › empty desk imports a dropped batch even when its first saved file replaces the empty state (24.6s)
+(node:43729) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 tests/e2e/conversation-home.spec.ts:6:1 › learning modes stay inside the native composer and real recommendations hide only after acceptance (10.6s)
+  ✘  5 tests/e2e/lesson-materials-mindmap.spec.ts:23:1 › the lesson right column is one material map that opens originals and cards in place (9.6s)
+(node:43841) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  6 tests/e2e/workbench-library.spec.ts:9:1 › whiteboard defaults to the library and filters actual lesson references without writing on browse (25.2s)
+
+
+  1) tests/e2e/classroom-import.spec.ts:65:1 › empty desk imports a dropped batch even when its first saved file replaces the empty state
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByTestId('notebook-sidebar').getByRole('button', { name: /回到这节课/u })
+        - locator resolved to <button class="sf-side-active">…</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div aria-hidden="true" class="VOzbGW_mask"></div> from <footer class="sf-side-foot">…</footer> subtree intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div aria-hidden="true" class="VOzbGW_mask"></div> from <footer class="sf-side-foot">…</footer> subtree intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        29 × waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <div aria-hidden="true" class="VOzbGW_mask"></div> from <footer class="sf-side-foot">…</footer> subtree intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+
+
+      74 |   await openAppearance(page);
+      75 |   await page.getByTestId('notebook-tone').selectOption('white');
+    > 76 |   await page.getByTestId('notebook-sidebar').getByRole('button', { name: /回到这节课/u }).click();
+         |                                                                                      ^
+      77 |   await expect(empty).toBeVisible();
+      78 |   await page.screenshot({ path: info.outputPath('classroom-import-white.png'), fullPage: true });
+      79 |   await empty.getByTestId('material-drop-zone').evaluate(el => {
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/classroom-import.spec.ts:76:86
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:43648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/ui-workbench-results/classroom-import-empty-des-108bd-le-replaces-the-empty-state/error-context.md
+
+  2) tests/e2e/lesson-materials-mindmap.spec.ts:23:1 › the lesson right column is one material map that opens originals and cards in place
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 16
+    Received:    58
+
+      83 |   await expect(map).toBeVisible();
+      84 |   const panelBox = (await panel.boundingBox())!, mapBox = (await map.boundingBox())!;
+    > 85 |   expect(mapBox.y - panelBox.y).toBeLessThanOrEqual(16);
+         |                                 ^
+      86 |   // A book is a node; a card that belongs to no book is its own node.
+      87 |   const bookNode = map.locator('[data-kind="book"]').filter({ hasText: '函数原文' });
+      88 |   await expect(bookNode).toHaveCount(1);
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/lesson-materials-mindmap.spec.ts:85:33
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:43793) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/ui-workbench-results/lesson-materials-mindmap-t-f615a-riginals-and-cards-in-place/error-context.md
+
+  3) tests/e2e/workbench-library.spec.ts:9:1 › whiteboard defaults to the library and filters actual lesson references without writing on browse
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Expand right sidebar', exact: true })
+
+
+      43 |   await page.screenshot({ path: info.outputPath('library-whiteboard.png'), fullPage: true });
+      44 |   await page.getByRole('button', { name: 'Collapse right sidebar', exact: true }).click();
+    > 45 |   await page.getByRole('button', { name: 'Expand right sidebar', exact: true }).click();
+         |                                                                                 ^
+      46 |   await expect(scope).toHaveValue('all'); await expect(map).toContainText('几何原文');
+      47 |   expect(errors).toEqual([]);
+      48 | });
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/workbench-library.spec.ts:45:81
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:43847) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/ui-workbench-results/workbench-library-whiteboa-61504-s-without-writing-on-browse/error-context.md
+
+  3 failed
+    tests/e2e/classroom-import.spec.ts:65:1 › empty desk imports a dropped batch even when its first saved file replaces the empty state
+    tests/e2e/lesson-materials-mindmap.spec.ts:23:1 › the lesson right column is one material map that opens originals and cards in place
+    tests/e2e/workbench-library.spec.ts:9:1 › whiteboard defaults to the library and filters actual lesson references without writing on browse
+  3 passed (1.6m)

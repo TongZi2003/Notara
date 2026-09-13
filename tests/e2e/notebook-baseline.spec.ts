@@ -1,3 +1,4 @@
+import { openAppearance, closeAppearance } from './fixtures/classroom.ts';
 import { test, expect, enterClassroom, sendInput, typeInput } from './fixtures/classroom.ts';
 
 test('written baselines follow the ruled page through scrolling, font changes and expansion', async ({ page, classroom }, info) => {
@@ -32,10 +33,10 @@ test('written baselines follow the ruled page through scrolling, font changes an
   await aligned();
   await page.locator('[data-conversation-scroll]').evaluate(el => { el.scrollTop -= 113; });
   await aligned();
-  await page.getByTestId('notebook-settings').click();
+  await openAppearance(page);
   await page.getByTestId('notebook-scheme').selectOption('bing');
   await page.getByTestId('notebook-size').selectOption('l');
-  await page.getByTestId('notebook-back').click();
+  await closeAppearance(page);
   await aligned();
   await sendInput(page, '[tool]' + JSON.stringify({ name: 'propose_card', arguments: { kind: 'card', title: '小便签', front: '纸张与字迹对齐' } }));
   await expect(page.getByTestId('inline-proposal')).toBeVisible();

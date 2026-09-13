@@ -1,5 +1,4 @@
 import type { Context } from '@deepseek-ai/cordis';
-import type { StoredEntry } from '@deepseek-ai/dsh-client-ui-slots';
 import type { ConversationSessionHeaderSlotProps } from '@deepseek-ai/dsh-client-ui-conversation/client';
 import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types';
 import { useEffect, useSyncExternalStore, type ComponentType } from 'react';
@@ -16,13 +15,10 @@ export async function openContentClassroom(ctx: Context, location: Location): Pr
 }
 /** Reuse the native header's own View action and store, including from Trace. */
 export function registerContentNavigation(ctx: Context): void {
-  let original: StoredEntry | undefined, remove: (() => void) | undefined;
-  const install = (): void => {
-    if (original) return;
-    original = ctx.slots.entries('conversation.session.header')[0];
-    if (!original) return;
-    const Native = original.component as ComponentType<ConversationSessionHeaderSlotProps>;
-    function Header(props: ConversationSessionHeaderSlotProps): React.JSX.Element {
+  ctx.effect(() => ctx.slots.inject('conversation.session.header.actions', () => {
+    const original = ctx.slots.entriesOfSlot('conversation.session.header')[0];
+    if (!original) return () => {};
+    function Header(props: ConversationSessionHeaderSlotProps): React.JSX.Element | null {
       const location = useSyncExternalStore(subscribe, () => pending);
       useEffect(() => {
         if (!location || location.sessionId !== props.sessionId) return;
@@ -38,12 +34,12 @@ export function registerContentNavigation(ctx: Context): void {
         })();
         return () => { live = false; };
       }, [location, props.sessionId]);
-      return <Native {...props} />;
+      return null;
     }
+    // An invisible child shares the native header's store and injected action;
+    // it neither replaces the header nor redeclares its owned child slots.
     const registry = ctx.slots as unknown as { register(options: object, component: ComponentType<ConversationSessionHeaderSlotProps>): () => void };
-    remove = registry.register({ ...original.options, name: 'conversation.session.header', inject: original.inject,
-      store: original.store, children: original.children, locale: original.locale, priority: -35 }, Header);
-  };
-  const stop = ctx.slots.subscribe('conversation.session.header', install); install();
-  ctx.effect(() => () => { stop(); remove?.(); });
+    return registry.register({ name: 'conversation.session.header.actions', id: 'studyforge.content-navigation',
+      inject: original.inject, store: original.store }, Header);
+  }));
 }

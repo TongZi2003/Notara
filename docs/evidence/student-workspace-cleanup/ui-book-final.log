@@ -1,0 +1,11 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/book-workspace.spec.ts --output=.runtime/ui-book-final-results
+
+
+Running 1 test using 1 worker
+
+(node:46220) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/book-workspace.spec.ts:25:1 › book expands along its real tree, opens a card and its original in place, and returns without writing (12.4s)
+
+  1 passed (12.9s)

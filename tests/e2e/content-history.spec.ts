@@ -22,10 +22,10 @@ test('book coverage and classroom back-links use saved ranges and actual native 
   await enterClassroom(page, classroom.authUrl);
   await openRoot(page, '资料');
   await page.getByTestId('material-row').filter({ hasText: '函数与性质' }).getByRole('button').first().click();
+  await expect(page.getByTestId('book-workspace').getByTestId('content-history')).toHaveCount(0);
+  await page.getByTestId('book-workspace').getByRole('button', { name: '学习记录', exact: true }).click();
   const history = page.getByTestId('book-workspace').getByTestId('content-history').first();
-  await history.getByText('整理范围', { exact: true }).click();
   await expect(history).toContainText('已保存细化');
-  await history.getByText('相关课堂 · 1', { exact: true }).click();
   await history.getByText('第一节：单调性', { exact: false }).first().click();
   await expect(history).toContainText('本课引用');
   await page.screenshot({ path: info.outputPath('content-classroom-links.png'), fullPage: true });

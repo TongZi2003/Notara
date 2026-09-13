@@ -9,9 +9,11 @@ import { SetPage } from '../sets/SetPage.tsx';
 import { Calendar } from './Calendar.tsx';
 import { useEffect } from 'react';
 import { LearningEntry } from '../classroom/LearningEntry.tsx';
+import { registerLearningComposer } from '../classroom/LearningComposer.tsx';
 import './original-pages.css';
 
 export function registerOrganization(ctx: Context, navigation: MaterialNavigation): void {
+  registerLearningComposer(ctx);
   ctx.effect(() => { const style = document.createElement('style'); style.dataset.studyforgeStyle = 'organization'; style.textContent = css; document.head.append(style); return () => style.remove(); });
   ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'studyforge.sets', priority: -20 },
     () => <SetPage ctx={ctx} onMaterial={material => { navigation.show({ materialId: material.materialId, versionId: material.currentVersion.versionId }); ctx.layout.selectPanel('studyforge.materials' as MainPanelId); }}
@@ -20,7 +22,7 @@ export function registerOrganization(ctx: Context, navigation: MaterialNavigatio
     if (target.startsWith('session:')) { ctx.sessions.open(target.slice(8) as SessionId); ctx.layout.selectPanel(null); return; }
     if (target.startsWith('route:')) {
       const result = await ctx.remote.studyforgeOrganization.openPlannedLesson({ operationId: crypto.randomUUID(), nodeId: target.slice(6) });
-      if (result.ok) { ctx.sessions.open(result.value.sessionId as SessionId); ctx.layout.selectPanel(null); }
+      if (result.ok) { await ctx.sessions.refresh(); ctx.sessions.open(result.value.sessionId as SessionId); ctx.layout.selectPanel(null); }
       return;
     }
     if (target.startsWith('card:') || target.startsWith('knowledge:')) { ctx.layout.selectPanel('studyforge.cards' as MainPanelId); return; }

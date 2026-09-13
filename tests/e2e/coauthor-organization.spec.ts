@@ -169,7 +169,7 @@ test('a plan is edited by its own target, keeps the draft on a stale save, and n
   await enterClassroom(page, dsh.authUrl);
   await createCard(page, '等差中项', '若 $a,A,b$ 成等差，则 $2A=a+b$。');
   await openCourses(page);
-  await page.getByTestId('courses-tab-plans').click();
+  await page.getByRole('button', { name: '日历', exact: true }).first().click(); await page.getByTestId('calendar-review-plans').click();
   await expect(page.getByTestId('plan-empty')).toBeVisible();
 
   await page.getByTestId('plan-create-campaign').click();
@@ -192,7 +192,7 @@ test('a plan is edited by its own target, keeps the draft on a stale save, and n
   try {
     await enterClassroom(other, dsh.authUrl);
     await openCourses(other);
-    await other.getByTestId('courses-tab-plans').click();
+    await other.getByRole('button', { name: '日历', exact: true }).first().click(); await other.getByTestId('calendar-review-plans').click();
     await other.getByTestId('plan-row').filter({ hasText: '期末复习' }).getByTestId('plan-row-open').click();
     await other.getByTestId('plan-editor-title').fill('期末复习（老师改的）');
     await other.getByTestId('plan-editor-check').click();
@@ -245,7 +245,7 @@ test('a plan is edited by its own target, keeps the draft on a stale save, and n
 
   await enterClassroom(page, dsh.authUrl);
   await openCourses(page);
-  await page.getByTestId('courses-tab-plans').click();
+  await page.getByRole('button', { name: '日历', exact: true }).first().click(); await page.getByTestId('calendar-review-plans').click();
   await expect(page.getByTestId('plan-row').filter({ hasText: '期末复习（再改）' })).toBeVisible();
   await expect(page.getByTestId('plan-row').filter({ hasText: '三角函数小练' })).toBeVisible();
   expect(errors).toEqual([]);
@@ -273,7 +273,7 @@ test('at 390 the course page really widens after the sidebar collapses, and the 
   expect(await surface.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('course-390.png'), fullPage: true });
 
-  await page.getByTestId('roadmap-arrange').click();
+  await page.getByTestId('courses-view').selectOption('roadmap'); await page.getByTestId('map-fit').click();
   const canvas = page.getByTestId('roadmap-canvas');
   await expect(canvas).toBeVisible();
   const canvasBox = await canvas.boundingBox();

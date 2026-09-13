@@ -29,6 +29,7 @@ export function BookWorkspace({ ctx, source, onSource }: { ctx: Context; source:
   const [structure, setStructure] = useState<BookStructure>();
   const [expanded, setExpanded] = useState<readonly string[]>([]);
   const [mode, setMode] = useState<'map' | 'list'>('map');
+  const [records, setRecords] = useState(false);
   const [selected, setSelected] = useState<string | undefined>(undefined);
   /** The detail is a view of the pick; closing it keeps the pick itself. */
   const [detail, setDetail] = useState(false);
@@ -64,20 +65,23 @@ export function BookWorkspace({ ctx, source, onSource }: { ctx: Context; source:
     finally { setBusy(false); }
   }
   return <aside className="sf-book-structure" data-testid="book-workspace">
-    <div className="sf-org-actions">
-      <h3>书的结构</h3>
-      <nav className="sf-book-modes" aria-label="结构视图">
-        <button type="button" className="sf-quiet" aria-pressed={mode === 'map'} onClick={() => { setMode('map'); }}>脑图</button>
-        <button type="button" className="sf-quiet" aria-pressed={mode === 'list'} onClick={() => { setMode('list'); }}>目录树</button>
-      </nav>
-      <button type="button" className="sf-quiet" onClick={() => { setRefresh(n => n + 1); }}>刷新结构</button>
+    <div className="sf-book-toolbar">
+      <h3>{records ? '学习记录' : '目录'}</h3>
+      {records ? <button type="button" className="sf-quiet" onClick={() => setRecords(false)}>返回目录</button> : <>
+        <button type="button" className="sf-quiet" title={mode === 'map' ? '切换到目录树' : '切换到脑图'} onClick={() => setMode(mode === 'map' ? 'list' : 'map')}>{mode === 'map' ? '目录树' : '脑图'}</button>
+        <button type="button" className="sf-quiet" onClick={() => setRecords(true)}>学习记录</button>
+      </>}
+      <button type="button" className="sf-quiet sf-book-refresh" aria-label="刷新目录" title="刷新目录与记录" onClick={() => { setRefresh(n => n + 1); }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 6.1a8 8 0 0 1 13.5 4M4.4 13.9a8 8 0 0 0 13.5 4"/></svg>
+      </button>
     </div>
     {notice !== '' && <p className="sf-notice" role="status">{notice}</p>}
-    <ContentHistory ctx={ctx} query={{ source: { materialId: source.materialId, versionId: source.versionId } }} onSource={onSource} refreshToken={refresh}
-      onRefine={anchor => { const root = structure?.nodes.find(item => item.kind === 'book'); if (root && !busy) void breakdown(root, 'directory', anchor); }} />
+    {records && <div className="sf-book-records"><ContentHistory expanded ctx={ctx} query={{ source: { materialId: source.materialId, versionId: source.versionId } }} onSource={onSource} refreshToken={refresh}
+      onRefine={anchor => { const root = structure?.nodes.find(item => item.kind === 'book'); if (root && !busy) void breakdown(root, 'directory', anchor); }} /></div>}
+    <div className="sf-book-map" hidden={records}>
     {structure !== undefined && <Mindmap testId="book-nodes" label="这本书的结构" nodes={nodes} mode={mode}
       expanded={expanded} selected={selected} busy={busy}
-      onPick={item => { setSelected(item.key); setStudying(undefined); setDetail(true); }}
+      onPick={item => { setSelected(item.key); setStudying(undefined); setDetail(item.kind !== 'book'); }}
       onExpand={(item, open) => { setExpanded(old => open ? (old.includes(item.key) ? old : [...old, item.key]) : old.filter(key => key !== item.key)); }}
       actions={(['directory', 'cards'] as const).map(action => ({ label: breakdownLabel(action), when: item => item.key === selected && (item.kind === 'book' || item.kind === 'section'),
         run: item => { const target = structure.nodes.find(candidate => candidate.key === item.key); if (target !== undefined) void breakdown(target, action); } }))} />}
@@ -95,5 +99,6 @@ export function BookWorkspace({ ctx, source, onSource }: { ctx: Context; source:
           <CardDetail key={node.target} ctx={ctx} target={node.target} onSource={onSource} onChange={() => { setRefresh(n => n + 1); }} /></>)}
       {node.kind === 'knowledge' && <KnowledgeEditor key={node.target} ctx={ctx} target={node.target} onSaved={() => { setRefresh(n => n + 1); }} />}
     </section>}
+    </div>
   </aside>;
 }

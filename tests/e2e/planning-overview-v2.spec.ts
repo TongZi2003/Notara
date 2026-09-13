@@ -82,31 +82,27 @@ test('a date range narrows the roadmap, keeps ancestors as context, and clearing
   expect(stored).toHaveLength(4);
   const parentNode = page.getByTestId('roadmap-node').filter({ has: page.getByTestId('roadmap-node-title').filter({ hasText: '三月总复习' }) });
   await expect(parentNode.locator(':scope > ul > [data-testid="roadmap-node"]')).toContainText('三月里的第一节');
-  await expect(page.getByTestId('roadmap-filter-count')).toHaveText('4 节');
   await page.screenshot({ path: testInfo.outputPath('roadmap-all.png'), fullPage: true });
 
   // Today's range matches one node; the undated plan is not in a dated range.
+  await page.locator('.sf-route-filter summary').click();
   await page.getByTestId('roadmap-filter-today').click();
-  await expect(page.getByTestId('roadmap-filter-count')).toHaveText('命中 1 节');
   await expect(page.getByTestId('roadmap-node-title')).toHaveText(['今天这一节']);
   await page.screenshot({ path: testInfo.outputPath('roadmap-today.png'), fullPage: true });
 
   // A range whose only match is the child draws its parent as context, uncounted.
   await page.getByTestId('roadmap-filter-from').fill('2027-03-05');
   await page.getByTestId('roadmap-filter-to').fill('2027-03-05');
-  await expect(page.getByTestId('roadmap-filter-count')).toHaveText('命中 1 节');
   await expect(page.getByTestId('roadmap-node-title')).toHaveText(['三月总复习', '三月里的第一节']);
   await page.screenshot({ path: testInfo.outputPath('roadmap-context.png'), fullPage: true });
 
   // Clearing really restores the stored tree and its order.
   await page.getByTestId('roadmap-filter-clear').click();
-  await expect(page.getByTestId('roadmap-filter-count')).toHaveText('4 节');
   expect(await rowTitles(page)).toEqual(stored);
 
   // Three weeks out still matches both March nodes and nothing else.
   await page.getByTestId('roadmap-filter-from').fill('2027-03-01');
   await page.getByTestId('roadmap-filter-to').fill('2027-03-31');
-  await expect(page.getByTestId('roadmap-filter-count')).toHaveText('命中 2 节');
   await expect(page.getByTestId('roadmap-node-title')).toHaveText(['三月总复习', '三月里的第一节']);
   await page.getByTestId('roadmap-filter-all').click();
   expect(await rowTitles(page)).toEqual(stored);
@@ -116,8 +112,7 @@ test('a date range narrows the roadmap, keeps ancestors as context, and clearing
   await openCourses(page);
   // The read is a real Remote call, so wait for it rather than sampling the DOM
   // the moment the page mounts.
-  await expect(page.getByTestId('roadmap-filter-count')).toHaveText('4 节');
-  expect(await rowTitles(page)).toEqual(stored);
+  await expect.poll(() => rowTitles(page)).toEqual(stored);
   expect(errors).toEqual([]);
 });
 
@@ -145,6 +140,7 @@ test('an opened planned lesson stays visible in the whole roadmap and keeps its 
   await page.screenshot({ path: testInfo.outputPath('roadmap-opened.png'), fullPage: true });
 
   // Filtering the roadmap never hides the lesson the student really started.
+  await page.locator('.sf-route-filter summary').click();
   await page.getByTestId('roadmap-filter-today').click();
   await expect(page.getByTestId('roadmap-node')).toHaveCount(1);
   await expect(page.getByTestId('roadmap-node-opened')).toBeVisible();
@@ -161,7 +157,7 @@ test('a card the student really placed keeps its coordinate, and a content edit 
   await planNode(page, '摆放这一节', localDay());
   await planNode(page, '另一节', localDay());
 
-  await page.getByTestId('roadmap-arrange').click();
+  await page.getByTestId('courses-view').selectOption('roadmap');
   const canvas = page.getByTestId('roadmap-canvas');
   await expect(canvas).toBeVisible();
   const card = page.getByTestId('roadmap-canvas-node').filter({ hasText: '摆放这一节' });
@@ -181,20 +177,20 @@ test('a card the student really placed keeps its coordinate, and a content edit 
   await page.screenshot({ path: testInfo.outputPath('roadmap-placed.png'), fullPage: true });
 
   // A real content edit elsewhere leaves the student's own placement alone.
-  await page.getByTestId('roadmap-arrange').click();
+  await page.getByTestId('courses-view').selectOption('list');
   const row = page.getByTestId('roadmap-node').filter({ hasText: '另一节' });
   await row.getByTestId('roadmap-node-edit').click();
   await page.getByTestId('route-editor-title').fill('另一节（改过）');
   await page.getByTestId('route-editor-save').click();
   await expect(page.getByTestId('roadmap-node').filter({ hasText: '另一节（改过）' })).toBeVisible();
-  await page.getByTestId('roadmap-arrange').click();
+  await page.getByTestId('courses-view').selectOption('roadmap');
   await expect(card).toHaveAttribute('data-x', placedX ?? '');
   await expect(card).toHaveAttribute('data-y', placedY ?? '');
 
   // The placement is the Host's, not this tab's: a fresh boot reads it back.
   await enterClassroom(page, dsh.authUrl);
   await openCourses(page);
-  await page.getByTestId('roadmap-arrange').click();
+  await page.getByTestId('courses-view').selectOption('roadmap');
   const restored = page.getByTestId('roadmap-canvas-node').filter({ hasText: '摆放这一节' });
   await expect(restored).toHaveAttribute('data-x', placedX ?? '');
   await expect(restored).toHaveAttribute('data-y', placedY ?? '');

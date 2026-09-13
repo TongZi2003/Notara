@@ -33,6 +33,7 @@ import { ContentHistory } from './ContentHistory.tsx';
 import { heldSourceReferences } from './source-references-holder.ts';
 import { requestLessonPane, subscribeLessonPane } from './lesson-pane-request.ts';
 import './lesson-pane.css';
+import { workbenchMaterials } from './workbench-materials.ts';
 
 /** The Host reads one lesson's map needs; the original's own reads come from the pane. */
 export interface LessonResourcesFace extends SourcePaneFace {
@@ -93,6 +94,8 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
     else if (left + column.offsetWidth > desk.scrollLeft + desk.clientWidth) desk.scrollLeft = left + column.offsetWidth - desk.clientWidth;
   }, [deck.active]);
   const [structures, setStructures] = useState<ReadonlyMap<string, BookStructure>>(() => new Map());
+  const [materials, setMaterials] = useState<readonly MaterialView[]>([]);
+  const [libraryStatus, setLibraryStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [library, setLibrary] = useState<{ readonly mediaTypes: ReadonlyMap<string, string>; readonly titles: ReadonlyMap<string, string> }>(() => ({ mediaTypes: new Map(), titles: new Map() }));
   const [cards, setCards] = useState<ReadonlyMap<string, CardView>>(() => new Map());
   const [pinnedCards, setPinnedCards] = useState<ReadonlyMap<string, CardView>>(() => new Map());
@@ -145,12 +148,14 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
     void host.materials().then(
       result => {
         if (!live) return;
+        if (result.ok) { setMaterials(result.value); setLibraryStatus('ready'); }
+        else setLibraryStatus('failed');
         setLibrary(result.ok
           ? { mediaTypes: new Map(result.value.map(view => [view.materialId, view.mediaType])), titles: new Map(result.value.map(view => [view.materialId, view.title])) }
           : { mediaTypes: new Map(), titles: new Map() });
       },
       // An unknown file type leaves the book read itself to answer.
-      () => { if (live) setLibrary({ mediaTypes: new Map(), titles: new Map() }); },
+      () => { if (live) setLibraryStatus('failed'); },
     );
     void host.cards().then(
       result => { if (live) setCards(result.ok ? new Map(result.value.map(view => [view.ref, view])) : new Map()); },
@@ -161,7 +166,10 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
     // imported, a card is saved), so the names re-read with the deck.
   }, [host, refreshToken, focus]);
 
-  const rows = state.status === 'ready' ? state.rows : [];
+  const rows = useMemo(() => {
+    const lesson = state.status === 'ready' ? state.rows : [];
+    return deck.scope === 'lesson' ? lesson : workbenchMaterials(materials, lesson);
+  }, [state, materials, deck.scope]);
   useEffect(() => {
     let live = true;
     const pinned = state.status === 'ready' ? state.rows.filter(row => row.kind === 'card' && row.target !== null && row.cardVersion !== undefined) : [];
@@ -298,20 +306,26 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
     finally { setSending(false); }
   }
   return <div className="sf-lesson-materials" data-testid="lesson-materials" data-view={deck.sheets.length ? 'deck' : 'map'}>
+    <div className="sf-workbench-filter">
+      <select aria-label="工作台资料范围" data-testid="workbench-scope" value={deck.scope ?? 'all'} onChange={event => {
+        const scope = event.target.value as 'all' | 'lesson'; setDeck(old => ({ ...old, scope, active: undefined }));
+      }}><option value="all">全部资料</option><option value="lesson">本节课用到的</option></select>
+    </div>
     {deck.sheets.length > 0 && <nav className="sf-deck-index" aria-label="工作台中打开的内容">
       <button type="button" className="sf-quiet" aria-pressed={deck.active === undefined} onClick={() => { setDeck(old => ({ ...old, active: undefined })); }}>关系图</button>
       {deck.sheets.map(sheet => <button key={sheet.id} type="button" className="sf-quiet" aria-pressed={deck.active === sheet.id}
         onClick={() => { setDeck(old => ({ ...old, active: sheet.id })); }}>{sheet.content.title}</button>)}
     </nav>}
     <div className="sf-deck-surface" ref={surface} data-testid="lesson-deck-surface">
-    <section className="sf-deck-map" data-sheet-id="map" aria-label="本课关系图">
-    {state.status !== 'ready' ? <p className="sf-note" role="status">{state.status === 'loading' ? '正在看这节课用到什么…' : '这节课用到的资料暂时取不到，稍后再看一次。'}</p> : graph.nodes.length === 0 ?
+    <section className="sf-deck-map" data-sheet-id="map" aria-label="资料白板">
+    {(deck.scope === 'lesson' ? state.status : libraryStatus) !== 'ready' ? <p className="sf-note" role="status">{(deck.scope === 'lesson' ? state.status : libraryStatus) === 'loading' ? '正在读取资料…' : '资料暂时取不到，请稍后刷新。'}</p> : graph.nodes.length === 0 && deck.scope === 'lesson' ?
+      <div className="sf-workbench-empty"><p>本节课还没有引用资料</p><button type="button" className="sf-quiet" onClick={() => setDeck(old => ({ ...old, scope: 'all' }))}>查看全部资料</button></div> : graph.nodes.length === 0 ?
     <div className="sf-empty-materials" data-testid="lesson-materials-empty">
       <LessonImport ctx={ctx} sessionId={sessionId} appearance="classroom" active={browseId !== undefined} onOpen={material => {
         requestLessonPane(sessionId, { kind: 'source', title: material.title, anchors: [{ materialId: material.materialId, versionId: material.currentVersion.versionId }] });
       }} />
     </div> :
-    <Mindmap testId="lesson-materials-map" label="这节课用到的资料" nodes={graph.nodes} mode="map" relations={graph.edges}
+    <Mindmap testId="lesson-materials-map" label={deck.scope === 'lesson' ? '本节课用到的资料' : '资料白板'} nodes={graph.nodes} mode="map" relations={graph.edges}
       expanded={expanded} selected={selected} onPick={pick} onExpand={expand} busy={busy || sending}
       action={{ label: node => deck.related.includes(node.key) ? '收起关联' : '展开关联', when: node => graph.canRelate(node.key), run: relate }}
       actions={(['directory', 'cards'] as const).map(action => ({ label: breakdownLabel(action), when: node => node.key === selected && breakdownTarget(node) !== undefined, run: node => { void breakdown(node, action); } }))}

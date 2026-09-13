@@ -76,6 +76,15 @@ test('the student rewrites one judgement, keeps its evidence, and survives a con
   await expect(card.getByTestId('memory-body')).toContainText('再对答案');
   // The source is the student's real utterance, and it is readable in place.
   await expect(card.getByTestId('memory-basis-current')).toContainText('先自己试一遍');
+  await page.getByRole('button', { name: '按关键词筛选', exact: true }).click();
+  await page.getByTestId('memory-search').fill('不存在的观察关键词');
+  await page.getByTestId('memory-search-run').click();
+  await expect(page.getByTestId('memory-card')).toHaveCount(0);
+  await page.getByTestId('memory-search').fill('新题');
+  await page.getByTestId('memory-search-run').click();
+  await expect(page.getByTestId('memory-card')).toHaveCount(1);
+  await page.getByRole('button', { name: '按时间', exact: true }).click();
+  await expect(page.getByTestId('memory-search')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('memory-open.png'), fullPage: true });
 
   // Reading the panel wrote nothing: still one record, still one observation.

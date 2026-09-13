@@ -53,10 +53,10 @@ test('original notebook pages show real books, cards, calendar and learning reco
         // narrow rightbar overlay can have collapsed it.
         const sidebar = page.getByTestId('notebook-sidebar');
         if (await sidebar.getAttribute('data-collapsed') === 'true') await sidebar.getByRole('button', { name: '展开侧栏', exact: true }).click();
-        await sidebar.getByRole('button', { name: '管理学习集', exact: true }).click();
+        await sidebar.getByRole('button', { name: '学习集', exact: true }).click();
       }
       else await openRoot(page, label);
-      const surface = page.getByTestId('studyforge-page-studyforge.' + route);
+      const surface = route === 'home' ? page.locator('[data-slot="main.conversation"]>[data-phase]') : page.getByTestId('studyforge-page-studyforge.' + route);
       await expect(surface).toBeVisible();
       // Below the native breakpoint the notebook rail collapses on its own; the
       // page keeps its own width only after that re-layout has actually landed.
@@ -68,10 +68,10 @@ test('original notebook pages show real books, cards, calendar and learning reco
       }
       await expect.poll(async () => (await surface.boundingBox())?.width ?? 0).toBeGreaterThan(290);
       await page.evaluate(async () => { await document.fonts.ready; });
-      if (route === 'home') await expect(surface.locator('.home-box')).toHaveCount(4);
+      if (route === 'home') await expect(surface.getByTestId('learning-mode')).toBeVisible();
       if (route === 'materials') {
         await expect(surface.getByTestId('material-row')).toHaveCount(3);
-        await expect(surface.locator('.sf-shelf .cover').first()).toHaveCSS('width', '112px');
+        await expect(surface.locator('.sf-original-open')).toHaveCount(3);
       }
       if (route === 'cards') {
         await expect(surface.getByTestId('card-row')).toHaveCount(3);
@@ -84,11 +84,12 @@ test('original notebook pages show real books, cards, calendar and learning reco
         }
       }
       if (route === 'courses') {
-        await surface.getByTestId('courses-tab-list').click();
+        await surface.getByTestId('courses-view').selectOption('list');
         await expect(surface.getByTestId('roadmap-nodes')).toHaveCSS('display', 'block');
         await expect(surface.getByTestId('roadmap-node')).toHaveCount(3);
       }
       if (route === 'calendar') {
+        await page.getByRole('button', { name: '今天', exact: true }).click();
         await expect(surface.getByTestId('calendar-course')).toHaveCount(3);
         await surface.getByTestId('calendar-view-list').click();
         await expect(surface.getByTestId('calendar-list')).toHaveCSS('display', 'block');

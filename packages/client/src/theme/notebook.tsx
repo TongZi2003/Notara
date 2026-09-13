@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 import type { ThemeTokenOverrides } from '@deepseek-ai/dsh-client-ui-theme/client';
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
@@ -105,22 +106,12 @@ export function registerNotebook(ctx: Context, navigation: MaterialNavigation): 
     for (const [name, value] of oldAttributes) { if (value === null) document.body.removeAttribute(name); else document.body.setAttribute(name, value); }
   });
 
-  function Footer({ wide, usePanelInfo }: PropsRuntime<'sidebar.footer.action'>): React.JSX.Element {
-    const state = useSyncExternalStore(subscribe, get);
-    const panel = usePanelInfo(value => value.activePanelId);
-    return <div className="sf-notebook-controls" data-wide={wide}>
-      <button type="button" title="手写笔记本" aria-pressed={state.enabled} data-testid="notebook-toggle" onClick={() => update({ enabled: !state.enabled })}>{wide ? '手写' : '笔'}</button>
-      <button type="button" title="字迹与纸张" data-testid="notebook-settings" onClick={() => { if (panel !== APPEARANCE) { returnPanel = panel; returnMaterial = navigation.snapshot(); } ctx.layout.selectPanel(APPEARANCE); }}>{wide ? '字迹…' : '纸'}</button>
-      {wide && <div className="sf-paper-swatches"><span>纸</span>{(['hengxian', 'fangge'] as const).map(paper => <button key={paper} type="button" className={'sf-paper-' + paper}
-        aria-label={paper === 'hengxian' ? '横线纸' : '方格纸'} aria-pressed={state.paper === paper} onClick={() => update({ paper })} />)}</div>}
-    </div>;
-  }
-  function Settings(): React.JSX.Element {
+  function Settings({ embedded = false }: { embedded?: boolean } = {}): React.JSX.Element {
     const state = useSyncExternalStore(subscribe, get);
     return <main className="sf-notebook-settings sf-page" data-testid="notebook-appearance">
-      <header><button className="sf-quiet" data-testid="notebook-back" onClick={() => { if (returnPanel === 'studyforge.materials') navigation.restore(returnMaterial); ctx.layout.selectPanel(returnPanel); }}>← {returnPanel ? '返回' : '返回课堂'}</button><span>本子的样子</span></header>
-      <div className="sf-notebook-settings-body"><h1>这本本子的字迹</h1><p className="sf-note">只改变纸面，不改变本子里的内容。</p>
-        <label className="sf-notebook-check"><input type="checkbox" checked={state.enabled} onChange={event => update({ enabled: event.target.checked })} />使用手写笔记本</label>
+      {!embedded && <header><button className="sf-quiet" data-testid="notebook-back" onClick={() => { if (returnPanel === 'studyforge.materials') navigation.restore(returnMaterial); ctx.layout.selectPanel(returnPanel); }}>← {returnPanel ? '返回' : '返回课堂'}</button><span>字体与纸张</span></header>}
+      <div className="sf-notebook-settings-body"><h1>字体与纸张</h1>
+        <label className="sf-notebook-check"><input type="checkbox" data-testid="notebook-toggle" checked={state.enabled} onChange={event => update({ enabled: event.target.checked })} />使用手写笔记本</label>
         <label>主题<select data-testid="notebook-tone" value={state.tone} onChange={event => update({ tone: event.target.value as Appearance['tone'] })}><option value="yellow">黄色主题</option><option value="white">白色主题</option></select></label>
         <label>字迹<select data-testid="notebook-scheme" value={state.scheme} onChange={event => update({ scheme: event.target.value as Appearance['scheme'] })}>
           <option value="jia">甲 · 钢笔行楷</option><option value="yi">乙 · 毛笔楷书</option><option value="bing">丙 · 文楷</option><option value="ding">丁 · 老师用印刷体</option>
@@ -133,7 +124,7 @@ export function registerNotebook(ctx: Context, navigation: MaterialNavigation): 
       </div>
     </main>;
   }
-  ctx.effect(() => ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({ name: 'sidebar.footer.action', id: 'studyforge.notebook', order: 5 }, Footer)));
+  ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({ name: 'settings.section', id: 'studyforge.appearance', label: '字体与纸张', order: 30 }, () => <Settings embedded />)));
   ctx.effect(() => ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register({ name: 'sidebar.brand.mark', priority: -10 }, ({ size }: PropsRuntime<'sidebar.brand.mark'>) => <span className="sf-notebook-seal" style={{ width: size, height: size }} aria-hidden="true">学</span>)));
   ctx.effect(() => ctx.slots.inject('conversation.hero.brand.mark', () => ctx.slots.register({ name: 'conversation.hero.brand.mark', priority: -10 }, () => <span className="sf-notebook-welcome">今天想学什么？</span>)));
   ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: APPEARANCE, priority: 0 }, Settings)));

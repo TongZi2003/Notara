@@ -261,9 +261,7 @@ export function PlanEditor({ ctx, sessionId, target }: PlanEditorProps): React.J
 
   if (mode.kind === 'list') {
     return <section className="sf-plan-editor" data-testid="plan-editor">
-      <h3>计划</h3>
-      <p className="sf-note">计划排的是「哪天做什么」；排课在课程页。每一份计划各改各的，不会互相覆盖。</p>
-      {plans.length === 0 && <p className="sf-note" data-testid="plan-empty">还没有计划。</p>}
+      {plans.length === 0 && <p className="sf-note" data-testid="plan-empty">暂无复习安排</p>}
       <ul className="sf-plan-list sf-linear-tree" data-testid="plan-list">
         {plans.map(plan => <li key={plan.ref} className="sf-plan-row" data-testid="plan-row" data-plan-ref={plan.ref} data-plan-version={String(plan.version)}>
           <button type="button" className="sf-plan-open" data-testid="plan-row-open"
@@ -274,8 +272,8 @@ export function PlanEditor({ ctx, sessionId, target }: PlanEditorProps): React.J
         </li>)}
       </ul>
       <div className="sf-plan-editor-actions">
-        <button type="button" className="sf-action" data-testid="plan-create-campaign" disabled={busy} onClick={() => { void openCampaign(null); }}>排一份复习计划</button>
-        <button type="button" className="sf-quiet" data-testid="plan-refresh" onClick={() => { void loadList(); }}>重新读一下</button>
+        <button type="button" className="sf-action" data-testid="plan-create-campaign" disabled={busy} onClick={() => { void openCampaign(null); }}>安排复习</button>
+        {plans.length > 0 && <button type="button" className="sf-quiet" data-testid="plan-refresh" onClick={() => { void loadList(); }}>刷新</button>}
       </div>
       {notice !== '' && <p className="sf-notice" role="status" data-testid="plan-notice">{notice}</p>}
     </section>;

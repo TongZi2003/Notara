@@ -61,7 +61,7 @@ export function registerClassroom(ctx: Context): void {
     // A creation session is not a lesson: no lesson entry, no learning outputs.
     // Unknown compositions stay hidden rather than offering a refused panel.
     if (preset !== LEARNING_PRESET) return null;
-    return <button type="button" className="sf-lesson-entry" data-testid="open-lesson" onClick={() => { ctx.sidebarRight.openTab(LESSON_TAB_KIND); }}>本课资料</button>;
+    return <button type="button" className="sf-lesson-entry" data-testid="open-lesson" onClick={() => { ctx.sidebarRight.openTab(LESSON_TAB_KIND); }}>工作台</button>;
   }
   // One stable business face per plugin apply: the panel's effect depends on this
   // callback identity, so re-evaluating the inject factory must not refetch.
@@ -91,7 +91,7 @@ export function registerClassroom(ctx: Context): void {
       // the lesson doorway; creation sessions retain their native file seed.
       dispose = ctx.sidebarRightTabs.register({
         id: LESSON_TAB_ID, kind: LESSON_TAB_KIND, title: () => '工作台',
-        ...(next ? { guide: [{ order: -10, title: () => '本课工作台' }] } : {}),
+        ...(next ? { guide: [{ order: -10, title: () => '工作台' }] } : {}),
       });
     };
     sync();
