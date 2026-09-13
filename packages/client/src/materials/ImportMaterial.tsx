@@ -80,8 +80,12 @@ export function ImportMaterial({ pending, onFiles, pasteScope = 'page', active =
         <path d="M46 43v18m-9-9h18" />
       </svg>}
       <button type="button" className="sf-action" disabled={pending || !active} data-testid="material-pick"
+        aria-label={appearance === 'compact' ? pending ? '正在收下资料' : '导入资料' : undefined}
+        title={appearance === 'compact' ? pending ? '正在收下资料' : '导入资料' : undefined}
         onClick={() => { inputRef.current?.click(); }}>
-        {pending ? '正在收下…' : appearance === 'sheet' ? '选择文件' : <>{appearance === 'compact' && <span aria-hidden="true">＋ </span>}导入资料</>}
+        {appearance === 'compact' ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+          <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+        </svg> : pending ? '正在收下…' : appearance === 'sheet' ? '选择文件' : '导入资料'}
       </button>
       {appearance !== 'compact' && <p className="sf-note">{appearance === 'classroom' ? <>拖进来，也可以粘贴图片<br />收进资料库，放进这节课</> : appearance === 'sheet' ? '也可以拖到这里，或粘贴图片' : '拖进来，或粘贴一张图'}</p>}
     </div>

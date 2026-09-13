@@ -1,0 +1,13 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/classroom-import.spec.ts --output=.runtime/composer-paperclip-results
+
+
+Running 2 tests using 1 worker
+
+(node:63676) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/classroom-import.spec.ts:12:1 › conversation import saves directly, retries an uncertain reply once, and keeps the draft and original accessible (11.1s)
+  ✓  2 tests/e2e/classroom-import.spec.ts:63:1 › empty desk imports a dropped batch even when its first saved file replaces the empty state (11.2s)
+
+  2 passed (22.7s)
