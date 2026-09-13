@@ -91,7 +91,7 @@ export class BookExploration {
       nodes.push({
         key: sectionKey(node.path), kind: 'section', title: lastSegment(node.path), path: node.path,
         parentKey: parent === undefined ? BOOK_ROOT_KEY : sectionKey(parent),
-        children: [], sources: [...node.sources],
+        children: [], sources: [...node.sources], ...(node.detail ? { detail: node.detail } : {}),
       });
     }
 

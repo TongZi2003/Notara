@@ -61,10 +61,11 @@ console.log('Verified rc.2 native rename projection checkpoint');
 // Admission, request identity, attachments, cancellation and recovery stay native.
 const inputFile = join(project, 'node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js');
 const inputOriginal = '81314dfd95864f2522f8edb812e3f8e08b04a8ef2141913e6e8cbdaae1ffc37f';
-const inputPatched = 'a52d95fd35a71d1244fd34f3470cefbaf6414640c87ddc0442f2baeb1ee259f4';
+const inputPendingPatched = 'a52d95fd35a71d1244fd34f3470cefbaf6414640c87ddc0442f2baeb1ee259f4';
+const inputPatched = '8963925948b55e88e636018441dd43651649005710719cc7e2bfd9d500740229';
 const inputSource = readFileSync(inputFile, 'utf8');
 if (sha(inputSource) !== inputPatched) {
-  if (sha(inputSource) !== inputOriginal) throw new Error('Unknown DSH native input artifact');
+  if (![inputOriginal, inputPendingPatched].includes(sha(inputSource))) throw new Error('Unknown DSH native input artifact');
   let result = inputSource;
   for (const [before, after] of [
   [
@@ -90,6 +91,12 @@ if (sha(inputSource) !== inputPatched) {
   [
     "this.conversation().sendSession(session, text, attachmentIds, mode, signal)",
     "this.conversation().sendSession(session, text, attachmentIds, mode, signal, displayText)"
+  ],
+  // The declared ambient dock belongs to every real session, including its
+  // first unsent draft. No input or message lifecycle is changed here.
+  [
+    'variant === "composer" && input !== void 0 && sessionId !== void 0 ? renderSlot("conversation.composer.dock", {}) : null',
+    'input !== void 0 && sessionId !== void 0 ? renderSlot("conversation.composer.dock", {}) : null'
   ]
 ]) result = result.replace(before!, after!);
   if (sha(result) !== inputPatched) throw new Error('DSH native pending display patch digest mismatch');

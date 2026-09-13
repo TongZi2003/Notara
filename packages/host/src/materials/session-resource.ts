@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import { SessionId } from '@deepseek-ai/dsh-session';
 import type { HostContext } from '@studyforge/contracts';
 import { decodeSourceFragments } from '@studyforge/contracts/source-context';
+import { SourceUseSchema } from '@studyforge/contracts/content-history';
 import { projectCourse } from '@studyforge/domain/course-projection';
 import type { OutputProjection } from '@studyforge/domain/outputs';
 import { readLessonResources, type AcceptedMessageSources, type LessonResourcesProjection } from '@studyforge/domain/lesson-resources';
@@ -20,6 +21,11 @@ export async function sessionResources(host: Context, sessionId: string): Promis
   const messages: AcceptedMessageSources[] = [];
   try {
     for (const event of observation.events) {
+      if (event.type === 'tool/result' && !event.data.message.content.some(block => block.isError)) {
+        const item = SourceUseSchema.safeParse(event.data.meta);
+        if (item.success && item.data.use === 'cited') messages.push({ messageId: String(event.data.message.id), sources: item.data.sources,
+          ...(item.data.target?.startsWith('card:') && item.data.version ? { currentMaterial: { kind: 'card', cardRef: item.data.target, cardVersion: item.data.version } } : {}) });
+      }
       if (event.type !== 'user/message' || event.data.source.kind !== 'user') continue;
       const text = event.data.content.map(block => block.type === 'text' ? block.text : '').join('');
       for (const fragment of decodeSourceFragments(text).fragments) {

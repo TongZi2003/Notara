@@ -19,6 +19,7 @@ import { z } from 'zod';
 import { EntityRefSchema, SessionIdSchema, TimestampSchema } from './core.ts';
 import { DaySchema } from './reviews.ts';
 import { LessonMaterialsSchema } from './lesson-materials.ts';
+import { LearningContextSchema } from './courses.ts';
 
 /** A node's own declaration; every field is optional and inherits when absent. */
 export const RouteDeclSchema = z.object({
@@ -43,6 +44,7 @@ export const RouteOpeningSchema = z.object({
   materials: LessonMaterialsSchema,
   decl: RouteDeclSchema,
   at: TimestampSchema,
+  study: LearningContextSchema.optional(),
 }).strict();
 export type RouteOpening = z.infer<typeof RouteOpeningSchema>;
 
@@ -64,6 +66,7 @@ export const RouteNodeSchema = z.object({
   decl: RouteDeclSchema.optional(),
   opening: RouteOpeningSchema.optional(),
   session: RouteSessionBindingSchema.optional(),
+  study: LearningContextSchema.optional(),
 }).strict();
 export type RouteNode = z.infer<typeof RouteNodeSchema>;
 
@@ -130,6 +133,7 @@ export const RouteNodeInputSchema = z.object({
   materials: LessonMaterialsSchema.default({ materials: [] }),
   date: DaySchema.nullable().default(null),
   decl: RouteDeclSchema.default({}),
+  study: LearningContextSchema.optional(),
 }).strict();
 export type RouteNodeInput = z.infer<typeof RouteNodeInputSchema>;
 /**

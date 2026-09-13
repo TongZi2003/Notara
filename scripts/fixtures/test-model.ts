@@ -38,16 +38,18 @@ export function apply(ctx: Context, config: { logPath: string }): void {
       // Native send_message arrives as an agent-attributed message rather than
       // a student's message. Script the latest explicit child directive there.
       const childDirective = options.messages.findLast(message => message.role === 'user'
-        && message.content.some(block => block.type === 'text' && block.text.includes('[child-tool]')));
+        && message.content.some(block => block.type === 'text' && /\[child-tools?\]/.test(block.text)));
       const childText = childDirective?.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n') ?? '';
       const childTool = !studentText.startsWith('[tool') && childText.match(/\[child-tool\](\{[^\n]+\})/);
+      const childTools = !studentText.startsWith('[tool') && childText.match(/\[child-tools\](\[[^\n]+\])/);
       if (childTool) scripted = [JSON.parse(childTool[1]!) as { name: string; arguments: unknown }];
+      if (childTools) scripted = JSON.parse(childTools[1]!) as { name: string; arguments: unknown }[];
       if (studentText.includes('[structured-problem]') && options.tools?.some(tool => tool.name === 'structured_output')) scripted = [{ name: 'structured_output',
         arguments: { problems: [{ title: '独立命题样题', front: '求 $2+3$。', solution: '5', notes: '', tags: [] }] },
       }];
       const taskStep = task ? options.messages.slice(options.messages.lastIndexOf(user!) + 1)
         .flatMap(message => message.content).filter(block => block.type === 'tool-call').length
-        : childTool && childDirective ? options.messages.slice(options.messages.indexOf(childDirective) + 1)
+        : (childTool || childTools) && childDirective ? options.messages.slice(options.messages.indexOf(childDirective) + 1)
           .flatMap(message => message.content).filter(block => block.type === 'tool-call').length : attempt;
       let call = scripted[taskStep];
       // Explicit receipt scenario: after confirmation the teacher reads its

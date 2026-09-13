@@ -19,6 +19,7 @@ export function proposalExecutor(host: Context): ProposalExecutor {
           const validators = routeValidators(host, host.studyforgeTeachingCatalog.choices.map(choice => choice.id));
           await validators.materials(ctx, effect.content.materials);
           if (effect.content.decl.teachingRef) await validators.teachingRef(ctx, effect.content.decl.teachingRef);
+          if (effect.content.study) await validators.study?.(ctx, effect.content.study);
           if (effect.content.parent) host.studyforgeRouteService.node(host.studyforgeRouteService.read(ctx), effect.content.parent);
           return;
         }
@@ -110,6 +111,9 @@ async function applyEffect(host: Context, context: MutationContext, item: Propos
     }
     case 'route-add': {
       let content = item.effect.content;
+      const sourceProposal = host.studyforgeProposalService.read(context, item.proposalRef);
+      const original = sourceProposal.items.find(candidate => candidate.id === item.itemId)?.original.effect;
+      if (original?.kind !== 'route-add' || JSON.stringify(original.content.study ?? null) !== JSON.stringify(content.study ?? null)) throw new ProposalEffectRejected('route_diagnosis_fixed');
       if (item.effect.parentItem) {
         const parentItem = item.effect.parentItem;
         const proposal = host.studyforgeProposalService.read(context, item.proposalRef);

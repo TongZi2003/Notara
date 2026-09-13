@@ -1,0 +1,15 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/content-history.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/content-history.test.ts (2 tests) 29416ms
+   ✓ 100-page import, exact adopted pages, read coverage, pending refinement and old versions remain separate  22502ms
+   ✓ content scout can opt into this card activity without receiving another card or global learner memory  6914ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  18:12:24
+   Duration  29.60s (transform 38ms, setup 0ms, import 132ms, tests 29.42s, environment 0ms)

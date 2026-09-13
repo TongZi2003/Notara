@@ -1,0 +1,104 @@
+
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |unit| tests/unit/source-context-codec.test.ts (3 tests) 7ms
+ ✓ |unit| tests/unit/review-occurrence.test.ts (21 tests) 26ms
+ ✓ |unit| tests/unit/lesson-deck.test.ts (5 tests) 9ms
+ ✓ |unit| tests/unit/docx-index-v2.test.ts (16 tests) 45ms
+ ❯ |unit| tests/unit/mindmap-projection.test.ts (9 tests | 3 failed) 13ms
+   ✓ an unexpanded map shows only its roots, and expansion walks the real children 1ms
+   ✓ a node sits over its own leaves in the tree it is given 0ms
+   ✓ a collapsed book lays out only what is shown, however large its hidden subtree is 1ms
+   ✓ a forest lays each root beside the other 0ms
+   × a book structure becomes nodes that keep their own parents, kinds and positions 4ms
+   × a chapter count includes cards in its child sections, and empty chapters say so 5ms
+   × a lesson row is a book node only when the file really is a book, and cards stay their own nodes 1ms
+   ✓ lesson settings and closeout stay out of the material map 0ms
+   ✓ two immutable versions of one book are two trees, never one shared read 0ms
+ ✓ |unit| tests/unit/tool-disclosure.test.ts (4 tests) 10ms
+ ✓ |unit| tests/unit/tool-copy.test.ts (8 tests) 3ms
+ ✓ |unit| tests/unit/book-task.test.ts (3 tests) 5ms
+ ✓ |unit| tests/unit/evidence-binding.test.ts (7 tests) 10ms
+ ✓ |unit| tests/unit/lesson-pane-request.test.ts (1 test) 1ms
+ ✓ |unit| tests/unit/source-coverage.test.ts (2 tests) 1ms
+ ✓ |unit| tests/unit/contracts-v2.test.ts (14 tests) 49ms
+ ✓ |unit| tests/unit/lesson-card-version-projection.test.ts (1 test) 3ms
+ ✓ |unit| tests/unit/card-discovery.test.ts (5 tests) 7ms
+ ✓ |unit| tests/unit/plan-authoring-defaults.test.ts (5 tests) 95ms
+ ✓ |unit| tests/unit/tool-schema.test.ts (5 tests) 220ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |unit| tests/unit/mindmap-projection.test.ts > a book structure becomes nodes that keep their own parents, kinds and positions
+AssertionError: expected { key: 'section:函数/定义域', …(5) } to match object { kind: 'section', …(2) }
+(3 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "hint": "原文 · 1 张题卡",
++   "hint": "目录轮廓 · 第 1 行 · 1 张题卡",
+    "kind": "section",
+    "parent": "book",
+  }
+
+ ❯ tests/unit/mindmap-projection.test.ts:71:20
+     69|   expect(nodes.map(node => node.key)).toEqual(['book', 'section:函数/定义域…
+     70|   expect(nodes[0]).toMatchObject({ kind: 'book', hint: '书 · 1 张题卡', pa…
+     71|   expect(nodes[1]).toMatchObject({ kind: 'section', hint: '原文 · 1 张题卡'…
+       |                    ^
+     72|   expect(nodes[2]).toMatchObject({ kind: 'card', hint: '卡片', parent: '…
+     73| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |unit| tests/unit/mindmap-projection.test.ts > a chapter count includes cards in its child sections, and empty chapters say so
+AssertionError: expected '目录轮廓 · 1 张题卡' to be '章节 · 1 张题卡' // Object.is equality
+
+Expected: "章节 · 1 张题卡"
+Received: "目录轮廓 · 1 张题卡"
+
+ ❯ tests/unit/mindmap-projection.test.ts:77:135
+     75| test('a chapter count includes cards in its child sections, and empty …
+     76|   const nodes = structure().nodes;
+     77|   expect(bookHint({ key: 'section:函数', kind: 'section', path: '函数', ti…
+       |                                                                                                                                       ^
+     78|   expect(bookHint({ key: 'section:别处', kind: 'section', path: '别处', ti…
+     79| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |unit| tests/unit/mindmap-projection.test.ts > a lesson row is a book node only when the file really is a book, and cards stay their own nodes
+AssertionError: expected { …(6) } to match object { kind: 'section', …(2) }
+(3 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "hint": "原文 · 1 张题卡",
++   "hint": "目录轮廓 · 第 1 行 · 1 张题卡",
+    "kind": "section",
+    "parent": "row:material:material:m1@v1",
+  }
+
+ ❯ tests/unit/mindmap-projection.test.ts:101:19
+     99|   const open = lessonMindProjection({ rows: [rows[0]!], structures: ne…
+    100|   const section = open.nodes.find(node => node.key === 'row:material:m…
+    101|   expect(section).toMatchObject({ kind: 'section', hint: '原文 · 1 张题卡',…
+       |                   ^
+    102|   expect(open.nodes.find(node => node.key === 'row:material:material:m…
+    103|     .toEqual(['row:material:material:m1@v1/section:函数/定义域']);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed | 15 passed (16)
+      Tests  3 failed | 106 passed (109)
+   Start at  18:01:18
+   Duration  1.22s (transform 1.88s, setup 0ms, import 4.55s, tests 504ms, environment 1ms)

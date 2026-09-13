@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./content-history": { "types": "./lib/types/content-history.d.ts", "default": "./lib/types/content-history.js" },
     "./teaching": { "types": "./lib/types/teaching.d.ts", "default": "./lib/types/teaching.js" },
     "./changes": {
       "types": "./lib/types/changes.d.ts",

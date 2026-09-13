@@ -42,6 +42,7 @@ import type { SessionRequestId } from '@deepseek-ai/dsh-api-session-controller';
 import { encodeSourceFragment } from '@studyforge/contracts/source-context';
 import { validateLessonMaterials } from './materials/validate-lesson-materials.ts';
 import { studentContext } from './learning-service.ts';
+import { validateStudy } from './teaching/guided-learning.ts';
 
 /**
  * The Host's own first-release teaching configurations (CONTRACTS §8). Until
@@ -71,6 +72,7 @@ export function materialRefs(host: Context): MaterialRefs {
 export function routeValidators(host: Context, teachingConfigs: readonly string[] = HOST_TEACHING_CONFIGS): RouteValidators {
   return {
     materials: (ctx, materials) => validateLessonMaterials(host, ctx, materials),
+    study: async (ctx, study) => { validateStudy(host, ctx, study); },
     teachingRef: (_ctx, ref) => teachingConfigs.includes(ref) ? Promise.resolve() : Promise.reject(new RouteError('route_teaching_ref_missing', [ref])),
   };
 }

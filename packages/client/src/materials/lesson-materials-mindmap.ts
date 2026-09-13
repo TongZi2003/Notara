@@ -39,7 +39,7 @@ export function bookHint(node: BookNode, all?: readonly BookNode[]): string {
   const suffix = count === undefined ? '' : count ? ` · ${String(count)} 张题卡` : ' · 尚无题卡';
   switch (node.kind) {
     case 'book': return '书' + suffix;
-    case 'section': return (node.sources.length > 0 ? '原文' : '章节') + suffix;
+    case 'section': return (node.detail === 'refined' ? '已细化' : '目录轮廓') + (node.sources[0] ? ' · ' + positionLabel(node.sources[0].locator) : '') + suffix;
     case 'card': return '卡片';
     case 'knowledge': return '知识';
   }

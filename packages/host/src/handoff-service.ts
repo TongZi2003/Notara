@@ -265,6 +265,7 @@ export class StudyForgeHandoffs extends TypertRemoteService {
       await nativeOpen(this.ctx).open(ctx, {
         openingKey, title: handoff.title, materials: source.lessonMaterials,
         decl: { ...(source.teachingRef === undefined ? {} : { teachingRef: source.teachingRef }) },
+        ...(source.learningContext ? { study: source.learningContext } : {}),
       });
     }
     // Mechanical pin against the queue's current row: the same operation replays

@@ -68,14 +68,14 @@ test('a book structure becomes nodes that keep their own parents, kinds and posi
   const nodes = bookMindNodes(structure());
   expect(nodes.map(node => node.key)).toEqual(['book', 'section:函数/定义域', 'card:定义域卡片']);
   expect(nodes[0]).toMatchObject({ kind: 'book', hint: '书 · 1 张题卡', parent: undefined });
-  expect(nodes[1]).toMatchObject({ kind: 'section', hint: '原文 · 1 张题卡', parent: 'book' });
+  expect(nodes[1]).toMatchObject({ kind: 'section', hint: '目录轮廓 · 第 1 行 · 1 张题卡', parent: 'book' });
   expect(nodes[2]).toMatchObject({ kind: 'card', hint: '卡片', parent: 'section:函数/定义域' });
 });
 
 test('a chapter count includes cards in its child sections, and empty chapters say so', () => {
   const nodes = structure().nodes;
-  expect(bookHint({ key: 'section:函数', kind: 'section', path: '函数', title: '函数', children: ['section:函数/定义域'], sources: [] }, nodes)).toBe('章节 · 1 张题卡');
-  expect(bookHint({ key: 'section:别处', kind: 'section', path: '别处', title: '别处', children: [], sources: [] }, nodes)).toBe('章节 · 尚无题卡');
+  expect(bookHint({ key: 'section:函数', kind: 'section', path: '函数', title: '函数', children: ['section:函数/定义域'], sources: [] }, nodes)).toBe('目录轮廓 · 1 张题卡');
+  expect(bookHint({ key: 'section:别处', kind: 'section', path: '别处', title: '别处', children: [], sources: [] }, nodes)).toBe('目录轮廓 · 尚无题卡');
 });
 
 test('a lesson row is a book node only when the file really is a book, and cards stay their own nodes', () => {
@@ -98,7 +98,7 @@ test('a lesson row is a book node only when the file really is a book, and cards
   // An open book hangs its real sections under the row that opened it, keeping the row as the parent.
   const open = lessonMindProjection({ rows: [rows[0]!], structures: new Map([['m1@v1', structure()]]), mediaTypeOf: id => types.get(id) });
   const section = open.nodes.find(node => node.key === 'row:material:material:m1@v1/section:函数/定义域');
-  expect(section).toMatchObject({ kind: 'section', hint: '原文 · 1 张题卡', parent: 'row:material:material:m1@v1' });
+  expect(section).toMatchObject({ kind: 'section', hint: '目录轮廓 · 第 1 行 · 1 张题卡', parent: 'row:material:material:m1@v1' });
   expect(open.nodes.find(node => node.key === 'row:material:material:m1@v1')?.children)
     .toEqual(['row:material:material:m1@v1/section:函数/定义域']);
   // The card inside the book is the book's own node, with its own target.

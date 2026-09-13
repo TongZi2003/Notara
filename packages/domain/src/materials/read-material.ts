@@ -24,6 +24,22 @@ const MAX_RASTER_EDGE = 2400;
 const require = createRequire(import.meta.url);
 const fonts = new URL('./standard_fonts/', 'file://' + require.resolve('pdfjs-dist/package.json')).pathname;
 
+/** Structural extent only. Discovering pages/blocks is not a content read. */
+export async function materialExtent(resolver: MaterialResolver, ctx: HostContext, source: { materialId: string; versionId: string }): Promise<{ pageCount?: number; ranges: SourceAnchor[] }> {
+  const { version, absolutePath } = await resolver.resolve(ctx, source), bytes = await readFile(absolutePath);
+  if (version.mediaType === 'application/pdf') {
+    const loading = getDocument({ data: Uint8Array.from(bytes) });
+    try { return { pageCount: (await loading.promise).numPages, ranges: [] }; } finally { await loading.destroy(); }
+  }
+  if (version.mediaType.startsWith('image/')) return { ranges: [{ ...source, locator: { kind: 'image' } }] };
+  if (version.mediaType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    return { ranges: (await indexDocx(bytes)).blocks.filter(block => block.text.length > 0).map(block => ({ ...source,
+      locator: { kind: 'docx', part: block.part, blockId: block.blockId, start: 0, end: block.text.length } })) };
+  }
+  const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes), lines = text.split('\n');
+  return { ranges: text ? [{ ...source, locator: { kind: 'text', start: { line: 1, column: 0 }, end: { line: lines.length, column: lines.at(-1)!.length } } }] : [] };
+}
+
 /** Exact version reads; never OCR or guess text/coordinates for a missing layer. */
 export async function readMaterial(resolver: MaterialResolver, ctx: HostContext, sourceInput: MaterialContext): Promise<MaterialRead> {
   const source = MaterialContextSchema.parse(sourceInput);

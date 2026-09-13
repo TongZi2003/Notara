@@ -9,6 +9,7 @@
  * which owns whatever preview opens it.
  */
 import type { Context } from '@deepseek-ai/cordis';
+import { ContentHistory } from '../materials/ContentHistory.tsx';
 import type { CardView } from '@studyforge/contracts/cards';
 import type { CardChangeView } from '@studyforge/contracts/changes';
 import type { SourceAnchor } from '@studyforge/contracts/materials';
@@ -139,6 +140,7 @@ export function CardDetail({ ctx, target, sessionId, version, readonly, seed, on
       </ul>
     </section>
 
+    <ContentHistory ctx={ctx} query={{ target: view.ref, ...(version ? { version } : {}) }} onSource={onSource} />
     {content.sources.length > 0 && <section className="sf-card-sources">
       <h3>来源</h3>
       <ul data-testid="card-detail-sources">

@@ -11,6 +11,8 @@ import { existingProposal, proposeFromTool, proposalOutput } from './proposal-to
 import { toolSchema } from './tool-schema.ts';
 import { CoursePatchSchema, CourseViewSchema } from '@studyforge/contracts/courses';
 import { courseRecordRef } from '@studyforge/domain/courses';
+import { routeStudyContext } from '../teaching/guided-learning.ts';
+import { assertRefinedReads } from './source-use-tools.ts';
 
 /** Authoring is a proposal; reads and expansion never change plans or open lessons. */
 export function registerOrganizationTools(host: Context): void {
@@ -72,16 +74,17 @@ export function registerOrganizationTools(host: Context): void {
     return { title: '调整计划', items: [{ target: input.target, baseline: await observedVersion(host, execution, input.target), effect: { kind: 'plan-edit', patch: input.patch } }] };
   });
   const routeInput = z.discriminatedUnion('action', [
-    z.object({ action: z.literal('add'), nodes: z.array(RouteNodeInputSchema.extend({
+    z.object({ action: z.literal('add'), nodes: z.array(RouteNodeInputSchema.omit({ study: true }).extend({
       parentIndex: z.number().int().nonnegative().optional().describe('本批前面节点的下标，从0开始；有此字段时parent留空'),
     }).strict()).min(1) }).strict(),
     z.object({ action: z.literal('edit'), nodeId: z.string().min(1), patch: RouteNodePatchSchema }).strict(),
   ]);
   proposal('propose_route', '提议计划课程：可以无材料或带混合材料，学生确认后仍未开课。先read_route看清现有节点与真实已开课绑定。action=add时每个节点的parent写read_route里已存在的节点标识，新起一支或没有可挂节点时写parent:null；要把本批前面刚加的新节点当父，就改用它在本次数组里的下标parentIndex（从0开始），此时parent必须为null。action=edit用节点标识nodeId加patch。', routeInput, async (args, execution) => {
     const input = routeInput.parse(args);
+    const study = routeStudyContext(host, await teacherContext(host, execution));
     if (input.action === 'add') return { title: '接下来的课程', items: input.nodes.map(({ parentIndex, ...content }, index) => {
       if (parentIndex !== undefined && (parentIndex >= index || content.parent !== null)) throw new Error('同批父节点必须在本节点前面，不能同时指定已有parent。');
-      return { target: null, baseline: null, effect: { kind: 'route-add' as const, content,
+      return { target: null, baseline: null, effect: { kind: 'route-add' as const, content: { ...content, ...(study ? { study } : {}) },
         ...(parentIndex === undefined ? {} : { parentItem: `item-${parentIndex + 1}` }) } };
     }) };
     return { title: '调整课程', items: [{ target: 'route:tree', baseline: await observedVersion(host, execution, 'route:tree'), effect: { kind: 'route-edit', nodeId: input.nodeId, patch: input.patch } }] };
@@ -89,6 +92,7 @@ export function registerOrganizationTools(host: Context): void {
   const skeletonInput = z.object({ materialId: z.string().min(1), change: SkeletonChangeSchema }).strict();
   proposal('propose_skeleton', '提议增补目录或明确改径；未列出的兄弟章节保留。删除有依赖时先向学生说明影响，明确选择解除绑定才可保存。', skeletonInput, async (args, execution) => {
     const input = skeletonInput.parse(args), target = 'skeleton:' + input.materialId;
+    await assertRefinedReads(host, execution, input.change.nodes.filter(node => node.detail === 'refined').flatMap(node => node.sources));
     return { title: '整理目录', items: [{ target, baseline: await observedVersion(host, execution, target), effect: { kind: 'skeleton-save', ...input } }] };
   });
 }

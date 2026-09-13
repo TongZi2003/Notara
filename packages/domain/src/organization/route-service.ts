@@ -54,6 +54,7 @@ import { RouteNativeLessonSchema, RouteNodeInputSchema, RouteNodePatchSchema, Ro
 import type { HostContext, LessonMaterials, MutationContext } from '@studyforge/contracts';
 import type { RouteNativeLesson, RouteDecl, RouteLayout, RouteNode, RouteNodePatch, RouteOpening, RoutePlacementEntry, RoutePosition, RouteRecord, RouteSessionBinding, RouteView } from '@studyforge/contracts/routes';
 import type { Clock } from '../clock.ts';
+import type { LearningContext } from '@studyforge/contracts/courses';
 import { RecordError, type Saved } from '../storage/record-store.ts';
 
 /** The record kind the course axis lives under, and the single row inside it. */
@@ -77,6 +78,7 @@ export interface RouteRecordStore {
 export interface RouteValidators {
   materials(ctx: HostContext, materials: LessonMaterials): Promise<void>;
   teachingRef(ctx: HostContext, ref: string): Promise<void>;
+  study?(ctx: HostContext, context: LearningContext): Promise<void>;
 }
 
 /**
@@ -92,6 +94,7 @@ export interface NativeOpen {
     readonly title: string;
     readonly materials: LessonMaterials;
     readonly decl: RouteDecl;
+    readonly study?: LearningContext;
   }): Promise<{ readonly sessionId: string; readonly openedAt: string }>;
 }
 
@@ -195,12 +198,14 @@ export class RouteService {
     MutationContextSchema.parse(ctx);
     const parsed = RouteNodeInputSchema.parse(input);
     await this.validate(ctx, parsed.materials, parsed.decl);
+    if (parsed.study) await this.validators.study?.(ctx, parsed.study);
     const id = this.createdNodeId(ctx);
     const node: RouteNode = {
       id, title: parsed.title, materials: parsed.materials,
       ...(parsed.parent === null ? {} : { parent: parsed.parent }),
       ...(parsed.date === null ? {} : { date: parsed.date }),
       ...(Object.keys(parsed.decl).length === 0 ? {} : { decl: parsed.decl }),
+      ...(parsed.study ? { study: parsed.study } : {}),
     };
     // The node id is a pure function of the accepted operation, so a retry must
     // be answered by the store's own operation replay — never by a shortcut that
@@ -318,9 +323,11 @@ export class RouteService {
       const frozen = await this.records.updateCurrent(subContext(ctx, 'opening'), ROUTE_REF, { opening: nodeId }, row => {
         const at = findNode(row.nodes, nodeId);
         if (at.session !== undefined || at.opening !== undefined) return row;
+        const study = studyOf(row.nodes, nodeId);
         const snapshot = RouteOpeningSchema.parse({
           key: this.openingKeyOf(nodeId), title: at.title, materials: at.materials,
           decl: declOf(row.nodes, nodeId), at: this.clock.now(),
+          ...(study ? { study } : {}),
         });
         return { ...row, nodes: row.nodes.map(item => item.id === nodeId ? withOpening(item, snapshot) : item) };
       });
@@ -332,6 +339,7 @@ export class RouteService {
     if (opening === undefined) throw new RouteError('route_opening_missing', [nodeId]);
     const opened = await this.native.open(ctx, {
       openingKey: opening.key, title: opening.title, materials: opening.materials, decl: opening.decl,
+      ...(opening.study ? { study: { ...opening.study, nodeId } } : {}),
     });
     // The binding keeps the lesson's own real time, so a retry after a crash
     // records when the lesson really started, not when the retry ran.
@@ -611,6 +619,7 @@ function buildNode(node: RouteNode, patch: {
   if (decl !== undefined) next['decl'] = decl;
   if (opening !== undefined) next['opening'] = opening;
   if (session !== undefined) next['session'] = session;
+  if (node.study !== undefined) next['study'] = node.study;
   return RouteNodeSchema.parse(next);
 }
 
@@ -624,6 +633,17 @@ function subContext(ctx: MutationContext, suffix: string): Omit<MutationContext,
   const parsed = MutationContextSchema.parse({ ...rest, operationId: `${ctx.operationId}:${suffix}` });
   const { expectedVersion: _none, ...without } = parsed;
   return without;
+}
+
+export function studyOf(nodes: readonly RouteNode[], nodeId: string): LearningContext | undefined {
+  const seen = new Set<string>();
+  let node = nodes.find(item => item.id === nodeId);
+  while (node && !seen.has(node.id)) {
+    if (node.study) return node.study;
+    seen.add(node.id);
+    node = nodes.find(item => item.id === node!.parent);
+  }
+  return undefined;
 }
 
 function codeOf(error: unknown): string | undefined {

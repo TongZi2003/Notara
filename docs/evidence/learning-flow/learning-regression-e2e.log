@@ -1,0 +1,15 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/conversation-home.spec.ts tests/e2e/content-history.spec.ts tests/e2e/book-workspace.spec.ts tests/e2e/lesson-materials-mindmap.spec.ts
+
+
+Running 4 tests using 1 worker
+
+(node:20863) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/book-workspace.spec.ts:24:1 › book expands along its real tree, opens a card and its original in place, and returns without writing (12.1s)
+  ✓  2 tests/e2e/content-history.spec.ts:9:1 › book coverage and classroom back-links use saved ranges and actual native turns (10.9s)
+  ✓  3 tests/e2e/conversation-home.spec.ts:3:1 › native home centers its first input, preserves draft and hides recommendations only after acceptance (11.1s)
+  ✓  4 tests/e2e/lesson-materials-mindmap.spec.ts:23:1 › the lesson right column is one material map that opens originals and cards in place (11.7s)
+
+  4 passed (46.8s)

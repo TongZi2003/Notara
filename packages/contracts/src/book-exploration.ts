@@ -31,7 +31,7 @@ export const BookNodeBaseSchema = z.object({
 
 export const BookNodeSchema = z.discriminatedUnion('kind', [
   BookNodeBaseSchema.extend({ kind: z.literal('book') }).strict(),
-  BookNodeBaseSchema.extend({ kind: z.literal('section'), path: SkeletonPathSchema }).strict(),
+  BookNodeBaseSchema.extend({ kind: z.literal('section'), path: SkeletonPathSchema, detail: z.enum(['outline', 'refined']).optional() }).strict(),
   BookNodeBaseSchema.extend({ kind: z.literal('card'), target: EntityRefSchema }).strict(),
   /** `via` 是这条知识真正关联的那张在书卡：关系和身份都留着，不复制成第二张卡。 */
   BookNodeBaseSchema.extend({ kind: z.literal('knowledge'), target: EntityRefSchema, via: EntityRefSchema }).strict(),

@@ -16,10 +16,10 @@ const loadOutput = z.object({ loaded: z.array(z.string()), available: z.literal(
 
 /** These are headings only, never permissions or a second parameter contract. */
 const groups: readonly [string, readonly string[]][] = [
-  ['资料与卡片', ['list_materials', 'read_material', 'preview_region', 'search_learning', 'list_cards', 'read_card', 'read_cards', 'propose_card', 'update_card', 'register_cards']],
+  ['资料与卡片', ['list_materials', 'read_material', 'preview_region', 'search_learning', 'read_content', 'cite_materials', 'list_cards', 'read_card', 'read_cards', 'propose_card', 'update_card', 'register_cards']],
   ['知识与方法', ['read_method', 'note_method', 'revise_method']],
   ['学情与学习记录', ['search_memory', 'read_memory', 'note_memory', 'revise_memory', 'query_evidence', 'propose_review', 'record_review']],
-  ['课程与计划', ['list_sets', 'read_set', 'propose_set', 'list_plans', 'read_plan', 'propose_plan', 'read_route', 'propose_route', 'read_skeleton', 'propose_skeleton', 'read_lesson', 'propose_lesson_settings', 'read_handoff', 'propose_handoff']],
+  ['课程与计划', ['note_learning_goal', 'list_sets', 'read_set', 'propose_set', 'list_plans', 'read_plan', 'propose_plan', 'read_route', 'propose_route', 'read_skeleton', 'propose_skeleton', 'read_lesson', 'propose_lesson_settings', 'read_handoff', 'propose_handoff']],
   ['委派与协作', ['delegate_search', 'delegate_assistant', 'delegate_peer', 'delegate_problem', 'subagent', 'send_message', 'interrupt_agent']],
   ['其他阅读能力', ['read', 'read_image', 'glob', 'grep', 'web_search', 'web_fetch', 'skill']],
 ];

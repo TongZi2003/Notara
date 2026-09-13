@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { CourseClosureSchema, CoursePatchSchema, type CourseClosure, type CourseMetadataData, type CourseMetadataSchema, type CourseView, type HostContext, type MutationContext } from '@studyforge/contracts';
 import type { HandoffPin } from '@studyforge/contracts/handoffs';
+import { LearningContextSchema, type LearningContext } from '@studyforge/contracts/courses';
 import { RecordError, type PreparedRecordChange, type RecordStore, type Saved } from '../storage/record-store.ts';
 
 /** The row a lesson has before anything teaching-specific was written for it. */
@@ -44,6 +45,10 @@ export class CourseMetadata {
     }
   }
 
+  list(ctx: HostContext): CourseView[] {
+    return this.records.list(ctx).map(row => ({ version: row.version, data: row.data }));
+  }
+
   /** The one row this lesson's teaching additions live in; absent means never written. */
   private optional(ctx: HostContext): Saved<CourseMetadataData> | undefined {
     try { return this.records.read(ctx, 'course:' + this.id(ctx)); }
@@ -59,6 +64,8 @@ export class CourseMetadata {
       ...(parsed.teachingRef === undefined ? {} : { teachingRef: parsed.teachingRef }),
       ...(parsed.temporaryInstructions === undefined ? {} : { temporaryInstructions: parsed.temporaryInstructions }),
       ...(parsed.stance === undefined ? {} : { stance: parsed.stance }),
+      ...(parsed.guided === undefined ? {} : { guided: parsed.guided }),
+      ...(parsed.learningGoal === undefined ? {} : { learningGoal: parsed.learningGoal }),
     }));
   }
   /** Called by the confirmed close writer in P7; navigation never calls it. */
@@ -135,6 +142,20 @@ export class CourseMetadata {
         if (current.sessionId !== sessionId) throw new RecordError('course_binding_mismatch');
         return { ...held(current), continuation: pin };
       });
+    return { version: saved.version, data: saved.data };
+  }
+
+  /** Opening freezes the route's diagnosis without pretending it is the preceding lesson. */
+  async pinLearningContext(ctx: Omit<MutationContext, 'expectedVersion'>, input: LearningContext): Promise<CourseView> {
+    const pin = LearningContextSchema.parse(input), sessionId = this.session(ctx), id = this.id(ctx);
+    const apply = (current: CourseMetadataData): CourseMetadataData => {
+      if (current.learningContext && JSON.stringify(current.learningContext) !== JSON.stringify(pin)) throw new RecordError('learning_context_fixed');
+      return { ...current, learningContext: pin };
+    };
+    const current = this.optional(ctx);
+    const saved = current === undefined
+      ? await this.records.create({ ...ctx, operationId: ctx.operationId + ':study-row' }, id, apply(initialMetadata(sessionId)))
+      : await this.records.updateCurrent({ ...ctx, operationId: ctx.operationId + ':study' }, 'course:' + id, pin, apply);
     return { version: saved.version, data: saved.data };
   }
   private async change(ctx: MutationContext, input: unknown, transform: (data: CourseMetadataData) => CourseMetadataData): Promise<CourseView> {

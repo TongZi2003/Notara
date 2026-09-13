@@ -14,6 +14,7 @@ import { MaterialRecordSchema } from '@studyforge/contracts/material-records';
 import { MaterialService } from '@studyforge/domain/materials';
 import { StudyForgeMaterials } from './materials/resource-service.ts';
 import { registerMaterialTools } from './tools/material-tools.ts';
+import { registerSourceUseTools } from './tools/source-use-tools.ts';
 import { SkeletonRecordSchema } from '@studyforge/contracts/skeleton';
 import { SkeletonService } from '@studyforge/domain/skeleton';
 import { StudyForgeSources } from './source-service.ts';
@@ -191,6 +192,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ctx.plugin(StudyForgeProposals);
     ctx.effect(() => ctx.reflect.provide('studyforgeOutputReader', (context: HostContext) => lessonOutputs(ctx, context)));
     registerMaterialTools(ctx);
+    registerSourceUseTools(ctx);
     registerSearchTools(ctx);
     registerCardTools(ctx);
     registerKnowledgeTools(ctx);

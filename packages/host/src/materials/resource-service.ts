@@ -15,6 +15,8 @@ import { indexDocx, type DocxIndex } from '@studyforge/domain/docx';
 import type { SkeletonService } from '@studyforge/domain/skeleton';
 import type { SkeletonView } from '@studyforge/contracts/skeleton';
 import { sessionResources } from './session-resource.ts';
+import { contentHistory } from './content-history.ts';
+import type { ContentHistory, ContentHistoryQuery } from '@studyforge/contracts/content-history';
 import type { LessonResourcesProjection } from '@studyforge/domain/lesson-resources';
 import { searchLearning } from '../tools/search-tools.ts';
 import type { LearningSearchInput, LearningSearchResult } from '@studyforge/contracts/learning-search';
@@ -29,6 +31,8 @@ export class StudyForgeMaterials extends TypertRemoteService {
   }
   @Remote('list')
   async list(): Promise<MaterialView[]> { return this.ctx.studyforgeMaterialService.list(this.context()); }
+  @Remote('contentHistory')
+  async contentHistory(input: ContentHistoryQuery): Promise<ContentHistory> { return contentHistory(this.ctx, this.context(), input); }
   @Remote('lessonResources')
   async lessonResources(input: { sessionId: string }): Promise<LessonResourcesProjection> { return sessionResources(this.ctx, input.sessionId); }
   @Remote('search')

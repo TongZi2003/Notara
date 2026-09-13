@@ -1,0 +1,890 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/guided-learning.test.ts tests/integration/content-history.test.ts tests/integration/native-delegation.test.ts tests/integration/native-route-binding.test.ts tests/integration/mixed-route.test.ts tests/integration/skeleton.test.ts tests/integration/close-handoff-v2.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/native-route-binding.test.ts (3 tests) 24597ms
+   ✓ routeLessons reads the workspace lessons without writing; bindNativeLesson binds one exactly once  12331ms
+   ✓ a nested registered workspace inside the acting workspace is foreign, not adopted  6183ms
+   ✓ a lesson of an unrelated workspace is refused and never becomes a lesson  6082ms
+ ✓ |integration| tests/integration/native-delegation.test.ts (5 tests) 33838ms
+   ✓ a real lesson delegates to native helpers that never receive its conversation  7401ms
+   ✓ the real native search child can read its fixed material through the product access boundary  6625ms
+   ✓ structured output from a native problem child is registered once as the same ordinary unlearned card  6215ms
+   ✓ a prose-only problem child is refused by the Host and registers no card  6269ms
+   ✓ a progressively loaded background search can be followed up and stopped, while its child cannot load teacher tools  7327ms
+ ✓ |integration| tests/integration/guided-learning.test.ts (2 tests) 20219ms
+   ✓ a confirmed diagnosis binds a route, opens once and survives restart without another learning ledger  13720ms
+   ✓ a free lesson can still plan directly and cannot forge a diagnosis binding  6498ms
+ ✓ |integration| tests/integration/content-history.test.ts (2 tests) 30203ms
+   ✓ 100-page import, exact adopted pages, read coverage, pending refinement and old versions remain separate  23115ms
+   ✓ content scout can opt into this card activity without receiving another card or global learner memory  7087ms
+ ❯ |integration| tests/integration/mixed-route.test.ts (18 tests | 5 failed) 686ms
+   ✓ a planned node may carry ordered mixed materials, or none at all 45ms
+   ✓ a route never stores a reference the workspace does not really hold 18ms
+   ✓ a declaration inherits from the nearest ancestor, and an edit freezes what it does not touch 63ms
+   ✓ an edge refuses an unknown parent and a cycle, and detaching is legal 52ms
+   ✓ replaying one plan operation answers the version it wrote and never fakes a changed input 32ms
+   ✓ edits are controlled per node, not by the whole-tree revision 61ms
+   ✓ two simultaneous moves that would close a cycle cannot both persist 49ms
+   ✓ the student's own layout is a narrow merge that a node edit never loses 71ms
+   × opening a planned node asks the Host once and keeps the lesson it got 21ms
+   × an unresolved opening locks its own content edit but not a sibling, and the binding still lands 33ms
+   × two nodes open concurrently, each keeping its own lesson 45ms
+   × a crash after the native lesson is created reuses the frozen opening 29ms
+   ✓ the route survives a restart and stays inside its workspace 39ms
+   ✓ an existing native lesson binds onto the same axis from its own header, once 33ms
+   × binding never invents a lesson and never duplicates a planned binding 22ms
+   ✓ binding is stable under two simultaneous operations for one lesson 18ms
+   ✓ an unreadable native lesson fact fails the read instead of defaulting to an empty lesson 9ms
+   ✓ a first bind inherits the native lineage, and never re-parents an already bound node 44ms
+ ✓ |integration| tests/integration/close-handoff-v2.test.ts (7 tests) 410ms
+ ✓ |integration| tests/integration/skeleton.test.ts (10 tests) 650ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |integration| tests/integration/mixed-route.test.ts > opening a planned node asks the Host once and keeps the lesson it got
+ FAIL  |integration| tests/integration/mixed-route.test.ts > binding never invents a lesson and never duplicates a planned binding
+ZodError: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [],
+          "message": "Invalid input: expected string, received object"
+        }
+      ],
+      [
+        {
+          "expected": "number",
+          "code": "invalid_type",
+          "path": [],
+          "message": "Invalid input: expected number, received object"
+        }
+      ],
+      [
+        {
+          "expected": "boolean",
+          "code": "invalid_type",
+          "path": [],
+          "message": "Invalid input: expected boolean, received object"
+        }
+      ],
+      [
+        {
+          "expected": "null",
+          "code": "invalid_type",
+          "path": [],
+          "message": "Invalid input: expected null, received object"
+        }
+      ],
+      [
+        {
+          "expected": "array",
+          "code": "invalid_type",
+          "path": [],
+          "message": "Invalid input: expected array, received object"
+        }
+      ],
+      [
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received array"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received array"
+              }
+            ],
+            [
+              {
+                "expected": "boolean",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected boolean, received array"
+              }
+            ],
+            [
+              {
+                "expected": "null",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected null, received array"
+              }
+            ],
+            [
+              {
+                "code": "invalid_union",
+                "errors": [
+                  [
+                    {
+                      "expected": "string",
+                      "code": "invalid_type",
+                      "path": [],
+                      "message": "Invalid input: expected string, received object"
+                    }
+                  ],
+                  [
+                    {
+                      "expected": "number",
+                      "code": "invalid_type",
+                      "path": [],
+                      "message": "Invalid input: expected number, received object"
+                    }
+                  ],
+                  [
+                    {
+                      "expected": "boolean",
+                      "code": "invalid_type",
+                      "path": [],
+                      "message": "Invalid input: expected boolean, received object"
+                    }
+                  ],
+                  [
+                    {
+                      "expected": "null",
+                      "code": "invalid_type",
+                      "path": [],
+                      "message": "Invalid input: expected null, received object"
+                    }
+                  ],
+                  [
+                    {
+                      "expected": "array",
+                      "code": "invalid_type",
+                      "path": [],
+                      "message": "Invalid input: expected array, received object"
+                    }
+                  ],
+                  [
+                    {
+                      "code": "invalid_union",
+                      "errors": [
+                        [
+                          {
+                            "expected": "string",
+                            "code": "invalid_type",
+                            "path": [],
+                            "message": "Invalid input: expected string, received object"
+                          }
+                        ],
+                        [
+                          {
+                            "expected": "number",
+                            "code": "invalid_type",
+                            "path": [],
+                            "message": "Invalid input: expected number, received object"
+                          }
+                        ],
+                        [
+                          {
+                            "expected": "boolean",
+                            "code": "invalid_type",
+                            "path": [],
+                            "message": "Invalid input: expected boolean, received object"
+                          }
+                        ],
+                        [
+                          {
+                            "expected": "null",
+                            "code": "invalid_type",
+                            "path": [],
+                            "message": "Invalid input: expected null, received object"
+                          }
+                        ],
+                        [
+                          {
+                            "expected": "array",
+                            "code": "invalid_type",
+                            "path": [],
+                            "message": "Invalid input: expected array, received object"
+                          }
+                        ],
+                        [
+                          {
+                            "code": "invalid_union",
+                            "errors": [
+                              [
+                                {
+                                  "expected": "string",
+                                  "code": "invalid_type",
+                                  "path": [],
+                                  "message": "Invalid input: expected string, received undefined"
+                                }
+                              ],
+                              [
+                                {
+                                  "expected": "number",
+                                  "code": "invalid_type",
+                                  "path": [],
+                                  "message": "Invalid input: expected number, received undefined"
+                                }
+                              ],
+                              [
+                                {
+                                  "expected": "boolean",
+                                  "code": "invalid_type",
+                                  "path": [],
+                                  "message": "Invalid input: expected boolean, received undefined"
+                                }
+                              ],
+                              [
+                                {
+                                  "expected": "null",
+                                  "code": "invalid_type",
+                                  "path": [],
+                                  "message": "Invalid input: expected null, received undefined"
+                                }
+                              ],
+                              [
+                                {
+                                  "expected": "array",
+                                  "code": "invalid_type",
+                                  "path": [],
+                                  "message": "Invalid input: expected array, received undefined"
+                                }
+                              ],
+                              [
+                                {
+                                  "expected": "record",
+                                  "code": "invalid_type",
+                                  "path": [],
+                                  "message": "Invalid input: expected record, received undefined"
+                                }
+                              ]
+                            ],
+                            "path": [
+                              "study"
+                            ],
+                            "message": "Invalid input"
+                          }
+                        ]
+                      ],
+                      "path": [
+                        "opening"
+                      ],
+                      "message": "Invalid input"
+                    }
+                  ]
+                ],
+                "path": [
+                  0
+                ],
+                "message": "Invalid input"
+              }
+            ],
+            [
+              {
+                "expected": "record",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected record, received array"
+              }
+            ]
+          ],
+          "path": [
+            "nodes"
+          ],
+          "message": "Invalid input"
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+ ❯ RecordStore.prepareRow packages/domain/lib/types/storage/record-store.js:224:44
+    222|             throw new RecordError('version_conflict');
+    223|         const data = this.content.parse(transform(current.data));
+    224|         const changed = canonical(z.json().parse(data)) !== canonical(…
+       |                                            ^
+    225|         const revision = current.version + (changed ? 1 : 0);
+    226|         if (changed)
+ ❯ packages/domain/lib/types/storage/record-store.js:196:33
+ ❯ packages/host/src/storage.ts:79:37
+ ❯ node_modules/@deepseek-ai/dsh-storage-domain/lib/index.js:281:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  |integration| tests/integration/mixed-route.test.ts > an unresolved opening locks its own content edit but not a sibling, and the binding still lands
+ FAIL  |integration| tests/integration/mixed-route.test.ts > two nodes open concurrently, each keeping its own lesson
+ZodError: [
+  {
+    "code": "invalid_union",
+    "errors": [
+      [
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [],
+          "message": "Invalid input: expected string, received object"
+        }
+      ],
+      [
+        {
+          "expected": "number",
+          "code": "invalid_type",
+          "path": [],
+          "message": "Invalid input: expected number, received object"
+        }
+      ],
+      [
+        {
+          "expected": "boolean",
+          "code": "invalid_type",
+          "path": [],
+          "message": "Invalid input: expected boolean, received object"
+        }
+      ],
+      [
+        {
+          "expected": "null",
+          "code": "invalid_type",
+          "path": [],
+          "message": "Invalid input: expected null, received object"
+        }
+      ],
+      [
+        {
+          "expected": "array",
+          "code": "invalid_type",
+          "path": [],
+          "message": "Invalid input: expected array, received object"
+        }
+      ],
+      [
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "string",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected string, received array"
+              }
+            ],
+            [
+              {
+                "expected": "number",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected number, received array"
+              }
+            ],
+            [
+              {
+                "expected": "boolean",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected boolean, received array"
+              }
+            ],
+            [
+              {
+                "expected": "null",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected null, received array"
+              }
+            ],
+            [
+              {
+                "code": "invalid_union",
+                "errors": [
+                  [
+                    {
+                      "expected": "string",
+                      "code": "invalid_type",
+                      "path": [],
+                      "message": "Invalid input: expected string, received object"
+                    }
+                  ],
+                  [
+                    {
+                      "expected": "number",
+                      "code": "invalid_type",
+                      "path": [],
+                      "message": "Invalid input: expected number, received object"
+                    }
+                  ],
+                  [
+                    {
+                      "expected": "boolean",
+                      "code": "invalid_type",
+                      "path": [],
+                      "message": "Invalid input: expected boolean, received object"
+                    }
+                  ],
+                  [
+                    {
+                      "expected": "null",
+                      "code": "invalid_type",
+                      "path": [],
+                      "message": "Invalid input: expected null, received object"
+                    }
+                  ],
+                  [
+                    {
+                      "expected": "array",
+                      "code": "invalid_type",
+                      "path": [],
+                      "message": "Invalid input: expected array, received object"
+                    }
+                  ],
+                  [
+                    {
+                      "code": "invalid_union",
+                      "errors": [
+                        [
+                          {
+                            "expected": "string",
+                            "code": "invalid_type",
+                            "path": [],
+                            "message": "Invalid input: expected string, received object"
+                          }
+                        ],
+                        [
+                          {
+                            "expected": "number",
+                            "code": "invalid_type",
+                            "path": [],
+                            "message": "Invalid input: expected number, received object"
+                          }
+                        ],
+                        [
+                          {
+                            "expected": "boolean",
+                            "code": "invalid_type",
+                            "path": [],
+                            "message": "Invalid input: expected boolean, received object"
+                          }
+                        ],
+                        [
+                          {
+                            "expected": "null",
+                            "code": "invalid_type",
+                            "path": [],
+                            "message": "Invalid input: expected null, received object"
+                          }
+                        ],
+                        [
+                          {
+                            "expected": "array",
+                            "code": "invalid_type",
+                            "path": [],
+                            "message": "Invalid input: expected array, received object"
+                          }
+                        ],
+                        [
+                          {
+                            "code": "invalid_union",
+                            "errors": [
+                              [
+                                {
+                                  "expected": "string",
+                                  "code": "invalid_type",
+                                  "path": [],
+                                  "message": "Invalid input: expected string, received undefined"
+                                }
+                              ],
+                              [
+                                {
+                                  "expected": "number",
+                                  "code": "invalid_type",
+                                  "path": [],
+                                  "message": "Invalid input: expected number, received undefined"
+                                }
+                              ],
+                              [
+                                {
+                                  "expected": "boolean",
+                                  "code": "invalid_type",
+                                  "path": [],
+                                  "message": "Invalid input: expected boolean, received undefined"
+                                }
+                              ],
+                              [
+                                {
+                                  "expected": "null",
+                                  "code": "invalid_type",
+                                  "path": [],
+                                  "message": "Invalid input: expected null, received undefined"
+                                }
+                              ],
+                              [
+                                {
+                                  "expected": "array",
+                                  "code": "invalid_type",
+                                  "path": [],
+                                  "message": "Invalid input: expected array, received undefined"
+                                }
+                              ],
+                              [
+                                {
+                                  "expected": "record",
+                                  "code": "invalid_type",
+                                  "path": [],
+                                  "message": "Invalid input: expected record, received undefined"
+                                }
+                              ]
+                            ],
+                            "path": [
+                              "study"
+                            ],
+                            "message": "Invalid input"
+                          }
+                        ]
+                      ],
+                      "path": [
+                        "opening"
+                      ],
+                      "message": "Invalid input"
+                    }
+                  ]
+                ],
+                "path": [
+                  1
+                ],
+                "message": "Invalid input"
+              }
+            ],
+            [
+              {
+                "expected": "record",
+                "code": "invalid_type",
+                "path": [],
+                "message": "Invalid input: expected record, received array"
+              }
+            ]
+          ],
+          "path": [
+            "nodes"
+          ],
+          "message": "Invalid input"
+        }
+      ]
+    ],
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+ ❯ RecordStore.prepareRow packages/domain/lib/types/storage/record-store.js:224:44
+    222|             throw new RecordError('version_conflict');
+    223|         const data = this.content.parse(transform(current.data));
+    224|         const changed = canonical(z.json().parse(data)) !== canonical(…
+       |                                            ^
+    225|         const revision = current.version + (changed ? 1 : 0);
+    226|         if (changed)
+ ❯ packages/domain/lib/types/storage/record-store.js:196:33
+ ❯ packages/host/src/storage.ts:79:37
+ ❯ node_modules/@deepseek-ai/dsh-storage-domain/lib/index.js:281:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  |integration| tests/integration/mixed-route.test.ts > a crash after the native lesson is created reuses the frozen opening
+AssertionError: expected ZodError: [
+  {
+    "code": "invalid_unio… { …(2) } to match object { code: 'host_died' }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+- {
+-   "code": "host_died",
++ ZodError {
++   "message": "[
++   {
++     \"code\": \"invalid_union\",
++     \"errors\": [
++       [
++         {
++           \"expected\": \"string\",
++           \"code\": \"invalid_type\",
++           \"path\": [],
++           \"message\": \"Invalid input: expected string, received object\"
++         }
++       ],
++       [
++         {
++           \"expected\": \"number\",
++           \"code\": \"invalid_type\",
++           \"path\": [],
++           \"message\": \"Invalid input: expected number, received object\"
++         }
++       ],
++       [
++         {
++           \"expected\": \"boolean\",
++           \"code\": \"invalid_type\",
++           \"path\": [],
++           \"message\": \"Invalid input: expected boolean, received object\"
++         }
++       ],
++       [
++         {
++           \"expected\": \"null\",
++           \"code\": \"invalid_type\",
++           \"path\": [],
++           \"message\": \"Invalid input: expected null, received object\"
++         }
++       ],
++       [
++         {
++           \"expected\": \"array\",
++           \"code\": \"invalid_type\",
++           \"path\": [],
++           \"message\": \"Invalid input: expected array, received object\"
++         }
++       ],
++       [
++         {
++           \"code\": \"invalid_union\",
++           \"errors\": [
++             [
++               {
++                 \"expected\": \"string\",
++                 \"code\": \"invalid_type\",
++                 \"path\": [],
++                 \"message\": \"Invalid input: expected string, received array\"
++               }
++             ],
++             [
++               {
++                 \"expected\": \"number\",
++                 \"code\": \"invalid_type\",
++                 \"path\": [],
++                 \"message\": \"Invalid input: expected number, received array\"
++               }
++             ],
++             [
++               {
++                 \"expected\": \"boolean\",
++                 \"code\": \"invalid_type\",
++                 \"path\": [],
++                 \"message\": \"Invalid input: expected boolean, received array\"
++               }
++             ],
++             [
++               {
++                 \"expected\": \"null\",
++                 \"code\": \"invalid_type\",
++                 \"path\": [],
++                 \"message\": \"Invalid input: expected null, received array\"
++               }
++             ],
++             [
++               {
++                 \"code\": \"invalid_union\",
++                 \"errors\": [
++                   [
++                     {
++                       \"expected\": \"string\",
++                       \"code\": \"invalid_type\",
++                       \"path\": [],
++                       \"message\": \"Invalid input: expected string, received object\"
++                     }
++                   ],
++                   [
++                     {
++                       \"expected\": \"number\",
++                       \"code\": \"invalid_type\",
++                       \"path\": [],
++                       \"message\": \"Invalid input: expected number, received object\"
++                     }
++                   ],
++                   [
++                     {
++                       \"expected\": \"boolean\",
++                       \"code\": \"invalid_type\",
++                       \"path\": [],
++                       \"message\": \"Invalid input: expected boolean, received object\"
++                     }
++                   ],
++                   [
++                     {
++                       \"expected\": \"null\",
++                       \"code\": \"invalid_type\",
++                       \"path\": [],
++                       \"message\": \"Invalid input: expected null, received object\"
++                     }
++                   ],
++                   [
++                     {
++                       \"expected\": \"array\",
++                       \"code\": \"invalid_type\",
++                       \"path\": [],
++                       \"message\": \"Invalid input: expected array, received object\"
++                     }
++                   ],
++                   [
++                     {
++                       \"code\": \"invalid_union\",
++                       \"errors\": [
++                         [
++                           {
++                             \"expected\": \"string\",
++                             \"code\": \"invalid_type\",
++                             \"path\": [],
++                             \"message\": \"Invalid input: expected string, received object\"
++                           }
++                         ],
++                         [
++                           {
++                             \"expected\": \"number\",
++                             \"code\": \"invalid_type\",
++                             \"path\": [],
++                             \"message\": \"Invalid input: expected number, received object\"
++                           }
++                         ],
++                         [
++                           {
++                             \"expected\": \"boolean\",
++                             \"code\": \"invalid_type\",
++                             \"path\": [],
++                             \"message\": \"Invalid input: expected boolean, received object\"
++                           }
++                         ],
++                         [
++                           {
++                             \"expected\": \"null\",
++                             \"code\": \"invalid_type\",
++                             \"path\": [],
++                             \"message\": \"Invalid input: expected null, received object\"
++                           }
++                         ],
++                         [
++                           {
++                             \"expected\": \"array\",
++                             \"code\": \"invalid_type\",
++                             \"path\": [],
++                             \"message\": \"Invalid input: expected array, received object\"
++                           }
++                         ],
++                         [
++                           {
++                             \"code\": \"invalid_union\",
++                             \"errors\": [
++                               [
++                                 {
++                                   \"expected\": \"string\",
++                                   \"code\": \"invalid_type\",
++                                   \"path\": [],
++                                   \"message\": \"Invalid input: expected string, received undefined\"
++                                 }
++                               ],
++                               [
++                                 {
++                                   \"expected\": \"number\",
++                                   \"code\": \"invalid_type\",
++                                   \"path\": [],
++                                   \"message\": \"Invalid input: expected number, received undefined\"
++                                 }
++                               ],
++                               [
++                                 {
++                                   \"expected\": \"boolean\",
++                                   \"code\": \"invalid_type\",
++                                   \"path\": [],
++                                   \"message\": \"Invalid input: expected boolean, received undefined\"
++                                 }
++                               ],
++                               [
++                                 {
++                                   \"expected\": \"null\",
++                                   \"code\": \"invalid_type\",
++                                   \"path\": [],
++                                   \"message\": \"Invalid input: expected null, received undefined\"
++                                 }
++                               ],
++                               [
++                                 {
++                                   \"expected\": \"array\",
++                                   \"code\": \"invalid_type\",
++                                   \"path\": [],
++                                   \"message\": \"Invalid input: expected array, received undefined\"
++                                 }
++                               ],
++                               [
++                                 {
++                                   \"expected\": \"record\",
++                                   \"code\": \"invalid_type\",
++                                   \"path\": [],
++                                   \"message\": \"Invalid input: expected record, received undefined\"
++                                 }
++                               ]
++                             ],
++                             \"path\": [
++                               \"study\"
++                             ],
++                             \"message\": \"Invalid input\"
++                           }
++                         ]
++                       ],
++                       \"path\": [
++                         \"opening\"
++                       ],
++                       \"message\": \"Invalid input\"
++                     }
++                   ]
++                 ],
++                 \"path\": [
++                   0
++                 ],
++                 \"message\": \"Invalid input\"
++               }
++             ],
++             [
++               {
++                 \"expected\": \"record\",
++                 \"code\": \"invalid_type\",
++                 \"path\": [],
++                 \"message\": \"Invalid input: expected record, received array\"
++               }
++             ]
++           ],
++           \"path\": [
++             \"nodes\"
++           ],
++           \"message\": \"Invalid input\"
++         }
++       ]
++     ],
++     \"path\": [],
++     \"message\": \"Invalid input\"
++   }
++ ]",
++   "name": "ZodError",
+  }
+
+ ❯ tests/integration/mixed-route.test.ts:398:3
+    396|   // binding landed: the frozen opening stays and no session is bound …
+    397|   setOnOpen(() => Promise.reject(Object.assign(new Error('crash'), { c…
+    398|   await expect(routes.openPlanned(student('open-1'), id)).rejects.toMa…
+       |   ^
+    399|   const pending = routes.read(HOST).nodes[0]!;
+    400|   expect(pending.session).toBeUndefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+
+ Test Files  1 failed | 6 passed (7)
+      Tests  5 failed | 42 passed (47)
+   Start at  18:01:18
+   Duration  56.14s (transform 251ms, setup 0ms, import 814ms, tests 110.60s, environment 0ms)

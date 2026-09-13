@@ -7,7 +7,8 @@ import type { MaterialNavigation } from '../materials/material-navigation.ts';
 import { MemoryPage } from '../memory/MemoryPage.tsx';
 import { SetPage } from '../sets/SetPage.tsx';
 import { Calendar } from './Calendar.tsx';
-import { Today, type HomeLessonRow } from './Today.tsx';
+import { useEffect } from 'react';
+import { LearningEntry } from '../classroom/LearningEntry.tsx';
 import './original-pages.css';
 
 export function registerOrganization(ctx: Context, navigation: MaterialNavigation): void {
@@ -32,21 +33,12 @@ export function registerOrganization(ctx: Context, navigation: MaterialNavigatio
   ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'studyforge.memory', priority: -20 },
     () => <MemoryPage ctx={ctx} />)));
   ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'studyforge.home', priority: -20 },
-    function HomePage({ useSessions }: PropsRuntime<'main'>): React.JSX.Element {
-      const list = useSessions(snapshot => snapshot);
-      // The native rows are the only course list; a subagent and an empty log are not lessons.
-      const lessons: HomeLessonRow[] = list.ids.flatMap(id => {
-        const row = list.byId[id];
-        return row === undefined || row.blank || row.origin === 'subagent'
-          ? []
-          : [{ id: row.id, title: row.displayTitle, running: row.running, updatedAt: row.updatedAt }];
-      }).sort((left, right) => right.updatedAt - left.updatedAt);
-      return <Today ctx={ctx} lessons={lessons} lessonsLoaded={list.phase === 'ready'}
-        onStartLesson={() => { startLesson(ctx); }}
-        onPage={page => { ctx.layout.selectPanel(page as MainPanelId); }}
-        onOpenTarget={target => { if (target !== '') void open(target); else ctx.layout.selectPanel(null); }}
-        onOpenLesson={id => { ctx.sessions.open(id as SessionId); ctx.layout.selectPanel(null); }} />;
+    function HomePage(): null {
+      useEffect(() => { startLesson(ctx); }, []);
+      return null;
     })));
+  ctx.effect(() => ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({ name: 'conversation.composer.dock', id: 'studyforge.learning-entry', order: -20 },
+    (props: PropsRuntime<'conversation.composer.dock'>) => <LearningEntry {...props} ctx={ctx} />)));
 }
 
 /**

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CourseMapCanvas, type CourseGraphNode } from './CourseMapCanvas.tsx';
 import { type MapPoint } from './map-geometry.ts';
 import { RouteEditor } from './RouteEditor.tsx';
+import { LessonResults } from './LessonResults.tsx';
 import { civilDayIn, effectiveDecl, materialLabel, refusalCode } from './format.ts';
 import type { NativeLessonRow } from './CourseMap.tsx';
 
@@ -159,6 +160,7 @@ export function CourseRoadmap({ ctx, lessons, currentSessionId, onOpenLesson }: 
         <section className="sf-map-section"><h4>接在谁后面</h4><select aria-label="前一节课" data-testid="roadmap-mount-select" disabled={busy} value={active.graph.parent ?? ''} onChange={event => { void mount(active.graph.key, event.target.value); }}>
           <option value="">单独一支</option>{entries.filter(entry => canMount(entries, active.graph.key, entry.graph.key)).map(entry => <option key={entry.graph.key} value={entry.graph.key}>{entry.graph.title}</option>)}</select></section>
         {loaded && <section className="sf-map-section"><h4>{active.graph.planned ? '教学安排' : '本课设置'}</h4><p>{teachingLabel(loaded, active)}</p></section>}
+        {(active.route?.session?.sessionId ?? active.native?.sessionId) && <LessonResults ctx={ctx} sessionId={(active.route?.session?.sessionId ?? active.native?.sessionId)!} />}
       </div><div className="sf-map-panel-actions"><button disabled={busy} onClick={() => { void open(active.graph.key); }}>{active.graph.planned ? '开这节' : '打开课堂'}</button>
         {active.route && active.graph.planned && <button disabled={busy} onClick={() => { setEditing({ node: active.route! }); setNotice(''); }}>修改安排</button>}</div>
     </aside>}

@@ -17,6 +17,7 @@ import type { BookBreakdownIntent, BookNode, BookStructure } from '@studyforge/c
 import type { MaterialContext, SourceAnchor } from '@studyforge/contracts/materials';
 import { useEffect, useRef, useState } from 'react';
 import { CardDetail } from '../cards/CardDetail.tsx';
+import { ContentHistory } from './ContentHistory.tsx';
 import { KnowledgeEditor } from '../cards/KnowledgeEditor.tsx';
 import { ReviewScreen } from '../review/ReviewScreen.tsx';
 import { Mindmap } from './mindmap.tsx';
@@ -49,9 +50,9 @@ export function BookWorkspace({ ctx, source, onSource }: { ctx: Context; source:
   const node: BookNode | undefined = structure?.nodes.find(item => item.key === selected);
   /** The exact node the student picked is the scope of anything this area does. */
   const nodes = structure === undefined ? [] : bookMindNodes(structure);
-  async function breakdown(item: BookNode, action: BreakdownAction): Promise<void> {
+  async function breakdown(item: BookNode, action: BreakdownAction, range?: SourceAnchor): Promise<void> {
     if (!structure || item.kind !== 'book' && item.kind !== 'section') return;
-    const intent: BookBreakdownIntent = bookNodeIntent(structure, item, action);
+    const intent: BookBreakdownIntent = { ...bookNodeIntent(structure, item, action), ...(range ? { sources: [range] } : {}) };
     const key = JSON.stringify(intent);
     if (attempt.current?.key !== key) attempt.current = { key, id: crypto.randomUUID() };
     setBusy(true);
@@ -72,6 +73,8 @@ export function BookWorkspace({ ctx, source, onSource }: { ctx: Context; source:
       <button type="button" className="sf-quiet" onClick={() => { setRefresh(n => n + 1); }}>刷新结构</button>
     </div>
     {notice !== '' && <p className="sf-notice" role="status">{notice}</p>}
+    <ContentHistory ctx={ctx} query={{ source: { materialId: source.materialId, versionId: source.versionId } }} onSource={onSource} refreshToken={refresh}
+      onRefine={anchor => { const root = structure?.nodes.find(item => item.kind === 'book'); if (root && !busy) void breakdown(root, 'directory', anchor); }} />
     {structure !== undefined && <Mindmap testId="book-nodes" label="这本书的结构" nodes={nodes} mode={mode}
       expanded={expanded} selected={selected} busy={busy}
       onPick={item => { setSelected(item.key); setStudying(undefined); setDetail(true); }}
@@ -86,6 +89,7 @@ export function BookWorkspace({ ctx, source, onSource }: { ctx: Context; source:
       </header>
       {node.sources.length > 0 && <div className="sf-org-actions">{node.sources.map((anchor, index) =>
         <button key={`${anchor.versionId}-${String(index)}`} type="button" className="sf-quiet" onClick={() => { onSource(anchor); }}>定位原文{node.sources.length > 1 ? ` ${String(index + 1)}` : ''}</button>)}</div>}
+      {node.kind === 'section' && node.sources.map((anchor, index) => <ContentHistory key={index} ctx={ctx} query={{ source: anchor }} onSource={onSource} refreshToken={refresh} />)}
       {node.kind === 'card' && (studying !== undefined ? <ReviewScreen ctx={ctx} start={studying} onBack={() => { setStudying(undefined); }} />
         : <><button type="button" className="sf-action" onClick={() => { setStudying(node.target); }}>开始学习</button>
           <CardDetail key={node.target} ctx={ctx} target={node.target} onSource={onSource} onChange={() => { setRefresh(n => n + 1); }} /></>)}

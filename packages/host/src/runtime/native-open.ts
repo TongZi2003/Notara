@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import type { NativeOpen } from '@studyforge/domain/routes';
 import { validateLessonMaterials } from '../materials/validate-lesson-materials.ts';
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types';
+import { validateStudy } from '../teaching/guided-learning.ts';
 
 /** Native explicit-id adoption closes create-before-route-binding crashes. */
 export function plannedSessionId(workspaceId: string, key: string): string {
@@ -18,6 +19,7 @@ export function nativeOpen(host: Context): NativeOpen {
     const previous = opening.get(sessionId); if (previous) return previous;
     const job = (async () => {
       await validateLessonMaterials(host, context, request.materials);
+      if (request.study) validateStudy(host, context, request.study);
       const created = await host.sessionController.create({ sessionId, workspaceId: context.workspaceId as WorkspaceId,
         agentPreset: 'studyforge-learning' });
       if (created.sessionId !== sessionId) throw new Error('native_planned_identity_mismatch');
@@ -31,6 +33,7 @@ export function nativeOpen(host: Context): NativeOpen {
       await host.studyforgeCourseMetadata.update(ctx, { lessonMaterials: request.materials,
         ...(request.decl.teachingRef ? { teachingRef: request.decl.teachingRef } : {}), ...(request.decl.stance ? { stance: request.decl.stance } : {}),
       });
+      if (request.study) await host.studyforgeCourseMetadata.pinLearningContext({ ...context, sessionId, operationId: ctx.operationId }, request.study);
       return { sessionId, openedAt };
     })();
     opening.set(sessionId, job);

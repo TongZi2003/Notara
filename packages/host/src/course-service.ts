@@ -9,9 +9,20 @@ import { nativeCourseUsage } from './native-usage.ts';
 import { sourceEvidenceObjects } from './runtime/context-envelope.ts';
 import type { OutputProjection } from '@studyforge/domain/outputs';
 import { validateLessonMaterials } from './materials/validate-lesson-materials.ts';
+import { learningPaths } from './teaching/guided-learning.ts';
+import type { LearningPath } from '@studyforge/contracts/courses';
+import { studentContext } from './learning-service.ts';
 
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeCourses: StudyForgeCourses; studyforgeCourseMetadata: CourseMetadata; } }
 export async function validateCoursePatch(host: Context, context: HostContext, patch: CoursePatch): Promise<void> {
+  if (context.sessionId && patch.guided !== undefined) {
+    const course = host.studyforgeCourseMetadata.read(context).data;
+    if (course.guided && course.closure && patch.guided === false) throw new Error('closed_diagnosis_context_fixed');
+  }
+  if (patch.learningGoal && context.sessionId) {
+    const current = host.studyforgeCourseMetadata.read(context).data;
+    if (current.closure && JSON.stringify(current.learningGoal) !== JSON.stringify(patch.learningGoal)) throw new Error('learning_goal_fixed_after_diagnosis');
+  }
   if (patch.lessonMaterials) await validateLessonMaterials(host, context, patch.lessonMaterials);
   if (patch.teachingRef && !host.studyforgeTeachingCatalog.has(patch.teachingRef)) throw new Error('teaching_configuration_missing');
   if (patch.learningSetRef) host.studyforgeSetService.read(context, patch.learningSetRef);
@@ -20,6 +31,8 @@ export async function validateCoursePatch(host: Context, context: HostContext, p
 /** Only teaching metadata is exposed here; native session Remote remains the classroom API. */
 export class StudyForgeCourses extends TypertRemoteService {
   constructor(ctx: Context) { super(ctx, 'studyforgeCourses'); }
+  @Remote('learningPaths')
+  async learningPaths(): Promise<LearningPath[]> { return learningPaths(this.ctx, await studentContext(this.ctx)); }
   private async context(sessionId: string): Promise<HostContext> {
     const binding = await this.ctx.studyforgeAccess.forSession(sessionId);
     return { sessionId: binding.sessionId, workspaceId: binding.workspaceId, purpose: binding.purpose, actor: 'student' };

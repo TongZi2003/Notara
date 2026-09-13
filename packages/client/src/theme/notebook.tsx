@@ -135,7 +135,7 @@ export function registerNotebook(ctx: Context, navigation: MaterialNavigation): 
   }
   ctx.effect(() => ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({ name: 'sidebar.footer.action', id: 'studyforge.notebook', order: 5 }, Footer)));
   ctx.effect(() => ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register({ name: 'sidebar.brand.mark', priority: -10 }, ({ size }: PropsRuntime<'sidebar.brand.mark'>) => <span className="sf-notebook-seal" style={{ width: size, height: size }} aria-hidden="true">学</span>)));
-  ctx.effect(() => ctx.slots.inject('conversation.hero.brand.mark', () => ctx.slots.register({ name: 'conversation.hero.brand.mark', priority: -10 }, () => <span className="sf-notebook-welcome">这节课想做什么？<small>说说想学什么，老师会帮你找资料、安排学习。也可以直接带一道题来。</small></span>)));
+  ctx.effect(() => ctx.slots.inject('conversation.hero.brand.mark', () => ctx.slots.register({ name: 'conversation.hero.brand.mark', priority: -10 }, () => <span className="sf-notebook-welcome">今天想学什么？</span>)));
   ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: APPEARANCE, priority: 0 }, Settings)));
   ctx.effect(() => ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'studyforge.notebook.routes' }, RouteBridge)));
 

@@ -1,0 +1,19 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/guided-learning.test.ts tests/integration/mixed-route.test.ts tests/integration/content-history.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/guided-learning.test.ts (2 tests) 22878ms
+   ✓ a confirmed diagnosis binds a route, opens once and survives restart without another learning ledger  15593ms
+   ✓ a free lesson can still plan directly and cannot forge a diagnosis binding  7284ms
+ ✓ |integration| tests/integration/mixed-route.test.ts (18 tests) 787ms
+ ✓ |integration| tests/integration/content-history.test.ts (2 tests) 31827ms
+   ✓ 100-page import, exact adopted pages, read coverage, pending refinement and old versions remain separate  24542ms
+   ✓ content scout can opt into this card activity without receiving another card or global learner memory  7284ms
+
+ Test Files  3 passed (3)
+      Tests  22 passed (22)
+   Start at  18:10:47
+   Duration  32.32s (transform 560ms, setup 0ms, import 933ms, tests 55.49s, environment 0ms)

@@ -29,6 +29,7 @@ import { kindLabel, lessonMindProjection, positionLabel, rowKey, versionKeyOf } 
 import { closeSheet, emptyDeck, lessonDecks, lessonRelations, openSheet, parentTrail, type DeckContent } from './lesson-deck.ts';
 import { bookNodeIntent, breakdownLabel, type BreakdownAction } from './book-breakdown.ts';
 import { SourcePane, type SourcePaneFace } from './SourcePane.tsx';
+import { ContentHistory } from './ContentHistory.tsx';
 import { heldSourceReferences } from './source-references-holder.ts';
 import { requestLessonPane, subscribeLessonPane } from './lesson-pane-request.ts';
 import './lesson-pane.css';
@@ -281,10 +282,10 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
     const tree = target && [...structures.values()].find(value => value.nodes.includes(target));
     return tree && target ? { tree, node: target } : undefined;
   }
-  async function breakdown(node: MindNode, action: BreakdownAction): Promise<void> {
+  async function breakdown(node: MindNode, action: BreakdownAction, range?: SourceAnchor): Promise<void> {
     const target = breakdownTarget(node);
     if (!target || sending) return;
-    const intent = bookNodeIntent(target.tree, target.node, action), key = JSON.stringify({ sessionId, intent });
+    const intent = { ...bookNodeIntent(target.tree, target.node, action), ...(range ? { sources: [range] } : {}) }, key = JSON.stringify({ sessionId, intent });
     if (attempt.current?.key !== key) attempt.current = { key, id: crypto.randomUUID() };
     setSending(true); setNotice(undefined);
     try {
@@ -332,7 +333,10 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
             onClick={() => { void breakdown(node, action); }}>{breakdownLabel(action)}</button>)}
         </nav>
         {open.kind === 'source'
-          ? <SourcePane face={host} sessionId={sessionId} anchors={open.anchors} browseId={activeBrowseId} />
+          ? <><SourcePane face={host} sessionId={sessionId} anchors={open.anchors} browseId={activeBrowseId} />
+            {open.anchors.map((source, i) => <ContentHistory key={i} ctx={ctx} query={{ source }} refreshToken={refreshToken}
+              onRefine={node && breakdownTarget(node) ? anchor => { void breakdown(node, 'directory', anchor); } : undefined}
+              onSource={anchor => setOpen({ kind: 'source', title: open.title, anchors: [anchor] })} />)}</>
           : open.kind === 'card'
             ? <CardPane ctx={ctx} host={host} sessionId={sessionId} target={open.target} version={open.version} browseId={activeBrowseId}
               onSource={(anchors, title) => { setOpen({ kind: 'source', title, anchors }); }} />

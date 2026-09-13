@@ -86,7 +86,7 @@ const ROLES: Record<DelegationRole, RoleSpec> = {
   search: {
     title: '检索帮手',
     description: '把一次检索交给独立帮手：它看不到本课对话与学生学情，只拿到这一条检索任务，可读本人资料与外部来源。返回它的原话与线索；结果只是线索，是否采信由你判断，它不写任何学习事实。',
-    allow: ['web_search', 'web_fetch', 'list_materials', 'read_material', 'preview_region', 'search_learning', 'list_sets', 'read_set', 'read_skeleton', 'read_method'],
+    allow: ['web_search', 'web_fetch', 'list_materials', 'read_material', 'preview_region', 'search_learning', 'read_content', 'list_sets', 'read_set', 'read_skeleton', 'read_method'],
   },
   problem: {
     title: '命题帮手',
@@ -205,6 +205,7 @@ export function searchTask(input: z.output<typeof SearchDelegationInputSchema>):
     '检索任务：' + input.task,
     ...(input.context === undefined ? [] : ['已知与约束：' + input.context]),
     '只依据你实际读到的内容回答：给出你找到的出处（外部 URL，或本人资料的固定版本与位置）、能否支撑这个任务，以及仍不确定的部分。',
+    '先枚举书目与实际目录，list_materials有nextOffset就继续翻页。已有卡片/知识同属候选，用search_learning找，再read_content精读，必要时沿links继续。每个候选返回固定身份与版本、实际位置、短摘录、支持的教学环节、先修条件。没有找到、尚未读、截断和读取失败分开说明；不把摘要当作完整原文，也不把读卡当作学生学过。独立的检索范围由主教师分派，本次只完成给你的范围。',
     ...(input.background ? ['这是一次可继续追问的检索；需要时用 send_message 把阶段性结论发回父会话。'] : []),
   ].join('\n');
 }

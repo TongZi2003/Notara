@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { MaterialReadSchema, ReadMaterialInputSchema } from '@studyforge/contracts/material-read';
 import { readMaterial } from '@studyforge/domain/material-read';
 import { toolSchema } from './tool-schema.ts';
+import { sourceUseMeta } from './source-use-tools.ts';
 
 // This tool's output keeps an immutable native attachment reference, never a
 // base64 copy of the rendered image in its textual result.
@@ -29,8 +30,8 @@ function render(_args: unknown, value: unknown): ContentBlock[] {
 
 /** Read tools use the actual native calling Session and attachment capability. */
 export function registerMaterialTools(ctx: Context): void {
-  const listInput = z.object({ query: z.string().optional(), limit: z.number().int().min(1).max(50).default(20) }).strict();
-  const listOutput = z.object({ materials: z.array(z.object({ materialId: z.string(), versionId: z.string(), title: z.string(), mediaType: z.string() }).strict()), hasMore: z.boolean() }).strict();
+  const listInput = z.object({ query: z.string().optional(), offset: z.number().int().nonnegative().default(0), limit: z.number().int().min(1).max(50).default(20) }).strict();
+  const listOutput = z.object({ materials: z.array(z.object({ materialId: z.string(), versionId: z.string(), title: z.string(), mediaType: z.string() }).strict()), hasMore: z.boolean(), nextOffset: z.number().int().nonnegative().optional() }).strict();
   ctx.effect(() => ctx.tools.register({
     name: 'list_materials', description: '查找本人已经导入的资料，取得可用于read_material的真实固定版本引用。导入和浏览不表示已经学习。',
     parameters: toolSchema(listInput), output: { schema: toolSchema(listOutput), render: (_args, value) => [{ type: 'text', text: JSON.stringify(listOutput.parse(value)) }] },
@@ -46,9 +47,10 @@ export function registerMaterialTools(ctx: Context): void {
         const resolved = await ctx.studyforgeMaterialService.resolve(context, source);
         if (!ctx.studyforgeAccess.permits(binding, resolved.absolutePath)) continue;
         matches.push({ ...source, title: item.title, mediaType: item.currentVersion.mediaType });
-        if (matches.length > input.limit) break;
+        if (matches.length > input.offset + input.limit) break;
       }
-      return { materials: matches.slice(0, input.limit), hasMore: matches.length > input.limit };
+      const hasMore = matches.length > input.offset + input.limit;
+      return { materials: matches.slice(input.offset, input.offset + input.limit), hasMore, ...(hasMore ? { nextOffset: input.offset + input.limit } : {}) };
     },
   }));
   for (const name of ['read_material', 'preview_region'] as const) {
@@ -56,7 +58,10 @@ export function registerMaterialTools(ctx: Context): void {
       name,
       description: name === 'preview_region' ? '查看已导入原件指定区域的真实图像。source 必须含固定版本、PDF物理页或图片及rect；返回原生图片附件与实际位置。' : '读取已导入资料的固定版本及位置。PDF按物理页返回图像；扫描件不虚构文字。Markdown按原文行列，DOCX按稳定段落。无locator时只读首个可读范围。',
       parameters: toolSchema(ReadMaterialInputSchema),
-      output: { schema: toolSchema(ValueSchema), render },
+      output: { schema: toolSchema(ValueSchema), render, presentationMeta: (_args, value) => {
+        const reading = ValueSchema.parse(value).reading;
+        return sourceUseMeta({ kind: 'studyforge-source-use', use: 'read', sources: [reading.source], ...(reading.pageCount ? { pageCount: reading.pageCount } : {}) });
+      } },
       async execute(args: unknown, execution: ToolRunContext) {
         const { source } = ReadMaterialInputSchema.parse(args);
         const binding = execution.agent && await ctx.studyforgeAccess.forSession(execution.agent.session.id);

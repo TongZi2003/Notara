@@ -1,0 +1,62 @@
+import { afterEach, expect, test } from 'vitest';
+import type { CourseView, LearningPath } from '@studyforge/contracts/courses';
+import type { RouteView } from '@studyforge/contracts/routes';
+import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
+import { toolSession, value } from '../fixtures/tool-session.ts';
+
+let runtime: IsolatedRuntime | undefined;
+afterEach(async () => { await runtime?.stop(); runtime = undefined; });
+
+test('a confirmed diagnosis binds a route, opens once and survives restart without another learning ledger', async () => {
+  runtime = await startIsolated({ testModel: true });
+  let teacher = await toolSession(runtime);
+  const id = teacher.sessionId;
+  await teacher.call('load_tools', { names: ['note_learning_goal', 'propose_route', 'propose_handoff', 'read_route'] });
+  await teacher.call('read_lesson', {});
+  expect((await teacher.call('note_learning_goal', { title: '三角恒等变换', dailyMinutes: 30 })).failed).toBe(false);
+  expect(value(await teacher.client.rpc<LearningPath[]>('studyforgeCourses/learningPaths', {}))).toMatchObject([{ title: '三角恒等变换', status: 'diagnosing', next: { sessionId: id } }]);
+  const draft = { action: 'add', nodes: [{ title: '配角', decl: { stance: '辨认和差结构，再独立完成一次配角' } }, { title: '综合应用', parentIndex: 0 }] };
+  expect((await teacher.call('propose_route', draft)).failed).toBe(true);
+  expect(value(await teacher.client.rpc<RouteView>('studyforgeOrganization/route', {})).nodes).toHaveLength(0);
+  await teacher.call('propose_handoff', { kind: 'close', title: '诊断小结', body: '已检查基础与应用；配角还需练习，参考已完成的诊断作答。' });
+  await teacher.confirm('诊断小结');
+  const diagnosis = value(await teacher.client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId: id } }));
+  await teacher.call('read_route', {});
+  expect((await teacher.call('propose_route', draft)).failed).toBe(false);
+  await teacher.confirm('接下来的课程');
+  const route = value(await teacher.client.rpc<RouteView>('studyforgeOrganization/route', {}));
+  expect(route.nodes).toHaveLength(2);
+  expect(route.nodes[0]!.study).toMatchObject({ originSessionId: id, goal: { title: '三角恒等变换', dailyMinutes: 30 }, diagnosis: { ref: diagnosis.data.closure!.handoffRef, version: 1 } });
+  const open = { operationId: 'first-open', nodeId: route.nodes[0]!.id };
+  const first = value(await teacher.client.rpc<{ sessionId: string }>('studyforgeOrganization/openPlannedLesson', { input: open }));
+  const second = value(await teacher.client.rpc<{ sessionId: string }>('studyforgeOrganization/openPlannedLesson', { input: { ...open, operationId: 'second-open' } }));
+  expect(first.sessionId).toBe(second.sessionId);
+  const lesson = value(await teacher.client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId: first.sessionId } }));
+  expect(lesson.data.learningContext).toMatchObject({ diagnosis: route.nodes[0]!.study!.diagnosis, nodeId: open.nodeId });
+  expect(lesson.data.continuation).toBeUndefined();
+  await runtime.restart(); teacher = await toolSession(runtime, id);
+  const paths = value(await teacher.client.rpc<LearningPath[]>('studyforgeCourses/learningPaths', {}));
+  expect(paths[0]).toMatchObject({ status: 'learning', next: { sessionId: first.sessionId }, lessons: [{ closed: false }, { closed: false }] });
+  const next = await toolSession(runtime, first.sessionId);
+  expect((await next.call('read_lesson', {})).text).toContain('learningContext');
+  await next.call('propose_handoff', { kind: 'close', title: '配角阶段小结', body: '完成了第一部分，下一次继续补充练习。' });
+  await next.confirm('配角阶段小结');
+  const closed = value(await next.client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId: next.sessionId } }));
+  const continued = value(await next.client.rpc<{ sessionId: string }>('studyforgeHandoffs/openContinuation', { input: { operationId: 'continue-task', ref: closed.data.closure!.handoffRef, version: closed.data.closure!.handoffVersion! } }));
+  const resumedPaths = value(await next.client.rpc<LearningPath[]>('studyforgeCourses/learningPaths', {}));
+  expect(resumedPaths[0]?.next?.sessionId).toBe(continued.sessionId);
+  const continuedCourse = value(await next.client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId: continued.sessionId } }));
+  expect(continuedCourse.data.learningContext?.diagnosis).toEqual(route.nodes[0]!.study!.diagnosis);
+}, 90_000);
+
+test('a free lesson can still plan directly and cannot forge a diagnosis binding', async () => {
+  runtime = await startIsolated({ testModel: true });
+  const teacher = await toolSession(runtime);
+  await teacher.call('read_route', {});
+  expect((await teacher.call('propose_route', { action: 'add', nodes: [{ title: '自由探索' }] })).failed).toBe(false);
+  await teacher.confirm('接下来的课程');
+  const route = value(await teacher.client.rpc<RouteView>('studyforgeOrganization/route', {}));
+  expect(route.nodes[0]!.study).toBeUndefined();
+  expect(value(await teacher.client.rpc<LearningPath[]>('studyforgeCourses/learningPaths', {}))).toEqual([]);
+  expect((await teacher.client.rpc('studyforgeOrganization/addRouteNode', { input: { operationId: 'forged', node: { title: '伪造', study: { originSessionId: teacher.sessionId, goal: { title: '假的' }, diagnosis: { ref: 'handoff:missing', version: 1 } } } } })).ok).toBe(false);
+}, 90_000);

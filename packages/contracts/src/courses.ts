@@ -2,9 +2,31 @@ import { z } from 'zod';
 import { EntityRefSchema, SessionIdSchema, TimestampSchema } from './core.ts';
 import { LessonMaterialsSchema } from './lesson-materials.ts';
 import { HandoffPinSchema } from './handoffs.ts';
+import { DaySchema } from './reviews.ts';
 import type { TokenUsageProjection, ContextPressureProjection, ContextBreakdownProjection } from '@deepseek-ai/dsh-token-meter/client';
 
 /** Teaching additions only. Native Session owns title, input, history and activity. */
+export const LearningGoalSchema = z.object({
+  title: z.string().trim().min(1),
+  deadline: DaySchema.optional(),
+  dailyMinutes: z.number().int().positive().max(1440).optional(),
+}).strict();
+export type LearningGoal = z.infer<typeof LearningGoalSchema>;
+/** The diagnostic lesson and exact confirmed summary that informed a route. */
+export const LearningContextSchema = z.object({
+  originSessionId: SessionIdSchema,
+  diagnosis: HandoffPinSchema,
+  goal: LearningGoalSchema,
+  nodeId: z.string().min(1).optional(),
+}).strict();
+export type LearningContext = z.infer<typeof LearningContextSchema>;
+export interface LearningPath {
+  originSessionId: string;
+  title: string;
+  status: 'diagnosing' | 'planning' | 'learning' | 'complete';
+  next?: { title: string; sessionId?: string; nodeId?: string; date?: string };
+  lessons: { nodeId: string; title: string; sessionId?: string; date?: string; closed: boolean }[];
+}
 /**
  * P7.5 closing fact: the confirmed summary this lesson closed with, and the exact
  * revision of it. `handoffVersion` is written by the confirmed close; a closure
@@ -29,9 +51,12 @@ export const CourseMetadataSchema = z.object({
   teachingRef: z.string().min(1).optional(),
   temporaryInstructions: z.string().optional(),
   stance: z.string().optional(),
+  guided: z.boolean().optional(),
+  learningGoal: LearningGoalSchema.optional(),
+  learningContext: LearningContextSchema.optional(),
 }).strict();
 export type CourseMetadataData = z.infer<typeof CourseMetadataSchema>;
-export const CoursePatchSchema = CourseMetadataSchema.pick({ lessonMaterials: true, learningSetRef: true, archived: true, teachingRef: true, temporaryInstructions: true, stance: true }).partial().strict();
+export const CoursePatchSchema = CourseMetadataSchema.pick({ lessonMaterials: true, learningSetRef: true, archived: true, teachingRef: true, temporaryInstructions: true, stance: true, guided: true, learningGoal: true }).partial().strict();
 export type CoursePatch = z.infer<typeof CoursePatchSchema>;
 export type CourseClosure = z.infer<typeof CourseClosureSchema>;
 export const CourseViewSchema = z.object({ version: z.number().int().nonnegative(), data: CourseMetadataSchema }).strict();

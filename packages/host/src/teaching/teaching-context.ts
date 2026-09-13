@@ -12,17 +12,20 @@ import { continuationBrief } from './lesson-brief.ts';
 import { providerToolSchemas } from '../tools/model-tool-schemas.ts';
 import { bookTaskInstructions, currentBookTask } from './book-task.ts';
 import { installToolDisclosure } from '../tools/tool-disclosure.ts';
+import { guidedBrief, registerGuidedLearning } from './guided-learning.ts';
 
 export class TeachingCatalog {
   readonly defaultId: string;
   readonly choices: readonly TeachingChoice[];
   readonly base: string;
+  readonly guided: string;
   private readonly bodies: Map<string, string>;
   constructor(directory: string) {
     const manifest = TeachingManifestSchema.parse(JSON.parse(readFileSync(join(directory, 'manifest.json'), 'utf8')));
     this.defaultId = manifest.default;
     this.choices = manifest.choices.map(({ file: _file, ...choice }) => choice);
     this.base = readFileSync(join(directory, 'base.md'), 'utf8');
+    this.guided = readFileSync(join(directory, 'guided-learning.md'), 'utf8');
     this.bodies = new Map(manifest.choices.map(choice => [choice.id, readFileSync(join(directory, 'presets', choice.file), 'utf8')]));
   }
   has(id: string): boolean { return this.bodies.has(id); }
@@ -43,9 +46,10 @@ export class StudyForgeTeaching extends TypertRemoteService {
 
 /** Dynamic teaching context and the existing role-specific tool boundaries. */
 export function installTeaching(host: Context, catalog: TeachingCatalog): void {
+  registerGuidedLearning(host);
   // Some native composition plugins register local tools after spawn's inherited
   // filter. These teacher-only capabilities must remain absent for every helper.
-  const helperForbidden = new Set(['subagent', 'delegate_search', 'delegate_problem', 'delegate_assistant', 'delegate_peer',
+  const helperForbidden = new Set(['note_learning_goal', 'cite_materials', 'subagent', 'delegate_search', 'delegate_problem', 'delegate_assistant', 'delegate_peer',
     'read_card', 'read_cards', 'list_cards', 'query_evidence', 'read_memory', 'search_memory', 'note_memory', 'revise_memory',
     'register_cards', 'update_card', 'note_method', 'revise_method', 'record_review',
     'propose_card', 'propose_review', 'propose_set', 'propose_plan', 'propose_route', 'propose_skeleton', 'propose_handoff', 'read_lesson', 'propose_lesson_settings',
@@ -68,6 +72,8 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
           && (!task.nodePath || row.data.content.chapter === task.nodePath || row.data.content.chapter?.startsWith(task.nodePath + '/')))
         .map(row => ({ ref: row.ref, title: row.data.content.title, chapter: row.data.content.chapter ?? null })) : [];
       return [catalog.base, catalog.body(task ? 'organize' : course.teachingRef ?? catalog.defaultId),
+        !task && (course.guided || course.learningContext) ? catalog.guided : '',
+        !task ? guidedBrief(host, { workspaceId: host.studyforgeAccess.workspaceId, sessionId: agent.session.id, actor: 'teacher', purpose: 'learning' }) : '',
         task ? bookTaskInstructions(task) : '',
         task ? `目标范围现有 ${String(existing.length)} 张卡（这里只是清单，需修改时先read_card）：` + JSON.stringify(existing.slice(0, 20)) + (existing.length > 20 ? '\n其余用list_cards分页读取。' : '') : '',
         course.stance ? '本课重点：' + course.stance : '',

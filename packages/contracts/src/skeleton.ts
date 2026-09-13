@@ -1,12 +1,12 @@
 /**
  * P3.4 progressive skeleton contract (plan §P3.4, CONTRACTS.md §10).
  *
- * A skeleton is one book's own structure: nodes of `{ path, sources }` and
- * nothing else. The path says where a section sits in the book, the anchors say
- * which real bytes were read to place it. A node carries no teaching note, no
- * span shorthand and no "already broken down" flag — a position nobody read is
- * simply absent instead of guessed, and coverage is read back from the nodes
- * rather than tracked as a second ledger.
+ * A skeleton is one book's own structure: nodes of `{ path, sources, detail? }`.
+ * The path places a section and its anchors pin actual source ranges. Optional
+ * detail distinguishes an outline from a confirmed refinement; absence stays
+ * conservatively outline. Neither kind claims student mastery. Coverage is
+ * rebuilt from these saved ranges and successful native reads, never a second
+ * completion ledger or a guessed whole-chapter status.
  *
  * One skeleton belongs to one material (`materialId`). Its anchors may pin
  * different versions of that same book: a chapter written from v1 keeps
@@ -55,6 +55,7 @@ export const SkeletonNodeSchema = z
     // Non-contiguous anchors are normal (a theme spreads across the book); an
     // empty list would be a position with no source, which is a guess.
     sources: z.array(SourceAnchorSchema).min(1),
+    detail: z.enum(['outline', 'refined']).optional().describe('outline=目录轮廓；refined=本次读清并细化的实际范围。省略保守按轮廓，不把父章节整段视作已整理。'),
   })
   .strict();
 

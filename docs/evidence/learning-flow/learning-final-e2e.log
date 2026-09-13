@@ -1,0 +1,13 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/conversation-home.spec.ts tests/e2e/content-history.spec.ts
+
+
+Running 2 tests using 1 worker
+
+(node:27156) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/content-history.spec.ts:9:1 › book coverage and classroom back-links use saved ranges and actual native turns (11.1s)
+  ✓  2 tests/e2e/conversation-home.spec.ts:3:1 › native home centers its first input, preserves draft and hides recommendations only after acceptance (10.7s)
+
+  2 passed (22.2s)

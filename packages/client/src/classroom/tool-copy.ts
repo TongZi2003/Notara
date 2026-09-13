@@ -4,6 +4,7 @@ export type ToolDisplayState = 'running' | 'ok' | 'error' | 'stopped';
 const ACTIONS: Record<string, string> = {
   load_tools: '准备这一步需要的操作',
   list_materials: '查找书架上的资料', read_material: '阅读原文', preview_region: '查看书页细节',
+  read_content: '精读备课内容', cite_materials: '选用本课片段', note_learning_goal: '记下学习目标',
   list_cards: '查找相关卡片', read_card: '阅读这张卡片', read_cards: '阅读选中的卡片', search_learning: '查找相关知识和资料',
   read_method: '查看已有的方法笔记', note_method: '记下方法笔记', revise_method: '修改方法笔记',
   read_memory: '回看学习记录', search_memory: '查找学习记录', note_memory: '记下这次学习观察', revise_memory: '更正学习记录',
