@@ -1,0 +1,14 @@
+
+> studyforge-dsh@0.0.0 build
+> tsx scripts/build.ts
+
+packages/client/src/classroom/LessonImport.tsx(7,8): error TS2882: Cannot find module or type declarations for side-effect import of './lesson-import.css'.
+/Users/yangrundong/Oh-My-Student-dsh-migration/dsh/scripts/build.ts:12
+  if (result.status !== 0) throw new Error(`TypeScript failed: ${config} (${result.status})`);
+                                 ^
+
+Error: TypeScript failed: tsconfig.client.json (1)
+    at compile (/Users/yangrundong/Oh-My-Student-dsh-migration/dsh/scripts/build.ts:12:34)
+    at <anonymous> (/Users/yangrundong/Oh-My-Student-dsh-migration/dsh/scripts/build.ts:23:1)
+
+Node.js v24.13.0

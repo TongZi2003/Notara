@@ -10,7 +10,8 @@
  * Picking a node opens it in this same pane: an original is read through the
  * lesson's own grant, a card opens its detail. Going back keeps the map's
  * expansion and selection, because they are this component's own state, and the
- * whole thing writes nothing — opening, focusing and reading are reads.
+ * opening, focusing and reading stay read-only. The empty desk also offers
+ * explicit student file import through the shared lesson upload workflow.
  */
 import type { Context } from '@deepseek-ai/cordis';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
@@ -22,13 +23,14 @@ import type { LessonResource, LessonResourcesProjection } from '@studyforge/doma
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CardDetail } from '../cards/CardDetail.tsx';
 import { KnowledgeEditor } from '../cards/KnowledgeEditor.tsx';
+import { LessonImport } from '../classroom/LessonImport.tsx';
 import { Mindmap, type MindNode } from './mindmap.tsx';
 import { kindLabel, lessonMindProjection, positionLabel, rowKey, versionKeyOf } from './lesson-materials-mindmap.ts';
 import { closeSheet, emptyDeck, lessonDecks, lessonRelations, openSheet, parentTrail, type DeckContent } from './lesson-deck.ts';
 import { bookNodeIntent, breakdownLabel, type BreakdownAction } from './book-breakdown.ts';
 import { SourcePane, type SourcePaneFace } from './SourcePane.tsx';
 import { heldSourceReferences } from './source-references-holder.ts';
-import { subscribeLessonPane } from './lesson-pane-request.ts';
+import { requestLessonPane, subscribeLessonPane } from './lesson-pane-request.ts';
 import './lesson-pane.css';
 
 /** The Host reads one lesson's map needs; the original's own reads come from the pane. */
@@ -302,13 +304,17 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
     </nav>}
     <div className="sf-deck-surface" ref={surface} data-testid="lesson-deck-surface">
     <section className="sf-deck-map" data-sheet-id="map" aria-label="本课关系图">
-    {state.status !== 'ready' ? <p className="sf-note" role="status">{state.status === 'loading' ? '正在看这节课用到什么…' : '这节课用到的资料暂时取不到，稍后再看一次。'}</p> :
+    {state.status !== 'ready' ? <p className="sf-note" role="status">{state.status === 'loading' ? '正在看这节课用到什么…' : '这节课用到的资料暂时取不到，稍后再看一次。'}</p> : graph.nodes.length === 0 ?
+    <div className="sf-empty-materials" data-testid="lesson-materials-empty">
+      <LessonImport ctx={ctx} sessionId={sessionId} appearance="classroom" active={browseId !== undefined} onOpen={material => {
+        requestLessonPane(sessionId, { kind: 'source', title: material.title, anchors: [{ materialId: material.materialId, versionId: material.currentVersion.versionId }] });
+      }} />
+    </div> :
     <Mindmap testId="lesson-materials-map" label="这节课用到的资料" nodes={graph.nodes} mode="map" relations={graph.edges}
       expanded={expanded} selected={selected} onPick={pick} onExpand={expand} busy={busy || sending}
       action={{ label: node => deck.related.includes(node.key) ? '收起关联' : '展开关联', when: node => graph.canRelate(node.key), run: relate }}
       actions={(['directory', 'cards'] as const).map(action => ({ label: breakdownLabel(action), when: node => node.key === selected && breakdownTarget(node) !== undefined, run: node => { void breakdown(node, action); } }))}
-      nodeTestId="lesson-resource-row" labelTestId="lesson-resource-open"
-      empty="这节课还没有用到资料。" />}
+      nodeTestId="lesson-resource-row" labelTestId="lesson-resource-open" />}
     </section>
     {deck.sheets.map(sheet => {
       const open = sheet.content, activeBrowseId = deck.active === sheet.id ? browseId : undefined;

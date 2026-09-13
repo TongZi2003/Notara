@@ -92,7 +92,7 @@ test('开始 imports stay with the original lesson during a switch; composer pas
   let arrived!: () => void;
   const waiting = new Promise<void>(resolve => { arrived = resolve; });
   await page.route('**/api/studyforgeMaterials/import', async route => { arrived(); await held; await route.continue(); });
-  await page.getByTestId('material-file-input').setInputFiles({ name: '第一课原文.md', mimeType: 'text/markdown', buffer: Buffer.from('第一课的原文') });
+  await page.getByTestId('lesson-deck-reopen').getByTestId('material-file-input').setInputFiles({ name: '第一课原文.md', mimeType: 'text/markdown', buffer: Buffer.from('第一课的原文') });
   await waiting;
   try {
     await page.getByRole('button', { name: 'New session', exact: true }).click();

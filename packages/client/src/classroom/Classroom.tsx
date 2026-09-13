@@ -6,6 +6,8 @@ import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import { LESSON_TAB_ID, LESSON_TAB_KIND, LessonPanel, type LessonPanelInjected } from './LessonPanel.tsx';
 import { useEffect } from 'react';
 import { LessonStart } from './LessonStart.tsx';
+import { LessonImport } from './LessonImport.tsx';
+import { requestLessonPane } from '../materials/lesson-pane-request.ts';
 import { registerConversationProposals } from '../proposals/ConversationProposals.tsx';
 
 /** The one native composition that owns learning surfaces; creation is not a lesson. */
@@ -18,6 +20,15 @@ const LEARNING_PRESET = 'studyforge-learning';
  */
 export function registerClassroom(ctx: Context): void {
   const initiallyOpened = new Set<string>();
+  function ImportEntry({ sessionId, useSessions }: PropsRuntime<'conversation.input.left'>): React.JSX.Element | null {
+    const learning = useSessions(state => state.byId[sessionId]?.projectionValues?.agentPreset === LEARNING_PRESET);
+    const selected = useSessions(state => state.current === sessionId);
+    if (!learning) return null;
+    return <LessonImport key={sessionId} ctx={ctx} sessionId={sessionId} active={selected} appearance="compact" onOpen={material => {
+      requestLessonPane(sessionId, { kind: 'source', title: material.title, anchors: [{ materialId: material.materialId, versionId: material.currentVersion.versionId }] });
+      ctx.sidebarRight.openTab(LESSON_TAB_KIND);
+    }} />;
+  }
   function LessonEntry({ sessionId, useSessions }: PropsRuntime<'conversation.session.header.actions'>): React.JSX.Element | null {
     const selected = useSessions(state => state.current === sessionId);
     const preset = useSessions(state => {
@@ -105,5 +116,8 @@ export function registerClassroom(ctx: Context): void {
   ctx.effect(() => ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register(
     { name: 'conversation.session.header.actions', id: 'studyforge.lesson', order: 10 }, LessonEntry,
   )), 'studyforge: lesson header entry');
+  ctx.effect(() => ctx.slots.inject('conversation.input.left', () => ctx.slots.register(
+    { name: 'conversation.input.left', id: 'studyforge.import', order: 5 }, ImportEntry,
+  )), 'studyforge: classroom material import');
   registerConversationProposals(ctx);
 }

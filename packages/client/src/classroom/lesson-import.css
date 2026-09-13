@@ -1,0 +1,25 @@
+.sf-lesson-import{position:relative;min-width:0;color:var(--nb-ink,#3a3531)}
+.sf-upload-results{list-style:none;padding:0;margin:14px 0;font:14px/1.7 var(--nb-print,"Songti SC",serif)}
+.sf-upload-results li{display:flex;flex-wrap:wrap;gap:4px 10px;padding:10px 0;border-bottom:1px solid var(--nb-rule,#d9d2bd);overflow-wrap:anywhere}
+.sf-upload-results li>small{width:100%;color:var(--nb-pencil,#756e61)}
+.sf-upload-results li>button{border:0;border-bottom:1px dotted var(--nb-rule-hi,#cfc7ae);background:none;color:var(--nb-pen,#26437c);font:inherit;padding:0;text-align:left;cursor:pointer;overflow-wrap:anywhere}
+.sf-lesson-import[data-appearance="compact"]{display:flex;align-items:center;gap:3px}
+.sf-lesson-import[data-appearance="compact"] .sf-import{display:block}
+.sf-lesson-import[data-appearance="compact"] .sf-import-drop{display:block;border:0;padding:0;background:none}
+.sf-lesson-import[data-appearance="compact"] button.sf-action{white-space:nowrap;background:none;border:0;box-shadow:none;color:var(--nb-pen,#26437c);font:16px/1.5 var(--nb-hand,"Kaiti SC",serif);padding:3px 6px}
+.sf-upload-status{border:0;background:none;color:var(--nb-pen,#26437c);font:17px/1.5 var(--nb-hand,serif);padding:2px 5px;cursor:pointer}
+.sf-upload-popover{position:absolute;bottom:calc(100% + 14px);left:0;z-index:25;box-sizing:border-box;width:min(300px,calc(100vw - 96px));max-height:280px;overflow:auto;overscroll-behavior:contain;background:var(--nb-page,#f6f1e3);box-shadow:0 2px 10px #3c321a26;border:1px solid var(--nb-rule-hi,#cfc7ae);border-radius:2px;padding:18px 14px 6px}
+.sf-upload-popover .sf-upload-results{margin:0}
+.sf-upload-close{position:absolute;top:0;right:3px;border:0;background:none;color:var(--nb-pencil,#756e61);font:20px/1.3 var(--nb-hand,serif);padding:2px 6px;cursor:pointer}
+.sf-empty-materials{display:grid;place-items:center;flex:1;min-height:240px;padding:36px 20px}
+.sf-empty-materials .sf-lesson-import{width:min(270px,100%)}
+.sf-empty-materials .sf-import-drop{position:relative;align-items:center;text-align:center;padding:32px 16px 26px;gap:12px;background:var(--nb-page,#f6f1e3);border:1px solid var(--nb-rule-hi,#cfc7ae);border-radius:2px 4px 2px 1px;box-shadow:0 3px 9px #3c321a14;transition:transform .15s,border-color .15s}
+.sf-empty-materials .sf-import-drop::before{content:"";position:absolute;width:64px;height:17px;top:-9px;left:calc(50% - 32px);background:var(--nb-paper,#efe7d2);border-inline:1px solid var(--nb-rule,#d9d2bd);opacity:.9;transform:rotate(-3deg)}
+.sf-empty-materials .sf-import-glyph{width:48px;height:54px;stroke:var(--nb-pen,#26437c);stroke-width:1.25;stroke-linecap:round;stroke-linejoin:round}
+body .sf-empty-materials button.sf-action{border:0;border-bottom:1px solid var(--nb-pen,#26437c);border-radius:0;background:none;box-shadow:none;color:var(--nb-pen,#26437c);font:24px/1.5 var(--nb-hand,"Kaiti SC",serif);padding:0 8px}
+body .sf-empty-materials section.sf-import{border:0;padding:0;margin:0;background:none}
+.sf-empty-materials .sf-import-drop .sf-note{font:13px/1.8 var(--nb-hand,"Kaiti SC",serif);color:var(--nb-pencil,#756e61)}
+.sf-empty-materials .sf-import-drop-over{border-color:var(--nb-pen,#26437c);transform:translateY(-3px)}
+.sf-lesson-import button:disabled{opacity:.5;cursor:default}
+.sf-lesson-import button:focus-visible{outline:1px dashed var(--nb-pen,#26437c);outline-offset:4px}
+@media(prefers-reduced-motion:reduce){.sf-empty-materials .sf-import-drop{transition:none}}

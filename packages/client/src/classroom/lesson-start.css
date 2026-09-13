@@ -24,7 +24,7 @@
 .sf-lesson-start button:disabled{opacity:.5;cursor:default}
 .sf-lesson-start button:focus-visible{outline:1px dashed var(--nb-pen,#26437c);outline-offset:5px}
 @media(prefers-reduced-motion:reduce){.sf-start-entry span,.sf-lesson-start .sf-import-glyph,.sf-lesson-start .sf-import-drop{transition:none}}
-/* DSH rc.2 ships this control directly in InputBar, without a button slot.
-   Keep native paste/attachment drafts intact; learning imports now live in 开始.
+/* Keep native paste/attachment drafts intact. The learning composer uses the
+   product import entry in conversation.input.left to persist selected files.
    Creator sessions keep the native entry. Both shipped locales are covered. */
 body:has([data-testid="open-lesson"]) [data-composer-card] button:is([aria-label="Add attachment"],[aria-label="添加附件"]){display:none}

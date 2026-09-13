@@ -15,7 +15,7 @@ export interface ImportMaterialProps {
   /** Embedded next to the composer: only consume paste inside this control. */
   readonly pasteScope?: 'page' | 'control';
   readonly active?: boolean;
-  readonly appearance?: 'sheet';
+  readonly appearance?: 'sheet' | 'classroom' | 'compact';
 }
 
 /** Accept list for the file picker; the page still validates what arrives. */
@@ -30,7 +30,7 @@ export function ImportMaterial({ pending, onFiles, pasteScope = 'page', active =
   // Pasting is a page-level gesture: a screenshot has no file path to pick.
   useEffect(() => {
     function onPaste(event: ClipboardEvent): void {
-      if (!active || pending || event.defaultPrevented || (pasteScope === 'control' && !controlRef.current?.contains(event.target as Node))) return;
+      if (pasteScope !== 'page' || !active || pending || event.defaultPrevented) return;
       const files = [...(event.clipboardData?.files ?? [])];
       if (files.length === 0) return;
       event.preventDefault();
@@ -40,7 +40,13 @@ export function ImportMaterial({ pending, onFiles, pasteScope = 'page', active =
     return () => { window.removeEventListener('paste', onPaste); };
   }, [onFiles, pending, active, pasteScope]);
 
-  return <section className="sf-import" data-appearance={appearance} aria-label="导入资料" ref={controlRef}>
+  return <section className="sf-import" data-appearance={appearance} aria-label="导入资料" ref={controlRef}
+    onPaste={event => {
+      if (pasteScope !== 'control' || !active || pending || event.defaultPrevented) return;
+      const files = [...event.clipboardData.files];
+      if (!files.length) return;
+      event.preventDefault(); event.stopPropagation(); onFiles(files);
+    }}>
     <input
       ref={inputRef}
       className="sf-import-input"
@@ -58,26 +64,26 @@ export function ImportMaterial({ pending, onFiles, pasteScope = 'page', active =
     <div
       className={over ? 'sf-import-drop sf-import-drop-over' : 'sf-import-drop'}
       data-testid="material-drop-zone"
-      onDragOver={event => { event.preventDefault(); setOver(true); }}
+      onDragOver={event => { event.preventDefault(); event.stopPropagation(); setOver(true); }}
       onDragLeave={() => { setOver(false); }}
       onDrop={event => {
-        event.preventDefault();
+        event.preventDefault(); event.stopPropagation();
         setOver(false);
         const files = [...event.dataTransfer.files];
         if (files.length > 0 && !pending && active) onFiles(files);
       }}
       title="把文件拖到这里，或直接粘贴一张图"
     >
-      {appearance === 'sheet' && <svg className="sf-import-glyph" viewBox="0 0 64 72" fill="none" aria-hidden="true">
+      {(appearance === 'sheet' || appearance === 'classroom') && <svg className="sf-import-glyph" viewBox="0 0 64 72" fill="none" aria-hidden="true">
         <path d="M14 7 43 5l10 12-2 47-39 2 2-59Z" />
         <path d="m42 6-1 14 12-2M23 29l17-1M23 37l12-1M23 45l10-1" />
         <path d="M46 43v18m-9-9h18" />
       </svg>}
       <button type="button" className="sf-action" disabled={pending || !active} data-testid="material-pick"
         onClick={() => { inputRef.current?.click(); }}>
-        {pending ? '正在收下…' : appearance === 'sheet' ? '选择文件' : '导入资料'}
+        {pending ? '正在收下…' : appearance === 'sheet' ? '选择文件' : <>{appearance === 'compact' && <span aria-hidden="true">＋ </span>}导入资料</>}
       </button>
-      <p className="sf-note">{appearance === 'sheet' ? '也可以拖到这里，或粘贴图片' : '拖进来，或粘贴一张图'}</p>
+      {appearance !== 'compact' && <p className="sf-note">{appearance === 'classroom' ? <>拖进来，也可以粘贴图片<br />收进资料库，放进这节课</> : appearance === 'sheet' ? '也可以拖到这里，或粘贴图片' : '拖进来，或粘贴一张图'}</p>}
     </div>
   </section>;
 }

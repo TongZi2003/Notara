@@ -1,0 +1,48 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/classroom-import.spec.ts tests/e2e/lesson-start.spec.ts tests/e2e/material-import.spec.ts tests/e2e/lesson-materials-mindmap.spec.ts --output=.runtime/classroom-import-ui
+
+
+Running 8 tests using 1 worker
+
+(node:44019) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/classroom-import.spec.ts:12:1 › conversation import saves directly, retries an uncertain reply once, and keeps the draft and original accessible (11.2s)
+  ✘  2 tests/e2e/classroom-import.spec.ts:63:1 › empty desk imports a dropped batch even when its first saved file replaces the empty state (10.3s)
+(node:44237) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 tests/e2e/lesson-materials-mindmap.spec.ts:23:1 › the lesson right column is one material map that opens originals and cards in place (12.2s)
+  ✓  4 tests/e2e/lesson-start.spec.ts:12:1 › 开始 owns settings and imports; lost replies retry the same writes, preserve the draft, and open the saved original (11.3s)
+  ✓  5 tests/e2e/lesson-start.spec.ts:75:1 › 开始 imports stay with the original lesson during a switch; composer paste is not intercepted (11.0s)
+  ✓  6 tests/e2e/material-import.spec.ts:22:1 › an imported original is read directly and never opens a lesson (6.7s)
+  ✓  7 tests/e2e/material-import.spec.ts:52:1 › a second file with the same name is refused with a next action (6.6s)
+  ✓  8 tests/e2e/material-import.spec.ts:67:1 › a new version is explicit, keeps the old bytes readable, and a refresh keeps both (9.1s)
+
+
+  1) tests/e2e/classroom-import.spec.ts:63:1 › empty desk imports a dropped batch even when its first saved file replaces the empty state
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 390
+    Received:    471
+
+      90 |   await expect(popup).toBeVisible();
+      91 |   const box = (await popup.boundingBox())!;
+    > 92 |   expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(390);
+         |                                                                      ^
+      93 |   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      94 |   await page.screenshot({ path: info.outputPath('classroom-import-narrow.png'), fullPage: true });
+      95 | });
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/classroom-import.spec.ts:92:70
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:44137) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: .runtime/classroom-import-ui/classroom-import-empty-des-108bd-le-replaces-the-empty-state/error-context.md
+
+  1 failed
+    tests/e2e/classroom-import.spec.ts:63:1 › empty desk imports a dropped batch even when its first saved file replaces the empty state
+  7 passed (1.3m)

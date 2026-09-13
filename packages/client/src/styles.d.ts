@@ -6,3 +6,4 @@ declare module '*/tool-activity.css' {}
 declare module '*/original-shell.css' {}
 declare module '*/original-pages.css' {}
 declare module '*/linear-tree.css' {}
+declare module '*/lesson-import.css' {}

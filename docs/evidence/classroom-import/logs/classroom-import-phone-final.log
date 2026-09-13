@@ -1,0 +1,12 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/classroom-import.spec.ts --grep empty desk --output=.runtime/classroom-import-phone-final
+
+
+Running 1 test using 1 worker
+
+(node:48668) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/classroom-import.spec.ts:63:1 › empty desk imports a dropped batch even when its first saved file replaces the empty state (11.6s)
+
+  1 passed (12.2s)
