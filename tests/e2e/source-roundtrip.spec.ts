@@ -34,7 +34,14 @@ test('selected text travels in the native message and returns to the same immuta
   });
   await expect(panel.getByRole('status').filter({ hasText: '已选好' })).toBeVisible();
   await page.locator('[data-composer-input]').click();
-  await expect(page.getByTestId('composer-context')).toContainText('原题 · 选段');
+  const chip = page.locator('[data-composer-input] [data-composer-chip="studyforge-source"]').filter({ hasText: '原题 · 选段' });
+  await expect(chip).toBeVisible();
+  await expect(page.getByTestId('composer-context')).toHaveCount(0);
+  await expect(page.getByText('本次将引用：', { exact: false })).toHaveCount(0);
+  const chipBox = (await chip.boundingBox())!, composerBox = (await page.locator('[data-composer-card]').boundingBox())!;
+  expect(chipBox.y).toBeGreaterThanOrEqual(composerBox.y);
+  expect(chipBox.y + chipBox.height).toBeLessThanOrEqual(composerBox.y + composerBox.height);
+  await page.screenshot({ path: info.outputPath('inline-source-chip.png'), fullPage: true });
   await typeInput(page, '我认为它递增。');
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await expect(page.getByTestId('message-sources').getByRole('button').first()).toBeVisible();
@@ -97,7 +104,7 @@ test('PDF pointer rectangles remain in original coordinates at four rotations an
     await page.mouse.move(box.x + box.width * .4, box.y + box.height * .4, { steps: 4 });
     await page.mouse.up();
     await page.locator('[data-composer-input]').click();
-    await expect(page.getByTestId('composer-context')).toContainText('旋转页 · 选段');
+    await expect(page.locator('[data-composer-chip="studyforge-source"]').filter({ hasText: '旋转页 · 选段' })).toBeVisible();
     await typeInput(page, '看第' + p + '个选段。');
     await page.getByRole('button', { name: 'Send message', exact: true }).click();
     await expect.poll(async () => (await readFile(join(classroom.root, 'model-requests.jsonl'), 'utf8')).includes('看第' + p + '个选段。')).toBe(true);
@@ -164,7 +171,7 @@ test('Word cross-paragraph selection preserves each real block including the mid
     const selection = window.getSelection()!; selection.removeAllRanges(); selection.addRange(range);
     document.dispatchEvent(new Event('selectionchange'));
   });
-  await expect(page.getByTestId('composer-context')).toContainText('重复段落 · 选段');
+  await expect(page.locator('[data-composer-chip="studyforge-source"]').filter({ hasText: '重复段落 · 选段' })).toBeVisible();
   await typeInput(page, '这三段有什么关系？');
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await expect(page.getByTestId('message-sources').getByRole('button')).toHaveCount(3);
@@ -198,7 +205,7 @@ test('native card reference returns the displayed fixed version without exposing
   await page.getByTestId('lesson-materials-refresh').click();
   await page.getByTestId('lesson-resource-row').filter({ hasText: '原卡' }).getByTestId('lesson-resource-open').click();
   await expect(page.getByTestId('card-detail-title')).toHaveText('原卡');
-  await expect(page.getByTestId('composer-context')).toContainText('原卡');
+  await expect(page.locator('[data-composer-chip="studyforge-source"]').filter({ hasText: '原卡' })).toBeVisible();
   await client.rpc('studyforgeLearning/editCard', { input: { operationId: crypto.randomUUID(), target: result.value.ref, expectedVersion: 1, patch: { front: '第二版题面' } } });
   await typeInput(page, '我正看这道题。');
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
@@ -229,12 +236,12 @@ test('native admission failure restores a frozen source reference and retry send
   await page.getByTestId('material-row').first().getByRole('button').first().click();
   await expect(page.getByTestId('material-text')).toBeVisible();
   await page.getByTestId('material-open-classroom').click();
-  await expect(page.getByTestId('composer-context')).toContainText('失败重试');
+  await expect(page.locator('[data-composer-chip="studyforge-source"]').filter({ hasText: '失败重试' })).toBeVisible();
   await typeInput(page, '带着原文重试');
   rejectNext = true;
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await expect.poll(() => rejected).toBe(true);
-  await expect(page.getByTestId('composer-context')).toContainText('失败重试');
+  await expect(page.locator('[data-composer-chip="studyforge-source"]').filter({ hasText: '失败重试' })).toBeVisible();
   await expect(page.locator('[data-composer-input]')).toContainText('带着原文重试');
   await expect(page.locator('body')).not.toContainText('studyforge-source');
   const client = await connectRuntime(classroom);
@@ -285,7 +292,7 @@ test('pointer-selected image is attached before native sending and native queued
   await page.mouse.up();
   await expect(page.getByTestId('source-highlight').first()).toBeVisible();
   await page.locator('[data-composer-input]').click();
-  await expect(page.getByTestId('composer-context')).toContainText('函数图 · 选段');
+  await expect(page.locator('[data-composer-chip="studyforge-source"]').filter({ hasText: '函数图 · 选段' })).toBeVisible();
   await typeInput(page, '解释我框出的图。');
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await expect(page.getByTestId('message-sources').getByRole('button').first()).toBeVisible();
@@ -309,7 +316,7 @@ test('pointer-selected image is attached before native sending and native queued
   await sendInput(page, '[slow] 继续逐步分析。'.repeat(20));
   await expect(page.getByRole('button', { name: 'Stop generating', exact: true })).toBeVisible();
   await page.locator('[data-composer-input]').click();
-  await expect(page.getByTestId('composer-context')).toBeVisible();
+  await expect(page.locator('[data-composer-chip="studyforge-source"]').first()).toBeVisible();
   await typeInput(page, '稍后再看。');
   await page.getByRole('button', { name: 'Queue message', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Edit queued message', exact: true })).toBeVisible();

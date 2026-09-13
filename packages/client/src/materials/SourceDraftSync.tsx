@@ -3,8 +3,9 @@ import { SOURCE_TRIGGER_NAME } from './source-trigger.ts';
 import { useEffect, useRef } from 'react';
 import type { SourceReferences } from './source-selection.ts';
 type Props = ComposedProps<'conversation.composer.dock', EntryKeyOf<'conversation.composer.dock'>, never, undefined, { references: SourceReferences }>;
-/** Read the native draft only. Crops were accepted before reference insertion. */
-export function ContextPreview({ useInput, useSession, inputActions, sessionId, references }: Props): React.JSX.Element | null {
+/** Keep reference/crop lifetimes aligned with the native draft. The native
+ * inline chips already show the sources; no second summary below the input. */
+export function SourceDraftSync({ useInput, useSession, inputActions, sessionId, references }: Props): null {
   const occurrences = useInput(state => state.occurrences);
   const ids = useInput(state => state.attachmentIds);
   const phase = useInput(state => state.phase);
@@ -26,7 +27,5 @@ export function ContextPreview({ useInput, useSession, inputActions, sessionId, 
     }
     previous.current = live;
   }, [occurrences, ids, phase, inputActions, sessionId, references]);
-  const sources = occurrences.filter(item => item.source === SOURCE_TRIGGER_NAME);
-  if (sources.length === 0) return null;
-  return <div className="sf-context-line" data-testid="composer-context">本次将引用：{sources.map(item => item.label).join('、')}</div>;
+  return null;
 }

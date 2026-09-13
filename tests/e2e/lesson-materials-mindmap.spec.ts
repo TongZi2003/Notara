@@ -117,7 +117,7 @@ test('the lesson right column is one material map that opens originals and cards
   await map.locator('[data-kind="card"]').filter({ hasText: '独立卡' }).getByTestId('lesson-resource-open').click();
   await expect(page.locator('[data-testid="lesson-materials-pane"][data-pane="card"]')).toBeVisible();
   await expect(page.getByTestId('card-detail-title')).toHaveText('独立卡');
-  await expect(page.getByTestId('composer-context')).toContainText('独立卡');
+  await expect(page.locator('[data-composer-chip="studyforge-source"]').filter({ hasText: '独立卡' })).toBeVisible();
   await page.screenshot({ path: info.outputPath('lesson-card-pane.png'), fullPage: true });
   await page.getByTestId('mindmap-back').click();
   await expect(map.locator('[data-kind="card"]').filter({ hasText: '独立卡' })).toBeVisible();
@@ -127,12 +127,12 @@ test('the lesson right column is one material map that opens originals and cards
   await expect(map.getByTestId('mindmap-relation')).toHaveCount(1);
   await expect(map).not.toContainText('无关联卡');
   await map.locator('[data-kind="card"]').filter({ hasText: '在书卡' }).getByTestId('lesson-resource-open').click();
-  await expect(page.getByTestId('composer-context')).toContainText('在书卡');
+  await expect(page.locator('[data-composer-chip="studyforge-source"]').filter({ hasText: '在书卡' })).toBeVisible();
   await map.locator('[data-key$="section:函数/定义域"]').getByTestId('lesson-resource-open').click();
   await expect(page.getByTestId('lesson-materials-pane')).toHaveCount(2);
   const pages = panel.getByRole('navigation', { name: '工作台中打开的内容' });
   await pages.getByRole('button', { name: '在书卡', exact: true }).click();
-  await expect(page.getByTestId('composer-context')).toContainText('在书卡');
+  await expect(page.locator('[data-composer-chip="studyforge-source"]').filter({ hasText: '在书卡' })).toBeVisible();
   const cardPane = panel.locator('[data-pane="card"]');
   await cardPane.getByTestId('deck-parent').filter({ hasText: '函数原文' }).click();
   await expect(page.getByTestId('lesson-materials-pane')).toHaveCount(3);

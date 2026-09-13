@@ -17,7 +17,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client';
 import type {} from '@deepseek-ai/dsh-client-ui-slots';
 import { useEffect, useState } from 'react';
 import './original-pages.css';
-import { ContextPreview } from './ContextPreview.tsx';
+import { SourceDraftSync } from './SourceDraftSync.tsx';
 import { DocxPreview } from './docx/DocxPreview.tsx';
 import { SourceReferences } from './source-selection.ts';
 import { holdSourceReferences } from './source-references-holder.ts';
@@ -72,8 +72,6 @@ const css = `
 .sf-action:disabled{opacity:.55;cursor:default}
 .sf-material-view{margin-top:6px;border-top:1px solid #e7e0cd;padding-top:12px}
 .sf-material-outline{display:flex;flex-direction:column;gap:6px;align-items:flex-start;margin-top:4px}
-.sf-context-line{display:flex;gap:10px;align-items:center;border:1px solid #d9d2bd;border-radius:3px;background:#fffdf6;color:#5a688a;font-size:12px;padding:6px 10px}
-.sf-context-label{color:#26437c}
 .sf-material-outline h3{font-size:13px;font-weight:600;letter-spacing:.08em;margin:0;color:#5a688a}
 .sf-material-outline ol{list-style:none;margin:0;padding:0;border-top:1px solid #eee7d6}
 .sf-material-outline li{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;border-bottom:1px solid #eee7d6;padding:7px 2px}
@@ -195,8 +193,8 @@ export function registerMaterials(ctx: Context, navigation: import('./material-n
 }
 
 /**
- * P4.3: the `@` source the composer freezes with, and the dock row that owns its
- * crops and shows what will be sent. Registered apart from the page so a
+ * P4.3: the `@` source the composer freezes with, and a renderless subscriber
+ * that keeps reference/crop lifetimes aligned. Registered apart from the page so a
  * composition without a conversation surface still gets the materials page.
  */
 export function registerSourceContext(ctx: Context, references: SourceReferences): void {
@@ -205,5 +203,5 @@ export function registerSourceContext(ctx: Context, references: SourceReferences
   registerAutomaticSource(ctx, references);
   ctx.effect(() => ctx.slots.register({
     name: 'conversation.composer.dock', id: '@studyforge/dsh-client/context', inject: () => ({ references }),
-  }, ContextPreview), 'studyforge: composer context row');
+  }, SourceDraftSync), 'studyforge: source draft lifecycle');
 }
