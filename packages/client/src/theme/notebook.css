@@ -155,8 +155,11 @@ body[data-sf-notebook="on"] .sf-book-structure{background-image:radial-gradient(
 body[data-sf-notebook="on"] .sf-book-node{background:var(--nb-slip);border-color:var(--nb-rule);box-shadow:0 1px 2px #3c321a12}
 body[data-sf-notebook="on"] .sf-book-node button{font-family:var(--nb-hand);font-size:18px}
 body[data-sf-notebook="on"] .sf-book-node button.sf-quiet{font:12px/1.5 var(--nb-print)}
-body[data-sf-notebook="on"] .sf-lesson{background-image:var(--nb-lines);background-size:var(--nb-lines-size)}
+/* The deck is one fixed dot-paper surface, including the gutters around its
+   zoomable map. Conversation paper and the opened reading sheets stay separate. */
+body[data-sf-notebook="on"] .sf-lesson{background-image:radial-gradient(color-mix(in srgb,var(--nb-pencil) 28%,transparent) 1px,transparent 1px);background-size:24px 24px}
 body[data-sf-notebook="on"] .sf-lesson>section{background:var(--nb-page);border-color:var(--nb-rule-hi);padding:16px 12px}
+body[data-sf-notebook="on"] .sf-lesson:has(.sf-deck-surface) :is(.sf-lesson-materials-section,.sf-deck-map,.sf-mindmap-shell,.sf-mindmap){background:transparent}
 body[data-sf-notebook="on"] :is(.katex,.katex *){letter-spacing:normal}
 body[data-sf-notebook="on"] pre,body[data-sf-notebook="on"] code{font-family:ui-monospace,"SF Mono",Menlo,monospace}
 

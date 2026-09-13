@@ -1,0 +1,16 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/lesson-materials-mindmap.spec.ts tests/e2e/notebook-theme.spec.ts tests/e2e/classroom-import.spec.ts --output=.runtime/deck-dot-paper-results
+
+
+Running 5 tests using 1 worker
+
+(node:60730) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/classroom-import.spec.ts:12:1 › conversation import saves directly, retries an uncertain reply once, and keeps the draft and original accessible (11.1s)
+  ✓  2 tests/e2e/classroom-import.spec.ts:63:1 › empty desk imports a dropped batch even when its first saved file replaces the empty state (11.2s)
+  ✓  3 tests/e2e/lesson-materials-mindmap.spec.ts:23:1 › the lesson right column is one material map that opens originals and cards in place (12.0s)
+  ✓  4 tests/e2e/notebook-theme.spec.ts:10:1 › notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft (12.2s)
+  ✓  5 tests/e2e/notebook-theme.spec.ts:88:1 › notebook card slips open the real card and its source returns to the originating lesson without recording study (10.9s)
+
+  5 passed (58.0s)
