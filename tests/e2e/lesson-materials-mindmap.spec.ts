@@ -72,12 +72,16 @@ test('the lesson right column is one material map that opens originals and cards
   // own re-read, and it is what makes the new rows appear without a reload.
   await page.getByTestId('lesson-materials-refresh').click();
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText('本课资料');
+  await expect(panel.getByRole('heading', { name: '本课资料', exact: true })).toHaveCount(0);
+  await expect(panel.getByRole('navigation', { name: '工作台中打开的内容' })).toHaveCount(0);
+  await expect(panel).not.toContainText('点便签读详情');
   await expect(panel.getByTestId('usage-totals')).toHaveCount(0);
   await expect(panel.getByTestId('lesson-memory')).toHaveCount(0);
   await expect(panel.getByTestId('lesson-adjust')).toHaveCount(0);
   const map = page.getByTestId('lesson-materials-map');
   await expect(map).toBeVisible();
+  const panelBox = (await panel.boundingBox())!, mapBox = (await map.boundingBox())!;
+  expect(mapBox.y - panelBox.y).toBeLessThanOrEqual(16);
   // A book is a node; a card that belongs to no book is its own node.
   const bookNode = map.locator('[data-kind="book"]').filter({ hasText: '函数原文' });
   await expect(bookNode).toHaveCount(1);

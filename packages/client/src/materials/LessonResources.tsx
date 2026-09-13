@@ -291,19 +291,17 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
       if (!result.ok) { setNotice('这次没能开始整理。请刷新节点后重试，已有内容仍保留。'); return; }
       attempt.current = undefined;
       setDeck(old => ({ ...old, active: undefined, selected: node.key, expanded: [...new Set([...old.expanded, ...parentTrail(graph.nodes, node.key).map(parent => parent.key), node.key])] }));
-      setNotice(`已把“${node.title}”交给老师${action === 'cards' ? '拆成题卡' : '细分目录'}，结果会出现在本课对话里。`);
     } catch { if (staged.current === sessionId) setNotice('暂时没有收到结果，再试会核对同一次整理。'); }
     finally { setSending(false); }
   }
   return <div className="sf-lesson-materials" data-testid="lesson-materials" data-view={deck.sheets.length ? 'deck' : 'map'}>
-    <nav className="sf-deck-index" aria-label="工作台中打开的内容">
+    {deck.sheets.length > 0 && <nav className="sf-deck-index" aria-label="工作台中打开的内容">
       <button type="button" className="sf-quiet" aria-pressed={deck.active === undefined} onClick={() => { setDeck(old => ({ ...old, active: undefined })); }}>关系图</button>
       {deck.sheets.map(sheet => <button key={sheet.id} type="button" className="sf-quiet" aria-pressed={deck.active === sheet.id}
         onClick={() => { setDeck(old => ({ ...old, active: sheet.id })); }}>{sheet.content.title}</button>)}
-    </nav>
+    </nav>}
     <div className="sf-deck-surface" ref={surface} data-testid="lesson-deck-surface">
     <section className="sf-deck-map" data-sheet-id="map" aria-label="本课关系图">
-    <p className="sf-deck-help">点便签读详情，展开看下一级 · 虚线是关联</p>
     {state.status !== 'ready' ? <p className="sf-note" role="status">{state.status === 'loading' ? '正在看这节课用到什么…' : '这节课用到的资料暂时取不到，稍后再看一次。'}</p> :
     <Mindmap testId="lesson-materials-map" label="这节课用到的资料" nodes={graph.nodes} mode="map" relations={graph.edges}
       expanded={expanded} selected={selected} onPick={pick} onExpand={expand} busy={busy || sending}

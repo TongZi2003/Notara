@@ -78,7 +78,6 @@ export function registerClassroom(ctx: Context): void {
   // callback identity, so re-evaluating the inject factory must not refetch.
   const injected: LessonPanelInjected = {
     ctx,
-    readCourse: input => ctx.remote.studyforgeCourses.read(input),
     host: {
       lessonResources: input => ctx.remote.studyforgeMaterials.lessonResources(input),
       materials: () => ctx.remote.studyforgeMaterials.list(),
@@ -113,7 +112,6 @@ export function registerClassroom(ctx: Context): void {
   function LessonGuide({ useTabInfo }: PropsRuntime<'sidebar.right.tab.guide'> & { matched: boolean }): React.JSX.Element {
     const info = useTabInfo();
     return <section className="sf-deck-reopen" data-testid="lesson-deck-reopen">
-      <h2>本课工作台</h2><p>从关系图接着看，刚才打开的原文和卡片也会回来。</p>
       <button type="button" className="sf-quiet" onClick={() => { info.tab.actions.openTab(LESSON_TAB_KIND, { replaceTab: true }); }}>打开工作台 →</button>
     </section>;
   }

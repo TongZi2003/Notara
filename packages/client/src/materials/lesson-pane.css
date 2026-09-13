@@ -15,23 +15,22 @@
 @media(max-width:900px){.sf-lesson .sf-lesson-materials-section{margin-top:12px}}
 
 /* A horizontal desk: map and open pages remain mounted, each with its own scroll. */
-.sf-lesson:has(.sf-deck-surface){height:100%;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.sf-lesson:has(.sf-deck-surface){position:relative;height:100%;min-height:0;overflow:hidden;display:flex;flex-direction:column;padding:8px}
 .sf-lesson:has(.sf-deck-surface) .sf-lesson-materials-section{flex:1;min-height:0;display:flex;flex-direction:column}
 .sf-lesson:has(.sf-deck-surface) .sf-lesson-materials{flex:1;min-height:0}
-.sf-lesson .sf-deck-heading{display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:4px 4px 12px}
-.sf-lesson .sf-deck-heading h2{font:22px/1.4 var(--nb-hand,serif);margin:0 0 3px}
-.sf-deck-heading small{display:block;color:var(--nb-pencil,#756e61);font:12px/1.5 var(--nb-print,serif);overflow-wrap:anywhere}
-.sf-deck-heading>div{flex:1;min-width:0}
+.sf-deck-tools{position:absolute;top:8px;right:8px;z-index:5;display:flex;gap:4px}
+.sf-lesson .sf-deck-tools button{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;background:var(--nb-page,#f6f1e3);color:var(--nb-pencil,#756e61);font:20px/1 var(--nb-print,serif);opacity:.85}
+.sf-lesson .sf-deck-tools button:hover,.sf-lesson .sf-deck-tools button:focus-visible{color:var(--nb-pen,#26437c);opacity:1}
 @media(max-width:900px){.sf-deck-spread{display:none}}
-.sf-lesson .sf-lesson-materials-section{margin-top:0;padding:0!important;border-top:0}
-.sf-deck-index{display:flex;gap:6px;overflow:auto;align-items:center;padding:4px 2px 8px;scrollbar-width:thin}
+.sf-lesson:has(.sf-deck-surface)>.sf-lesson-materials-section{margin:0;padding:0!important;border:0}
+.sf-lesson .sf-deck-map,.sf-lesson .sf-lesson-pane{margin:0;padding:0;border:0}
+.sf-deck-index{display:flex;gap:6px;overflow:auto;align-items:center;padding:0 68px 4px 2px;scrollbar-width:thin}
 .sf-lesson .sf-deck-index button{white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;font:16px/1.6 var(--nb-hand,serif);border:0;background:none;padding:4px 8px}
 .sf-deck-index button[aria-pressed="true"]{color:var(--nb-pen,#26437c);text-decoration:underline;text-underline-offset:5px}
 .sf-deck-surface{display:flex;flex:1;min-height:0;gap:14px;overflow-x:auto;overscroll-behavior-x:contain;align-items:stretch;min-width:0;padding:4px 2px 12px;scroll-snap-type:x proximity}
 .sf-deck-map,.sf-deck-sheet{box-sizing:border-box;flex:1 0 min(280px,100%);min-width:0;overflow:auto;scroll-snap-align:start;scrollbar-width:thin}
 .sf-deck-map{background:var(--nb-paper,#efe7d2)}
 .sf-deck-map:only-child{flex-basis:100%}
-.sf-deck-help{font:12px/1.6 var(--nb-print,serif);color:var(--nb-pencil,#756e61);margin:8px 12px}
 .sf-deck-sheet{background:var(--nb-page,#f6f1e3);border-left:1px solid var(--nb-rule-hi,#d9d2bd);padding:10px 12px}
 .sf-deck-sheet[data-active="true"]{border-left-color:var(--nb-pen,#26437c)}
 .sf-deck-sheet .sf-lesson-pane-head{position:sticky;top:-10px;background:var(--nb-page,#f6f1e3);z-index:3;padding:6px 0;border-bottom:1px solid var(--nb-rule,#d9d2bd)}
@@ -41,6 +40,4 @@
 .sf-lesson .sf-deck-trail button{border:0;border-bottom:1px dotted var(--nb-rule-hi,#d9d2bd);background:none;padding:3px 4px}
 .sf-deck-trail:empty{display:none}
 .sf-deck-reopen{padding:36px 24px;color:var(--nb-ink,#3a3531);background:var(--nb-page,#f6f1e3);height:100%}
-.sf-deck-reopen h2{font:24px var(--nb-hand,serif)}
-.sf-deck-reopen p{font:14px/1.8 var(--nb-print,serif);color:var(--nb-pencil,#756e61)}
 .sf-deck-reopen button{font:18px/1.8 var(--nb-hand,serif);color:var(--nb-pen,#26437c)}

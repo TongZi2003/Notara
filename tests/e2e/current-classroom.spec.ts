@@ -102,12 +102,11 @@ test('native classroom keeps its own composer and carries the student lesson sur
     await lessonEntry.click();
     const panel = page.getByTestId('studyforge-lesson-panel');
     await expect(panel).toBeVisible();
-    await expect(panel).toContainText('本课资料');
+    await expect(panel.getByRole('heading')).toHaveCount(0);
     await expect(panel).toContainText('这节课还没有用到资料。');
-    await expect(panel).toContainText('进行中');
-    // The docked panel slides in: assert the heading and body actually land in the
+    // The docked panel slides in: assert controls and content actually land in the
     // viewport before the evidence shot, so a mid-transition frame cannot pass.
-    await expect(panel.locator('.sf-original-lesson-head h2')).toBeInViewport({ ratio: 1 });
+    await expect(panel.getByTestId('lesson-materials-refresh')).toBeInViewport({ ratio: 1 });
     await expect(panel.getByText('这节课还没有用到资料。')).toBeInViewport({ ratio: 1 });
     await expect(panel).toBeInViewport({ ratio: 0.95 });
     expect(await panel.innerText()).not.toMatch(/studyforge\.|sessionId|schema|\/Users\/|\.jsonl/);
@@ -139,10 +138,9 @@ test('native classroom keeps its own composer and carries the student lesson sur
     // in-memory layout and the navigation is reachable again.
     const narrowPanel = page.getByTestId('studyforge-lesson-panel');
     await expect(narrowPanel).toBeVisible();
-    await expect(narrowPanel).toContainText('本课资料');
-    await expect(narrowPanel.locator('.sf-original-lesson-head h2')).toBeInViewport({ ratio: 1 });
+    await expect(narrowPanel.getByRole('heading')).toHaveCount(0);
+    await expect(narrowPanel.getByTestId('lesson-materials-refresh')).toBeInViewport({ ratio: 1 });
     await expect(narrowPanel.getByText('这节课还没有用到资料。')).toBeInViewport({ ratio: 1 });
-    await expect(narrowPanel.getByText('进行中')).toBeInViewport({ ratio: 1 });
     await page.screenshot({ path: testInfo.outputPath('narrow-390-lesson.png') });
     await page.reload();
     await dismissNotices(page);

@@ -1,0 +1,40 @@
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/lesson-materials-mindmap.spec.ts tests/e2e/current-classroom.spec.ts
+
+
+Running 3 tests using 1 worker
+
+(node:37862) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/current-classroom.spec.ts:53:1 › native classroom keeps its own composer and carries the student lesson surfaces (21.2s)
+  ✓  2 tests/e2e/current-classroom.spec.ts:159:1 › a creation session keeps the classroom and hides the learning lesson surfaces (9.5s)
+  ✘  3 tests/e2e/lesson-materials-mindmap.spec.ts:22:1 › the lesson right column is one material map that opens originals and cards in place (10.0s)
+
+
+  1) tests/e2e/lesson-materials-mindmap.spec.ts:22:1 › the lesson right column is one material map that opens originals and cards in place
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 16
+    Received:    73
+
+      82 |   await expect(map).toBeVisible();
+      83 |   const panelBox = (await panel.boundingBox())!, mapBox = (await map.boundingBox())!;
+    > 84 |   expect(mapBox.y - panelBox.y).toBeLessThanOrEqual(16);
+         |                                 ^
+      85 |   // A book is a node; a card that belongs to no book is its own node.
+      86 |   const bookNode = map.locator('[data-kind="book"]').filter({ hasText: '函数原文' });
+      87 |   await expect(bookNode).toHaveCount(1);
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/lesson-materials-mindmap.spec.ts:84:33
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:38161) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/lesson-materials-mindmap-t-f615a-riginals-and-cards-in-place/error-context.md
+
+  1 failed
+    tests/e2e/lesson-materials-mindmap.spec.ts:22:1 › the lesson right column is one material map that opens originals and cards in place
+  2 passed (41.4s)
