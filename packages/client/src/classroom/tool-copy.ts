@@ -2,6 +2,7 @@ export type ToolDisplayState = 'running' | 'ok' | 'error' | 'stopped';
 
 /** Describes the action, never an unverified learning or persistence outcome. */
 const ACTIONS: Record<string, string> = {
+  draft_artifact: '准备可共同编辑的作品', mark_thought: '在思维图记下这个想法',
   load_tools: '准备这一步需要的操作',
   list_materials: '查找书架上的资料', read_material: '阅读原文', preview_region: '查看书页细节',
   read_content: '精读备课内容', cite_materials: '选用本课片段', note_learning_goal: '记下学习目标',

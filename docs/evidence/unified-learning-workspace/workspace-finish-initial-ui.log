@@ -1,0 +1,51 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/workspace-docking.spec.ts tests/e2e/notebook-pages.spec.ts
+
+
+Running 4 tests using 1 worker
+
+(node:76215) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths (26.1s)
+(node:76292) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/e2e/workspace-docking.spec.ts:3:1 › three peer views preserve the native draft through docking, resizing, hiding and narrow switching (10.8s)
+  ✓  3 tests/e2e/workspace-docking.spec.ts:41:1 › soft paper is optional and remembers style independently from paper colour (9.9s)
+  ✓  4 tests/e2e/workspace-docking.spec.ts:54:1 › layout menu supports every pair and the native conversation returns when the workspace plugin unloads (11.3s)
+
+
+  1) tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('[data-slot="main.conversation"]>[data-phase]')
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" locator('[data-slot="main.conversation"]>[data-phase]') with timeout 15000ms
+      - waiting for locator('[data-slot="main.conversation"]>[data-phase]')
+
+
+      58 |       else await openRoot(page, label);
+      59 |       const surface = route === 'home' ? page.locator('[data-slot="main.conversation"]>[data-phase]') : page.getByTestId('studyforge-page-studyforge.' + route);
+    > 60 |       await expect(surface).toBeVisible();
+         |                             ^
+      61 |       // Below the native breakpoint the notebook rail collapses on its own; the
+      62 |       // page keeps its own width only after that re-layout has actually landed.
+      63 |       if (width === 390 && await sidebar.getAttribute('data-collapsed') !== 'true') {
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/notebook-pages.spec.ts:60:29
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:76221) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/notebook-pages-original-no-b163e-at-desktop-and-phone-widths/error-context.md
+
+  1 failed
+    tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths
+  3 passed (58.8s)

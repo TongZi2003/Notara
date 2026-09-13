@@ -1,0 +1,12 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/workspace-docking.spec.ts --grep student controls
+
+
+Running 1 test using 1 worker
+
+(node:79985) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/workspace-docking.spec.ts:76:1 › student controls share typography and rounded shapes; subject menus fit narrow panes without coding launchers (10.1s)
+
+  1 passed (10.5s)

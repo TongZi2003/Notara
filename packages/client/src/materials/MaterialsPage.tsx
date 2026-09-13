@@ -37,6 +37,8 @@ import { rememberSourceText, sourceTextOf } from './source-text.ts';
 import { SourceCapture } from './SourceCapture.tsx';
 import type { NativeResourceParams } from './native-preview-adapter.ts';
 import './reader-page.css';
+import { LibraryBrowser } from './LibraryBrowser.tsx';
+import { MaterialEditor } from './MaterialEditor.tsx';
 import {
   DOCX_MEDIA_TYPE, byteLabel, decodeBase64, decodeText, encodeBase64, importFailureCopy,
   kindLabel, mediaTypeOfName, titleFromFileName, versionFailureCopy,
@@ -254,40 +256,14 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
           <p>放进书、讲义、图片或自己的笔记。</p>
           <ImportMaterial appearance="sheet" pending={pending} onFiles={files => { void importFiles(files); }} />
         </section>}
-        {materials.length > 0 && <section className="sf-library-section">
-          <div className="sf-sec-head"><h2>上传的资料</h2><span className="cnt">{materials.length} 份</span></div>
-          <ul className="sf-original-list sf-linear-tree" data-testid="materials-list">
-            {materials.map(view => <MaterialRow key={view.materialId} view={view} selected={false} pending={pending}
-              onOpen={() => { chooseMaterial(view.materialId, view.currentVersion.versionId); }}
-              onAddVersion={file => { void addVersion(view, file); }} />)}
-          </ul>
-        </section>}
-        <section className="sf-library-section sf-library-notes">
-          <div className="sf-sec-head">
-            {cards.length > 0 && <><h2>学习笔记与题卡</h2><span className="cnt">{cards.length} 张</span></>}
-            <button type="button" className="sf-library-manage" data-testid="materials-open-cards"
-              onClick={() => { ctx.layout.selectPanel('studyforge.cards' as MainPanelId); }}>整理与复习 <span aria-hidden="true">→</span></button>
-          </div>
-          {cardList.status === 'loading' && <p className="sf-note" role="status">正在读取学习笔记…</p>}
-          {cardList.status === 'failed' && <p className="sf-note" role="status">学习笔记暂时读不出来。<button className="sf-quiet" data-testid="materials-cards-refresh" onClick={() => { setCardRefresh(count => count + 1); }}>重试</button></p>}
-          {cards.length > 0 && <ul className="sf-cardgrid sf-linear-tree">
-            {cards.map(card => <li className="sf-material-row" key={card.ref} data-testid="materials-card-row">
-              <button type="button" className="sf-acard" data-card-ref={card.ref}
-                onClick={() => { cardOpenRequest.request(card.ref); ctx.layout.selectPanel('studyforge.cards' as MainPanelId); }}>
-                <span className="a-head"><span className="a-title">{card.content.title}</span>
-                  <span className="a-meta">{PRESENTATION_LABELS[card.content.presentation]}</span></span>
-                {card.content.front !== '' && <span className="a-front">{card.content.front}</span>}
-                {[card.content.chapter, ...card.content.tags].filter(Boolean).length > 0 && <span className="a-foot"><span className="a-meta">{[card.content.chapter, ...card.content.tags].filter(Boolean).join(' · ')}</span></span>}
-              </button>
-            </li>)}
-          </ul>}
-        </section>
+        <LibraryBrowser ctx={ctx} materials={materials} cards={cards} references={references} onOpen={view => chooseMaterial(view.materialId, view.currentVersion.versionId)} onChange={() => { void reload(); setCardRefresh(n => n + 1); }} />
       </div>}
 
       {/* One reading branch, one column: a book is the original on the left and
           its own map/list on the right (the map is its outline), never a second
           standalone directory column beside them. */}
       {open !== undefined && <div className="sf-reader-page" data-testid="materials-reader-page">
+        <MaterialEditor key={open.view.materialId} ctx={ctx} view={open.view} version={open.version} onSaved={saved => { void reload(); chooseMaterial(saved.materialId, saved.currentVersion.versionId); setNotice({ kind: 'ok', text: '已保存新版本' }); window.dispatchEvent(new Event('studyforge:learning-changed')); }} />
         <div className="sf-material-reader" data-testid="material-reader">
           <MaterialReader
             ctx={ctx}

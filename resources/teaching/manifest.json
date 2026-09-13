@@ -5,6 +5,8 @@
     { "id": "diagnose", "title": "诊断分析", "description": "用实际作答区分原因，保留候选解释和反证。", "file": "diagnostic-analysis.md" },
     { "id": "socratic", "title": "苏格拉底授课", "description": "从当前动作起步，逐步引导并观察独立表现。", "file": "socratic-teaching.md" },
     { "id": "brainstorm", "title": "头脑风暴拓展", "description": "探索联系、反例与推广，核对关系成立的条件。", "file": "brainstorming-extension.md" },
-    { "id": "search", "title": "搜索", "description": "结合本人资料与外部来源检索、精读并继续追问。", "file": "search.md" }
+    { "id": "search", "title": "搜索", "description": "结合本人资料与外部来源检索、精读并继续追问。", "file": "search.md" },
+    { "id": "feynman", "title": "费曼法", "description": "先由你用自己的话讲清楚，再一起找解释中的缺口。", "file": "feynman.md" },
+    { "id": "lecture", "title": "讲解式", "description": "先讲清结构和例子，再用独立任务检验理解。", "file": "lecture.md" }
   ]
 }

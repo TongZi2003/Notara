@@ -1,7 +1,10 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
-import type { CourseView } from '@studyforge/contracts/courses';
 import { useEffect, useRef, useState } from 'react';
+import { SubjectPicker } from './SubjectPicker.tsx';
+import { insertTaskSkill } from './skill-draft.ts';
+import type { TeachingChoice } from '@studyforge/contracts/teaching';
+import { RolePicker } from '../creation/RolePicker.tsx';
 
 export function registerLearningComposer(ctx: Context): void {
   const previous = document.body.getAttribute('data-sf-learning-ui');
@@ -11,14 +14,24 @@ export function registerLearningComposer(ctx: Context): void {
     { name: 'conversation.input.left', id: 'studyforge.secondary-actions', order: 0 },
     (props: PropsRuntime<'conversation.input.left'>) => <MoreActions {...props} ctx={ctx} />)));
   ctx.effect(() => ctx.slots.inject('conversation.input.right', () => ctx.slots.register(
+    { name: 'conversation.input.right', id: 'studyforge.subjects', order: 20 },
+    (props: PropsRuntime<'conversation.input.right'>) => <SubjectPicker key={props.sessionId} {...props} ctx={ctx} />)));
+  ctx.effect(() => ctx.slots.inject('conversation.input.right', () => ctx.slots.register(
     { name: 'conversation.input.right', id: 'studyforge.learning-mode', order: 10 },
-    (props: PropsRuntime<'conversation.input.right'>) => <LearningMode key={props.sessionId} {...props} ctx={ctx} />)));
+    (props: PropsRuntime<'conversation.input.right'>) => <RolePicker key={props.sessionId} {...props} ctx={ctx} />)));
 }
 
 function MoreActions({ ctx, sessionId, useSessions }: PropsRuntime<'conversation.input.left'> & { ctx: Context }): React.JSX.Element | null {
   const learning = useSessions(state => state.byId[sessionId]?.projectionValues?.agentPreset === 'studyforge-learning');
   const menu = useRef<HTMLDetailsElement>(null);
   const [notice, setNotice] = useState('');
+  const [skills, setSkills] = useState<TeachingChoice[]>([]);
+  useEffect(() => {
+    let live = true;
+    const read = (): void => { void ctx.remote.studyforgeTeaching.tasks().then(result => { if (live && result.ok) setSkills(result.value); }).catch(() => { if (live) setNotice('技能暂时读不出来。'); }); };
+    read(); window.addEventListener('studyforge:learning-changed', read);
+    return () => { live = false; window.removeEventListener('studyforge:learning-changed', read); };
+  }, [ctx]);
   useEffect(() => {
     const close = (event: PointerEvent): void => { if (menu.current?.open && !menu.current.contains(event.target as Node)) menu.current.open = false; };
     document.addEventListener('pointerdown', close);
@@ -47,9 +60,12 @@ function MoreActions({ ctx, sessionId, useSessions }: PropsRuntime<'conversation
   return <details className="sf-composer-more" ref={menu} onKeyDown={event => { if (event.key === 'Escape' && menu.current) menu.current.open = false; }}>
     <summary aria-label="更多学习操作" title="更多学习操作">＋</summary>
     <div className="sf-composer-menu">
-      <button type="button" onClick={() => insert('围绕当前学习的内容，出一道练习题，先不要给出答案。')}>出一道练习题</button>
+      {skills.map(skill => <button type="button" key={skill.id} title={skill.description} onClick={() => {
+        if (!insertTaskSkill(ctx, sessionId, skill)) { setNotice('请等当前输入准备完成，再选择技能。'); return; }
+        setNotice(''); if (menu.current) menu.current.open = false;
+        document.querySelector<HTMLElement>('[data-composer-input]')?.focus();
+      }}>{skill.title}</button>)}
       <button type="button" onClick={() => insert('请通过一道题或一个问题，检查我对当前内容的理解。')}>检查我的理解</button>
-      <button type="button" onClick={() => insert('请根据这节课实际讨论的内容，整理本课要点。')}>整理本课要点</button>
       <hr />
       <button type="button" onClick={() => {
         if (ctx.sessions.list.getSnapshot().current !== sessionId) return;
@@ -61,39 +77,4 @@ function MoreActions({ ctx, sessionId, useSessions }: PropsRuntime<'conversation
       {notice && <p role="status">{notice}</p>}
     </div>
   </details>;
-}
-
-function LearningMode({ ctx, sessionId, useSession, useSessions }: PropsRuntime<'conversation.input.right'> & { ctx: Context }): React.JSX.Element | null {
-  const learning = useSessions(state => state.byId[sessionId]?.projectionValues?.agentPreset === 'studyforge-learning');
-  const running = useSessions(state => state.byId[sessionId]?.running);
-  const blank = useSession(state => state.blank);
-  const [course, setCourse] = useState<CourseView>(), [busy, setBusy] = useState(false), [notice, setNotice] = useState('');
-  const current = useRef(sessionId); current.current = sessionId;
-  useEffect(() => {
-    if (!learning) return;
-    let live = true;
-    void ctx.remote.studyforgeCourses.read({ sessionId }).then(result => { if (live && result.ok) setCourse(result.value); }).catch(() => {});
-    return () => { live = false; };
-  }, [ctx, sessionId, learning, running, blank]);
-  if (!learning) return null;
-  async function choose(guided: boolean): Promise<void> {
-    if (!course || busy || ctx.conversation.blocks.storeFor(sessionId).getSnapshot()) return;
-    setBusy(true); setNotice('');
-    const block = { reason: '正在切换学习方式…' }; ctx.conversation.blocks.set(sessionId, block);
-    try {
-      const result = await ctx.remote.studyforgeCourses.update({ sessionId, operationId: crypto.randomUUID(), expectedVersion: course.version,
-        patch: { guided, teachingRef: guided ? 'diagnose' : 'socratic' } });
-      if (!result.ok) throw new Error('mode_failed');
-      if (current.current === sessionId) setCourse(result.value);
-    } catch { if (current.current === sessionId) setNotice('这次没能切换，请重试。'); }
-    finally { setBusy(false); if (ctx.conversation.blocks.storeFor(sessionId).getSnapshot() === block) ctx.conversation.blocks.set(sessionId, undefined); }
-  }
-  const fixed = !!course?.data.learningContext || !!course?.data.closure;
-  return <div className="sf-learning-mode">
-    <select aria-label="学习方式" data-testid="learning-mode" value={course?.data.guided || course?.data.learningContext ? 'guided' : 'free'} disabled={!course || busy || fixed}
-      title={fixed ? '本课已绑定学习路线或确认小结' : '选择学习方式'} onChange={event => { void choose(event.target.value === 'guided'); }}>
-      <option value="free">自由学习</option><option value="guided">路线学习</option>
-    </select>
-    {notice && <span role="status">{notice}</span>}
-  </div>;
 }

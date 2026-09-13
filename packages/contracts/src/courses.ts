@@ -49,6 +49,8 @@ export const CourseMetadataSchema = z.object({
    */
   continuation: HandoffPinSchema.optional(),
   teachingRef: z.string().min(1).optional(),
+  /** Missing inherits the lesson's set; [] explicitly selects general teaching. */
+  subjects: z.array(z.string().trim().min(1).max(80)).max(12).optional(),
   temporaryInstructions: z.string().optional(),
   stance: z.string().optional(),
   guided: z.boolean().optional(),
@@ -56,7 +58,7 @@ export const CourseMetadataSchema = z.object({
   learningContext: LearningContextSchema.optional(),
 }).strict();
 export type CourseMetadataData = z.infer<typeof CourseMetadataSchema>;
-export const CoursePatchSchema = CourseMetadataSchema.pick({ lessonMaterials: true, learningSetRef: true, archived: true, teachingRef: true, temporaryInstructions: true, stance: true, guided: true, learningGoal: true }).partial().strict();
+export const CoursePatchSchema = CourseMetadataSchema.pick({ lessonMaterials: true, learningSetRef: true, archived: true, teachingRef: true, subjects: true, temporaryInstructions: true, stance: true, guided: true, learningGoal: true }).partial().extend({ subjects: CourseMetadataSchema.shape.subjects.unwrap().nullable().optional() }).strict();
 export type CoursePatch = z.infer<typeof CoursePatchSchema>;
 export type CourseClosure = z.infer<typeof CourseClosureSchema>;
 export const CourseViewSchema = z.object({ version: z.number().int().nonnegative(), data: CourseMetadataSchema }).strict();

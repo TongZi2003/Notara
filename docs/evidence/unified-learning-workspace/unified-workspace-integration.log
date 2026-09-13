@@ -1,0 +1,37 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/artifact-install.test.ts tests/integration/library-coauthoring.test.ts tests/integration/classroom-trace.test.ts tests/integration/creation-workspace.test.ts tests/integration/subject-teaching.test.ts tests/integration/task-skills.test.ts tests/integration/teaching-current.test.ts tests/integration/tool-disclosure.test.ts tests/integration/material-version.test.ts tests/integration/native-input-evidence.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+stdout | tests/integration/tool-disclosure.test.ts > schemas load on the next actual request, survive restart and stay in their own lesson
+{"initialTools":8,"loadedTools":10,"initialSchemaBytes":7556,"loadedSchemaBytes":16556,"restart":"PASS","isolation":"PASS"}
+
+ ✓ |integration| tests/integration/tool-disclosure.test.ts (2 tests) 19498ms
+   ✓ schemas load on the next actual request, survive restart and stay in their own lesson  12581ms
+   ✓ invalid or disallowed names load nothing; valid retries work and task controls remain visible  6916ms
+ ✓ |integration| tests/integration/teaching-current.test.ts (3 tests) 25716ms
+   ✓ teacher lesson settings are a proposal over the exact observed current lesson, then the student confirms  6582ms
+   ✓ configured teaching choices change the actual next native request and survive restart  12565ms
+   ✓ a saved-result followup retains teacher tools and can read back without a new student turn  6568ms
+ ✓ |integration| tests/integration/subject-teaching.test.ts (1 test) 11701ms
+   ✓ lesson subjects inherit the set, override independently, clear and restore without changing pedagogy or another lesson  11701ms
+ ✓ |integration| tests/integration/artifact-install.test.ts (2 tests) 18038ms
+   ✓ installation pins bytes, publishes handouts atomically, rejects stale changes and removes disabled skill entries  11785ms
+   ✓ installed subject text stays pinned in an existing lesson when the creator publishes a later version  6252ms
+ ✓ |integration| tests/integration/creation-workspace.test.ts (1 test) 11703ms
+   ✓ creator owns one native session and file; retries, stale student saves and native file writes preserve ownership  11702ms
+ ✓ |integration| tests/integration/classroom-trace.test.ts (1 test) 11730ms
+   ✓ thought nodes bind actual messages, edits survive restart, cycles fail and native forks do not duplicate inherited nodes  11730ms
+ ✓ |integration| tests/integration/library-coauthoring.test.ts (1 test) 5806ms
+   ✓ coauthoring preserves old originals, retries exact writes and manages relations independently  5806ms
+ ✓ |integration| tests/integration/task-skills.test.ts (1 test) 5996ms
+   ✓ task skills use the native provider and slash invocation injects the same instructions  5995ms
+ ✓ |integration| tests/integration/material-version.test.ts (8 tests) 321ms
+ ✓ |integration| tests/integration/native-input-evidence.test.ts (4 tests) 158ms
+
+ Test Files  10 passed (10)
+      Tests  24 passed (24)
+   Start at  23:27:11
+   Duration  56.02s (transform 259ms, setup 0ms, import 707ms, tests 110.67s, environment 1ms)

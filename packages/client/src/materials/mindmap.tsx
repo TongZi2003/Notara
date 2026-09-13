@@ -31,6 +31,8 @@ export interface MindAction {
 }
 
 export interface MindmapProps {
+  readonly positions?: Readonly<Record<string, { x: number; y: number }>>;
+  readonly onMove?: (key: string, position: { x: number; y: number }) => void;
   /** The container's own test id; the nodes are found by `[data-kind]` inside it. */
   readonly testId: string;
   readonly label: string;
@@ -63,6 +65,7 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
   const wrap = useRef<HTMLDivElement>(null);
   const drawing = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
+  const [moved, setMoved] = useState<Record<string, { x: number; y: number }>>({});
   const zoomRef = useRef(1);
   const anchor = useRef<{ x: number; y: number; worldX: number; worldY: number }>();
   const changeZoom = useCallback((next: number, point?: { x: number; y: number }): void => {
@@ -139,7 +142,7 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
     if (!node) return;
     const bounds = node.getBoundingClientRect();
     element.scrollLeft += bounds.left + bounds.width / 2 - element.getBoundingClientRect().left - element.clientWidth / 2;
-  }, [mode, signature, props.selected, available]);
+  }, [mode, signature, props.selected]);
 
   if (visible.length === 0) return <p className="sf-note" role="status">{props.empty ?? '这里还没有可以展开的结构。'}</p>;
 
@@ -170,7 +173,8 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
   </ul>;
 
   const nodeWidth = 170, gap = 36, padding = 20;
-  const width = Math.max(available, layout.leaves * (nodeWidth + gap) - gap + padding * 2);
+  const positions = { ...props.positions, ...moved };
+  const width = Math.max(available, layout.leaves * (nodeWidth + gap) - gap + padding * 2, ...Object.values(positions).map(p => p.x + 220));
   // Titles and action rows can wrap. Measure the complete stickers so their
   // connectors never cross a button or overlap the next generation of nodes.
   const rowHeights = Array.from({ length: layout.rows }, () => 90);
@@ -181,13 +185,22 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
   const tops: number[] = [];
   let height = padding;
   for (const rowHeight of rowHeights) { tops.push(height); height += rowHeight + gap; }
+  height = Math.max(height, ...Object.values(positions).map(p => p.y + 180));
   const spot = (key: string): { left: number; top: number } => ({
-    left: padding + (layout.centre.get(key) ?? 0) * (width - padding * 2),
-    top: tops[layout.depth.get(key) ?? 0] ?? padding,
+    left: positions[key]?.x ?? padding + (layout.centre.get(key) ?? 0) * (width - padding * 2),
+    top: positions[key]?.y ?? tops[layout.depth.get(key) ?? 0] ?? padding,
   });
   const edges = visible.flatMap(node => node.parent === undefined ? [] : [{ parent: node.parent, key: node.key }]);
   return <div className="sf-mindmap-shell" style={{ height: Math.min(height, 560) }}>
     <div className="sf-mindmap-wrap" ref={wrap} tabIndex={0} role="region" aria-label={`${props.label}画布`}
+      onPointerDown={event => {
+        if (event.button !== 0 || (event.target as HTMLElement).closest('button,input,select,textarea,a')) return;
+        const viewport = event.currentTarget, x = event.clientX, y = event.clientY, left = viewport.scrollLeft, top = viewport.scrollTop;
+        viewport.setPointerCapture(event.pointerId);
+        const move = (e: PointerEvent): void => { viewport.scrollLeft = left - (e.clientX - x); viewport.scrollTop = top - (e.clientY - y); };
+        const done = (): void => { viewport.removeEventListener('pointermove', move); viewport.removeEventListener('lostpointercapture', done); };
+        viewport.addEventListener('pointermove', move); viewport.addEventListener('lostpointercapture', done);
+      }}
       onKeyDown={event => {
         if (event.target !== event.currentTarget) return;
         if (['+', '=', '-', '0'].includes(event.key)) {
@@ -215,7 +228,12 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
       </svg>
       {visible.map(node => <div key={node.key} className="sf-mindmap-node" data-kind={node.kind} data-key={node.key} data-selected={props.selected === node.key}
         data-testid={props.nodeTestId ?? 'mindmap-node'}
-        style={{ ...spot(node.key), width: nodeWidth }}>{body(node)}</div>)}
+        style={{ ...spot(node.key), width: nodeWidth }}>{props.onMove && <button className="sf-quiet sf-mind-drag" aria-label={'移动' + node.title} onPointerDown={event => {
+          event.preventDefault(); const handle = event.currentTarget, initial = spot(node.key), x = event.clientX, y = event.clientY; let position = { x: initial.left, y: initial.top }; handle.setPointerCapture(event.pointerId);
+          const move = (e: PointerEvent): void => { position = { x: Math.max(100, initial.left + (e.clientX - x) / zoom), y: Math.max(10, initial.top + (e.clientY - y) / zoom) }; setMoved(old => ({ ...old, [node.key]: position })); };
+          const done = (): void => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', done); handle.removeEventListener('pointercancel', done); props.onMove?.(node.key, position); };
+          handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', done); handle.addEventListener('pointercancel', done);
+        }}>⠿</button>}{body(node)}</div>)}
     </div>
     </div>
     </div>

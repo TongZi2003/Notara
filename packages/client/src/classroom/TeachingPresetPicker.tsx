@@ -13,7 +13,7 @@ export function TeachingPresetPicker({ ctx, sessionId, course, onChange }: {
   const active = useRef(sessionId); active.current = sessionId;
   useEffect(() => {
     let live = true;
-    void ctx.remote.studyforgeTeaching.choices().then(result => {
+    void ctx.remote.studyforgeTeaching.modes().then(result => {
       if (live) { if (result.ok) setChoices(result.value); else setNotice('教学方式暂时读不出来。'); }
     });
     return () => { live = false; };
@@ -39,8 +39,8 @@ export function TeachingPresetPicker({ ctx, sessionId, course, onChange }: {
   }
   return <section data-testid="teaching-settings">
     <h3>这节课怎么学</h3>
-    <label>教学方式 <select data-testid="teaching-preset" disabled={busy || choices === undefined}
-      value={course.data.teachingRef ?? 'socratic'} onChange={event => { void save({ teachingRef: event.target.value }); }}>
+    <label>教学模式 <select data-testid="teaching-preset" disabled={busy || choices === undefined}
+      value={choices?.some(choice => choice.id === course.data.teachingRef) ? course.data.teachingRef : 'socratic'} onChange={event => { void save({ teachingRef: event.target.value }); }}>
       {choices?.map(choice => <option value={choice.id} key={choice.id}>{choice.title}</option>)}
     </select></label>
     <p className="sf-note">{choices?.find(choice => choice.id === (course.data.teachingRef ?? 'socratic'))?.description}</p>

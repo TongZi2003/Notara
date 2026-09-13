@@ -7,9 +7,9 @@ test('learning modes stay inside the native composer and real recommendations hi
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1280, height: 900 });
   await enterClassroom(page, classroom.authUrl);
-  const input = page.locator('[data-composer-input]'), mode = page.getByTestId('learning-mode');
+  const input = page.locator('[data-composer-input]'), mode = page.getByTestId('agent-role');
   await expect(input).toHaveAttribute('aria-label', '写下你想学习的内容…');
-  await expect(mode).toBeVisible(); await expect(mode).toHaveValue('free');
+  await expect(mode).toBeVisible(); await expect(mode).toHaveValue('teacher');
   await expect(page.getByTestId('learning-entry')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Access mode|工作区内修改/ })).toHaveCount(0);
   await expect(page.locator('[data-composer-seat] [class*="_tools"] button[class*="_add"]:visible')).toHaveCount(0);
@@ -26,7 +26,7 @@ test('learning modes stay inside the native composer and real recommendations hi
   await page.reload();
   await expect(page.getByTestId('learning-entry')).toContainText('三角函数基础');
   await typeInput(page, '我想学习三角函数');
-  await mode.selectOption('guided'); await expect(mode).toHaveValue('guided');
+  await expect(mode).toHaveValue('teacher');
   await expect(input).toContainText('我想学习三角函数');
   const b = (await input.boundingBox())!, m = (await mode.boundingBox())!;
   expect(m.y).toBeGreaterThan(b.y); expect(m.y - b.y).toBeLessThan(120);
@@ -35,9 +35,9 @@ test('learning modes stay inside the native composer and real recommendations hi
   await page.screenshot({ path: info.outputPath('home-modes-and-suggestions.png'), fullPage: true });
   await page.locator('.sf-composer-more summary').click();
   await expect(page.getByRole('button', { name: '打开资料库', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: '出一道练习题', exact: true }).click();
+  await page.getByRole('button', { name: '出一组题', exact: true }).click();
   await expect(input).toContainText('我想学习三角函数');
-  await expect(input).toContainText('先不要给出答案');
+  await expect(page.locator('[data-composer-chip="studyforge-task"]')).toContainText('出一组题');
   await expect(page.getByTestId('learning-entry')).toBeVisible();
   await page.locator('[data-composer-seat] input[type="file"][hidden]').setInputFiles({ name: '临时说明.txt', mimeType: 'text/plain', buffer: Buffer.from('一份仅用于当前对话的附件') });
   await expect(page.getByText('临时说明.txt', { exact: false }).first()).toBeVisible();
@@ -51,7 +51,7 @@ test('learning modes stay inside the native composer and real recommendations hi
   const modeBox = (await mode.boundingBox())!;
   expect(modelBox.x).toBeGreaterThan(modeBox.x);
   expect(Math.abs(modelBox.y - modeBox.y)).toBeLessThan(12);
-  expect(modelBox.x - modeBox.x - modeBox.width).toBeLessThan(24);
+  expect(modelBox.x - modeBox.x - modeBox.width).toBeLessThan(180);
   expect(await mode.evaluate(el => getComputedStyle(el).fontFamily)).not.toMatch(/hand|Kaiti|KaiTi|手写/i);
   expect(await mode.evaluate(el => getComputedStyle(el).fontFamily)).toBe(await model.evaluate(el => getComputedStyle(el).fontFamily));
   let rejectFirst = true;

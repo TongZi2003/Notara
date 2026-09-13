@@ -16,3 +16,5 @@
 .sf-tool-step[data-tool-state=running] .sf-tool-state{animation:sf-tool-pulse 1.6s ease-in-out infinite}
 @keyframes sf-tool-pulse{50%{opacity:.35}}
 @media(prefers-reduced-motion:reduce){.sf-tool-step[data-tool-state=running] .sf-tool-state{animation:none}}
+.sf-artifact-card{display:flex;flex-direction:column;gap:8px;width:min(100%,480px);border:1px dashed #bebba9;border-radius:3px 9px 4px 7px;background:var(--sf-paper,#fdfaf1);padding:18px;margin:12px 0;color:inherit;font:inherit;text-align:left;cursor:pointer}.sf-artifact-card span{font-size:13px;opacity:.65}
+.sf-artifact-card{background:var(--nb-page,#fdfaf1)}

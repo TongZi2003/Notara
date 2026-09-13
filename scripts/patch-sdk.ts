@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import './patch-layout.ts';
 import './patch-sidebar.ts';
 import './patch-steering-display.ts';
+import { stripConversationSeams, applyConversationSeams } from './patch-conversation-views.ts';
 
 const project = join(dirname(fileURLToPath(import.meta.url)), '..');
 const file = join(project, 'node_modules/@deepseek-ai/dsh-typert-generator/lib/index.js');
@@ -64,7 +65,7 @@ const inputOriginal = '81314dfd95864f2522f8edb812e3f8e08b04a8ef2141913e6e8cbdaae
 const inputPendingPatched = 'a52d95fd35a71d1244fd34f3470cefbaf6414640c87ddc0442f2baeb1ee259f4';
 const inputDockPatched = '8963925948b55e88e636018441dd43651649005710719cc7e2bfd9d500740229';
 const inputPatched = '677c5fa3788255531d3655917fafc2f55077ad7803d4da10cda7739c68f873cf';
-const inputSource = readFileSync(inputFile, 'utf8');
+const inputSource = stripConversationSeams(readFileSync(inputFile, 'utf8'));
 if (sha(inputSource) !== inputPatched) {
   if (![inputOriginal, inputPendingPatched, inputDockPatched].includes(sha(inputSource))) throw new Error('Unknown DSH native input artifact');
   let result = inputSource;
@@ -110,3 +111,4 @@ if (sha(inputSource) !== inputPatched) {
   writeFileSync(inputFile, result);
 }
 console.log('Verified rc.2 native reference pending display');
+applyConversationSeams();

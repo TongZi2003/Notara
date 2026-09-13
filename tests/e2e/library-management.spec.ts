@@ -1,0 +1,44 @@
+import { test, expect, enterClassroom, openRoot, typeInput } from './fixtures/classroom.ts';
+test('unified library edits an original, keeps versions and prepares semantic search in the native draft', async ({ page, classroom }, info) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.setViewportSize({ width: 1440, height: 900 }); await enterClassroom(page, classroom.authUrl); await openRoot(page, '资料');
+  await page.getByTestId('materials-empty').locator('input[type="file"]').setInputFiles({ name: '守恒笔记.md', mimeType: 'text/markdown', buffer: Buffer.from('# 守恒\n原文内容') });
+  await page.getByTestId('library-browser').getByRole('button', { name: /守恒笔记/ }).click();
+  await page.getByRole('button', { name: '阅读原文', exact: true }).click(); await page.getByRole('button', { name: '编辑原文', exact: true }).click();
+  await page.getByRole('textbox', { name: '编辑原文正文' }).fill('# 守恒\n明确系统边界'); await page.getByRole('button', { name: '保存新版本', exact: true }).click();
+  await expect(page.getByTestId('materials-notice')).toContainText('已保存新版本'); await page.getByTestId('materials-back').click();
+  await page.getByTestId('library-browser').getByRole('button', { name: /守恒笔记/ }).click();
+  await page.getByRole('button', { name: '按语义查找', exact: true }).click();
+  await expect(page.locator('[data-composer-chip="studyforge-task"]')).toContainText('按语义查找');
+  await expect(page.locator('[data-composer-chip="studyforge-source"]')).toContainText('守恒笔记');
+  await expect(page.getByTestId('lesson-deck-surface')).toBeVisible();
+  await page.screenshot({ path: info.outputPath('library-to-classroom.png'), fullPage: true });
+  expect(errors).toEqual([]);
+});
+
+test('thought sources reveal the independent materials pane and each map retains its zoom', async ({ page, classroom }, info) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.setViewportSize({ width: 1600, height: 1000 }); await enterClassroom(page, classroom.authUrl); await openRoot(page, '资料');
+  await page.getByTestId('materials-empty').locator('input[type="file"]').setInputFiles({ name: '能量与系统.md', mimeType: 'text/markdown', buffer: Buffer.from('# 能量\n先定义系统，再讨论能量守恒。\n封闭系统与外界没有物质交换。') });
+  await page.getByTestId('library-browser').getByRole('button', { name: /能量与系统/ }).click();
+  await page.getByRole('button', { name: '带入课堂', exact: true }).click();
+  await expect(page.locator('[data-composer-chip="studyforge-source"]')).toBeVisible();
+  await typeInput(page, '解释这里的系统边界'); await page.getByRole('button', { name: 'Send message', exact: true }).click();
+  await page.getByTestId('workspace-open-thoughts').click();
+  const thought = page.getByTestId('workspace-pane-thoughts'), materials = page.getByTestId('workspace-pane-materials');
+  await expect(page.getByTestId('thought-map')).toBeVisible();
+  await thought.getByRole('button', { name: '放大关系图', exact: true }).click();
+  await materials.getByRole('button', { name: '放大关系图', exact: true }).click();
+  await materials.getByRole('button', { name: '放大关系图', exact: true }).click();
+  await expect(page.getByTestId('thought-map')).toHaveAttribute('data-zoom', '1.25');
+  await expect(page.getByTestId('lesson-materials-map')).toHaveAttribute('data-zoom', '1.5');
+  await page.getByRole('button', { name: '关闭资料工作台', exact: true }).click();
+  await thought.locator('.sf-mind-label').filter({ hasText: '解释这里的系统边界' }).first().click();
+  await thought.getByRole('button', { name: /查看原文/ }).first().click();
+  await expect(materials).toHaveAttribute('data-visible', 'true');
+  await expect(materials.getByTestId('lesson-materials-pane').first()).toContainText('先定义系统');
+  await expect(page.getByTestId('lesson-materials-map')).toHaveAttribute('data-zoom', '1.5');
+  await expect(page.getByTestId('thought-map')).toHaveAttribute('data-zoom', '1.25');
+  await page.screenshot({ path: info.outputPath('thought-source-workspace.png'), fullPage: true });
+  expect(errors).toEqual([]);
+});

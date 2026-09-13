@@ -7,3 +7,8 @@ declare module '*/original-shell.css' {}
 declare module '*/original-pages.css' {}
 declare module '*/linear-tree.css' {}
 declare module '*/lesson-import.css' {}
+declare module '*/creation.css' {}
+declare module '*classroom-trace.css';
+declare module '*/learning-workspace.css' {}
+declare module '*/soft-paper.css' {}
+declare module '*/controls.css' {}

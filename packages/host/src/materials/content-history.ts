@@ -7,6 +7,7 @@ import { ContentHistoryQuerySchema, SourceUseSchema, type ContentHistoryQuery, t
 import { sourceOverlaps, uniqueSources, unrefinedRanges } from '@studyforge/domain/source-relations';
 import { materialExtent } from '@studyforge/domain/material-read';
 import { sessionResources } from './session-resource.ts';
+import { ownEvents } from '../classroom-trace-service.ts';
 
 /** Rebuild relations from native messages, committed outputs and real review evidence. */
 export async function contentHistory(host: Context, context: HostContext, query: ContentHistoryQuery): Promise<ContentHistory> {
@@ -48,7 +49,7 @@ export async function contentHistory(host: Context, context: HostContext, query:
         if ((session.projections?.values.agentPreset ?? observed.header.agentPreset) !== 'studyforge-learning') continue;
         occurredAt = new Date(observed.header.createdAt).toISOString();
         let turn = 0;
-        for (const event of observed.events) {
+        for (const event of ownEvents(observed.events)) {
           if (event.type === 'turn/start') turn = event.data.turn;
           if (event.type === 'user/message') locations.set(String(event.data.id), { sequence: event.seq, turn });
           if (event.type === 'tool/result') locations.set(String(event.data.message.id), { sequence: event.seq, turn });

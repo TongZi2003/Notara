@@ -1,0 +1,14 @@
+
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts tests/unit/workspace-layout.test.ts tests/unit/lesson-deck.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |unit| tests/unit/workspace-layout.test.ts (3 tests) 4ms
+ ✓ |unit| tests/unit/lesson-deck.test.ts (5 tests) 4ms
+
+ Test Files  2 passed (2)
+      Tests  8 passed (8)
+   Start at  23:37:16
+   Duration  133ms (transform 62ms, setup 0ms, import 101ms, tests 8ms, environment 0ms)

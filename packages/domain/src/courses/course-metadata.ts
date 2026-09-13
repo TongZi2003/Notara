@@ -57,16 +57,17 @@ export class CourseMetadata {
   /** Mutates only course additions; retries never create or rename a native Session. */
   async update(ctx: MutationContext, patch: unknown): Promise<CourseView> {
     const parsed = CoursePatchSchema.parse(patch);
-    return this.change(ctx, parsed, current => ({ ...current,
+    return this.change(ctx, parsed, current => { const updated = { ...current,
       ...(parsed.lessonMaterials === undefined ? {} : { lessonMaterials: parsed.lessonMaterials }),
       ...(parsed.learningSetRef === undefined ? {} : { learningSetRef: parsed.learningSetRef }),
       ...(parsed.archived === undefined ? {} : { archived: parsed.archived }),
       ...(parsed.teachingRef === undefined ? {} : { teachingRef: parsed.teachingRef }),
+      ...(parsed.subjects === undefined || parsed.subjects === null ? {} : { subjects: [...new Set(parsed.subjects)] }),
       ...(parsed.temporaryInstructions === undefined ? {} : { temporaryInstructions: parsed.temporaryInstructions }),
       ...(parsed.stance === undefined ? {} : { stance: parsed.stance }),
       ...(parsed.guided === undefined ? {} : { guided: parsed.guided }),
       ...(parsed.learningGoal === undefined ? {} : { learningGoal: parsed.learningGoal }),
-    }));
+    }; if (parsed.subjects === null) delete updated.subjects; return updated; });
   }
   /** Called by the confirmed close writer in P7; navigation never calls it. */
   async recordClosure(ctx: MutationContext, closure: CourseClosure): Promise<CourseView> {

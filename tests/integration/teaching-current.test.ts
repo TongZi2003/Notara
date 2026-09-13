@@ -33,11 +33,11 @@ test('teacher lesson settings are a proposal over the exact observed current les
   expect(value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId } })).data).toMatchObject({ sessionId, teachingRef: 'brainstorm', temporaryInstructions: '先比较两种方法。', closure: null });
 }, 45_000);
 
-test('five configured teaching choices change the actual next native request and survive restart', async () => {
+test('configured teaching choices change the actual next native request and survive restart', async () => {
   runtime = await startIsolated({ testModel: true });
   let client = await connectRuntime(runtime);
   const choices = value(await client.rpc<TeachingChoice[]>('studyforgeTeaching/choices', {}));
-  expect(choices.map(choice => choice.title)).toEqual(['资料整理','诊断分析','苏格拉底授课','头脑风暴拓展','搜索']);
+  expect(choices.map(choice => choice.title)).toEqual(['资料整理','诊断分析','苏格拉底授课','头脑风暴拓展','搜索','费曼法','讲解式']);
   const { sessionId } = value(await client.rpc<SessionCreateValue>('session/create', { request: { cwd: join(runtime.root, 'classroom'), agentPreset: 'studyforge-learning' } }));
   async function send(text: string): Promise<Request> {
     const count = await requests().then(rows => rows.length).catch(() => 0);

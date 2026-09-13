@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis';
+import './soft-paper.css';
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
@@ -12,14 +13,14 @@ import './notebook.css';
 
 const KEY = 'studyforge.notebook.appearance';
 const APPEARANCE = 'studyforge.appearance' as MainPanelId;
-const DEFAULTS = { enabled: true, scheme: 'jia', size: 'm', face: 'print', paper: 'hengxian', tone: 'yellow', table: 'follow' } as const;
-type Appearance = { enabled: boolean; scheme: 'jia' | 'yi' | 'bing' | 'ding'; size: 's' | 'm' | 'l'; face: 'print' | 'hand'; paper: 'hengxian' | 'fangge'; tone: 'yellow' | 'white'; table: 'follow' | 'print' };
-const OPTIONS = { scheme: ['jia', 'yi', 'bing', 'ding'], size: ['s', 'm', 'l'], face: ['print', 'hand'], paper: ['hengxian', 'fangge'], tone: ['yellow', 'white'], table: ['follow', 'print'] } as const;
+const DEFAULTS = { enabled: true, style: 'notebook', scheme: 'jia', size: 'm', face: 'print', paper: 'hengxian', tone: 'yellow', table: 'follow' } as const;
+type Appearance = { enabled: boolean; style: 'notebook' | 'soft'; scheme: 'jia' | 'yi' | 'bing' | 'ding'; size: 's' | 'm' | 'l'; face: 'print' | 'hand'; paper: 'hengxian' | 'fangge'; tone: 'yellow' | 'white'; table: 'follow' | 'print' };
+const OPTIONS = { style: ['notebook', 'soft'], scheme: ['jia', 'yi', 'bing', 'ding'], size: ['s', 'm', 'l'], face: ['print', 'hand'], paper: ['hengxian', 'fangge'], tone: ['yellow', 'white'], table: ['follow', 'print'] } as const;
 function readAppearance(value: unknown): Appearance {
   const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const result: Appearance = { ...DEFAULTS };
   if (typeof raw.enabled === 'boolean') result.enabled = raw.enabled;
-  for (const key of ['scheme', 'size', 'face', 'paper', 'tone', 'table'] as const) {
+  for (const key of ['style', 'scheme', 'size', 'face', 'paper', 'tone', 'table'] as const) {
     if ((OPTIONS[key] as readonly unknown[]).includes(raw[key])) Object.assign(result, { [key]: raw[key] });
   }
   return result;
@@ -76,20 +77,24 @@ const WHITE_TOKENS: ThemeTokenOverrides = Object.fromEntries(Object.entries(LIGH
 export function registerNotebook(ctx: Context, navigation: MaterialNavigation): void {
   let current = storedAppearance();
   let removeTokens: (() => void) | undefined;
-  let appliedTone: Appearance['tone'] | undefined;
+  let appliedTone: string | undefined;
   let returnPanel: MainPanelId | null = null;
   let returnMaterial: unknown;
   const listeners = new Set<() => void>();
   const subscribe = (listener: () => void): (() => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
   const get = (): Appearance => current;
-  const oldAttributes = new Map(['data-sf-notebook', 'data-sf-scheme', 'data-sf-size', 'data-sf-face', 'data-sf-paper', 'data-sf-tone', 'data-sf-table'].map(name => [name, document.body.getAttribute(name)]));
+  const oldAttributes = new Map(['data-sf-notebook', 'data-sf-style', 'data-sf-scheme', 'data-sf-size', 'data-sf-face', 'data-sf-paper', 'data-sf-tone', 'data-sf-table'].map(name => [name, document.body.getAttribute(name)]));
   function apply(): void {
     document.body.dataset.sfNotebook = current.enabled ? 'on' : 'off';
-    for (const key of ['scheme', 'size', 'face', 'paper', 'tone', 'table'] as const) document.body.setAttribute('data-sf-' + key, current[key]);
-    if (removeTokens && (!current.enabled || appliedTone !== current.tone)) { removeTokens(); removeTokens = undefined; }
+    for (const key of ['style', 'scheme', 'size', 'face', 'paper', 'tone', 'table'] as const) document.body.setAttribute('data-sf-' + key, current[key]);
+    const palette = current.style + ':' + current.tone;
+    if (removeTokens && (!current.enabled || appliedTone !== palette)) { removeTokens(); removeTokens = undefined; }
     if (current.enabled && !removeTokens) {
-      removeTokens = ctx.theme.overrideTokens('@studyforge/notebook', current.tone === 'white' ? WHITE_TOKENS : TOKENS);
-      appliedTone = current.tone;
+      const base = current.tone === 'white' ? WHITE_TOKENS : TOKENS;
+      const softSurfaces: Record<string, string> = { '#f6f1e3': '#f6f4eb', '#fdfaf1': '#fffdf7', '#efe7d2': '#f0eee4', '#e9e2cf': '#e9ece3', '#e2d8bf': '#e3e9dd', '#e7e0cd': '#e9eae1', '#d9d2bd': '#e0e2d7', '#b9b19c': '#cbd1c3', '#26437c': '#345a8a', '#3a3531': '#353a36', '#6f6a5f': '#778077' };
+      const tokens = current.style === 'soft' ? Object.fromEntries(Object.entries(base).map(([name, value]) => [name, typeof value === 'object' && value !== null && 'light' in value ? { ...value, light: softSurfaces[String(value.light)] ?? value.light } : value])) as ThemeTokenOverrides : base;
+      removeTokens = ctx.theme.overrideTokens('@studyforge/notebook', tokens);
+      appliedTone = palette;
     }
     for (const listener of listeners) listener();
   }
@@ -112,7 +117,8 @@ export function registerNotebook(ctx: Context, navigation: MaterialNavigation): 
       {!embedded && <header><button className="sf-quiet" data-testid="notebook-back" onClick={() => { if (returnPanel === 'studyforge.materials') navigation.restore(returnMaterial); ctx.layout.selectPanel(returnPanel); }}>← {returnPanel ? '返回' : '返回课堂'}</button><span>字体与纸张</span></header>}
       <div className="sf-notebook-settings-body"><h1>字体与纸张</h1>
         <label className="sf-notebook-check"><input type="checkbox" data-testid="notebook-toggle" checked={state.enabled} onChange={event => update({ enabled: event.target.checked })} />使用手写笔记本</label>
-        <label>主题<select data-testid="notebook-tone" value={state.tone} onChange={event => update({ tone: event.target.value as Appearance['tone'] })}><option value="yellow">黄色主题</option><option value="white">白色主题</option></select></label>
+        <label>界面风格<select data-testid="notebook-style" value={state.style} onChange={event => update({ style: event.target.value as Appearance['style'] })}><option value="notebook">经典手写本</option><option value="soft">柔和纸张</option></select></label>
+        <label>纸色<select data-testid="notebook-tone" value={state.tone} onChange={event => update({ tone: event.target.value as Appearance['tone'] })}><option value="yellow">暖色纸张</option><option value="white">白色纸张</option></select></label>
         <label>字迹<select data-testid="notebook-scheme" value={state.scheme} onChange={event => update({ scheme: event.target.value as Appearance['scheme'] })}>
           <option value="jia">甲 · 钢笔行楷</option><option value="yi">乙 · 毛笔楷书</option><option value="bing">丙 · 文楷</option><option value="ding">丁 · 老师用印刷体</option>
         </select></label>
@@ -188,7 +194,7 @@ export function registerNotebook(ctx: Context, navigation: MaterialNavigation): 
   }
 }
 
-const ROUTES = { home: 'studyforge.home', courses: 'studyforge.courses', materials: 'studyforge.materials', cards: 'studyforge.cards', sets: 'studyforge.sets', memory: 'studyforge.memory', calendar: 'studyforge.calendar', appearance: 'studyforge.appearance', classroom: null } as const;
+const ROUTES = { home: 'studyforge.home', courses: 'studyforge.courses', materials: 'studyforge.materials', cards: 'studyforge.cards', sets: 'studyforge.sets', memory: 'studyforge.memory', calendar: 'studyforge.calendar', appearance: 'studyforge.appearance', creator: 'studyforge.creator', classroom: null } as const;
 function readRoute(hash: string): MainPanelId | null | undefined {
   const key = hash.replace(/^#studyforge\//, '');
   return hash.startsWith('#studyforge/') && Object.hasOwn(ROUTES, key) ? ROUTES[key as keyof typeof ROUTES] as MainPanelId | null : undefined;

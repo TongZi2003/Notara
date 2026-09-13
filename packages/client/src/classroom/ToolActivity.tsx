@@ -5,6 +5,8 @@ import type { MessageImageSource, RenderMessageImages } from '@deepseek-ai/dsh-c
 import { useState } from 'react';
 import { prettyToolArguments, toolDisplayCopy, type ToolDisplayState } from './tool-copy.ts';
 import './tool-activity.css';
+import { ArtifactViewSchema } from '@studyforge/contracts/creation';
+import { openCreation } from '../creation/creation-navigation.ts';
 
 type ToolNodeProps = PropsRuntime<'conversation.chat.node', 'tool-call'>;
 type ProcessProps = PropsRuntime<'conversation.chat.node', 'turn-process'>;
@@ -12,7 +14,7 @@ type ProcessProps = PropsRuntime<'conversation.chat.node', 'turn-process'>;
 /** Replace presentation only; native nodes still own ordering, folding and calls. */
 export function registerToolActivity(ctx: Context): void {
   ctx.effect(() => ctx.slots.inject('conversation.chat.node', function* () {
-    yield ctx.slots.register({ name: 'conversation.chat.node', key: 'tool-call', priority: -10 }, ToolActivity);
+    yield ctx.slots.register({ name: 'conversation.chat.node', key: 'tool-call', priority: -10 }, props => <ToolActivity {...props} ctx={ctx} />);
     yield ctx.slots.register({ name: 'conversation.chat.node', key: 'turn-process', priority: -10 }, ProcessActivity);
   }));
 }
@@ -27,11 +29,12 @@ function ProcessActivity({ node, turnProcess }: ProcessProps): React.JSX.Element
   </button>;
 }
 
-function ToolActivity({ node, inspectCall, renderMessageImages }: ToolNodeProps): React.JSX.Element {
-  return <ToolStep block={node.data.root} inspectCall={inspectCall} renderMessageImages={renderMessageImages} />;
+function ToolActivity({ node, inspectCall, renderMessageImages, ctx }: ToolNodeProps & { ctx: Context }): React.JSX.Element {
+  return <ToolStep ctx={ctx} block={node.data.root} inspectCall={inspectCall} renderMessageImages={renderMessageImages} />;
 }
 
-function ToolStep({ block, inspectCall, renderMessageImages }: {
+function ToolStep({ block, inspectCall, renderMessageImages, ctx }: {
+  ctx: Context;
   block: ToolCallBlock;
   inspectCall: (callId: ToolCallId) => void;
   renderMessageImages: RenderMessageImages;
@@ -42,9 +45,12 @@ function ToolStep({ block, inspectCall, renderMessageImages }: {
   const raw = settled ? block.call?.argsRaw ?? '' : block.argsRaw;
   const state: ToolDisplayState = !settled ? 'running' : block.error?.code === 'interrupted' ? 'stopped' : block.isError ? 'error' : 'ok';
   const resultRaw = settled ? block.content.find(part => part.type === 'text')?.text ?? '' : '';
+  let artifact: { ref: string; title: string } | undefined;
+  if (name === 'draft_artifact' && state === 'ok') { try { const parsed = ArtifactViewSchema.safeParse(JSON.parse(resultRaw)); if (parsed.success) artifact = { ref: parsed.data.ref, title: parsed.data.manifest?.title ?? '课堂作品' }; } catch { /* incomplete result remains in details */ } }
   const images: MessageImageSource[] = settled ? block.content.flatMap(part => part.type === 'image' && 'attachment' in part
     ? [{ attachment: part.attachment }] : []) : [];
   return <div className="sf-tool-step" data-testid="tool-activity" data-tool-state={state}>
+    {artifact && <button className="sf-artifact-card" data-testid="classroom-artifact" onClick={() => openCreation(ctx, artifact!.ref)}><strong>{artifact.title}</strong><span>预览与共同编辑 ↗</span></button>}
     <details open={open} onToggle={event => setOpen(event.currentTarget.open)}>
       <summary data-testid="tool-activity-summary">
         <span className="sf-tool-state" aria-hidden="true">{state === 'running' ? '◌' : state === 'ok' ? '✓' : state === 'error' ? '!' : '·'}</span>
@@ -61,6 +67,6 @@ function ToolStep({ block, inspectCall, renderMessageImages }: {
       </div>}
     </details>
     {block.subCalls.length > 0 && <div className="sf-tool-children">{block.subCalls.map(child =>
-      <ToolStep key={child.callId} block={child} inspectCall={inspectCall} renderMessageImages={renderMessageImages} />)}</div>}
+      <ToolStep ctx={ctx} key={child.callId} block={child} inspectCall={inspectCall} renderMessageImages={renderMessageImages} />)}</div>}
   </div>;
 }

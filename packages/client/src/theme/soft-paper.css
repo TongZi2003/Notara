@@ -1,0 +1,16 @@
+/* Optional variant. Appearance tokens stay independent of handwriting, paper
+   ruling and yellow/white selection; switching back restores the old theme. */
+body[data-sf-notebook=on][data-sf-style=soft]{--nb-paper:#f0eee4;--nb-page:#fffdf7;--nb-hi:#fffdf7;--nb-rule:#e0e2d7;--nb-rule-hi:#cbd1c3;--nb-ink:#353a36;--nb-pencil:#778077;--nb-pen:#345a8a;--op-paper:#f6f4eb;--op-hi:#fffdf7;--op-ink:#353a36;--op-rule:#e0e2d7;--op-rule-hi:#cbd1c3;--op-pen:#345a8a;--workspace-round:10px;--nb-print:system-ui,-apple-system,"PingFang SC",sans-serif;--dsw-font-family:var(--nb-print)}
+body[data-sf-notebook=on][data-sf-style=soft][data-sf-tone=white]{--nb-paper:#f1f3ef;--nb-page:#fff;--nb-hi:#fff;--nb-rule:#e4e8df;--op-paper:#fbfcfa;--op-hi:#fff;--op-rule:#e4e8df}
+body[data-sf-notebook=on][data-sf-style=soft] .sf-learning-workspace{--workspace-round:10px}
+body[data-sf-notebook=on][data-sf-style=soft] .sf-action{border-radius:8px;box-shadow:none;transform:none;border-width:1px}
+body[data-sf-notebook=on][data-sf-style=soft] .sf-quiet{border-radius:6px}
+body[data-sf-notebook=on][data-sf-style=soft] .sf-original-sidebar{background:var(--nb-paper)}
+body[data-sf-notebook=on][data-sf-style=soft] .sf-side-nav button,body[data-sf-notebook=on][data-sf-style=soft] .sf-side-session,body[data-sf-notebook=on][data-sf-style=soft] .sf-side-active{border-radius:7px}
+body[data-sf-notebook=on][data-sf-style=soft] [data-composer-seat] [class*="_card"]{border:1px solid var(--nb-rule);border-radius:14px;box-shadow:0 3px 12px #39482b08;background:var(--nb-hi)}
+body[data-sf-notebook=on][data-sf-style=soft] .sf-mindmap>.sf-mindmap-node{border-radius:4px 8px 5px 4px;box-shadow:1px 3px 7px #39482b0d;background:#f1f0d6;border:1px solid #dadcc5;color:#3e533c;padding:18px 15px 12px}
+body[data-sf-notebook=on][data-sf-style=soft] .sf-mindmap>.sf-mindmap-node:nth-of-type(3n+1){background:#e8eee0;border-color:#d5dfcd}
+body[data-sf-notebook=on][data-sf-style=soft] .sf-mindmap>.sf-mindmap-node:nth-of-type(3n+2){background:#e8eff1;border-color:#d5e0e4}
+body[data-sf-notebook=on][data-sf-style=soft] .sf-mindmap>.sf-mindmap-node .sf-mind-label{border:0;background:none;box-shadow:none;border-radius:0;color:inherit}
+body[data-sf-notebook=on][data-sf-style=soft] .sf-mindmap>.sf-mindmap-node[data-selected=true]{outline:1.5px solid var(--nb-pen);outline-offset:3px}
+body[data-sf-notebook=on][data-sf-style=soft] .sf-notebook-settings-body select{border:1px solid var(--nb-rule);border-radius:7px;background:var(--nb-hi);padding:8px 10px}

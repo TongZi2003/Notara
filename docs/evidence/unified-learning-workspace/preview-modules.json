@@ -1,0 +1,20 @@
+{
+  "clientPath": "/Users/yangrundong/Oh-My-Student-dsh-migration/dsh/.runtime/preview-tmp/studyforge-dsh-HBOlzg/plugins/workspace-1789314953337/client/lib/client.js",
+  "entries": [
+    {
+      "id": "modules",
+      "name": "@deepseek-ai/dsh-client-modules",
+      "state": 2
+    },
+    {
+      "id": "studyforge-host",
+      "name": "file:///Users/yangrundong/Oh-My-Student-dsh-migration/dsh/.runtime/preview-tmp/studyforge-dsh-HBOlzg/plugins/workspace-1789314953337/host/lib/types/index.js"
+    },
+    {
+      "id": "studyforge-client",
+      "name": "file:///Users/yangrundong/Oh-My-Student-dsh-migration/dsh/.runtime/preview-tmp/studyforge-dsh-HBOlzg/plugins/workspace-1789314953337/client/lib/types/index.js",
+      "state": 2
+    }
+  ],
+  "clientSha256": "7a9e39833a3cafcfdfe8e34698091af47041f8b4a62551a29f234457d9da3aad"
+}

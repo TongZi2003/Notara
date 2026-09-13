@@ -1,0 +1,13 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/classroom-trace.spec.ts
+
+
+Running 2 tests using 1 worker
+
+(node:77375) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/classroom-trace.spec.ts:2:1 › thought graph is editable and navigates to native conversation without exposing debug trajectory (10.1s)
+  ✓  2 tests/e2e/classroom-trace.spec.ts:26:1 › a failed turn gives student wording while its technical message stays out of the ordinary classroom (9.4s)
+
+  2 passed (19.8s)

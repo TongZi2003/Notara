@@ -1,0 +1,24 @@
+import { afterEach, expect, test } from 'vitest';
+import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
+import { connectRuntime } from '../fixtures/http-runtime.ts';
+import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
+import type { MaterialView } from '@studyforge/contracts/material-records';
+import type { LibraryRelation } from '@studyforge/contracts/library';
+let runtime: IsolatedRuntime | undefined; afterEach(async () => { await runtime?.stop(); });
+const value = <T>(r: RemoteResult<T>): T => { if (!r.ok) throw new Error(JSON.stringify(r.error)); return r.value; };
+test('coauthoring preserves old originals, retries exact writes and manages relations independently', async () => {
+  runtime = await startIsolated({ testModel: true }); const client = await connectRuntime(runtime);
+  const original = value(await client.rpc<MaterialView>('studyforgeMaterials/import', { input: { operationId: 'original', material: { title: '守恒笔记', fileName: '守恒笔记.md', mediaType: 'text/markdown' }, base64: Buffer.from('# 守恒\n原文').toString('base64') } }));
+  const second = value(await client.rpc<MaterialView>('studyforgeMaterials/import', { input: { operationId: 'second', material: { title: '参考笔记', fileName: '参考笔记.md', mediaType: 'text/markdown' }, base64: Buffer.from('# 参考').toString('base64') } }));
+  const upload = { operationId: 'coedit', expectedVersion: original.revision, material: { materialId: original.materialId, title: original.title, fileName: original.fileName, mediaType: original.mediaType }, base64: Buffer.from('# 守恒\n明确系统边界').toString('base64') };
+  const edited = value(await client.rpc<MaterialView>('studyforgeMaterials/createVersion', { input: upload }));
+  expect(value(await client.rpc<MaterialView>('studyforgeMaterials/createVersion', { input: upload })).revision).toBe(edited.revision);
+  expect((await client.rpc('studyforgeMaterials/createVersion', { input: { ...upload, operationId: 'stale', base64: Buffer.from('覆盖').toString('base64') } })).ok).toBe(false);
+  const old = value(await client.rpc<{ base64: string }>('studyforgeMaterials/bytes', { input: { materialId: original.materialId, versionId: original.currentVersion.versionId } }));
+  expect(Buffer.from(old.base64, 'base64').toString()).toContain('原文');
+  const edge = value(await client.rpc<LibraryRelation>('studyforgeLibrary/relate', { input: { operationId: 'relation', from: 'material:' + original.materialId, to: 'material:' + second.materialId, label: '补充说明' } }));
+  expect((await client.rpc('studyforgeLibrary/relate', { input: { operationId: 'bad', from: edge.from, to: 'card:missing', label: '关联' } })).ok).toBe(false);
+  value(await client.rpc('studyforgeLibrary/removeRelation', { input: { operationId: 'remove', ref: edge.ref, expectedVersion: edge.version } }));
+  expect(value(await client.rpc<LibraryRelation[]>('studyforgeLibrary/relations', {}))).toHaveLength(0);
+  expect(value(await client.rpc<MaterialView[]>('studyforgeMaterials/list', {}))).toHaveLength(2);
+}, 45000);

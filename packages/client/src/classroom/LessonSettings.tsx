@@ -24,7 +24,6 @@ import { LessonMaterialsEditor } from './LessonMaterialsEditor.tsx';
 import { NativeUsage, type UsageState } from './NativeUsage.tsx';
 import { Outputs } from './Outputs.tsx';
 import { TeachingPresetPicker } from './TeachingPresetPicker.tsx';
-import { LESSON_TAB_KIND } from './LessonPanel.tsx';
 import './lesson-settings.css';
 
 export interface LessonSettingsProps {
@@ -106,7 +105,6 @@ export function LessonSettingsModal({ ctx, sessionId, title, readCourse, refresh
           // The column is the lesson's own map: its pane reads the original, so
           // the modal steps aside instead of leaving a second rail behind it.
           requestLessonPane(sessionId, { kind: 'source', title: anchor.quote ?? '原文', anchors: [{ materialId: anchor.materialId, versionId: anchor.versionId, locator: anchor.locator }] });
-          ctx.sidebarRight.openTab(LESSON_TAB_KIND);
           onClose();
         }} />}
       {outputs !== undefined && <Outputs projection={outputs} onOpen={entry => {

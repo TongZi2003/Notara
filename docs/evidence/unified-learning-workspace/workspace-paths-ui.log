@@ -1,0 +1,17 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/classroom-trace.spec.ts tests/e2e/library-management.spec.ts tests/e2e/creator-workspace.spec.ts tests/e2e/skill-draft.spec.ts tests/e2e/artifact-preview.spec.ts
+
+
+Running 6 tests using 1 worker
+
+(node:74424) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/artifact-preview.spec.ts:2:1 › HTML artifact runs in sandbox and installs a versioned classroom skill (9.9s)
+  ✓  2 tests/e2e/classroom-trace.spec.ts:2:1 › thought graph is editable and navigates to native conversation without exposing debug trajectory (9.9s)
+  ✓  3 tests/e2e/creator-workspace.spec.ts:3:1 › creator identity opens a bound native conversation and the same editable artifact (9.8s)
+  ✓  4 tests/e2e/library-management.spec.ts:2:1 › unified library edits an original, keeps versions and prepares semantic search in the native draft (9.6s)
+  ✓  5 tests/e2e/library-management.spec.ts:19:1 › thought sources reveal the independent materials pane and each map retains its zoom (10.1s)
+  ✓  6 tests/e2e/skill-draft.spec.ts:5:1 › plus selects a native skill reference without sending and the native turn loads it only on submit (9.5s)
+
+  6 passed (59.1s)

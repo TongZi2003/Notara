@@ -1,0 +1,16 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/workspace-docking.spec.ts tests/e2e/notebook-pages.spec.ts
+
+
+Running 5 tests using 1 worker
+
+(node:78888) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths (17.8s)
+  ✓  2 tests/e2e/workspace-docking.spec.ts:3:1 › three peer views preserve the native draft through docking, resizing, hiding and narrow switching (10.5s)
+  ✓  3 tests/e2e/workspace-docking.spec.ts:41:1 › soft paper is optional and remembers style independently from paper colour (9.5s)
+  ✓  4 tests/e2e/workspace-docking.spec.ts:54:1 › layout menu supports every pair and the native conversation returns when the workspace plugin unloads (11.4s)
+  ✓  5 tests/e2e/workspace-docking.spec.ts:76:1 › student controls share typography and rounded shapes; subject menus fit narrow panes without coding launchers (10.1s)
+
+  5 passed (59.9s)

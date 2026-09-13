@@ -13,6 +13,20 @@ import { providerToolSchemas } from '../tools/model-tool-schemas.ts';
 import { bookTaskInstructions, currentBookTask } from './book-task.ts';
 import { installToolDisclosure } from '../tools/tool-disclosure.ts';
 import { guidedBrief, registerGuidedLearning } from './guided-learning.ts';
+import { lessonSubjects, subjectBrief, pinSubjects } from './subject-context.ts';
+import { studentContext } from '../learning-service.ts';
+import { installTaskSkills, taskChoices } from './task-skills.ts';
+import { activeArtifacts, installedBody } from '../creation/artifact-service.ts';
+
+export function teachingBody(host: Context, id: string): string {
+  if (!id.startsWith('creation:')) return host.studyforgeTeachingCatalog.body(id);
+  const [ref, digest] = id.split('@');
+  const resource = installedBody(host, ref!, digest!);
+  if (resource.manifest.kind !== 'teaching') throw new Error('teaching_configuration_missing');
+  return resource.body;
+}
+
+export const INTERACTION_MODES = ['socratic', 'feynman', 'lecture'];
 
 export class TeachingCatalog {
   readonly defaultId: string;
@@ -20,7 +34,9 @@ export class TeachingCatalog {
   readonly base: string;
   readonly guided: string;
   private readonly bodies: Map<string, string>;
+  readonly directory: string;
   constructor(directory: string) {
+    this.directory = directory;
     const manifest = TeachingManifestSchema.parse(JSON.parse(readFileSync(join(directory, 'manifest.json'), 'utf8')));
     this.defaultId = manifest.default;
     this.choices = manifest.choices.map(({ file: _file, ...choice }) => choice);
@@ -42,14 +58,27 @@ export class StudyForgeTeaching extends TypertRemoteService {
   constructor(ctx: Context) { super(ctx, 'studyforgeTeaching'); }
   @Remote('choices')
   async choices(): Promise<TeachingChoice[]> { return [...this.ctx.studyforgeTeachingCatalog.choices]; }
+  @Remote('tasks')
+  async tasks(): Promise<TeachingChoice[]> { return taskChoices(this.ctx); }
+  @Remote('modes')
+  async modes(): Promise<TeachingChoice[]> { return [...this.ctx.studyforgeTeachingCatalog.choices.filter(choice => INTERACTION_MODES.includes(choice.id)), ...activeArtifacts(this.ctx).filter(item => item.manifest.kind === 'teaching').map(item => ({ id: item.ref + '@' + item.digest, title: item.manifest.title, description: item.manifest.description }))]; }
+  @Remote('subjects')
+  async subjects(input: { sessionId: string }): Promise<{ effective: string[]; inherited: boolean; choices: string[] }> {
+    const context = await studentContext(this.ctx, input.sessionId);
+    const course = this.ctx.studyforgeCourseMetadata.read(context).data;
+    const effective = lessonSubjects(this.ctx, context, course);
+    const sets = this.ctx.studyforgeSetService.list(context);
+    return { effective, inherited: course.subjects === undefined, choices: [...new Set([...effective, ...sets.flatMap(set => set.subjects), ...activeArtifacts(this.ctx).filter(item => item.manifest.kind === 'subject').flatMap(item => item.manifest.subjects)])].sort() };
+  }
 }
 
 /** Dynamic teaching context and the existing role-specific tool boundaries. */
 export function installTeaching(host: Context, catalog: TeachingCatalog): void {
+  installTaskSkills(host, catalog.directory);
   registerGuidedLearning(host);
   // Some native composition plugins register local tools after spawn's inherited
   // filter. These teacher-only capabilities must remain absent for every helper.
-  const helperForbidden = new Set(['note_learning_goal', 'cite_materials', 'subagent', 'delegate_search', 'delegate_problem', 'delegate_assistant', 'delegate_peer',
+  const helperForbidden = new Set(['draft_artifact', 'mark_thought', 'note_learning_goal', 'cite_materials', 'subagent', 'delegate_search', 'delegate_problem', 'delegate_assistant', 'delegate_peer',
     'read_card', 'read_cards', 'list_cards', 'query_evidence', 'read_memory', 'search_memory', 'note_memory', 'revise_memory',
     'register_cards', 'update_card', 'note_method', 'revise_method', 'record_review',
     'propose_card', 'propose_review', 'propose_set', 'propose_plan', 'propose_route', 'propose_skeleton', 'propose_handoff', 'read_lesson', 'propose_lesson_settings',
@@ -71,7 +100,9 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
         .filter(row => row.data.content.sources.some(source => source.materialId === task.material.materialId)
           && (!task.nodePath || row.data.content.chapter === task.nodePath || row.data.content.chapter?.startsWith(task.nodePath + '/')))
         .map(row => ({ ref: row.ref, title: row.data.content.title, chapter: row.data.content.chapter ?? null })) : [];
-      return [catalog.base, catalog.body(task ? 'organize' : course.teachingRef ?? catalog.defaultId),
+      return [catalog.base, teachingBody(host, task ? 'organize' : course.teachingRef ?? catalog.defaultId),
+        subjectBrief(host, { workspaceId: host.studyforgeAccess.workspaceId, sessionId: agent.session.id, actor: 'teacher', purpose: 'learning' }, course),
+        '你是教学者。诊断当前困难、备课选材、规划路线、检验理解和整理学习记录都是你的基本职责；当前教学方式只决定怎样互动。按需要调用技能，不要求学生先切换诊断或规划身份。',
         !task && (course.guided || course.learningContext) ? catalog.guided : '',
         !task ? guidedBrief(host, { workspaceId: host.studyforgeAccess.workspaceId, sessionId: agent.session.id, actor: 'teacher', purpose: 'learning' }) : '',
         task ? bookTaskInstructions(task) : '',
@@ -85,6 +116,10 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
     },
   }));
   host.on('system-prompt/assemble', async (_assembly, context, next) => {
+    if (owns(context.agent)) {
+      const binding = { workspaceId: host.studyforgeAccess.workspaceId, sessionId: context.agent.session.id, actor: 'teacher' as const, purpose: 'learning' as const };
+      await pinSubjects(host, binding, host.studyforgeCourseMetadata.read(binding).data);
+    }
     const result = await next();
     // A saved-result notice resumes the same teacher with the same tools.
     // Confirmation/idempotency belong to the writers, not a blanket tool ban
@@ -98,14 +133,14 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
     if (execution.name === 'register_cards') {
       if (!owns(execution.agent)) return '普通批量登记只在诊断课或独立命题的宿主写入中使用。';
       const course = host.studyforgeCourseMetadata.read({ workspaceId: host.studyforgeAccess.workspaceId, sessionId: execution.agent.session.id, actor: 'teacher', purpose: 'learning' });
-      if (course.data.teachingRef !== 'diagnose') return '常规新卡请先提案，由学生确认。';
+      if (course.data.teachingRef !== 'diagnose' && !(course.data.guided && !course.data.learningContext && !course.data.closure)) return '常规新卡请先提案，由学生确认。';
     }
     return undefined;
   }));
   host.effect(() => host.skills.registerProvider(() => ({
     name: 'studyforge-teaching',
     async list(options) {
-      if (options.signal?.aborted || !options.cwd || resolve(options.cwd) !== resolve(host.studyforgeAccess.root)) return [];
+      if (options.signal?.aborted || !options.cwd || realpathSync(options.cwd) !== host.studyforgeAccess.root) return [];
       return catalog.choices.map(choice => ({
         name: 'studyforge-' + choice.id, description: choice.description, provider: 'studyforge-teaching', source: 'bundled',
         invocation: { modelInvocable: true, userInvocable: true }, rank: 10, locator: choice.id,

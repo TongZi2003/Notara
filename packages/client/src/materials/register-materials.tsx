@@ -24,7 +24,6 @@ import { holdSourceReferences } from './source-references-holder.ts';
 import { registerSourceTrigger } from './source-trigger.ts';
 import { registerSourceDisplay } from './source-display.tsx';
 import { requestLessonPane } from './lesson-pane-request.ts';
-import { LESSON_TAB_KIND } from '../classroom/LessonPanel.tsx';
 import { SourceDocument } from './SourceDocument.tsx';
 import { registerAutomaticSource } from './automatic-source.ts';
 import { registerCardResource } from './CardResource.tsx';
@@ -158,12 +157,7 @@ export function registerMaterials(ctx: Context, navigation: import('./material-n
       if (sessionId && params?.studyforge && session.byId[sessionId]?.projectionValues?.agentPreset === 'studyforge-learning') {
         requestLessonPane(sessionId, { kind: 'source', title: params.studyforge.version.title, anchors: [params.studyforge.source] });
         ctx.layout.selectPanel(null);
-        for (let attempt = 0; attempt < 20; attempt += 1) {
-          await new Promise(resolve => { setTimeout(resolve, 50); });
-          if (ctx.sessions.list.getSnapshot().current !== sessionId) return;
-          try { ctx.sidebarRight.openTab(LESSON_TAB_KIND); return; } catch { /* Native seat has not mounted yet. */ }
-        }
-        throw new Error('sidebar_right_unavailable');
+        return;
       }
       // The right column's seat is drawn by the classroom, which owns the
       // mounted Session surface; coming back to it is what makes the address

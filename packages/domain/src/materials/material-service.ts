@@ -18,7 +18,7 @@ import {
   type ImportMaterialInput, type MaterialRecord, type MaterialRef, type MaterialVersion, type MaterialView, type NewMaterialVersionInput,
 } from '@studyforge/contracts/material-records';
 import type { Clock } from '../clock.ts';
-import { RecordError, type Saved } from '../storage/record-store.ts';
+import { RecordError, type Saved, type PreparedRecordChange } from '../storage/record-store.ts';
 import { validateMaterial } from './import-validation.ts';
 import { VersionStore, digestOf } from './version-store.ts';
 
@@ -29,6 +29,8 @@ export interface MaterialRecordStore {
   list(ctx: HostContext): Saved<MaterialRecord>[];
   create(ctx: MutationContext, id: string, input: unknown): Promise<Saved<MaterialRecord>>;
   update(ctx: MutationContext, ref: string, input: unknown, transform: (current: MaterialRecord) => unknown): Promise<Saved<MaterialRecord>>;
+  prepareCreate?(ctx: MutationContext, id: string, input: unknown): PreparedRecordChange<MaterialRecord>;
+  prepareUpdate?(ctx: MutationContext, ref: string, input: unknown, transform: (current: MaterialRecord) => unknown): PreparedRecordChange<MaterialRecord>;
 }
 
 /** One exact version plus where its bytes really are; the path never leaves the Host. */
@@ -52,7 +54,7 @@ export class MaterialService {
   }
 
   /** Import one new original; no learning set, card or lesson is created. */
-  async import(ctx: MutationContext, input: ImportMaterialRequest): Promise<MaterialView> {
+  async import(ctx: MutationContext, input: ImportMaterialRequest, publish?: (change: PreparedRecordChange<MaterialRecord>, view: MaterialView) => Promise<void>): Promise<MaterialView> {
     const { bytes, ...fields } = input;
     const parsed = ImportMaterialInputSchema.parse(fields);
     const validated = await validateMaterial({ fileName: parsed.fileName, mediaType: parsed.mediaType, bytes });
@@ -79,12 +81,17 @@ export class MaterialService {
       };
       this.assertNameFree(ctx, record.fileName, record.title, materialId);
       await this.store.publish({ materialId, versionId, fileName: version.fileName, bytes, digest: version.digest });
+      if (publish) {
+        if (!this.records.prepareCreate) throw new RecordError('material_atomic_unavailable');
+        const change = this.records.prepareCreate(operation(ctx), materialId, record), view = toView(change.result);
+        await publish(change, view); return view;
+      }
       return toView(await this.records.create(operation(ctx), materialId, record));
     });
   }
 
   /** Append one explicit new version and move the current pointer; v1 stays readable. */
-  async createVersion(ctx: MutationContext, input: NewMaterialVersionRequest): Promise<MaterialView> {
+  async createVersion(ctx: MutationContext, input: NewMaterialVersionRequest, publish?: (change: PreparedRecordChange<MaterialRecord>, view: MaterialView) => Promise<void>): Promise<MaterialView> {
     if (ctx.expectedVersion === undefined) throw new RecordError('material_expected_version_required');
     const { bytes, ...fields } = input;
     const parsed = NewMaterialVersionInputSchema.parse(fields);
@@ -103,9 +110,13 @@ export class MaterialService {
       };
       this.assertNameFree(ctx, version.fileName, version.title, parsed.materialId);
       await this.store.publish({ materialId: parsed.materialId, versionId, fileName: version.fileName, bytes, digest: version.digest });
-      const saved = await this.records.update(ctx, ref, { ...parsed, version }, row => ({
-        ...row, currentVersionId: versionId, versions: [...row.versions, version],
-      }));
+      const transform = (row: MaterialRecord): MaterialRecord => ({ ...row, title: parsed.title, fileName: version.fileName, mediaType: version.mediaType, currentVersionId: versionId, versions: [...row.versions, version] });
+      if (publish) {
+        if (!this.records.prepareUpdate) throw new RecordError('material_atomic_unavailable');
+        const change = this.records.prepareUpdate(ctx, ref, { ...parsed, version }, transform), view = toView(change.result);
+        await publish(change, view); return view;
+      }
+      const saved = await this.records.update(ctx, ref, { ...parsed, version }, transform);
       return toView(saved);
     });
   }

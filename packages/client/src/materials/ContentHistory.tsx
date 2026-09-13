@@ -43,6 +43,7 @@ export function ContentHistory({ ctx, query, onSource, onRefine, refreshToken, e
             <span>{USE[row.use]}{row.source?.locator ? ' · ' + positionLabel(row.source.locator) : ''}{row.via ? ' · 通过卡片' : ''}</span>
             {row.detail && <p>{row.detail}</p>}
             {row.messageId && <button className="sf-quiet" onClick={() => { void open(lesson.sessionId, row); }}>回到这一段 →</button>}
+            {row.messageId && <button className="sf-quiet" onClick={() => { void openContentClassroom(ctx, { sessionId: lesson.sessionId, view: 'thoughts', ...(row.sequence !== undefined ? { sequence: row.sequence } : {}), ...(row.turn !== undefined ? { turn: row.turn } : {}) }).catch(() => setFailed(true)); }}>思维图</button>}
             {row.source?.locator && onSource && <button className="sf-quiet" onClick={() => onSource({ ...row.source!, locator: row.source!.locator! })}>原文</button>}
           </li>)}</ul>
         </details>)}

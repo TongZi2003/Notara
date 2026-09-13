@@ -2,8 +2,10 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { ConversationSessionHeaderSlotProps } from '@deepseek-ai/dsh-client-ui-conversation/client';
 import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types';
 import { useEffect, useSyncExternalStore, type ComponentType } from 'react';
+import { revealWorkspaceView } from '../classroom/workspace-layout.ts';
 
-type Location = { sessionId: string; sequence?: number; turn?: number };
+type Location = { sessionId: string; sequence?: number; turn?: number; view?: 'thoughts' };
+export const thoughtAnchors = new Map<string, { sequence?: number; turn?: number }>();
 let pending: Location | undefined;
 const listeners = new Set<() => void>();
 const notify = (): void => { for (const listener of listeners) listener(); };
@@ -11,6 +13,8 @@ const subscribe = (listener: () => void): (() => void) => { listeners.add(listen
 export async function openContentClassroom(ctx: Context, location: Location): Promise<void> {
   await ctx.sessions.refresh();
   ctx.sessions.open(location.sessionId as SessionId); ctx.layout.selectPanel(null);
+  if (location.view === 'thoughts') thoughtAnchors.set(location.sessionId, { ...(location.sequence !== undefined ? { sequence: location.sequence } : {}), ...(location.turn !== undefined ? { turn: location.turn } : {}) });
+  revealWorkspaceView(location.sessionId, location.view === 'thoughts' ? 'thoughts' : 'chat');
   pending = location; notify();
 }
 /** Reuse the native header's own View action and store, including from Trace. */

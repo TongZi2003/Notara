@@ -1,0 +1,68 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/classroom-trace.spec.ts tests/e2e/library-management.spec.ts tests/e2e/conversation-home.spec.ts tests/e2e/workspace-docking.spec.ts
+
+
+Running 5 tests using 1 worker
+
+(node:73985) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/classroom-trace.spec.ts:2:1 › thought graph is editable and navigates to native conversation without exposing debug trajectory (25.1s)
+(node:74060) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/e2e/conversation-home.spec.ts:6:1 › learning modes stay inside the native composer and real recommendations hide only after acceptance (10.1s)
+  ✓  3 tests/e2e/library-management.spec.ts:2:1 › unified library edits an original, keeps versions and prepares semantic search in the native draft (9.8s)
+  ✓  4 tests/e2e/workspace-docking.spec.ts:3:1 › three peer views preserve the native draft through docking, resizing, hiding and narrow switching (10.7s)
+  ✓  5 tests/e2e/workspace-docking.spec.ts:41:1 › soft paper is optional and remembers style independently from paper colour (10.0s)
+
+
+  1) tests/e2e/classroom-trace.spec.ts:2:1 › thought graph is editable and navigates to native conversation without exposing debug trajectory
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '放大关系图', exact: true })
+        - locator resolved to <button title="放大" type="button" aria-label="放大关系图">+</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <summary>＋ 建立联系</summary> from <aside class="sf-thought-detail">…</aside> subtree intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <summary>＋ 建立联系</summary> from <aside class="sf-thought-detail">…</aside> subtree intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        29 × waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <summary>＋ 建立联系</summary> from <aside class="sf-thought-detail">…</aside> subtree intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+
+
+      12 |   await page.getByTestId('thought-map').getByRole('button', { name: '先界定系统 想法', exact: true }).click();
+      13 |   await expect(page.locator('.sf-thought-detail')).toContainText('哪些物体属于同一个系统');
+    > 14 |   await page.getByRole('button', { name: '放大关系图', exact: true }).click();
+         |                                                                  ^
+      15 |   await expect(page.getByTestId('thought-map')).toHaveAttribute('data-zoom', '1.25');
+      16 |   await page.screenshot({ path: info.outputPath('thought-workspace.png'), fullPage: true });
+      17 |   await page.getByRole('button', { name: '带入对话', exact: true }).click();
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/classroom-trace.spec.ts:14:66
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:73992) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/classroom-trace-thought-gr-d509a-t-exposing-debug-trajectory/error-context.md
+
+  1 failed
+    tests/e2e/classroom-trace.spec.ts:2:1 › thought graph is editable and navigates to native conversation without exposing debug trajectory
+  4 passed (1.1m)

@@ -12,6 +12,7 @@ import { validateLessonMaterials } from './materials/validate-lesson-materials.t
 import { learningPaths } from './teaching/guided-learning.ts';
 import type { LearningPath } from '@studyforge/contracts/courses';
 import { studentContext } from './learning-service.ts';
+import { teachingBody } from './teaching/teaching-context.ts';
 
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeCourses: StudyForgeCourses; studyforgeCourseMetadata: CourseMetadata; } }
 export async function validateCoursePatch(host: Context, context: HostContext, patch: CoursePatch): Promise<void> {
@@ -24,7 +25,7 @@ export async function validateCoursePatch(host: Context, context: HostContext, p
     if (current.closure && JSON.stringify(current.learningGoal) !== JSON.stringify(patch.learningGoal)) throw new Error('learning_goal_fixed_after_diagnosis');
   }
   if (patch.lessonMaterials) await validateLessonMaterials(host, context, patch.lessonMaterials);
-  if (patch.teachingRef && !host.studyforgeTeachingCatalog.has(patch.teachingRef)) throw new Error('teaching_configuration_missing');
+  if (patch.teachingRef) teachingBody(host, patch.teachingRef);
   if (patch.learningSetRef) host.studyforgeSetService.read(context, patch.learningSetRef);
 }
 

@@ -1,0 +1,47 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/notebook-pages.spec.ts tests/e2e/workspace-docking.spec.ts --grep original notebook|student controls
+
+
+Running 2 tests using 1 worker
+
+(node:79374) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/notebook-pages.spec.ts:11:1 › original notebook pages show real books, cards, calendar and learning records at desktop and phone widths (17.4s)
+  ✘  2 tests/e2e/workspace-docking.spec.ts:76:1 › student controls share typography and rounded shapes; subject menus fit narrow panes without coding launchers (24.8s)
+
+
+  1) tests/e2e/workspace-docking.spec.ts:76:1 › student controls share typography and rounded shapes; subject menus fit narrow panes without coding launchers
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('menuitemradio').first()
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByRole('menuitemradio').first() with timeout 15000ms
+      - waiting for getByRole('menuitemradio').first()
+
+
+      90 |     for (const font of fonts) expect(parseFloat(font.radius)).toBeGreaterThanOrEqual(8);
+      91 |     await model.click();
+    > 92 |     const modelOption = page.getByRole('menuitemradio').first(); await expect(modelOption).toBeVisible();
+         |                                                                                            ^
+      93 |     expect(await modelOption.evaluate(el => getComputedStyle(el).fontFamily)).toBe(fonts[0]!.family);
+      94 |     await page.keyboard.press('Escape');
+      95 |     await subject.click(); const menu = page.getByRole('dialog', { name: '选择本课涉及科目', exact: true });
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/workspace-docking.spec.ts:92:92
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:79446) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/workspace-docking-student--6b25a-es-without-coding-launchers/error-context.md
+
+  1 failed
+    tests/e2e/workspace-docking.spec.ts:76:1 › student controls share typography and rounded shapes; subject menus fit narrow panes without coding launchers
+  1 passed (42.7s)

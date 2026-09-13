@@ -56,8 +56,12 @@ test('original notebook pages show real books, cards, calendar and learning reco
         await sidebar.getByRole('button', { name: '学习集', exact: true }).click();
       }
       else await openRoot(page, label);
-      const surface = route === 'home' ? page.locator('[data-slot="main.conversation"]>[data-phase]') : page.getByTestId('studyforge-page-studyforge.' + route);
+      const surface = route === 'home' ? page.getByTestId('workspace-pane-chat') : page.getByTestId('studyforge-page-studyforge.' + route);
       await expect(surface).toBeVisible();
+      for (const select of await surface.locator('select:visible').all()) {
+        expect(await select.evaluate(el => getComputedStyle(el).fontFamily)).toContain('system-ui');
+        expect(parseFloat(await select.evaluate(el => getComputedStyle(el).borderTopLeftRadius))).toBeGreaterThanOrEqual(8);
+      }
       // Below the native breakpoint the notebook rail collapses on its own; the
       // page keeps its own width only after that re-layout has actually landed.
       if (width === 390 && await sidebar.getAttribute('data-collapsed') !== 'true') {
@@ -68,10 +72,10 @@ test('original notebook pages show real books, cards, calendar and learning reco
       }
       await expect.poll(async () => (await surface.boundingBox())?.width ?? 0).toBeGreaterThan(290);
       await page.evaluate(async () => { await document.fonts.ready; });
-      if (route === 'home') await expect(surface.getByTestId('learning-mode')).toBeVisible();
+      if (route === 'home') await expect(surface.getByTestId('agent-role')).toBeVisible();
       if (route === 'materials') {
-        await expect(surface.getByTestId('material-row')).toHaveCount(3);
-        await expect(surface.locator('.sf-original-open')).toHaveCount(3);
+        await expect(surface.getByTestId('material-row')).toHaveCount(6);
+        await expect(surface.locator('.sf-library-row')).toHaveCount(6);
       }
       if (route === 'cards') {
         await expect(surface.getByTestId('card-row')).toHaveCount(3);
@@ -98,14 +102,15 @@ test('original notebook pages show real books, cards, calendar and learning reco
       await page.screenshot({ path: info.outputPath(`notebook-${route}-${width}.png`), fullPage: true });
       if (route === 'materials' && width === 1440) {
         await surface.getByTestId('material-row').first().getByRole('button').first().click();
+        await surface.getByRole('button', { name: '阅读原文', exact: true }).click();
         await expect(surface).toHaveAttribute('data-reading', 'true');
         await page.reload();
         await expect(surface).toHaveAttribute('data-reading', 'true');
         await surface.getByTestId('materials-back').click();
         await expect(surface).toHaveAttribute('data-reading', 'false');
-        await surface.getByTestId('materials-card-row').first().getByRole('button').click();
+        await surface.getByRole('button', { name: new RegExp(cards[0]!.content.title) }).click();
         await expect(page.getByTestId('card-detail-title')).toHaveText(cards[0]!.content.title);
-        await page.goBack();
+        await surface.getByRole('button', { name: '关闭资料详情', exact: true }).click();
         await expect(surface).toBeVisible();
       }
     }

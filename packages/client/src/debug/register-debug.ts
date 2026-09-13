@@ -8,6 +8,7 @@ import type { RawDebugInjected } from './RawSessionView.tsx';
 import { RawSessionView } from './RawSessionView.tsx';
 import { ContextNote, SystemPromptNote } from './ClassroomNotes.tsx';
 import { debugEnabled, subscribeDebug } from './debug-mode.ts';
+import { ReplyError } from './ReplyError.tsx';
 
 /** This client's Raw Conversation view id. */
 export const RAW_VIEW_ID = '@studyforge/dsh-client/raw';
@@ -67,20 +68,21 @@ export function registerDebugSurfaces(ctx: Context): void {
   ctx.effect(() => ctx.slots.inject('conversation.chat.node', () => ctx.slots.register(
     { name: 'conversation.chat.node', key: 'context', priority: -10 }, ContextNote,
   )), 'studyforge: classroom context note');
+  ctx.effect(() => ctx.slots.inject('conversation.chat.node', () => ctx.slots.register(
+    { name: 'conversation.chat.node', key: 'turn-error', priority: -10 }, ReplyError,
+  )), 'studyforge: student reply error');
 
   ctx.effect(() => ctx.slots.inject('settings.general.item', () => ctx.slots.register(
     { name: 'settings.general.item', id: 'studyforge.debug', order: 40 }, DebugRow,
   )), 'studyforge: debug settings row');
 
-  // The switch gates our Raw view only. It deliberately does not try to gate the
-  // native Trajectory view: `conversation.view` is a list slot whose roster
-  // (`SlotRegistry.entries`) is the raw ledger, so a same-id entry adds a second
-  // tab instead of shadowing the native one, and replacing the single
-  // `conversation.session.header` would rebuild the native header. Keeping the
-  // native Trajectory entry is the accepted P2.7 deviation, reviewed at G2.
+  // Raw is registered here; the pinned native roster seam applies the same
+  // preference to Trajectory. Neither debug view supplies learning facts.
   ctx.effect(() => {
     let dispose: (() => void) | undefined;
     const sync = (): void => {
+      document.documentElement.dataset.studyforgeDebug = String(debugEnabled());
+      window.dispatchEvent(new Event('studyforge:debug-views'));
       if (debugEnabled()) {
         dispose ??= ctx.slots.inject('conversation.view', () => ctx.slots.register({
           name: 'conversation.view', id: RAW_VIEW_ID, order: 30, label: () => 'Raw',

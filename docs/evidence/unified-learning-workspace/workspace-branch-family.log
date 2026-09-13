@@ -1,0 +1,14 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/classroom-trace.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |integration| tests/integration/classroom-trace.test.ts (1 test) 12144ms
+   ✓ thought nodes bind actual messages, edits survive restart, cycles fail and native forks do not duplicate inherited nodes  12144ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  23:52:11
+   Duration  12.25s (transform 32ms, setup 0ms, import 46ms, tests 12.14s, environment 0ms)

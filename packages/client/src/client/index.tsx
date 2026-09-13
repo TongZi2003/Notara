@@ -19,6 +19,10 @@ import { registerNotebook } from '../theme/notebook.tsx';
 import { registerNotebookSidebar } from '../shell/NotebookSidebar.tsx';
 import { registerToolActivity } from '../classroom/ToolActivity.tsx';
 import { registerContentNavigation } from '../materials/content-navigation.tsx';
+import { registerTaskDraft } from '../classroom/skill-draft.ts';
+import { registerCreation } from '../creation/register-creation.tsx';
+import { registerClassroomTrace } from '../classroom/ClassroomTrace.tsx';
+import { registerLearningWorkspace } from '../classroom/LearningWorkspace.tsx';
 
 export const inject = ['remote', 'slots'];
 
@@ -32,21 +36,25 @@ export async function apply(ctx: Context): Promise<void> {
     return;
   }
   ctx.plugin({ inject: ['slots', 'layout', 'sessions'], apply: registerStudentShell });
-  ctx.plugin({ inject: ['slots'], apply: registerToolActivity });
+  ctx.plugin({ inject: ['slots', 'layout'], apply: registerToolActivity });
+  ctx.plugin({ inject: ['slots', 'sessions', 'layout', 'conversation', 'inputTriggers', 'sidebarRight', 'remote.studyforgeTrace', 'remote.studyforgeCreation'], apply: registerClassroomTrace });
   ctx.plugin({ inject: ['slots', 'sessions', 'layout'], apply: registerContentNavigation });
+  ctx.plugin({ inject: ['remote.studyforgeTeaching', 'remote.studyforgeLearning', 'inputTriggers', 'conversation', 'sessions'], apply: registerTaskDraft });
+  ctx.plugin({ inject: ['remote.studyforgeCreation', 'slots', 'sessions', 'layout'], apply: registerCreation });
   ctx.plugin({ inject: ['slots', 'layout', 'sessions', 'uiWorkspace', 'remote.studyforgeOrganization'], apply: registerNotebookSidebar });
   ctx.plugin({ inject: ['theme', 'slots', 'layout', 'sessions'], apply: scope => registerNotebook(scope, materialNavigation) });
   // Remote namespaces are separately injected properties: reading
   // `ctx.remote.studyforgeCourses` needs its own nested inject entry.
-  ctx.plugin({ inject: ['remote.studyforgeCourses', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'remote.studyforgeMemory', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'remote.studyforgeHandoffs', 'remote.studyforgeProposals', 'slots', 'uiConversation', 'sidebarRight', 'sidebarRightTabs', 'layout', 'sessions'], apply: registerClassroom });
+  ctx.plugin({ inject: ['remote.studyforgeLibrary', 'remote.studyforgeCreation', 'remote.studyforgeCourses', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'remote.studyforgeMemory', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'remote.studyforgeHandoffs', 'remote.studyforgeProposals', 'slots', 'uiConversation', 'sidebarRight', 'sidebarRightTabs', 'layout', 'sessions'], apply: registerClassroom });
+  ctx.plugin({ inject: ['slots', 'sessions', 'layout', 'conversation', 'sidebarRight', 'remote.studyforgeTrace', 'remote.studyforgeLibrary', 'remote.studyforgeCreation', 'remote.studyforgeCourses', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'remote.studyforgeMemory', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'remote.studyforgeHandoffs', 'remote.studyforgeProposals'], apply: registerLearningWorkspace });
   // The student-facing system note and the opt-in Raw debug surfaces read the
   // same session binding the native Chat owns; they open no second source.
   ctx.plugin({ inject: ['remote.studyforgeCourses', 'slots', 'sessions'], apply: registerDebugSurfaces });
   // The materials page needs the Host's own material Remote plus the native
   // document-preview registry it adds a DOCX renderer to.
-  ctx.plugin({ inject: ['remote.studyforgeMaterials', 'remote.studyforgeSources', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'resources', 'sidebarRightTabs', 'documentPreviews', 'slots', 'sidebarRight', 'layout', 'inputTriggers', 'conversation', 'sessions'], apply: scope => registerMaterials(scope, materialNavigation) });
+  ctx.plugin({ inject: ['remote.studyforgeLibrary', 'remote.studyforgeCreation', 'remote.studyforgeTeaching', 'remote.studyforgeMaterials', 'remote.studyforgeSources', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'resources', 'sidebarRightTabs', 'documentPreviews', 'slots', 'sidebarRight', 'layout', 'inputTriggers', 'conversation', 'sessions'], apply: scope => registerMaterials(scope, materialNavigation) });
   ctx.plugin({ inject: ['remote.studyforgeLearning', 'remote.studyforgeProposals', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'remote.studyforgeOrganization', 'sessions', 'slots', 'layout'], apply: scope => registerCardSurfaces(scope, { onSource: (source, sessionId) => { materialNavigation.show(source, sessionId); scope.layout.selectPanel('studyforge.materials' as MainPanelId); } }) });
-  ctx.plugin({ inject: ['remote.studyforgeCourses', 'remote.studyforgeOrganization', 'remote.studyforgeCalendar', 'remote.studyforgeMaterials', 'remote.studyforgeLearning', 'remote.studyforgeMemory', 'remote.studyforgeHandoffs', 'conversation', 'sessions', 'slots', 'layout', 'uiWorkspace'], apply: scope => registerOrganization(scope, materialNavigation) });
+  ctx.plugin({ inject: ['remote.studyforgeCourses', 'remote.studyforgeTeaching', 'remote.studyforgeCreation', 'remote.studyforgeOrganization', 'remote.studyforgeCalendar', 'remote.studyforgeMaterials', 'remote.studyforgeLearning', 'remote.studyforgeMemory', 'remote.studyforgeHandoffs', 'conversation', 'sessions', 'slots', 'layout', 'uiWorkspace'], apply: scope => registerOrganization(scope, materialNavigation) });
   ctx.plugin({ inject: ['remote.studyforgeCourses', 'remote.studyforgeHandoffs', 'remote.studyforgeMemory', 'remote.studyforgeOrganization', 'remote.studyforgeCalendar', 'remote.studyforgeMaterials', 'remote.studyforgeLearning', 'remote.studyforgeTeaching', 'sessions', 'slots', 'layout'], apply: registerCourses });
   // P4.3: the composer's own reference source and its dock row. Kept in a
   // separate entry so a composition without a conversation surface still gets
@@ -84,3 +92,4 @@ function registerProbe(ctx: Context): void {
   ctx.effect(() => ctx.slots.register({ name: 'root', priority: -10 }, ProbePanel));
 }
 import '../shell/linear-tree.css';
+import '../theme/controls.css';

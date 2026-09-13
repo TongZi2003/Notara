@@ -40,7 +40,9 @@ export class SourceReferences {
   }
   active(sessionId: string, tabId?: string): Omit<SourcePick, 'ref'> | undefined {
     const picked = this.current(sessionId);
-    if (picked?.context.selection) return picked;
+    // An explicit “bring into conversation” includes whole cards/originals as
+    // well as selected passages. Generated browse references are not explicit.
+    if (picked && (!this.automaticRefs.has(picked.ref) || picked.context.selection)) return picked;
     const tab = tabId ? this.tabs.get(tabId) : undefined;
     return tab?.sessionId === sessionId ? tab : undefined;
   }

@@ -80,7 +80,7 @@ export function registerGuidedLearning(host: Context): void {
         throw new Error('诊断小结已确认，旧目标保持；新目标请从首页开始一条新的学习路线。');
       }
       return host.studyforgeCourseMetadata.update({ ...ctx, expectedVersion: await observedVersion(host, execution, courseRecordRef(ctx.sessionId!)) },
-        { guided: true, teachingRef: 'diagnose', learningGoal: goal });
+        { guided: true, learningGoal: goal });
     },
   }));
 }

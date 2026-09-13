@@ -7,7 +7,6 @@ import { decodeSourceFragments, encodeSourceFragment, type SourceFragment } from
 import { openLessonSource } from './native-preview-adapter.ts';
 import { cardAddress } from './CardResource.tsx';
 import { requestLessonPane } from './lesson-pane-request.ts';
-import { LESSON_TAB_KIND } from '../classroom/LessonPanel.tsx';
 
 type Block = { readonly type: string; readonly text?: string };
 interface PendingMessageProps {
@@ -64,7 +63,6 @@ function SourceLinks({ ctx, sessionId, fragments }: { ctx: Context; sessionId: s
         // the pinned card revision, and no second rail is drawn beside it.
         if (inLesson(ctx, sessionId)) {
           requestLessonPane(sessionId, { kind: 'card', title: fragment.titles[0]?.title ?? '卡片', target: current.cardRef, version });
-          ctx.sidebarRight.openTab(LESSON_TAB_KIND);
           return;
         }
         ctx.sidebarRight.openResource(cardAddress(current.cardRef, version));
@@ -76,7 +74,6 @@ function SourceLinks({ ctx, sessionId, fragments }: { ctx: Context; sessionId: s
       return <button key={n + ':' + i} type="button" onClick={() => {
       if (inLesson(ctx, sessionId) && String(ctx.sessions.list.getSnapshot().current) === sessionId) {
         requestLessonPane(sessionId, { kind: 'source', title, anchors: [source] });
-        ctx.sidebarRight.openTab(LESSON_TAB_KIND);
         return;
       }
       void openLessonSource({

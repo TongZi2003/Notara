@@ -103,7 +103,8 @@ export async function observeEvidence(
 ): Promise<EvidenceInputRow> {
   const observation = await ctx.sessionQuery.observeSession(SessionId(sessionId));
   try {
-    return await narrowEvidence(sessionId, observation.events, options.resolveObjects);
+    const inherited = observation.events.findLastIndex(event => event.type === 'session/end-seed');
+    return await narrowEvidence(sessionId, observation.events.slice(inherited + 1), options.resolveObjects);
   } finally {
     observation[Symbol.dispose]();
   }

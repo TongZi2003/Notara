@@ -34,6 +34,7 @@ import { heldSourceReferences } from './source-references-holder.ts';
 import { requestLessonPane, subscribeLessonPane } from './lesson-pane-request.ts';
 import './lesson-pane.css';
 import { workbenchMaterials } from './workbench-materials.ts';
+import { revealWorkspaceView } from '../classroom/workspace-layout.ts';
 
 /** The Host reads one lesson's map needs; the original's own reads come from the pane. */
 export interface LessonResourcesFace extends SourcePaneFace {
@@ -101,6 +102,10 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
   const [pinnedCards, setPinnedCards] = useState<ReadonlyMap<string, CardView>>(() => new Map());
   const [busy, setBusy] = useState(false);
   const [focus, setFocus] = useState(0);
+  const [userRelations, setUserRelations] = useState<import('@studyforge/contracts/library').LibraryRelation[]>([]);
+  const [knowledge, setKnowledge] = useState<import('@studyforge/contracts/knowledge').KnowledgeView[]>([]);
+  useEffect(() => { let live = true; void ctx.remote.studyforgeLearning.knowledge().then(result => { if (live && result.ok) setKnowledge(result.value); }).catch(() => {}); return () => { live = false; }; }, [ctx, focus, refreshToken]);
+  useEffect(() => { let live = true; void ctx.remote.studyforgeLibrary.relations().then(result => { if (live && result.ok) setUserRelations(result.value); }).catch(() => {}); return () => { live = false; }; }, [ctx, focus, refreshToken]);
   const [sending, setSending] = useState(false);
   const attempt = useRef<{ key: string; id: string }>();
   const loaded = useRef<string | undefined>(undefined);
@@ -168,8 +173,11 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
 
   const rows = useMemo(() => {
     const lesson = state.status === 'ready' ? state.rows : [];
-    return deck.scope === 'lesson' ? lesson : workbenchMaterials(materials, lesson);
-  }, [state, materials, deck.scope]);
+    if (deck.scope === 'lesson') return lesson;
+    const inventory = [...workbenchMaterials(materials, lesson)];
+    for (const item of [...cards.values(), ...knowledge]) if (!inventory.some(row => row.target === item.ref)) inventory.push({ kind: item.ref.startsWith('card:') ? 'card' : 'knowledge', target: item.ref, tabKey: item.ref, title: item.content.title, source: null, quote: null, origins: [] });
+    return inventory;
+  }, [state, materials, cards, knowledge, deck.scope]);
   useEffect(() => {
     let live = true;
     const pinned = state.status === 'ready' ? state.rows.filter(row => row.kind === 'card' && row.target !== null && row.cardVersion !== undefined) : [];
@@ -184,7 +192,21 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
     materialTitleOf: materialId => library.titles.get(materialId),
     cardTitleOf: (target, version) => (version === undefined ? cards.get(target) : pinnedCards.get(`${target}@${String(version)}`))?.content.title,
   }), [rows, structures, library, cards, pinnedCards]);
-  const graph = useMemo(() => lessonRelations(projection, cards, pinnedCards, deck.related, id => library.titles.get(id), expanded), [projection, cards, pinnedCards, deck.related, library, expanded]);
+  const graph = useMemo(() => {
+    const graph = lessonRelations(projection, cards, pinnedCards, deck.related, id => library.titles.get(id), expanded);
+    const keyOf = (ref: string): string | undefined => graph.nodes.find(node => {
+      const row = projection.rows.get(node.key), book = projection.books.get(node.key);
+      return row?.target === ref || (row?.source && 'material:' + row.source.materialId === ref) || (book && 'target' in book && book.target === ref);
+    })?.key;
+    for (const edge of userRelations) { const from = keyOf(edge.from), to = keyOf(edge.to); if (from && to) graph.edges.push({ from, to, label: edge.label }); }
+    return graph;
+  }, [projection, cards, pinnedCards, deck.related, library, expanded, userRelations]);
+  useEffect(() => {
+    const sheet = deck.sheets.find(item => item.id === deck.active); if (!sheet || sheet.nodeKey) return;
+    const key = graph.nodes.find(node => { const row = projection.rows.get(node.key), book = projection.books.get(node.key); return sheet.content.kind === 'source' ? row?.source?.materialId === sheet.content.anchors[0]?.materialId && row?.source?.versionId === sheet.content.anchors[0]?.versionId : row?.target === sheet.content.target || (book && 'target' in book && book.target === sheet.content.target); })?.key;
+    if (!key) return;
+    setDeck(old => ({ ...old, selected: key, expanded: [...new Set([...old.expanded, ...parentTrail(graph.nodes, key).map(node => node.key)])], sheets: old.sheets.map(item => item.id === sheet.id ? { ...item, nodeKey: key } : item) }));
+  }, [deck.active, deck.sheets, graph, projection]);
   // Reopening the native deck restores navigation, then reads these books anew.
   useEffect(() => {
     for (const row of rows) if (row.source && expanded.includes(rowKey(row)) && !structures.has(versionKeyOf(row.source.materialId, row.source.versionId))) readBook(row.source);
@@ -413,9 +435,12 @@ function CardPane({ ctx, host, sessionId, target, version, browseId, onSource }:
   if (view === undefined) return <p className="sf-note" role="status">正在打开卡片…</p>;
   // A pinned revision is a frozen original: shown, not edited, exactly as the
   // native card tab does for a versioned address.
-  return <CardDetail key={`${target}@${String(version ?? 'current')}`} ctx={ctx} target={target} seed={view} sessionId={sessionId}
+  return <><div className="sf-source-actions"><button type="button" className="sf-quiet" onClick={() => {
+    references?.stage(sessionId, view.content.title, { currentMaterial: { kind: 'card', cardRef: view.ref, cardVersion: view.version } });
+    revealWorkspaceView(sessionId, 'chat');
+  }}>带入对话</button></div><CardDetail key={`${target}@${String(version ?? 'current')}`} ctx={ctx} target={target} seed={view} sessionId={sessionId}
     {...(version === undefined ? {} : { version, readonly: true })}
-    onSource={anchor => { onSource([asContext(anchor)], view.content.title); }} />;
+    onSource={anchor => { onSource([asContext(anchor)], view.content.title); }} /></>;
 }
 
 /** One immutable version plus one position, exactly as the projection spelled it. */

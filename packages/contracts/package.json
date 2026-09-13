@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./classroom-trace": { "types": "./lib/types/classroom-trace.d.ts", "default": "./lib/types/classroom-trace.js" },
+    "./library": { "types": "./lib/types/library.d.ts", "default": "./lib/types/library.js" },
+    "./creation": { "types": "./lib/types/creation.d.ts", "default": "./lib/types/creation.js" },
     "./content-history": { "types": "./lib/types/content-history.d.ts", "default": "./lib/types/content-history.js" },
     "./teaching": { "types": "./lib/types/teaching.d.ts", "default": "./lib/types/teaching.js" },
     "./changes": {

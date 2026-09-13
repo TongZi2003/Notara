@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis';
+import { ownEvents } from '../classroom-trace-service.ts';
 import { SessionId } from '@deepseek-ai/dsh-session';
 import type { HostContext } from '@studyforge/contracts';
 import { decodeSourceFragments } from '@studyforge/contracts/source-context';
@@ -20,7 +21,7 @@ export async function sessionResources(host: Context, sessionId: string): Promis
   const observation = await host.sessionQuery.observeSession(SessionId(sessionId));
   const messages: AcceptedMessageSources[] = [];
   try {
-    for (const event of observation.events) {
+    for (const event of ownEvents(observation.events)) {
       if (event.type === 'tool/result' && !event.data.message.content.some(block => block.isError)) {
         const item = SourceUseSchema.safeParse(event.data.meta);
         if (item.success && item.data.use === 'cited') messages.push({ messageId: String(event.data.message.id), sources: item.data.sources,

@@ -1,0 +1,15 @@
+.sf-creation{box-sizing:border-box;height:100%;overflow:auto;padding:24px 32px;background:var(--nb-page,#f6f1e3);color:var(--nb-ink,#3a3531)}
+.sf-creation header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+.sf-creation h1,.sf-creation h2{font:400 30px/1.4 var(--nb-hand,serif);color:var(--nb-pen,#26437c);margin:0 auto 0 0}
+.sf-creation h2{font-size:24px}
+.sf-creation-new{display:flex;flex-wrap:wrap;gap:12px;padding-bottom:24px;border-bottom:1px solid var(--nb-rule,#d9d2bd)}
+.sf-creation-new input,.sf-creation-new select{font:14px/1.5 var(--nb-print,serif);border:1px solid var(--nb-rule,#ddd);background:var(--nb-hi,#fffdf6);color:inherit;padding:9px 12px;max-width:100%;box-sizing:border-box;min-width:0}
+.sf-creation-new input:first-child{flex:1 1 230px}
+.sf-creation-list{list-style:none;padding:0;margin:22px 0}.sf-creation-list li{display:flex;gap:12px;align-items:center;border-bottom:1px dashed var(--nb-rule,#ddd);padding:14px 0}
+.sf-creation-list li>button:first-child{flex:1;text-align:left;display:flex;align-items:center;gap:12px;border:0;background:none;color:inherit;padding:6px 0;cursor:pointer}
+.sf-creation-list strong{font:21px/1.5 var(--nb-hand,serif);color:var(--nb-pen,#26437c)}.sf-creation-list small{font:12px/1.5 var(--nb-print,serif);color:var(--nb-pencil,#777)}
+.sf-creation-editor>nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.sf-creation-editor>nav>.sf-action{margin-left:auto}
+.sf-creation-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;min-height:55vh}
+.sf-creation-columns>textarea{resize:vertical;box-sizing:border-box;width:100%;min-height:55vh;border:1px solid var(--nb-rule,#ddd);background:var(--nb-hi,#fff);color:var(--nb-ink,#333);padding:16px;font:14px/1.7 ui-monospace,monospace}
+.sf-artifact-preview{min-width:0;border:1px solid var(--nb-rule,#ddd);padding:16px;background:var(--nb-hi,#fff);overflow:auto}.sf-artifact-preview iframe{border:0;background:white;width:100%;height:60vh}
+@media(max-width:800px){.sf-creation{padding:18px 14px}.sf-creation-columns{grid-template-columns:1fr}.sf-creation-columns>textarea{min-height:35vh}}

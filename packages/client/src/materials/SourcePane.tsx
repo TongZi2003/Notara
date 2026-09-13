@@ -21,6 +21,7 @@ import { MaterialPreview } from './MaterialPreview.tsx';
 import { SourceCapture } from './SourceCapture.tsx';
 import { DOCX_MEDIA_TYPE, decodeBase64 } from './files.ts';
 import { heldSourceReferences } from './source-references-holder.ts';
+import { revealWorkspaceView } from '../classroom/workspace-layout.ts';
 
 /** The lesson-bound reads one original needs; the Host owns every answer. */
 export interface SourcePaneFace {
@@ -115,8 +116,11 @@ function SourceBody({ face, sessionId, anchor, browseId }: { readonly face: Sour
     <p className="sf-note" role="status">这里按原文只读；到资料页打开可以圈选引用。</p>
     <MaterialPreview version={state.version} data={state.data} index={state.index} locator={anchor.locator} />
   </>;
-  return <SourceCapture version={state.version} data={state.data} index={state.index} references={references}
-    sessionId={sessionId} locator={anchor.locator} onPage={setPage} />;
+  return <><div className="sf-source-actions"><button type="button" className="sf-quiet" onClick={() => {
+    references.stage(sessionId, state.version.title, { currentMaterial: { kind: 'source', source: { materialId: state.version.materialId, versionId: state.version.versionId, ...(locator === undefined ? {} : { locator }) } } });
+    revealWorkspaceView(sessionId, 'chat');
+  }}>带入对话</button></div><SourceCapture version={state.version} data={state.data} index={state.index} references={references}
+    sessionId={sessionId} locator={anchor.locator} onPage={setPage} /></>;
 }
 
 /** What one position of one original is called, in the student's words. */

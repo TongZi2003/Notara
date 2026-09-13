@@ -9,6 +9,7 @@
  * a request made before the tab mounts is held, not dropped.
  */
 import type { MaterialContext } from '@studyforge/contracts/materials';
+import { revealWorkspaceView } from '../classroom/workspace-layout.ts';
 
 /** What the classroom asked the map's pane to show. */
 export type LessonPaneRequest =
@@ -20,6 +21,7 @@ const listeners = new Map<string, (request: LessonPaneRequest) => void>();
 
 /** Ask the lesson's own pane to open this; the caller brings its tab forward. */
 export function requestLessonPane(sessionId: string, request: LessonPaneRequest): void {
+  revealWorkspaceView(sessionId, 'materials');
   const listener = listeners.get(sessionId);
   if (listener !== undefined) { listener(request); pending.delete(sessionId); return; }
   pending.set(sessionId, request);
