@@ -32,7 +32,7 @@ export function useWorkbenchChoices(ctx: Context, sessionId: string): WorkbenchC
 }
 export function workbenchDocument(content: string, nonce: string): string {
   const sdk = `(function(){const nonce=${JSON.stringify(nonce)},channel=${JSON.stringify(CHANNEL)};let listeners=[];window.Notara={saveNote(note){parent.postMessage({channel,nonce,type:'save-note',note},'*')},onSaved(fn){listeners.push(fn);return()=>{listeners=listeners.filter(item=>item!==fn)}}};${draftSDK()}const style=document.createElement('style');document.head.append(style);addEventListener('message',event=>{if(event.source!==parent||event.data?.channel!==channel||event.data?.nonce!==nonce)return;const data=event.data;if(data.type==='theme'){for(const [key,value] of Object.entries(data.tokens))document.documentElement.style.setProperty(key,value);document.documentElement.dataset.theme=data.theme;style.textContent=data.fonts||'';}if(data.type==='saved')listeners.forEach(fn=>fn({title:data.title}));});parent.postMessage({channel,nonce,type:'ready'},'*');})();`;
-  return '<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data: blob:; font-src data:; connect-src \'none\'; form-action \'none\'; base-uri \'none\'"><style>html,body{margin:0;background:var(--notara-background,#fff);color:var(--notara-text,#222);font:var(--notara-font-size,15px)/1.7 var(--notara-font,system-ui)}body{padding:18px;box-sizing:border-box}button,input,textarea,select{font:inherit;color:inherit;border:1px solid var(--notara-border,#ddd);border-radius:var(--notara-radius,8px);background:var(--notara-surface,#fff);padding:8px;box-sizing:border-box;max-width:100%}button{cursor:pointer}button:hover{color:var(--notara-accent,#3468c0)}h1,h2,h3{font-size:var(--notara-heading-size,18px);font-weight:600}textarea{resize:vertical}</style><script>' + sdk + '</script></head><body>' + content + '</body></html>';
+  return '<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data: blob:; font-src data:; connect-src \'none\'; form-action \'none\'; base-uri \'none\'"><style>html,body{margin:0;color:var(--notara-text,#222);font:var(--notara-font-size,15px)/1.7 var(--notara-font,system-ui)}html{min-height:100%;background-color:var(--notara-background,#fff);background-image:var(--notara-lines,none);background-size:var(--notara-lines-size,auto);background-position:0 -4px}body{padding:18px;box-sizing:border-box}button,input,textarea,select{font:inherit;color:inherit;border:1px solid var(--notara-border,#ddd);border-radius:var(--notara-radius,8px);background:var(--notara-surface,#fff);padding:8px;box-sizing:border-box;max-width:100%}button{cursor:pointer}button:hover{color:var(--notara-accent,#3468c0)}h1,h2,h3{font-size:var(--notara-heading-size,18px);font-weight:600}textarea{resize:vertical}</style><script>' + sdk + '</script></head><body>' + content + '</body></html>';
 }
 export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionId: string; id: string }): React.JSX.Element {
   const [content, setContent] = useState<WorkbenchContent>(), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false);
@@ -43,14 +43,16 @@ export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionI
   const srcDoc = useMemo(() => content ? workbenchDocument(content.html, nonce) : '', [content, nonce]);
   useEffect(() => {
     if (!content) return;
-    let live = true;
+    let live = true, themeRevision = 0;
     const draftRequests = new Set<string>();
     const post = (data: object): void => { if (live) frame.current?.contentWindow?.postMessage({ channel: CHANNEL, nonce, ...data }, '*'); };
     const theme = async (): Promise<void> => {
+      const revision = ++themeRevision, style = document.body.dataset.sfStyle;
       const css = getComputedStyle(document.body), family = css.getPropertyValue('--sf-ui-font');
-      const mappings = { '--notara-background': '--nb-page', '--notara-surface': '--nb-hi', '--notara-text': '--nb-ink', '--notara-muted': '--nb-pencil', '--notara-border': '--nb-rule', '--notara-accent': '--nb-pen', '--notara-font': '--sf-ui-font', '--notara-font-size': '--sf-ui-size', '--notara-heading-size': '--sf-text-section', '--notara-radius': '--sf-ui-radius' };
+      const mappings = { '--notara-background': '--nb-page', '--notara-surface': '--nb-hi', '--notara-text': '--nb-ink', '--notara-muted': '--nb-pencil', '--notara-border': '--nb-rule', '--notara-accent': '--nb-pen', '--notara-font': '--sf-ui-font', '--notara-font-size': '--sf-ui-size', '--notara-heading-size': '--sf-text-section', '--notara-radius': '--sf-ui-radius', '--notara-lines': '--nb-lines', '--notara-lines-size': '--nb-lines-size' };
       const tokens = Object.fromEntries(Object.entries(mappings).map(([key, token]) => [key, css.getPropertyValue(token).trim()]));
-      post({ type: 'theme', theme: document.body.dataset.sfStyle, tokens, fonts: await themeFonts(family) });
+      const fontFaces = await themeFonts(family);
+      if (revision === themeRevision) post({ type: 'theme', theme: style, tokens, fonts: fontFaces });
     };
     const onMessage = (event: MessageEvent): void => {
       if (event.source !== frame.current?.contentWindow || !event.data || event.data.channel !== CHANNEL || event.data.nonce !== nonce) return;
@@ -77,7 +79,7 @@ export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionI
       pendingRef.current = true; setPending({ ...note.data, operationId: crypto.randomUUID() }); setNotice('');
     };
     window.addEventListener('message', onMessage);
-    const observer = new MutationObserver(() => { void theme(); }); observer.observe(document.body, { attributes: true, attributeFilter: ['data-sf-style','data-sf-scheme','data-sf-size','data-sf-tone','data-ds-dark-theme'] }); void theme();
+    const observer = new MutationObserver(() => { void theme(); }); observer.observe(document.body, { attributes: true, attributeFilter: ['data-sf-style','data-sf-scheme','data-sf-size','data-sf-tone','data-sf-paper','data-ds-dark-theme'] }); void theme();
     return () => { live = false; picker.current?.reject();picker.current=undefined;window.removeEventListener('message', onMessage); observer.disconnect(); };
   }, [content, nonce, ctx, sessionId, id]);
   if (content?.kind === 'worldbook') return <WorldbookWorkbench ctx={ctx} sessionId={sessionId} id={id} />;

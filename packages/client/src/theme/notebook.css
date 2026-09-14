@@ -15,7 +15,9 @@ body[data-sf-notebook]{
   --nb-print:var(--sf-ui-font);
   --nb-hand:"SF Kalam","SF Long Cang",serif;--nb-teacher:var(--nb-hand);--nb-student:var(--nb-hand);--nb-red:var(--nb-hand);
   --nb-scale:1;--nb-size:calc(16px * var(--nb-scale));--nb-row:32px;
-  --nb-lines:repeating-linear-gradient(transparent,transparent 31px,var(--nb-rule) 31px,var(--nb-rule) 32px);--nb-lines-size:auto;
+  /* Tile exactly one row: an auto-height gradient restarts at the viewport
+     edge, shifting the rules out of alignment after a long conversation scroll. */
+  --nb-lines:repeating-linear-gradient(transparent,transparent 31px,var(--nb-rule) 31px,var(--nb-rule) 32px);--nb-lines-size:100% 32px;
   --nb-slip-shadow:0 1px 1px #3c321a29,0 6px 14px #3c321a21;--nb-page-shadow:0 1px 0 #3c321a0d,0 12px 32px #3c321a24;
 }
 body[data-sf-notebook][data-ds-dark-theme]{--nb-page:#28251f;--nb-desk:#211f1a;--nb-paper:#373328;--nb-hi:#302d25;--nb-slip:#302d25;--nb-ink:#eee5d0;--nb-pen:#abc2f0;--nb-pencil:#b0a48a;--nb-seal:#ee947c;--nb-rule:#514a3d;--nb-rule-hi:#756a55}
@@ -57,12 +59,24 @@ body[data-sf-notebook="on"] :is(.sf-card-editor,.sf-knowledge-editor,.sf-org-for
 
 /* One ruled page, with the native stream, tools, queue and composer intact. */
 body[data-sf-notebook="on"] [data-sf-conversation-paper]{background-color:var(--nb-page);background-image:var(--nb-lines);background-size:var(--nb-lines-size);background-position:0 calc(var(--sf-paper-scroll-offset,0px) - 4px)}
+/* The dock owns the continuous sheet. Native hero/active roots must not
+   paint an opaque page over it; controls and source documents keep their fill. */
+body[data-sf-notebook="on"] [data-sf-conversation-paper]>[data-phase]{background:transparent!important}
+/* Ordinary pages and text panels share the selected paper. Graph workspaces,
+   document originals, navigation and floating controls own separate surfaces. */
+body[data-sf-notebook="on"][data-sf-style="notebook"] :is(
+  .sf-materials,.sf-cards-page,.sf-creation,.sf-plugins-page,
+  .sf-workspace-empty,.sf-worldbook,.sf-thought-detail,.sf-calendar-detail,
+  .sf-orig.sf-calendar-page
+){background-image:var(--nb-lines);background-size:var(--nb-lines-size);background-position:0 -4px}
 body[data-sf-notebook="on"] :is([data-conversation-scroll],[data-composer-seat]){
   --dsw-alias-bg-base:var(--nb-page);--dsw-alias-bg-layer-1:var(--nb-hi);--dsw-alias-bg-layer-2:var(--nb-paper);
   --dsw-alias-label-primary:var(--nb-ink);--dsw-alias-label-secondary:var(--nb-pencil);--dsw-alias-label-tertiary:var(--nb-pencil);
   --dsw-alias-border-l1:var(--nb-rule);--dsw-alias-border-l2:var(--nb-rule);--dsw-alias-border-l3:var(--nb-rule-hi);
   font-family:var(--nb-print);background:transparent!important;
 }
+/* The sticky writing tray masks the text scrolling beneath its controls. */
+body[data-sf-notebook="on"] [data-sf-conversation-paper]>[data-phase="active"] [data-composer-seat]{background-color:var(--nb-page)!important}
 body[data-sf-notebook="on"] [data-chat-flow]{background:transparent;box-shadow:none;padding:32px 34px 40px;margin-block:0;min-height:max(280px,calc(100dvh - 300px));box-sizing:border-box}
 /* Native md-table-wide expands into the desktop gutters. A notebook table
    instead wraps readable cells and scrolls only inside its own paper column. */
