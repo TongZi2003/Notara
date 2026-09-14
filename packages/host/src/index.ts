@@ -131,7 +131,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const thoughts = await owner.collection('thought', ThoughtGraphSchema);
     ctx.effect(() => ctx.reflect.provide('studyforgeThoughts', thoughts));
     ctx.plugin(StudyForgeTrace);
-    registerThoughtTool(ctx);
+    ctx.inject(['studyforgeTrace'], scope => registerThoughtTool(scope));
     const courses = new CourseMetadata(courseRecords);
     const creationRecords = await owner.collection('creation', CreationRecordSchema);
     const installedArtifacts = await owner.collection('artifact', InstalledArtifactSchema);

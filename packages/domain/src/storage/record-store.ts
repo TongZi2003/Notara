@@ -85,9 +85,9 @@ export class RecordStore<S extends z.ZodType> {
     if (row.deleted && revision === undefined) throw new RecordError('record_missing');
     return this.result(row, revision);
   }
-  list(ctx: HostContext): Saved<z.output<S>>[] {
+  list(ctx: HostContext, options?: { includeDeleted?: boolean }): Saved<z.output<S>>[] {
     this.authorize(ctx);
-    return [...this.table.keys()].flatMap(id => { const row = this.stored(ctx, objectRef(this.kind, id)); return row.deleted ? [] : [this.result(row)]; });
+    return [...this.table.keys()].flatMap(id => { const row = this.stored(ctx, objectRef(this.kind, id)); return row.deleted && !options?.includeDeleted ? [] : [this.result(row)]; });
   }
   /** Remove the current object without erasing versions pinned by old references. */
   async remove(ctx: MutationContext, ref: string): Promise<void> {

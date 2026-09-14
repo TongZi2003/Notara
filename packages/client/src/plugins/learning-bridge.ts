@@ -25,10 +25,17 @@ export async function learningAction(ctx:Context, sessionId:string, content:Work
   }
   if(action==='compose'){
     const {text}=z.object({text:z.string().trim().min(1).max(12000)}).strict().parse(payload);
+    const snapshot = content.documentKind ? unwrap(await ctx.remote.notaraWorkbench.readDocument(target)) : undefined;
     if(ctx.sessions.list.getSnapshot().current!==sessionId||ctx.conversation.blocks.storeFor(sessionId as SessionId).getSnapshot())throw new Error('classroom_changed');
     const scope=ctx.sessions.scope(sessionId as SessionId);if(!scope)throw new Error('input_unavailable');const input=ctx.conversation.input.for(scope).state.getSnapshot();if(input.phase!=='plain')throw new Error('input_busy');
     const end=input.draft.length-input.occurrences.reduce((sum,ref)=>sum+ref.length-1,0);
     if(!scope.bail(scope,'slash/input-insert-text',{text:(input.draft.length?'\n\n':'')+text,span:{start:end,end,draftRev:input.draftRev}}))throw new Error('input_changed');
+    if (snapshot) {
+      const composer = ctx.conversation.input.for(scope), fresh = composer.state.getSnapshot();
+      if (fresh.phase !== 'plain') throw new Error('input_changed');
+      const position = fresh.draft.length - fresh.occurrences.reduce((sum, ref) => sum + ref.length - 1, 0);
+      if (!composer.insertReference({source:'studyforge-workbench',ref:JSON.stringify({...target,revision:snapshot.revision,title:content.title}),label:content.title,clipboardText:'【'+content.title+'】'}, {start:position,end:position,draftRev:fresh.draftRev})) throw new Error('input_changed');
+    }
     revealWorkspaceView(sessionId,'chat');document.querySelector<HTMLElement>('[data-composer-input]')?.focus();return {staged:true};
   }
   if(action==='worldbook'){const data=z.object({query:z.string().max(2000)}).strict().parse(payload);return unwrap(await ctx.remote.notaraWorkbench.worldbookContext({...target,...data}));}

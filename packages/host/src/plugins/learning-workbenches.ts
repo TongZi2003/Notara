@@ -59,11 +59,11 @@ export function balancedSources(links: PluginLink[]): PluginLink[] {
   for (let index = 0; result.length < 60 && groups.some(group => index < group.length); index++) for (const group of groups) if (group[index] && result.length < 60) result.push(group[index]!);
   return result;
 }
-function documentLinks(doc: PluginDocument): PluginLink[] {
+export function documentLinks(doc: PluginDocument): PluginLink[] {
   if (doc.kind === 'blackboard') return doc.blocks.flatMap(b => b.links);
   if (doc.kind === 'evidence') return doc.entries.flatMap(e => e.links);
   if (doc.kind === 'atlas') return doc.events.flatMap(e => e.links);
-  return doc.kind === 'clinic' ? doc.links : [];
+  return doc.kind === 'clinic' || doc.kind === 'math' ? doc.links : [];
 }
 export function registerWorkbenchTools(host: Context): void {
   const read = z.object({ id: z.string().optional() }).strict();
@@ -78,7 +78,7 @@ export function registerWorkbenchTools(host: Context): void {
       return { json: JSON.stringify({ workbenches: rows }) };
     },
   }));
-  host.effect(() => host.tools.register({ name: 'update_workbench', description: '更新课堂工作文档（黑板、错解、史料、地图或模拟规则）。先read_workbench，沿原id/revision修改其document；documentJson是该document的完整JSON字符串，形状以读取结果schema为准。不写卡片、不记掌握；黑板会自动刷新。', parameters: toolSchema(write), output,
+  host.effect(() => host.tools.register({ name: 'update_workbench', description: '更新课堂工作文档，包括数学场景、黑板、错解、史料、地图和模拟。先read_workbench，沿原id/revision修改其document；documentJson是完整document，形状以返回schema为准。数学场景的表达式只支持数学运算及常用函数，显式写乘号，参数和对象name是可读引用名称；保留学生参数、视区、观察与未改对象。页面会自动同步；不写卡片、不记掌握。', parameters: toolSchema(write), output,
     async execute(args, execution) { const context = await teacherContext(host, execution), input = write.parse(args);
       if (execution.agent?.session.header.origin === 'subagent') throw new Error('main_teacher_required');
       return { json: JSON.stringify(await host.studyforgeLearningWorkbenches.write({ ...context, expectedVersion: input.expectedVersion }, input.id, PluginDocumentSchema.parse(JSON.parse(input.documentJson)))) };

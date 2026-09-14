@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./math-scene": { "types": "./lib/types/math-scene.d.ts", "default": "./lib/types/math-scene.js" },
+    "./math-expression": { "types": "./lib/types/math-expression.d.ts", "default": "./lib/types/math-expression.js" },
     "./entity-reference": { "types": "./lib/types/entity-reference.d.ts", "default": "./lib/types/entity-reference.js" },
     "./plugin-learning": { "types": "./lib/types/plugin-learning.d.ts", "default": "./lib/types/plugin-learning.js" },
     "./plugins": { "types": "./lib/types/plugins.d.ts", "default": "./lib/types/plugins.js" },

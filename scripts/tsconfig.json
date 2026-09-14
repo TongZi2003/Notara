@@ -6,9 +6,9 @@
     "noEmit": false,
     "emitDeclarationOnly": true,
     "types": ["node"],
-    "rootDir": ".",
+    "rootDir": "..",
     "outDir": "../.runtime/script-types"
   },
   "references": [{ "path": "../packages/contracts" }],
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts", "../examples/plugin-sources/catalog.ts"]
 }

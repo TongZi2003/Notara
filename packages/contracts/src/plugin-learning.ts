@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MaterialContextSchema } from './materials.ts';
+import { MathSceneBaseSchema, mathSceneProblems } from './math-scene.ts';
 export const PluginLinkSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('source'), title: z.string().min(1).max(240), source: MaterialContextSchema }).strict(),
   z.object({ kind: z.literal('card'), title: z.string().min(1).max(240), ref: z.string().min(1), version: z.number().int().positive() }).strict(),
@@ -19,8 +20,10 @@ export const SimulationSchema = z.object({ kind: z.literal('simulation'), title:
   resources: z.array(z.object({ title: Title, initial: z.number().min(0).max(10000), minimum: z.number().min(0).max(10000), maximum: z.number().min(1).max(10000) }).strict()).min(1).max(6),
   choices: z.array(z.object({ title: Title, description: Text, effects: z.array(z.number().min(-1000).max(1000)).min(1).max(6) }).strict()).min(2).max(8),
 }).strict();
-export const PluginDocumentSchema = z.discriminatedUnion('kind', [BlackboardSchema, ClinicSchema, EvidenceSchema, AtlasSchema, SimulationSchema]).superRefine((doc, ctx) => {
+export const MathDocumentSchema = MathSceneBaseSchema.extend({ links: Links });
+export const PluginDocumentSchema = z.discriminatedUnion('kind', [BlackboardSchema, ClinicSchema, EvidenceSchema, AtlasSchema, SimulationSchema, MathDocumentSchema]).superRefine((doc, ctx) => {
   if (JSON.stringify(doc).length > 60000) ctx.addIssue({ code: 'custom', message: 'document_too_large' });
+  if (doc.kind === 'math') for (const message of mathSceneProblems(doc)) ctx.addIssue({ code: 'custom', message });
   if (doc.kind === 'clinic' && doc.errorIndex >= doc.steps.length) ctx.addIssue({ code: 'custom', message: 'error_index_out_of_range' });
   if (doc.kind === 'blackboard') for (const block of doc.blocks) if (block.diagram?.edges.some(edge => edge.from >= block.diagram!.nodes.length || edge.to >= block.diagram!.nodes.length)) ctx.addIssue({ code: 'custom', message: 'diagram_edge_missing' });
   if (doc.kind === 'simulation') {

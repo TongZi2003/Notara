@@ -10,6 +10,7 @@ import { cardAddress } from './CardResource.tsx';
 import { requestLessonPane } from './lesson-pane-request.ts';
 import { openEntityReference } from './entity-reference.ts';
 import { entityReferenceText } from '@studyforge/contracts/entity-reference';
+import { revealWorkspaceView, type WorkspaceView } from '../classroom/workspace-layout.ts';
 
 type Block = { readonly type: string; readonly text?: string };
 interface PendingMessageProps {
@@ -57,6 +58,7 @@ function SourceLinks({ ctx, sessionId, fragments }: { ctx: Context; sessionId: s
   const [notice, setNotice] = useState('');
   if (fragments.length === 0) return null;
   return <div data-testid="message-sources">{fragments.flatMap((fragment, n) => {
+    if (fragment.workbench) return [<button key={n} type="button" onClick={() => { if (String(ctx.sessions.list.getSnapshot().current) === sessionId) revealWorkspaceView(sessionId, fragment.workbench!.id as WorkspaceView); }}>{fragment.workbench.title}</button>];
     if (fragment.entities?.length) return fragment.entities.map((entity,i)=><button key={n+':entity:'+i} type="button" onClick={()=>{void openEntityReference(ctx,sessionId,entity.reference);}}>{entity.title}</button>);
     const current = fragment.context.currentMaterial;
     if (current?.kind === 'card' && fragment.context.selection === undefined) {

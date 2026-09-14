@@ -7,7 +7,7 @@ export const PluginCapabilitiesSchema = z.object({
   skills: z.array(Contribution).max(30).default([]), teaching: z.array(Contribution).max(20).default([]),
   subjects: z.array(Contribution.extend({ subjects: z.array(z.string().trim().min(1).max(80)).min(1).max(12) })).max(20).default([]),
   workbenches: z.array(Contribution.extend({ permissions: z.array(z.enum(['save-note', 'draft', 'document', 'sources', 'compose', 'seminar', 'worldbook-context'])).max(7).default([]),
-    document: z.object({ kind: z.enum(['blackboard','clinic','evidence','atlas','simulation']), seed: EntryPath }).strict().optional(),
+    document: z.object({ kind: z.enum(['blackboard','clinic','evidence','atlas','simulation','math']), seed: EntryPath }).strict().optional(),
   })).max(12).default([]),
   worldbooks: z.array(Contribution).max(8).default([]),
 }).strict().superRefine((value, ctx) => {
@@ -46,7 +46,7 @@ export interface PluginCandidate { candidateId: string; manifest: PluginManifest
 export interface WorkbenchChoice { id: string; pluginRef: string; contributionId: string; digest: string; title: string; description: string }
 export interface WorkbenchContent extends WorkbenchChoice { html: string; permissions: string[]; documentKind?: string; kind?: 'html' | 'worldbook' }
 export const PluginPinSchema = z.object({ sessionId: z.string(), pluginRef: z.string(), contributionId: z.string(), digest: z.string() }).strict();
-export const WorkbenchNoteSchema = z.object({ title: z.string().trim().min(1).max(160), body: z.string().trim().min(1).max(100_000) }).strict();
+export const WorkbenchNoteSchema = z.object({ title: z.string().trim().min(1).max(160), body: z.string().trim().min(1).max(100_000), documentRevision: z.number().int().nonnegative().optional() }).strict();
 export const WorldbookEntrySchema = z.object({
   title: z.string().trim().min(1).max(120), content: z.string().trim().min(1).max(2000),
   keywords: z.array(z.string().trim().min(1).max(80)).max(20), enabled: z.boolean(), always: z.boolean(),

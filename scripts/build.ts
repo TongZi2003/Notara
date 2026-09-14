@@ -13,6 +13,7 @@ function compile(config: string): void {
 }
 
 if (!process.argv.includes('--client-only')) {
+  await import('./build-math-workbench.ts');
   await cp(join(root, 'resources/teaching'), join(root, 'packages/host/lib/teaching-resources'), { recursive: true });
   compile('tsconfig.host.json');
   await generateRemotes();

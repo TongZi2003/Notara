@@ -36,7 +36,7 @@ export function workbenchDocument(content: string, nonce: string): string {
 }
 export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionId: string; id: string }): React.JSX.Element {
   const [content, setContent] = useState<WorkbenchContent>(), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState<{ title: string; body: string; operationId: string }>();
+  const [pending, setPending] = useState<{ title: string; body: string; operationId: string; documentRevision?: number | undefined }>();
   const pendingRef = useRef(false), frame = useRef<HTMLIFrameElement>(null), nonce = useMemo(() => crypto.randomUUID(), [id, sessionId]);
   const [picking,setPicking]=useState(false),picker=useRef<{resolve:(link:PluginLink)=>void;reject:()=>void}>();
   useEffect(() => { let live = true; void ctx.remote.studyforgePlugins.openWorkbench({ sessionId, id }).then(reply => { if (!live) return; if (reply.ok) setContent(reply.value); else setNotice('工作台暂时不可用，请在插件页检查状态。'); }).catch(() => { if (live) setNotice('工作台暂时无法打开，请稍后重试。'); }); return () => { live = false; }; }, [ctx, sessionId, id]);
@@ -91,7 +91,7 @@ export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionI
       <h3>保存到笔记本</h3><label>标题<input aria-label="笔记标题" disabled={busy} value={pending.title} onChange={event => setPending({ ...pending, title: event.target.value })} /></label>
       <label>正文<textarea aria-label="笔记正文" disabled={busy} value={pending.body} onChange={event => setPending({ ...pending, body: event.target.value })} /></label>
       <div className="sf-plugin-actions"><button className="sf-action" disabled={busy || !pending.title.trim() || !pending.body.trim()} onClick={() => {
-        setBusy(true); void ctx.remote.studyforgePlugins.saveNote({ sessionId, id, digest: content!.digest, operationId: pending.operationId, note: { title: pending.title, body: pending.body } }).then(reply => {
+        setBusy(true); void ctx.remote.studyforgePlugins.saveNote({ sessionId, id, digest: content!.digest, operationId: pending.operationId, note: { title: pending.title, body: pending.body, ...(pending.documentRevision === undefined ? {} : { documentRevision: pending.documentRevision }) } }).then(reply => {
           if (!reply.ok) { setNotice('笔记暂时无法保存，请检查插件状态后重试。'); return; }
           frame.current?.contentWindow?.postMessage({ channel: CHANNEL, nonce, type: 'saved', title: reply.value.content.title }, '*');
           setPending(undefined); pendingRef.current = false; setNotice('已保存：' + reply.value.content.title); notifyPlugins();

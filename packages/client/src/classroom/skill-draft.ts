@@ -7,6 +7,14 @@ export const TASK_REFERENCE = 'studyforge-task';
 
 /** Native reference nodes persist with the native draft and serialize at send. */
 export function registerTaskDraft(ctx: Context): void {
+  ctx.effect(() => ctx.inputTriggers.registerSource({ trigger: '@', name: 'studyforge-workbench', async candidates() { return []; }, onPick() {}, codec: {
+    clipboardText: () => '【课堂工作台】', async serialize(ref) {
+      const pin = JSON.parse(ref) as { sessionId:string; id:string; digest:string; revision:number; title:string };
+      const reply = await ctx.remote.notaraWorkbench.readDocument({sessionId:pin.sessionId,id:pin.id,digest:pin.digest});
+      if (!reply.ok || reply.value.revision !== pin.revision) throw new Error('工作台已有变化，请从工作台重新带入。');
+      return encodeSourceFragment({version:1,context:{},titles:[],objects:[],workbench:{id:pin.id,digest:pin.digest,revision:pin.revision,title:pin.title,document:JSON.parse(reply.value.json)}});
+    },
+  } }));
   // The product source supplies readable titles and frozen reference chips.
   // Keep the native skill toolview, execution provider and non-lesson sources.
   ctx.effect(() => ctx.inputTriggers.registerSourceFilter((sessionId, source) => {

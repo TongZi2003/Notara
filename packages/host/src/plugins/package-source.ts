@@ -85,7 +85,8 @@ export async function preparePackage(workspace: string, input: PluginSource): Pr
     if (!all.length && !raw.dsh?.bundle?.patch) throw new Error('plugin_empty');
     for (const entry of all) {
       const match = files.find(file => file.path === entry.entry);
-      if (!match || (await stat(join(packageRoot, entry.entry))).size > 1_000_000 || !(await readFile(join(packageRoot, entry.entry), 'utf8')).trim()) throw new Error('plugin_entry_missing');
+      const limit = manifest.notara.workbenches.some(view => view.entry === entry.entry) ? 2_000_000 : 1_000_000;
+      if (!match || (await stat(join(packageRoot, entry.entry))).size > limit || !(await readFile(join(packageRoot, entry.entry), 'utf8')).trim()) throw new Error('plugin_entry_missing');
     }
     for (const entry of manifest.notara.worldbooks) WorldbookDocumentSchema.parse(JSON.parse(await readFile(join(packageRoot, entry.entry), 'utf8')));
     for (const entry of manifest.notara.workbenches) if (entry.document) {

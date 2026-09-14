@@ -1,0 +1,13 @@
+import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
+import { build } from 'esbuild';
+const out='examples/plugins/math-workbench';
+await mkdir(out,{recursive:true});
+const result=await build({entryPoints:['examples/plugin-sources/math-workbench.ts'],bundle:true,format:'iife',platform:'browser',target:'es2022',minify:true,write:false});
+const engine=await readFile('node_modules/jsxgraph/distrib/jsxgraphcore.js','utf8');
+const css=await readFile('examples/plugin-sources/math-workbench.css','utf8');
+const html='<style>'+css+'</style><script>'+engine.replaceAll('</script','<\\/script')+'</script><script>'+result.outputFiles[0]!.text.replaceAll('</script','<\\/script')+'</script>\n';
+if(Buffer.byteLength(html)>2_000_000)throw new Error('Math workbench exceeds 2MB budget');
+await writeFile(out+'/workbench.html',html);
+await copyFile('node_modules/jsxgraph/LICENSE.MIT',out+'/LICENSE-JSXGraph.txt');
+await copyFile('node_modules/zod/LICENSE',out+'/LICENSE-Zod.txt');
+console.log('JSXGraph math workbench: '+Buffer.byteLength(html)+' bytes, offline');

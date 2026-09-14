@@ -31,6 +31,7 @@ export interface MindAction {
 }
 
 export interface MindmapProps {
+  readonly summary?: (node: MindNode) => string | undefined;
   readonly positions?: Readonly<Record<string, { x: number; y: number }>>;
   readonly onMove?: (key: string, position: { x: number; y: number }) => void;
   /** The container's own test id; the nodes are found by `[data-kind]` inside it. */
@@ -162,6 +163,7 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
       data-testid={props.labelTestId ?? 'mindmap-node'}>
       <span className="sf-mind-title">{node.title}</span>
       <small className="sf-mind-hint">{node.hint}</small>
+      {props.summary?.(node) && <span className="sf-mind-summary">{props.summary(node)}</span>}
     </button>
     {toggle(node)}
     {action(node)}

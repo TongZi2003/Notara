@@ -4,6 +4,7 @@ import { EntityRefSchema, VersionTokenSchema } from './core.ts';
 import { MaterialReadSchema } from './material-read.ts';
 import { BookBreakdownIntentSchema } from './book-exploration.ts';
 import { LibraryEntityReferenceSchema } from './entity-reference.ts';
+import { PluginDocumentSchema } from './plugin-learning.ts';
 
 /** One composer's teaching reference. The native accepted event supplies message identity. */
 export const SourceContextSchema = MessageEnvelopeSchema.shape.context;
@@ -14,9 +15,10 @@ export const SourceFragmentSchema = z.object({
   objects: z.array(z.object({ ref: EntityRefSchema, version: VersionTokenSchema }).strict()).default([]),
   /** An explicit node action, frozen with this native user message; ordinary browsing has none. */
   bookTask: BookBreakdownIntentSchema.optional(),
+  workbench: z.object({ id: z.string().min(1), digest: z.string().min(1), revision: z.number().int().nonnegative(), title: z.string().min(1), document: PluginDocumentSchema }).strict().optional(),
   /** link is a model-facing, system-generated Markdown reference; UI resolves reference itself. */
   entities: z.array(z.object({ reference: LibraryEntityReferenceSchema, title: z.string().min(1), text: z.string().optional(), link: z.string().optional() }).strict()).optional(),
-}).strict().refine(value => value.context.selection !== undefined || value.context.currentMaterial !== undefined || !!value.entities?.length, { message: 'a source fragment must name an actual reference', path: ['context'] });
+}).strict().refine(value => value.context.selection !== undefined || value.context.currentMaterial !== undefined || !!value.entities?.length || !!value.workbench, { message: 'a source fragment must name an actual reference', path: ['context'] });
 export type SourceFragment = z.infer<typeof SourceFragmentSchema>;
 export const FrozenSourceSchema = z.object({ fragment: SourceFragmentSchema, modelText: z.string(), images: z.array(MaterialReadSchema.shape.image.unwrap()) }).strict();
 export type FrozenSource = z.infer<typeof FrozenSourceSchema>;

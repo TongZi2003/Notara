@@ -5,6 +5,7 @@ import { PluginSourceSchema, WorkbenchNoteSchema, WorldbookDocumentSchema, Workb
 import { studentContext } from './learning-service.ts';
 import type { CardView } from '@studyforge/contracts/cards';
 import { legacyPlugins, changeLegacyPlugin } from './plugins/legacy-artifacts.ts';
+import { documentLinks } from './plugins/learning-workbenches.ts';
 
 const Target = z.object({ ref: z.string().regex(/^(?:plugin|legacy):[a-f0-9]{24}$/), expectedVersion: z.number().int().nonnegative() }).strict();
 const WorkbenchTarget = z.object({ sessionId: z.string().min(1), id: z.string().min(1) }).strict();
@@ -66,10 +67,13 @@ export class StudyForgePlugins extends TypertRemoteService {
     await studentContext(this.ctx, data.sessionId); return this.ctx.studyforgeWorkbenchData.saveDraft({ ...target, value: WorkbenchDraftValueSchema.parse(JSON.parse(json)) });
   }
   @Remote('saveNote')
-  async saveNote(input: { sessionId: string; id: string; digest: string; operationId: string; note: { title: string; body: string } }): Promise<CardView> {
+  async saveNote(input: { sessionId: string; id: string; digest: string; operationId: string; note: { title: string; body: string; documentRevision?: number } }): Promise<CardView> {
     const data = z.object({ sessionId: z.string().min(1), id: z.string(), digest: z.string(), operationId: z.string().min(1), note: WorkbenchNoteSchema }).strict().parse(input);
     const context = await studentContext(this.ctx, data.sessionId), workbench = await this.ctx.studyforgePluginsManager.openWorkbench(data.sessionId, data.id);
     if (workbench.digest !== data.digest || !workbench.permissions.includes('save-note')) throw new Error('plugin_save_not_allowed');
-    return this.ctx.studyforgeCardService.create({ ...context, operationId: 'plugin-note:' + data.sessionId + ':' + data.id + ':' + data.operationId }, { title: data.note.title, presentation: 'note', front: data.note.body });
+    const document = workbench.documentKind ? await this.ctx.studyforgeLearningWorkbenches.read(context, data.id) : undefined;
+    if (workbench.documentKind === 'math' && data.note.documentRevision === undefined || data.note.documentRevision !== undefined && data.note.documentRevision !== document?.revision) throw new Error('workbench_note_stale');
+    const links = document ? documentLinks(document.document) : [];
+    return this.ctx.studyforgeCardService.create({ ...context, operationId: 'plugin-note:' + data.sessionId + ':' + data.id + ':' + data.operationId }, { title: data.note.title, presentation: 'note', front: data.note.body, sources: links.flatMap(link => link.kind === 'source' ? [link.source] : []), links: links.flatMap(link => link.kind === 'card' ? [link.ref] : []) });
   }
 }

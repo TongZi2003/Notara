@@ -43,7 +43,7 @@ export async function apply(ctx: Context): Promise<void> {
   ctx.plugin({ inject: ['slots', 'layout'], apply: registerToolActivity });
   ctx.plugin({ inject: ['slots', 'sessions', 'layout', 'conversation', 'inputTriggers', 'sidebarRight', 'remote.studyforgeTrace', 'remote.studyforgeCreation'], apply: registerClassroomTrace });
   ctx.plugin({ inject: ['slots', 'sessions', 'layout'], apply: registerContentNavigation });
-  ctx.plugin({ inject: ['remote.studyforgeTeaching', 'remote.studyforgeLearning', 'inputTriggers', 'conversation', 'sessions'], apply: registerTaskDraft });
+  ctx.plugin({ inject: ['remote.studyforgeTeaching', 'remote.studyforgeLearning', 'remote.notaraWorkbench', 'inputTriggers', 'conversation', 'sessions'], apply: registerTaskDraft });
   ctx.plugin({ inject: ['remote.studyforgeCreation', 'slots', 'sessions', 'layout'], apply: registerCreation });
   ctx.plugin({ inject: ['remote.studyforgePlugins', 'slots', 'layout'], apply: registerPlugins });
   ctx.plugin({ inject: ['slots', 'layout', 'sessions', 'uiWorkspace', 'remote.studyforgeOrganization'], apply: registerNotebookSidebar });
