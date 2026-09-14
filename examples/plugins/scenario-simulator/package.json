@@ -1,0 +1,43 @@
+{
+  "name": "@notara/scenario-simulator",
+  "version": "1.0.0",
+  "files": [
+    "workbench.html",
+    "skill.md",
+    "README.md",
+    "LICENSE-KaTeX.txt",
+    "seed.json"
+  ],
+  "notara": {
+    "apiVersion": 1,
+    "title": "情境模拟器",
+    "description": "结合世界书做出多轮决策，观察并复盘后果。",
+    "skills": [
+      {
+        "id": "learn",
+        "title": "设计情境模拟",
+        "description": "结合世界书做出多轮决策，观察并复盘后果。",
+        "entry": "skill.md"
+      }
+    ],
+    "workbenches": [
+      {
+        "id": "workbench",
+        "title": "情境模拟器",
+        "description": "结合世界书做出多轮决策，观察并复盘后果。",
+        "entry": "workbench.html",
+        "permissions": [
+          "document",
+          "compose",
+          "worldbook-context",
+          "draft",
+          "save-note"
+        ],
+        "document": {
+          "kind": "simulation",
+          "seed": "seed.json"
+        }
+      }
+    ]
+  }
+}

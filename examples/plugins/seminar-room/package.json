@@ -1,0 +1,37 @@
+{
+  "name": "@notara/seminar-room",
+  "version": "1.0.0",
+  "files": [
+    "workbench.html",
+    "skill.md",
+    "README.md",
+    "LICENSE-KaTeX.txt"
+  ],
+  "notara": {
+    "apiVersion": 1,
+    "title": "多智能体研讨室",
+    "description": "邀请同伴、质疑者和助教独立讨论，支持点名追问。",
+    "skills": [
+      {
+        "id": "learn",
+        "title": "主持独立研讨",
+        "description": "邀请同伴、质疑者和助教独立讨论，支持点名追问。",
+        "entry": "skill.md"
+      }
+    ],
+    "workbenches": [
+      {
+        "id": "workbench",
+        "title": "多智能体研讨室",
+        "description": "邀请同伴、质疑者和助教独立讨论，支持点名追问。",
+        "entry": "workbench.html",
+        "permissions": [
+          "seminar",
+          "compose",
+          "draft",
+          "save-note"
+        ]
+      }
+    ]
+  }
+}

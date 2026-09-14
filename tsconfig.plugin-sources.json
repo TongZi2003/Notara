@@ -1,0 +1,1 @@
+{"compilerOptions":{"strict":true,"noEmit":true,"allowImportingTsExtensions":true,"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","lib":["ES2023","DOM","DOM.Iterable"],"skipLibCheck":true,"resolveJsonModule":true,"esModuleInterop":true,"types":["node"]},"include":["examples/plugin-sources/*.ts","scripts/build-learning-plugins.ts"]}

@@ -1,0 +1,42 @@
+{
+  "name": "@notara/evidence-detective",
+  "version": "1.0.0",
+  "files": [
+    "workbench.html",
+    "skill.md",
+    "README.md",
+    "LICENSE-KaTeX.txt",
+    "seed.json"
+  ],
+  "notara": {
+    "apiVersion": 1,
+    "title": "史料侦探局",
+    "description": "对照材料、分类证据，建立可追溯的判断。",
+    "skills": [
+      {
+        "id": "learn",
+        "title": "准备史料调查",
+        "description": "对照材料、分类证据，建立可追溯的判断。",
+        "entry": "skill.md"
+      }
+    ],
+    "workbenches": [
+      {
+        "id": "workbench",
+        "title": "史料侦探局",
+        "description": "对照材料、分类证据，建立可追溯的判断。",
+        "entry": "workbench.html",
+        "permissions": [
+          "document",
+          "sources",
+          "compose",
+          "save-note"
+        ],
+        "document": {
+          "kind": "evidence",
+          "seed": "seed.json"
+        }
+      }
+    ]
+  }
+}

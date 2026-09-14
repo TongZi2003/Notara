@@ -1,0 +1,42 @@
+{
+  "name": "@notara/blackboard",
+  "version": "1.0.0",
+  "files": [
+    "workbench.html",
+    "skill.md",
+    "README.md",
+    "LICENSE-KaTeX.txt",
+    "seed.json"
+  ],
+  "notara": {
+    "apiVersion": 1,
+    "title": "老师黑板",
+    "description": "边讲边整理公式、图示和推导，选择一块继续追问。",
+    "skills": [
+      {
+        "id": "learn",
+        "title": "整理课堂黑板",
+        "description": "边讲边整理公式、图示和推导，选择一块继续追问。",
+        "entry": "skill.md"
+      }
+    ],
+    "workbenches": [
+      {
+        "id": "workbench",
+        "title": "老师黑板",
+        "description": "边讲边整理公式、图示和推导，选择一块继续追问。",
+        "entry": "workbench.html",
+        "permissions": [
+          "document",
+          "sources",
+          "compose",
+          "save-note"
+        ],
+        "document": {
+          "kind": "blackboard",
+          "seed": "seed.json"
+        }
+      }
+    ]
+  }
+}

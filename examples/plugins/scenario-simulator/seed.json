@@ -1,0 +1,55 @@
+{
+  "kind": "simulation",
+  "title": "城邦水源与粮食",
+  "background": "【虚构教学模拟】澄湾面临五轮旱季决策。每轮把自然补给与政策影响合并成下列固定数值，供讨论权衡，不用于现实预测。",
+  "rounds": 5,
+  "resources": [
+    {
+      "title": "蓄水",
+      "initial": 70,
+      "minimum": 20,
+      "maximum": 100
+    },
+    {
+      "title": "粮食",
+      "initial": 50,
+      "minimum": 25,
+      "maximum": 100
+    },
+    {
+      "title": "生态",
+      "initial": 60,
+      "minimum": 30,
+      "maximum": 100
+    }
+  ],
+  "choices": [
+    {
+      "title": "扩大灌溉",
+      "description": "以蓄水与生态换取粮食。",
+      "effects": [
+        -15,
+        20,
+        -8
+      ]
+    },
+    {
+      "title": "节水休耕",
+      "description": "减少粮食供给，恢复蓄水与生态。",
+      "effects": [
+        10,
+        -12,
+        12
+      ]
+    },
+    {
+      "title": "温和配给",
+      "description": "以较小幅度同时消耗资源。",
+      "effects": [
+        -5,
+        2,
+        -2
+      ]
+    }
+  ]
+}

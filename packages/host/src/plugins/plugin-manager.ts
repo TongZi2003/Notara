@@ -145,6 +145,6 @@ export class PluginManager {
     if (worldbook) return { ...choice, digest: version.digest, title: worldbook.title, kind: 'worldbook', html: '', permissions: ['save-note'] };
     const contribution = version.manifest.notara.workbenches.find(entry => entry.id === choice.contributionId);
     if (!contribution) throw new Error('plugin_workbench_missing');
-    return { ...choice, digest: version.digest, title: contribution.title, html: this.body(choice.pluginRef, version.digest, contribution.entry), permissions: contribution.permissions };
+    return { ...choice, digest: version.digest, title: contribution.title, html: this.body(choice.pluginRef, version.digest, contribution.entry), permissions: contribution.permissions, ...(contribution.document ? { documentKind: contribution.document.kind } : {}) };
   }
 }

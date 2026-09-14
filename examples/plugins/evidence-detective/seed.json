@@ -1,0 +1,30 @@
+{
+  "kind": "evidence",
+  "title": "示例：河港停航的原因",
+  "fictional": true,
+  "question": "【虚构练习】河港为什么停航？三份材料能支持哪些判断？",
+  "entries": [
+    {
+      "title": "码头值班记录",
+      "body": "五月七日上午，水位标尺低于通航警戒线，港口暂停放行。",
+      "category": "unclassified",
+      "reason": "",
+      "links": []
+    },
+    {
+      "title": "商人的信",
+      "body": "我听船夫说，这次停航可能是上游闸门出了故障。",
+      "category": "unclassified",
+      "reason": "",
+      "links": []
+    },
+    {
+      "title": "后来的分析",
+      "body": "如果闸门故障导致水位下降，那么停航可能与闸门有关；但尚缺闸门检修记录。",
+      "category": "unclassified",
+      "reason": "",
+      "links": []
+    }
+  ],
+  "conclusion": ""
+}

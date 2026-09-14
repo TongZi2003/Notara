@@ -6,6 +6,7 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { initProfile, resolveProfileDir, readProfileManifest, resolveBundleDir } from '@deepseek-ai/dsh-app-boot';
 import { PluginManifestSchema, PluginSourceSchema, WorldbookDocumentSchema, type PluginSource, type PluginVersion } from '@studyforge/contracts/plugins';
+import { PluginDocumentSchema } from '@studyforge/contracts/plugin-learning';
 
 const require = createRequire(import.meta.url);
 export const dshAnchor = require.resolve('@deepseek-ai/dsh/package.json');
@@ -87,6 +88,11 @@ export async function preparePackage(workspace: string, input: PluginSource): Pr
       if (!match || (await stat(join(packageRoot, entry.entry))).size > 1_000_000 || !(await readFile(join(packageRoot, entry.entry), 'utf8')).trim()) throw new Error('plugin_entry_missing');
     }
     for (const entry of manifest.notara.worldbooks) WorldbookDocumentSchema.parse(JSON.parse(await readFile(join(packageRoot, entry.entry), 'utf8')));
+    for (const entry of manifest.notara.workbenches) if (entry.document) {
+      if (!files.some(file => file.path === entry.document!.seed)) throw new Error('plugin_seed_missing');
+      const doc = PluginDocumentSchema.parse(JSON.parse(await readFile(join(packageRoot, entry.document.seed), 'utf8')));
+      if (doc.kind !== entry.document.kind) throw new Error('plugin_seed_kind_mismatch');
+    }
     const version: PluginVersion = { manifest, digest: hash(JSON.stringify(files)), snapshot, files, native: !!raw.dsh?.bundle?.patch,
       packagePath: relative(root, packageRoot).split(sep).join('/'), profilePath: relative(root, profile).split(sep).join('/'), installedAt: new Date().toISOString() };
     await writeFile(join(root, 'candidate.json'), JSON.stringify(version), { mode: 0o600 });

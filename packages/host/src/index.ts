@@ -71,6 +71,10 @@ import { CreationRecordSchema, InstalledArtifactSchema } from '@studyforge/contr
 import { StudyForgeCreation, installCreationContext } from './creation-service.ts';
 import { PluginRecordSchema, PluginPinSchema, WorldbookRecordSchema, WorldbookUseSchema, WorkbenchDraftSchema } from '@studyforge/contracts/plugins';
 import { WorkbenchData } from './plugins/workbench-data.ts';
+import { PluginDocumentRecordSchema, SeminarRecordSchema } from '@studyforge/contracts/plugin-learning';
+import { Seminar } from './plugins/seminar.ts';
+import { LearningWorkbenches, registerWorkbenchTools } from './plugins/learning-workbenches.ts';
+import { PluginLearningRemote } from './plugin-learning-service.ts';
 import { PluginManager } from './plugins/plugin-manager.ts';
 import { StudyForgePlugins } from './plugins-service.ts';
 export { StudyForgePlugins } from './plugins-service.ts';
@@ -91,7 +95,7 @@ export type { ProbeReply } from '@studyforge/contracts';
 
 export interface Config { root: string; timeZone: string; }
 export const Config: Schema<Config> = Schema.object({ root: Schema.string().required(), timeZone: Schema.string().default('UTC') });
-export const inject = ['storage', 'workspaceRegistry', 'sessions', 'sessionQuery', 'sessionProjections', 'sessionController', 'typert', 'tools', 'agentPresets', 'attachments', 'llm', 'systemPrompt', 'skills', 'subagents', 'timer', 'loader', 'clientModules'];
+export const inject = ['storage', 'workspaceRegistry', 'sessions', 'sessionQuery', 'sessionProjections', 'sessionController', 'typert', 'tools', 'agentPresets', 'agents', 'attachments', 'llm', 'systemPrompt', 'skills', 'subagents', 'timer', 'loader', 'clientModules'];
 declare module '@deepseek-ai/cordis' {
   interface Context {
     studyforgeRecords: Awaited<ReturnType<typeof openWorkspaceRecords>>;
@@ -112,6 +116,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ctx.effect(() => ctx.reflect.provide('studyforgePluginsManager', plugins));
     const workbenchData = new WorkbenchData(ctx, await owner.collection('worldbook', WorldbookRecordSchema), await owner.collection('worldbookuse', WorldbookUseSchema), await owner.collection('workbenchdraft', WorkbenchDraftSchema));
     ctx.effect(() => ctx.reflect.provide('studyforgeWorkbenchData', workbenchData));
+    const learningWorkbenches = new LearningWorkbenches(ctx, await owner.collection('plugindocument', PluginDocumentRecordSchema));
+    ctx.effect(() => ctx.reflect.provide('studyforgeLearningWorkbenches', learningWorkbenches));
+    ctx.plugin(PluginLearningRemote); registerWorkbenchTools(ctx);
+    const seminar = new Seminar(ctx, await owner.collection('seminar', SeminarRecordSchema));
+    ctx.effect(() => ctx.reflect.provide('notaraSeminar', seminar));
     ctx.effect(() => () => plugins.dispose());
     ctx.plugin(StudyForgePlugins);
 

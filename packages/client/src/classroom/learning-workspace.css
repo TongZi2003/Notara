@@ -1,6 +1,7 @@
 .sf-learning-workspace{display:flex;flex-direction:column;height:100%;min-height:0;min-width:0;overflow:hidden;background:var(--nb-page,#fdfaf1);color:var(--nb-ink,#3a3531);--workspace-line:color-mix(in srgb,var(--nb-rule,#d9d2bd) 65%,transparent);--workspace-round:5px}
 .sf-workspace-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;height:50px;flex:none;padding:0 24px;border-bottom:1px solid var(--workspace-line);background:var(--nb-page,#fdfaf1);z-index:35}
 .sf-workspace-bar nav{display:flex;align-items:stretch;height:100%;gap:22px;min-width:0}
+.sf-workspace-bar nav{overflow-x:auto;flex:1}.sf-workspace-catalog{flex:none}.sf-workspace-layout-menu.sf-workspace-catalog summary{font:var(--sf-text-meta)/1.4 var(--sf-ui-font);padding:5px 8px;white-space:nowrap;border:1px solid var(--nb-rule);border-radius:var(--sf-ui-radius)}
 .sf-workspace-bar button,.sf-workspace-pane-head button,.sf-workspace-layout-menu,.sf-workspace-refresh,.sf-workspace-empty{font:var(--sf-text-meta)/1.4 var(--nb-print,system-ui);color:var(--nb-pencil,#737b70)}
 .sf-workspace-bar nav>button{display:flex;align-items:center;gap:7px;position:relative;white-space:nowrap;border:0;background:none;padding:0;cursor:grab}
 .sf-workspace-bar nav>button[aria-pressed=true]{color:var(--nb-pen,#345a8a)}

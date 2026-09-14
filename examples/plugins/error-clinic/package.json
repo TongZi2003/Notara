@@ -1,0 +1,43 @@
+{
+  "name": "@notara/error-clinic",
+  "version": "1.0.0",
+  "files": [
+    "workbench.html",
+    "skill.md",
+    "README.md",
+    "LICENSE-KaTeX.txt",
+    "seed.json"
+  ],
+  "notara": {
+    "apiVersion": 1,
+    "title": "错解诊所",
+    "description": "找出第一处错误，解释原因，再修复解答。",
+    "skills": [
+      {
+        "id": "learn",
+        "title": "准备错解练习",
+        "description": "找出第一处错误，解释原因，再修复解答。",
+        "entry": "skill.md"
+      }
+    ],
+    "workbenches": [
+      {
+        "id": "workbench",
+        "title": "错解诊所",
+        "description": "找出第一处错误，解释原因，再修复解答。",
+        "entry": "workbench.html",
+        "permissions": [
+          "document",
+          "sources",
+          "compose",
+          "draft",
+          "save-note"
+        ],
+        "document": {
+          "kind": "clinic",
+          "seed": "seed.json"
+        }
+      }
+    ]
+  }
+}

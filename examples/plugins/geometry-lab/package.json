@@ -1,0 +1,36 @@
+{
+  "name": "@notara/geometry-lab",
+  "version": "1.0.0",
+  "files": [
+    "workbench.html",
+    "skill.md",
+    "README.md",
+    "LICENSE-KaTeX.txt"
+  ],
+  "notara": {
+    "apiVersion": 1,
+    "title": "几何作图台",
+    "description": "拖点观察三角形与圆周角，检验几何猜想。",
+    "skills": [
+      {
+        "id": "learn",
+        "title": "开展几何实验",
+        "description": "拖点观察三角形与圆周角，检验几何猜想。",
+        "entry": "skill.md"
+      }
+    ],
+    "workbenches": [
+      {
+        "id": "workbench",
+        "title": "几何作图台",
+        "description": "拖点观察三角形与圆周角，检验几何猜想。",
+        "entry": "workbench.html",
+        "permissions": [
+          "compose",
+          "draft",
+          "save-note"
+        ]
+      }
+    ]
+  }
+}

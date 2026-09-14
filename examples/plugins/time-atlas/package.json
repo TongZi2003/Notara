@@ -1,0 +1,42 @@
+{
+  "name": "@notara/time-atlas",
+  "version": "1.0.0",
+  "files": [
+    "workbench.html",
+    "skill.md",
+    "README.md",
+    "LICENSE-KaTeX.txt",
+    "seed.json"
+  ],
+  "notara": {
+    "apiVersion": 1,
+    "title": "时空地图",
+    "description": "把事件连到时间、地点、原文与课堂。",
+    "skills": [
+      {
+        "id": "learn",
+        "title": "整理时空线索",
+        "description": "把事件连到时间、地点、原文与课堂。",
+        "entry": "skill.md"
+      }
+    ],
+    "workbenches": [
+      {
+        "id": "workbench",
+        "title": "时空地图",
+        "description": "把事件连到时间、地点、原文与课堂。",
+        "entry": "workbench.html",
+        "permissions": [
+          "document",
+          "sources",
+          "compose",
+          "save-note"
+        ],
+        "document": {
+          "kind": "atlas",
+          "seed": "seed.json"
+        }
+      }
+    ]
+  }
+}

@@ -6,11 +6,14 @@ export const PluginCapabilitiesSchema = z.object({
   apiVersion: z.literal(1), title: z.string().trim().min(1).max(160), description: z.string().max(2000).default(''),
   skills: z.array(Contribution).max(30).default([]), teaching: z.array(Contribution).max(20).default([]),
   subjects: z.array(Contribution.extend({ subjects: z.array(z.string().trim().min(1).max(80)).min(1).max(12) })).max(20).default([]),
-  workbenches: z.array(Contribution.extend({ permissions: z.array(z.enum(['save-note', 'draft'])).max(2).default([]) })).max(12).default([]),
+  workbenches: z.array(Contribution.extend({ permissions: z.array(z.enum(['save-note', 'draft', 'document', 'sources', 'compose', 'seminar', 'worldbook-context'])).max(7).default([]),
+    document: z.object({ kind: z.enum(['blackboard','clinic','evidence','atlas','simulation']), seed: EntryPath }).strict().optional(),
+  })).max(12).default([]),
   worldbooks: z.array(Contribution).max(8).default([]),
 }).strict().superRefine((value, ctx) => {
   const all = [...value.skills, ...value.teaching, ...value.subjects, ...value.workbenches, ...value.worldbooks];
   if (new Set(all.map(entry => entry.id)).size !== all.length) ctx.addIssue({ code: 'custom', message: 'contribution ids must be unique' });
+  if (value.workbenches.some(item => item.permissions.includes('document') !== !!item.document)) ctx.addIssue({ code: 'custom', message: 'document_permission_requires_seed' });
 });
 export const PluginManifestSchema = z.object({
   name: z.string().regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/).max(214),
@@ -41,7 +44,7 @@ export type PluginRecord = z.infer<typeof PluginRecordSchema>;
 export interface PluginView { ref: string; revision: number; name: string; title: string; description: string; version: string; digest: string; enabled: boolean; native: boolean; state: 'installed' | 'enabled' | 'failed' | 'restart-required'; issue?: string; manifest: PluginManifest; creationRef?: string }
 export interface PluginCandidate { candidateId: string; manifest: PluginManifest; digest: string; native: boolean; current?: PluginView }
 export interface WorkbenchChoice { id: string; pluginRef: string; contributionId: string; digest: string; title: string; description: string }
-export interface WorkbenchContent extends WorkbenchChoice { html: string; permissions: string[]; kind?: 'html' | 'worldbook' }
+export interface WorkbenchContent extends WorkbenchChoice { html: string; permissions: string[]; documentKind?: string; kind?: 'html' | 'worldbook' }
 export const PluginPinSchema = z.object({ sessionId: z.string(), pluginRef: z.string(), contributionId: z.string(), digest: z.string() }).strict();
 export const WorkbenchNoteSchema = z.object({ title: z.string().trim().min(1).max(160), body: z.string().trim().min(1).max(100_000) }).strict();
 export const WorldbookEntrySchema = z.object({

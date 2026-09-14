@@ -4,6 +4,9 @@ import { WorkbenchNoteSchema, WorkbenchDraftValueSchema, type WorkbenchChoice, t
 import { notifyPlugins } from './PluginManager.tsx';
 import { WorldbookWorkbench } from './WorldbookWorkbench.tsx';
 import { draftSDK } from './workbench-sdk.ts';
+import { learningAction } from './learning-bridge.ts';
+import { PluginSourcePicker } from './PluginSourcePicker.tsx';
+import type { PluginLink } from '@studyforge/contracts/plugin-learning';
 import './plugins.css';
 
 const CHANNEL = 'notara.workbench.v1';
@@ -35,6 +38,7 @@ export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionI
   const [content, setContent] = useState<WorkbenchContent>(), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<{ title: string; body: string; operationId: string }>();
   const pendingRef = useRef(false), frame = useRef<HTMLIFrameElement>(null), nonce = useMemo(() => crypto.randomUUID(), [id, sessionId]);
+  const [picking,setPicking]=useState(false),picker=useRef<{resolve:(link:PluginLink)=>void;reject:()=>void}>();
   useEffect(() => { let live = true; void ctx.remote.studyforgePlugins.openWorkbench({ sessionId, id }).then(reply => { if (!live) return; if (reply.ok) setContent(reply.value); else setNotice('工作台暂时不可用，请在插件页检查状态。'); }).catch(() => { if (live) setNotice('工作台暂时无法打开，请稍后重试。'); }); return () => { live = false; }; }, [ctx, sessionId, id]);
   const srcDoc = useMemo(() => content ? workbenchDocument(content.html, nonce) : '', [content, nonce]);
   useEffect(() => {
@@ -52,6 +56,11 @@ export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionI
       if (event.source !== frame.current?.contentWindow || !event.data || event.data.channel !== CHANNEL || event.data.nonce !== nonce) return;
       const data = event.data;
       if (data.type === 'ready') { void theme(); return; }
+      if(data.type==='action'){
+        if(Object.keys(data).some(k=>!['channel','nonce','type','requestId','action','payload'].includes(k))||typeof data.requestId!=='string'||!/^a[0-9]{1,12}$/.test(data.requestId)||typeof data.action!=='string'||draftRequests.has(data.requestId))return;
+        if(draftRequests.size>=8){post({type:'action-result',requestId:data.requestId,ok:false});return;}draftRequests.add(data.requestId);
+        void learningAction(ctx,sessionId,content,data.action,data.payload,()=>new Promise<PluginLink>((resolve,reject)=>{if(picker.current){reject(new Error('picker_busy'));return;}picker.current={resolve,reject:()=>reject(new Error('canceled'))};setPicking(true);})).then(value=>post({type:'action-result',requestId:data.requestId,ok:true,value})).catch(()=>post({type:'action-result',requestId:data.requestId,ok:false})).finally(()=>draftRequests.delete(data.requestId));return;
+      }
       if (data.type === 'draft-read' || data.type === 'draft-save') {
         const save = data.type === 'draft-save', keys = save ? ['channel','nonce','type','requestId','value','expectedVersion'] : ['channel','nonce','type','requestId'];
         if (Object.keys(data).some(key => !keys.includes(key)) || typeof data.requestId !== 'string' || !/^[0-9]{1,12}$/.test(data.requestId) || draftRequests.has(data.requestId)) return;
@@ -69,10 +78,11 @@ export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionI
     };
     window.addEventListener('message', onMessage);
     const observer = new MutationObserver(() => { void theme(); }); observer.observe(document.body, { attributes: true, attributeFilter: ['data-sf-style','data-sf-scheme','data-sf-size','data-sf-tone','data-ds-dark-theme'] }); void theme();
-    return () => { live = false; window.removeEventListener('message', onMessage); observer.disconnect(); };
+    return () => { live = false; picker.current?.reject();picker.current=undefined;window.removeEventListener('message', onMessage); observer.disconnect(); };
   }, [content, nonce, ctx, sessionId, id]);
   if (content?.kind === 'worldbook') return <WorldbookWorkbench ctx={ctx} sessionId={sessionId} id={id} />;
   return <section className="sf-plugin-workbench">
+    {picking&&content&&<PluginSourcePicker ctx={ctx} sessionId={sessionId} content={content} done={link=>{const current=picker.current;picker.current=undefined;setPicking(false);if(link)current?.resolve(link);else current?.reject();}}/>}
     {content ? <iframe ref={frame} title={content.title} sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={srcDoc} /> : <p role="status">{notice || '正在打开工作台…'}</p>}
     {content && notice && <p role="status">{notice}</p>}
     {pending && <section className="sf-plugin-note" role="dialog" aria-modal="true" aria-label="保存笔记">

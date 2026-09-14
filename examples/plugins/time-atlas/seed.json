@@ -1,0 +1,25 @@
+{
+  "kind": "atlas",
+  "title": "示例：一位旅行者的记录",
+  "fictional": true,
+  "events": [
+    {
+      "title": "出发",
+      "year": 1900,
+      "place": "杭州（演示地点）",
+      "latitude": 30.25,
+      "longitude": 120.15,
+      "body": "虚构旅行情境，用于示范事件定位；不是历史人物行程。",
+      "links": []
+    },
+    {
+      "title": "抵达",
+      "year": 1901,
+      "place": "南京（演示地点）",
+      "latitude": 32.06,
+      "longitude": 118.8,
+      "body": "在时间轴选择事件，可以定位地图并关联资料。",
+      "links": []
+    }
+  ]
+}

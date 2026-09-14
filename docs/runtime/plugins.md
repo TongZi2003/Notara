@@ -30,7 +30,27 @@ Notara.saveNote({ title: '实验笔记', body: '正文' }); // 宿主完整确�
 
 草稿绑定课堂、工作台、固定digest，JSON上限64000字符，SDK串行保存并携带revision，失败保留当前输入；不自动重写卡片。Remote用JSON文本承载草稿（锁定Typert不能编码外部递归JSON类型），宿主重新解析并用Zod校验。消息仍检查opaque iframe来源/nonce/严格字段/权限。
 
-新增Remote：`readWorldbook/saveWorldbook/useWorldbook/previewWorldbook/readDraft/saveDraft`。世界书是用户背景、草稿是工作中内容；两者都不推进复习。自动多智能体课堂、实时工作台控制和世界书语义检索尚未实现。
+新增Remote：`readWorldbook/saveWorldbook/useWorldbook/previewWorldbook/readDraft/saveDraft`。世界书是用户背景、草稿是工作中内容；两者都不推进复习。世界书语义检索尚未实现。
+
+## 七个学习插件与课堂工作文档
+
+`examples/plugins/` 另有七个可独立安装的包：`blackboard`、`error-clinic`、`geometry-lab`、`evidence-detective`、`time-atlas`、`seminar-room`、`scenario-simulator`。源码在 `examples/plugin-sources/`，执行 `node_modules/.bin/tsx scripts/build-learning-plugins.ts` 生成自包含HTML、技能、货签及种子。用各目录的 `npm pack` 打包；安装仍走原生包通路。KaTeX字体离线嵌入，地图使用Natural Earth公共领域陆地数据，不表示历史疆域。
+
+工作台可声明 `document:{kind,seed}`，kind 为 blackboard / clinic / evidence / atlas / simulation，seed 为包内JSON。必须同时声明 `document` 权限，安装时使用 `PluginDocumentSchema` 全量验证。文档按课堂、工作台和固定digest隔离，首次保存物化，后续expectedVersion进行CAS。老师使用渐进工具 `read_workbench` / `update_workbench` 共编；无id的读取只列目录，不提前固定全部版本。HTML每3秒读取更新，未保存编辑不会被覆盖；模拟运行保留开始时规则快照，规则变更后必须重新开始。
+
+SDK按声明权限开放：
+
+| 权限 | 接口与边界 |
+| --- | --- |
+| document | `loadDocument()`、`saveDocument(revision,document)`，返回revision与document；不写学情 |
+| sources | `pickSource()`、`openSource(link)`；宿主选择/验证原文、卡片或课堂，来源自带版本与可选页码 |
+| compose | `compose(text)` 追加原生输入草稿，保留已有内容，等待学生发送 |
+| worldbook-context | `worldbook(query)` 只返回本课堂启用且命中的背景 |
+| seminar | `seminars/startSeminar/followSeminar/stopSeminar`，实际原生独立子会话 |
+
+这些Remote统一为 `notaraWorkbench` namespace，客户端必须显式inject `remote.notaraWorkbench`。每次请求验证工作台启用状态、权限、digest和课堂绑定，iframe不持有直接Remote。笔记仍使用原有 `save-note` 完整确认通路。
+
+研讨室最多三位独立发言者：同伴、质疑者、助教。模型继承父课堂；三者仅获得用户填入的材料，参考标准只给助教，toolFilter为空。原生负责会话、inbox和运行，产品记录角色与childId绑定。状态结合实际活动、日志和待处理inbox重建，追问会恢复父课堂并续同一child，停止逐个执行，停用插件会请求停止。它会消耗当前模型额度；模拟适配器验收不代表真实教学质量。没有实现任意外部帮手贡献字段。
 
 ## 原生斜杠菜单接缝
 
