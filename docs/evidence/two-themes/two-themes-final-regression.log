@@ -1,0 +1,50 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/notebook-paper-confirmation.spec.ts tests/e2e/workspace-docking.spec.ts --grep whole conversation|two themes|compact Agent
+
+
+Running 3 tests using 1 worker
+
+(node:18992) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/notebook-paper-confirmation.spec.ts:6:1 › the whole conversation uses paper, wide tables stay inside, and confirmation uses the original loose slip (26.6s)
+(node:19054) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/e2e/workspace-docking.spec.ts:41:1 › two themes remember the notebook paper choice independently (9.5s)
+  ✓  3 tests/e2e/workspace-docking.spec.ts:110:1 › compact Agent and Subject menus keep the split composer toolbar on one line at 1117px (9.5s)
+
+
+  1) tests/e2e/notebook-paper-confirmation.spec.ts:6:1 › the whole conversation uses paper, wide tables stay inside, and confirmation uses the original loose slip
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator: getByTestId('notebook-table-font')
+    Expected: "follow"
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveValue" getByTestId('notebook-table-font') with timeout 15000ms
+      - waiting for getByTestId('notebook-table-font')
+
+
+      86 |   await page.getByTestId('notebook-scheme').selectOption('bing');
+      87 |   await page.reload();
+    > 88 |   await expect(page.getByTestId('notebook-table-font')).toHaveValue('follow');
+         |                                                         ^
+      89 |   await closeAppearance(page);
+      90 |   await expect(tables.first().locator('td').first()).toHaveCSS('font-family', /SF WenKai/);
+      91 | });
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/notebook-paper-confirmation.spec.ts:88:57
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:18998) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/notebook-paper-confirmatio-5e643-ses-the-original-loose-slip/error-context.md
+
+  1 failed
+    tests/e2e/notebook-paper-confirmation.spec.ts:6:1 › the whole conversation uses paper, wide tables stay inside, and confirmation uses the original loose slip
+  2 passed (46.2s)

@@ -49,7 +49,7 @@
 
 /* ===== 通用元件 ===== */
 .sf-orig.sf-calendar-page{overflow:hidden;background-image:none}
-body[data-sf-notebook=on] .sf-orig.sf-calendar-page{background-image:none}
+body[data-sf-style=notebook] .sf-orig.sf-calendar-page{background-image:none}
 .sf-calendar-header{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;padding:24px 28px 18px;border-bottom:1px solid var(--rule)}
 .sf-calendar-period,.sf-calendar-actions,.sf-calendar-actions nav{display:flex;align-items:center;gap:8px}
 .sf-calendar-period h1{font:28px/1.4 var(--nb-hand,var(--font-song));margin:0 14px 0 0}
@@ -274,7 +274,7 @@ body[data-sf-notebook=on] .sf-orig.sf-calendar-page{background-image:none}
    `:root[data-hand="on"]` 下）照搬过来的：几何、纸面、便签与手写体。
    data-sf-notebook 决定整页主题；data-sf-face 只控制题面，不能改变首页、学情或地图的字迹。
    ============================================================ */
-body[data-sf-notebook="on"] .sf-orig{
+body[data-sf-style="notebook"] .sf-orig{
   --page:var(--nb-page); --desk:var(--nb-desk); --paper:var(--nb-paper); --paper-hi:var(--nb-hi); --slip:var(--nb-slip);
   --seal:var(--nb-seal); --rule:var(--nb-rule); --rule-hi:var(--nb-rule-hi);
   --pen:var(--nb-pen); --pen-wash:color-mix(in srgb, var(--nb-pen) 8%, transparent);
@@ -285,78 +285,78 @@ body[data-sf-notebook="on"] .sf-orig{
   background-image:var(--paper-lines); background-size:var(--paper-lines-size); background-position:0 -4px;
 }
 /* B: :root[data-hand="on"] :is(.home-wrap,.plain-wrap,.assets-wrap){max-width:1160px} */
-body[data-sf-notebook="on"] .sf-orig .plain-wrap{max-width:1160px}
+body[data-sf-style="notebook"] .sf-orig .plain-wrap{max-width:1160px}
 /* B: :root[data-hand="on"] #memWrap{max-width:900px;…;margin:28px auto;padding:32px 48px} —— 学情页那张纸 */
-body[data-sf-notebook="on"] .sf-orig.sf-memory-page .plain-wrap{
+body[data-sf-style="notebook"] .sf-orig.sf-memory-page .plain-wrap{
   max-width:900px; margin:28px auto; padding:32px 48px;
   background-color:var(--page); background-image:var(--paper-lines); background-size:var(--paper-lines-size);
   background-position:0 -4px; box-shadow:var(--shadow-page);
 }
-body[data-sf-notebook="on"][data-sf-paper="fangge"] .sf-orig.sf-memory-page .plain-wrap{background-position:0 0}
+body[data-sf-style="notebook"][data-sf-paper="fangge"] .sf-orig.sf-memory-page .plain-wrap{background-position:0 0}
 /* 学情页把纸画在 .plain-wrap 上；本课右栏那一份不另铺一张整页（见状态一的同一条规则）。 */
-body[data-sf-notebook="on"] .sf-orig:is(.sf-memory-page,.sf-memory){background-color:transparent; background-image:none}
-body[data-sf-notebook="on"] .sf-orig :is(.cal-grid,.cal-list){background:var(--paper-hi); box-shadow:var(--shadow-page)}
+body[data-sf-style="notebook"] .sf-orig:is(.sf-memory-page,.sf-memory){background-color:transparent; background-image:none}
+body[data-sf-style="notebook"] .sf-orig :is(.cal-grid,.cal-list){background:var(--paper-hi); box-shadow:var(--shadow-page)}
 /* B: :root[data-hand="on"] :is(#mapCanvas,.radial,.ext-wrap){background-color:var(--paper);background-image:var(--nb-dots);background-size:24px 24px;background-position:12px 12px} */
-body[data-sf-notebook="on"] .sf-orig :is(.sf-roadmap-canvas){background-color:var(--paper); background-image:var(--nb-dots); background-size:24px 24px; background-position:12px 12px}
+body[data-sf-style="notebook"] .sf-orig :is(.sf-roadmap-canvas){background-color:var(--paper); background-image:var(--nb-dots); background-size:24px 24px; background-position:12px 12px}
 /* B: :root[data-hand="on"] .map-float{border-radius:0;box-shadow:var(--shadow-slip)} */
-body[data-sf-notebook="on"] .sf-orig .sf-roadmap-filter{border-radius:0; box-shadow:var(--shadow-slip)}
-body[data-sf-notebook="on"] .sf-orig :focus-visible{outline:2px solid var(--pen); outline-offset:3px}
+body[data-sf-style="notebook"] .sf-orig .sf-roadmap-filter{border-radius:0; box-shadow:var(--shadow-slip)}
+body[data-sf-style="notebook"] .sf-orig :focus-visible{outline:2px solid var(--pen); outline-offset:3px}
 /* B: :root[data-hand="on"] :is(button,input,textarea,select){font-family:var(--font-ui)} */
-body[data-sf-notebook="on"] .sf-orig :is(button,input,textarea,select){font-family:var(--nb-print)}
+body[data-sf-style="notebook"] .sf-orig :is(button,input,textarea,select){font-family:var(--nb-print)}
 
 /* ── 手写面：B 的 data-hand="on" ─────────────────────────────── */
-body[data-sf-notebook="on"] .sf-orig{
+body[data-sf-style="notebook"] .sf-orig{
   --ink:var(--nb-ink); --ink-2:var(--nb-pen); --ink-3:var(--nb-pencil); --ink-4:var(--nb-pencil);
   --gray:var(--nb-pencil); --pencil:var(--nb-pencil);
   --font-song:var(--nb-hand); --font-kai:var(--nb-hand);
 }
 /* B: :root[data-hand="on"] .sec-head h2{font-family:var(--f-hand);font-weight:400} */
-body[data-sf-notebook="on"] .sf-orig .sec-head h2{font-family:var(--nb-hand); font-weight:400}
-body[data-sf-notebook="on"] .sf-orig .sec-head{gap:16px; margin:24px 0 20px}
+body[data-sf-style="notebook"] .sf-orig .sec-head h2{font-family:var(--nb-hand); font-weight:400}
+body[data-sf-style="notebook"] .sf-orig .sec-head{gap:16px; margin:24px 0 20px}
 /* B: :root[data-hand="on"] :is(.btn.primary,.send,.prop-acts .yes){background:var(--pen);border-color:var(--pen);color:var(--paper-hi)} */
-body[data-sf-notebook="on"] .sf-orig :is(.btn.primary,.sf-action){background:var(--pen); border-color:var(--pen); color:var(--paper-hi)}
-body[data-sf-notebook="on"] .sf-orig :is(.btn.primary,.sf-action):hover{background:var(--pen); border-color:var(--pen)}
+body[data-sf-style="notebook"] .sf-orig :is(.btn.primary,.sf-action){background:var(--pen); border-color:var(--pen); color:var(--paper-hi)}
+body[data-sf-style="notebook"] .sf-orig :is(.btn.primary,.sf-action):hover{background:var(--pen); border-color:var(--pen)}
 /* B: :root[data-hand="on"] :is(.chip,.tk-tag,.dl-tag){color:var(--ink);border-color:var(--rule-hi)} + .chip.on{background:var(--ink);…} */
-body[data-sf-notebook="on"] .sf-orig :is(.chip,.sf-chip){color:var(--ink); border-color:var(--rule-hi)}
-body[data-sf-notebook="on"] .sf-orig :is(.chip.on,.sf-chip-on){background:var(--ink); border-color:var(--ink); color:var(--paper-hi)}
-body[data-sf-notebook="on"] .sf-orig .sec-head h2{font-size:24px; white-space:nowrap}
-body[data-sf-notebook="on"] .sf-orig :is(.sec-head .cnt,.mini-note,.sf-meta){color:var(--pencil); font-size:12px; line-height:1.7}
+body[data-sf-style="notebook"] .sf-orig :is(.chip,.sf-chip){color:var(--ink); border-color:var(--rule-hi)}
+body[data-sf-style="notebook"] .sf-orig :is(.chip.on,.sf-chip-on){background:var(--ink); border-color:var(--ink); color:var(--paper-hi)}
+body[data-sf-style="notebook"] .sf-orig .sec-head h2{font-size:24px; white-space:nowrap}
+body[data-sf-style="notebook"] .sf-orig :is(.sec-head .cnt,.mini-note,.sf-meta){color:var(--pencil); font-size:12px; line-height:1.7}
 /* B: :root[data-hand="on"] :is(.home-box,.continue-card,.home-act,.ext-card){border-radius:0;box-shadow:0 2px 5px #3c321a10;background:var(--slip)} */
 /* B: :root[data-hand="on"] .cal-c{min-height:110px;padding:10px 8px;display:flex;flex-direction:column;align-items:flex-start} 等 */
-body[data-sf-notebook="on"] .sf-orig .cal-c{min-height:110px; padding:10px 8px; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start}
-body[data-sf-notebook="on"] .sf-orig .cal-c i{font:18px/24px var(--nb-hand); color:var(--pencil)}
-body[data-sf-notebook="on"] .sf-orig .cal-c.today{background:var(--pen-wash); box-shadow:inset 0 0 0 1px var(--pen)}
-body[data-sf-notebook="on"] .sf-orig .cal-c .lb{font:15px/1.7 var(--nb-hand)}
-body[data-sf-notebook="on"] .sf-orig .cal-c .du{font:13px/1.7 var(--nb-hand); border-radius:2px; transform:rotate(-3deg)}
+body[data-sf-style="notebook"] .sf-orig .cal-c{min-height:110px; padding:10px 8px; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start}
+body[data-sf-style="notebook"] .sf-orig .cal-c i{font:18px/24px var(--nb-hand); color:var(--pencil)}
+body[data-sf-style="notebook"] .sf-orig .cal-c.today{background:var(--pen-wash); box-shadow:inset 0 0 0 1px var(--pen)}
+body[data-sf-style="notebook"] .sf-orig .cal-c .lb{font:15px/1.7 var(--nb-hand)}
+body[data-sf-style="notebook"] .sf-orig .cal-c .du{font:13px/1.7 var(--nb-hand); border-radius:2px; transform:rotate(-3deg)}
 /* B: :root[data-hand="on"] .mem-* —— 记忆块在纸上是「写上去的」，不是卡片 */
-body[data-sf-notebook="on"] .sf-orig .mem-toolbar{margin:var(--nb-row) 0; font-family:var(--font-ui)}
-body[data-sf-notebook="on"] .sf-orig .mem-block{border:0; border-radius:0; background:none; padding:var(--nb-row) 0; margin:0}
-body[data-sf-notebook="on"] .sf-orig .mem-block .mt{font:23px/var(--nb-row) var(--nb-hand); color:var(--pen)}
-body[data-sf-notebook="on"] .sf-orig .mem-block .brief{font:16px/var(--nb-row) var(--nb-hand); color:var(--pencil)}
-body[data-sf-notebook="on"] .sf-orig .mem-sec{color:var(--pencil); font:13px/var(--nb-row) var(--nb-hand); margin:var(--nb-row) 0 0}
-body[data-sf-notebook="on"] .sf-orig .mem-assert{font:var(--nb-size)/var(--nb-row) var(--nb-hand); color:var(--ink)}
-body[data-sf-notebook="on"] .sf-orig .mem-assert p{margin:0}
-body[data-sf-notebook="on"] .sf-orig .mem-block .mh{min-height:var(--nb-row); line-height:var(--nb-row)}
-body[data-sf-notebook="on"] .sf-orig .mem-old{font:var(--nb-size)/var(--nb-row) var(--nb-hand)}
-body[data-sf-notebook="on"] .sf-orig .mem-old p{margin:0}
-body[data-sf-notebook="on"] .sf-orig .mem-hrow{border:0; gap:16px; padding:0; font:16px/var(--nb-row) var(--nb-hand); color:var(--pencil)}
-body[data-sf-notebook="on"] .sf-orig .mem-hrow .hd{font:12px/var(--nb-row) var(--font-ui); color:var(--pencil); min-width:56px}
-body[data-sf-notebook="on"] .sf-orig .mem-hrow .ht{font:16px/var(--nb-row) var(--nb-hand); color:var(--pencil)}
+body[data-sf-style="notebook"] .sf-orig .mem-toolbar{margin:var(--nb-row) 0; font-family:var(--font-ui)}
+body[data-sf-style="notebook"] .sf-orig .mem-block{border:0; border-radius:0; background:none; padding:var(--nb-row) 0; margin:0}
+body[data-sf-style="notebook"] .sf-orig .mem-block .mt{font:23px/var(--nb-row) var(--nb-hand); color:var(--pen)}
+body[data-sf-style="notebook"] .sf-orig .mem-block .brief{font:16px/var(--nb-row) var(--nb-hand); color:var(--pencil)}
+body[data-sf-style="notebook"] .sf-orig .mem-sec{color:var(--pencil); font:13px/var(--nb-row) var(--nb-hand); margin:var(--nb-row) 0 0}
+body[data-sf-style="notebook"] .sf-orig .mem-assert{font:var(--nb-size)/var(--nb-row) var(--nb-hand); color:var(--ink)}
+body[data-sf-style="notebook"] .sf-orig .mem-assert p{margin:0}
+body[data-sf-style="notebook"] .sf-orig .mem-block .mh{min-height:var(--nb-row); line-height:var(--nb-row)}
+body[data-sf-style="notebook"] .sf-orig .mem-old{font:var(--nb-size)/var(--nb-row) var(--nb-hand)}
+body[data-sf-style="notebook"] .sf-orig .mem-old p{margin:0}
+body[data-sf-style="notebook"] .sf-orig .mem-hrow{border:0; gap:16px; padding:0; font:16px/var(--nb-row) var(--nb-hand); color:var(--pencil)}
+body[data-sf-style="notebook"] .sf-orig .mem-hrow .hd{font:12px/var(--nb-row) var(--font-ui); color:var(--pencil); min-width:56px}
+body[data-sf-style="notebook"] .sf-orig .mem-hrow .ht{font:16px/var(--nb-row) var(--nb-hand); color:var(--pencil)}
 /* B: :root[data-hand="on"] .map-card{background:#fdf1b0;border-radius:1px;padding:20px 14px 12px;box-shadow:var(--shadow-slip);border:0} */
-body[data-sf-notebook="on"] .sf-orig .sf-roadmap-card{background:#fdf1b0; border-radius:1px; padding:20px 14px 12px; box-shadow:var(--shadow-slip); border:0}
-body[data-sf-notebook="on"] .sf-orig .sf-roadmap-card:nth-of-type(3n+2){background:#e6efdc}
-body[data-sf-notebook="on"] .sf-orig .sf-roadmap-card:nth-of-type(3n){background:#f7ded4}
-body[data-sf-notebook="on"] .sf-orig .sf-roadmap-card::before{content:""; position:absolute; top:-8px; left:80px; width:54px; height:17px; background:#e9ddb3aa; transform:rotate(-4deg); pointer-events:none}
-body[data-sf-notebook="on"] .sf-orig .sf-roadmap-card-placed{background:transparent; box-shadow:none; border:1.5px dashed var(--pencil)}
+body[data-sf-style="notebook"] .sf-orig .sf-roadmap-card{background:#fdf1b0; border-radius:1px; padding:20px 14px 12px; box-shadow:var(--shadow-slip); border:0}
+body[data-sf-style="notebook"] .sf-orig .sf-roadmap-card:nth-of-type(3n+2){background:#e6efdc}
+body[data-sf-style="notebook"] .sf-orig .sf-roadmap-card:nth-of-type(3n){background:#f7ded4}
+body[data-sf-style="notebook"] .sf-orig .sf-roadmap-card::before{content:""; position:absolute; top:-8px; left:80px; width:54px; height:17px; background:#e9ddb3aa; transform:rotate(-4deg); pointer-events:none}
+body[data-sf-style="notebook"] .sf-orig .sf-roadmap-card-placed{background:transparent; box-shadow:none; border:1.5px dashed var(--pencil)}
 /* A student-placed slip stays above the automatic layout, including after a
    reload. Otherwise an automatic neighbour can cover its return-position action. */
 .sf-orig .sf-roadmap-card-placed{z-index:2}
 .sf-orig .sf-roadmap-card:focus-within{z-index:3}
 .sf-orig .sf-roadmap-card[data-held="true"]{z-index:4}
-body[data-sf-notebook="on"] .sf-orig .sf-roadmap-title{font:19px/1.45 var(--nb-hand)}
-body[data-sf-notebook="on"] .sf-orig .sf-roadmap-row{background:var(--slip); border:0; border-top:3px double var(--rule-hi); box-shadow:0 2px 5px #3c321a10}
-body[data-sf-notebook="on"] .sf-orig .sf-roadmap-row .sf-roadmap-title{font:19px/1.45 var(--nb-hand)}
-body[data-sf-notebook="on"] .sf-orig .sf-lessons button{font-family:var(--nb-hand); font-size:var(--nb-size)}
+body[data-sf-style="notebook"] .sf-orig .sf-roadmap-title{font:19px/1.45 var(--nb-hand)}
+body[data-sf-style="notebook"] .sf-orig .sf-roadmap-row{background:var(--slip); border:0; border-top:3px double var(--rule-hi); box-shadow:0 2px 5px #3c321a10}
+body[data-sf-style="notebook"] .sf-orig .sf-roadmap-row .sf-roadmap-title{font:19px/1.45 var(--nb-hand)}
+body[data-sf-style="notebook"] .sf-orig .sf-lessons button{font-family:var(--nb-hand); font-size:var(--nb-size)}
 
 /* B 的窄屏那一组：:root[data-hand="on"] … @media(max-width:760px) */
 @media(max-width:760px){
@@ -369,8 +369,8 @@ body[data-sf-notebook="on"] .sf-orig .sf-lessons button{font-family:var(--nb-han
   .sf-orig .cal-top .views{flex-basis:100%;margin-left:0;justify-content:flex-start}
   .sf-orig .cal-top h2{flex:1;font-size:24px}
   .sf-orig .cal-top .chip{padding:6px 10px;min-height:30px;font-size:12px}
-  body[data-sf-notebook="on"] .sf-orig .plain-wrap{max-width:1160px; padding:24px 16px}
-  body[data-sf-notebook="on"] .sf-orig.sf-memory-page .plain-wrap{margin:12px; width:calc(100% - 24px); padding:24px 20px}
-  body[data-sf-notebook="on"] .sf-orig .cal-c{min-height:88px; padding:6px 3px}
-  body[data-sf-notebook="on"] .sf-orig .cal-c .lb{font-size:12px}
+  body[data-sf-style="notebook"] .sf-orig .plain-wrap{max-width:1160px; padding:24px 16px}
+  body[data-sf-style="notebook"] .sf-orig.sf-memory-page .plain-wrap{margin:12px; width:calc(100% - 24px); padding:24px 20px}
+  body[data-sf-style="notebook"] .sf-orig .cal-c{min-height:88px; padding:6px 3px}
+  body[data-sf-style="notebook"] .sf-orig .cal-c .lb{font-size:12px}
 }

@@ -38,16 +38,17 @@ test('three peer views preserve the native draft through docking, resizing, hidi
   expect(errors).toEqual([]);
 });
 
-test('soft paper is optional and remembers style independently from paper colour', async ({ page, classroom }, info) => {
+test('two themes remember the notebook paper choice independently', async ({ page, classroom }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 }); await enterClassroom(page, classroom.authUrl);
   await page.goto(new URL('/#studyforge/appearance', classroom.authUrl).href);
-  await expect(page.getByTestId('notebook-style')).toHaveValue('notebook');
-  await page.getByTestId('notebook-style').selectOption('soft'); await page.getByTestId('notebook-tone').selectOption('white');
-  await page.reload(); await expect(page.getByTestId('notebook-style')).toHaveValue('soft'); await expect(page.getByTestId('notebook-tone')).toHaveValue('white');
+  await expect(page.getByTestId('theme-modern')).toHaveAttribute('aria-checked', 'true');
+  await page.getByTestId('theme-notebook').click(); await page.getByTestId('notebook-tone').selectOption('white');
+  await page.getByTestId('theme-modern').click();
+  await page.reload(); await expect(page.getByTestId('theme-modern')).toHaveAttribute('aria-checked', 'true');
   await page.goto(new URL('/#studyforge/classroom', classroom.authUrl).href);
-  await expect(page.locator('body')).toHaveAttribute('data-sf-style', 'soft');
-  await page.screenshot({ path: info.outputPath('soft-paper-home.png'), fullPage: true });
-  await page.goto(new URL('/#studyforge/appearance', classroom.authUrl).href); await page.getByTestId('notebook-style').selectOption('notebook');
+  await expect(page.locator('body')).toHaveAttribute('data-sf-style', 'modern');
+  await page.screenshot({ path: info.outputPath('modern-home.png'), fullPage: true });
+  await page.goto(new URL('/#studyforge/appearance', classroom.authUrl).href); await page.getByTestId('theme-notebook').click();
   await expect(page.locator('body')).toHaveAttribute('data-sf-style', 'notebook'); await expect(page.getByTestId('notebook-tone')).toHaveValue('white');
 });
 

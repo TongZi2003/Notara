@@ -1,5 +1,4 @@
 import type { Context } from '@deepseek-ai/cordis';
-import './soft-paper.css';
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
@@ -10,21 +9,10 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 import type { MaterialNavigation } from '../materials/material-navigation.ts';
 import { alignNotebook } from './align-notebook.ts';
 import './notebook.css';
+import './modern.css';
+import { APPEARANCE_KEY as KEY, DEFAULT_APPEARANCE as DEFAULTS, readAppearance, type Appearance } from './appearance.ts';
 
-const KEY = 'studyforge.notebook.appearance';
 const APPEARANCE = 'studyforge.appearance' as MainPanelId;
-const DEFAULTS = { enabled: true, style: 'notebook', scheme: 'jia', size: 'm', face: 'print', paper: 'hengxian', tone: 'yellow', table: 'follow' } as const;
-type Appearance = { enabled: boolean; style: 'notebook' | 'soft'; scheme: 'jia' | 'yi' | 'bing' | 'ding'; size: 's' | 'm' | 'l'; face: 'print' | 'hand'; paper: 'hengxian' | 'fangge'; tone: 'yellow' | 'white'; table: 'follow' | 'print' };
-const OPTIONS = { style: ['notebook', 'soft'], scheme: ['jia', 'yi', 'bing', 'ding'], size: ['s', 'm', 'l'], face: ['print', 'hand'], paper: ['hengxian', 'fangge'], tone: ['yellow', 'white'], table: ['follow', 'print'] } as const;
-function readAppearance(value: unknown): Appearance {
-  const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
-  const result: Appearance = { ...DEFAULTS };
-  if (typeof raw.enabled === 'boolean') result.enabled = raw.enabled;
-  for (const key of ['style', 'scheme', 'size', 'face', 'paper', 'tone', 'table'] as const) {
-    if ((OPTIONS[key] as readonly unknown[]).includes(raw[key])) Object.assign(result, { [key]: raw[key] });
-  }
-  return result;
-}
 function storedAppearance(): Appearance {
   try { return readAppearance(JSON.parse(localStorage.getItem(KEY) ?? 'null')); } catch { return { ...DEFAULTS }; }
 }
@@ -72,6 +60,17 @@ const WHITE_SURFACES: Record<string, string> = {
 const WHITE_TOKENS: ThemeTokenOverrides = Object.fromEntries(Object.entries(LIGHT).map(([name, light]) => [name, {
   light: WHITE_SURFACES[light] ?? light, dark: DARK[name] ?? light,
 }]));
+const MODERN: Record<string, string> = {
+  '--dsw-alias-bg-base': '#ffffff', '--dsw-alias-bg-layer-1': '#ffffff', '--dsw-alias-bg-layer-2': '#f7f8fa', '--dsw-alias-bg-layer-3': '#f0f1f4', '--dsw-alias-bg-module-platform': '#f7f8fa',
+  '--dsw-alias-label-primary': '#24262b', '--dsw-alias-label-secondary': '#626872', '--dsw-alias-label-tertiary': '#737984', '--dsw-alias-label-caption': '#737984', '--dsw-alias-label-primary-bluish': '#24262b', '--dsw-alias-label-primary-inverted': '#ffffff',
+  '--dsw-alias-border-l1': '#eceef1', '--dsw-alias-border-l2': '#dfe3e8', '--dsw-alias-border-l3': '#c6cbd3', '--dsw-alias-border-l4': '#a1a8b3',
+  '--dsw-alias-brand-primary': '#24262b', '--dsw-alias-brand-text': '#24262b', '--dsw-alias-link': '#3569b7', '--dsw-alias-state-business-primary': '#3569b7', '--dsw-alias-state-error-primary': '#b83b3b', '--dsw-alias-state-success-primary': '#34775a',
+  '--dsw-alias-button-primary-fill': '#24262b', '--dsw-alias-button-primary-hover': '#41454e', '--dsw-alias-button-contrast-fill': '#24262b', '--dsw-alias-button-elevated-fill': '#ffffff',
+  '--dsw-alias-interactive-bg-hover': '#f4f5f7', '--dsw-alias-interactive-bg-active': '#ebedf1', '--dsw-alias-markdown-code-block': '#f7f8fa', '--dsw-alias-markdown-inline-code': '#f0f1f4',
+  '--dsw-specific-bubble': '#f5f6f8', '--dsw-font-family': 'system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif', '--dsw-specific-sidebar-fill': '#f7f8fa', '--dsw-specific-sidebar-nav-item-active': '#ebedf1', '--dsw-specific-sidebar-nav-item-hover': '#f0f1f4', '--dsw-specific-input-major': '#ffffff', '--dsw-specific-menu': '#ffffff',
+};
+const MODERN_DARK: Record<string, string> = { '#ffffff': '#202226', '#f7f8fa': '#191b1f', '#f0f1f4': '#2c2f35', '#24262b': '#eceef2', '#626872': '#b0b6c0', '#737984': '#a0a7b2', '#eceef1': '#30343b', '#dfe3e8': '#3b414b', '#c6cbd3': '#555d6a', '#a1a8b3': '#7f8998', '#3569b7': '#8cb4f3', '#b83b3b': '#f09b9b', '#34775a': '#87c4a2', '#41454e': '#d2d7e0', '#f4f5f7': '#2c2f35', '#ebedf1': '#343842', '#f5f6f8': '#2a2d33' };
+const MODERN_TOKENS: ThemeTokenOverrides = Object.fromEntries(Object.entries(MODERN).map(([name, light]) => [name, { light, dark: MODERN_DARK[light] ?? light }]));
 
 /** Theme state is browser-local appearance only; no course/fact/model writes. */
 export function registerNotebook(ctx: Context, navigation: MaterialNavigation): void {
@@ -85,14 +84,12 @@ export function registerNotebook(ctx: Context, navigation: MaterialNavigation): 
   const get = (): Appearance => current;
   const oldAttributes = new Map(['data-sf-notebook', 'data-sf-style', 'data-sf-scheme', 'data-sf-size', 'data-sf-face', 'data-sf-paper', 'data-sf-tone', 'data-sf-table'].map(name => [name, document.body.getAttribute(name)]));
   function apply(): void {
-    document.body.dataset.sfNotebook = current.enabled ? 'on' : 'off';
+    document.body.dataset.sfNotebook = 'on';
     for (const key of ['style', 'scheme', 'size', 'face', 'paper', 'tone', 'table'] as const) document.body.setAttribute('data-sf-' + key, current[key]);
     const palette = current.style + ':' + current.tone;
-    if (removeTokens && (!current.enabled || appliedTone !== palette)) { removeTokens(); removeTokens = undefined; }
-    if (current.enabled && !removeTokens) {
-      const base = current.tone === 'white' ? WHITE_TOKENS : TOKENS;
-      const softSurfaces: Record<string, string> = { '#f6f1e3': '#f6f4eb', '#fdfaf1': '#fffdf7', '#efe7d2': '#f0eee4', '#e9e2cf': '#e9ece3', '#e2d8bf': '#e3e9dd', '#e7e0cd': '#e9eae1', '#d9d2bd': '#e0e2d7', '#b9b19c': '#cbd1c3', '#26437c': '#345a8a', '#3a3531': '#353a36', '#6f6a5f': '#778077' };
-      const tokens = current.style === 'soft' ? Object.fromEntries(Object.entries(base).map(([name, value]) => [name, typeof value === 'object' && value !== null && 'light' in value ? { ...value, light: softSurfaces[String(value.light)] ?? value.light } : value])) as ThemeTokenOverrides : base;
+    if (removeTokens && appliedTone !== palette) { removeTokens(); removeTokens = undefined; }
+    if (!removeTokens) {
+      const tokens = current.style === 'modern' ? MODERN_TOKENS : current.tone === 'white' ? WHITE_TOKENS : TOKENS;
       removeTokens = ctx.theme.overrideTokens('@studyforge/notebook', tokens);
       appliedTone = palette;
     }
@@ -114,23 +111,29 @@ export function registerNotebook(ctx: Context, navigation: MaterialNavigation): 
   function Settings({ embedded = false }: { embedded?: boolean } = {}): React.JSX.Element {
     const state = useSyncExternalStore(subscribe, get);
     return <main className="sf-notebook-settings sf-page" data-testid="notebook-appearance">
-      {!embedded && <header><button className="sf-quiet" data-testid="notebook-back" onClick={() => { if (returnPanel === 'studyforge.materials') navigation.restore(returnMaterial); ctx.layout.selectPanel(returnPanel); }}>← {returnPanel ? '返回' : '返回课堂'}</button><span>字体与纸张</span></header>}
-      <div className="sf-notebook-settings-body"><h1>字体与纸张</h1>
-        <label className="sf-notebook-check"><input type="checkbox" data-testid="notebook-toggle" checked={state.enabled} onChange={event => update({ enabled: event.target.checked })} />使用手写笔记本</label>
-        <label>界面风格<select data-testid="notebook-style" value={state.style} onChange={event => update({ style: event.target.value as Appearance['style'] })}><option value="notebook">经典手写本</option><option value="soft">柔和纸张</option></select></label>
+      {!embedded && <header><button className="sf-quiet" data-testid="notebook-back" onClick={() => { if (returnPanel === 'studyforge.materials') navigation.restore(returnMaterial); ctx.layout.selectPanel(returnPanel); }}>← {returnPanel ? '返回' : '返回课堂'}</button><span>外观</span></header>}
+      <div className="sf-notebook-settings-body"><h1>外观</h1>
+        <div className="sf-theme-choices" role="radiogroup" aria-label="界面主题" data-testid="notebook-style">
+          {(['modern', 'notebook'] as const).map(style => <button key={style} type="button" role="radio" aria-checked={state.style === style} data-testid={`theme-${style}`} onClick={() => update({ style })}>
+            <span className={`sf-theme-sample sf-theme-sample-${style}`} aria-hidden="true"><i /><span><b /><em /><em /></span></span>
+            <strong>{style === 'modern' ? '现代简约' : '手写手帐'}</strong><small>{style === 'modern' ? '白色 · 清晰 · 圆角' : '纸张 · 字迹 · 贴纸'}</small>
+          </button>)}
+        </div>
+        <label>正文字号<select data-testid="notebook-size" value={state.size} onChange={event => update({ size: event.target.value as Appearance['size'] })}><option value="s">小</option><option value="m">中</option><option value="l">大</option></select></label>
+        {state.style === 'notebook' && <div className="sf-paper-options">
         <label>纸色<select data-testid="notebook-tone" value={state.tone} onChange={event => update({ tone: event.target.value as Appearance['tone'] })}><option value="yellow">暖色纸张</option><option value="white">白色纸张</option></select></label>
         <label>字迹<select data-testid="notebook-scheme" value={state.scheme} onChange={event => update({ scheme: event.target.value as Appearance['scheme'] })}>
           <option value="jia">甲 · 钢笔行楷</option><option value="yi">乙 · 毛笔楷书</option><option value="bing">丙 · 文楷</option><option value="ding">丁 · 老师用印刷体</option>
         </select></label>
-        <label>字号<select data-testid="notebook-size" value={state.size} onChange={event => update({ size: event.target.value as Appearance['size'] })}><option value="s">小</option><option value="m">中</option><option value="l">大</option></select></label>
         <label>纸张<select data-testid="notebook-paper" value={state.paper} onChange={event => update({ paper: event.target.value as Appearance['paper'] })}><option value="hengxian">横线纸</option><option value="fangge">方格纸</option></select></label>
         <label>表格字迹<select data-testid="notebook-table-font" value={state.table} onChange={event => update({ table: event.target.value as Appearance['table'] })}><option value="follow">跟随当前字迹</option><option value="print">印刷体</option></select></label>
         <label>题面<select data-testid="notebook-face" value={state.face} onChange={event => update({ face: event.target.value as Appearance['face'] })}><option value="print">剪贴印刷</option><option value="hand">手抄</option></select></label>
+        </div>}
         <div className="sf-notebook-specimen" data-testid="notebook-specimen"><p><span>师</span>先想想，这一步为什么能这样做？</p><p className="sf-notebook-student"><span>我</span>我想先试着把理由写下来。</p><p className="sf-notebook-red">先看定义域，再往下写。</p></div>
       </div>
     </main>;
   }
-  ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({ name: 'settings.section', id: 'studyforge.appearance', label: '字体与纸张', order: 30 }, () => <Settings embedded />)));
+  ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({ name: 'settings.section', id: 'studyforge.appearance', label: '外观', order: 30 }, () => <Settings embedded />)));
   ctx.effect(() => ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register({ name: 'sidebar.brand.mark', priority: -10 }, ({ size }: PropsRuntime<'sidebar.brand.mark'>) => <span className="sf-notebook-seal" style={{ width: size, height: size }} aria-hidden="true">学</span>)));
   ctx.effect(() => ctx.slots.inject('conversation.hero.brand.mark', () => ctx.slots.register({ name: 'conversation.hero.brand.mark', priority: -10 }, () => <span className="sf-notebook-welcome">今天想学什么？</span>)));
   ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: APPEARANCE, priority: 0 }, Settings)));

@@ -289,55 +289,55 @@
 /* ===== 手写本最终 override（B notebook.css 155-230）：
    112×150 书封立在 7px 木架上，蓝/棕/黑轮换，书名贴一张题签；
    卡片是贴上去的纸条（胶带 + 微旋转）。未开手写本时保持印刷版。 ===== */
-body[data-sf-notebook="on"] .sf-materials .sf-shelf{
+body[data-sf-style="notebook"] .sf-materials .sf-shelf{
   display:flex;align-items:flex-end;gap:22px;padding:12px 10px 0;margin:24px 0 40px;
   border-bottom:7px solid #c8b58c;box-shadow:0 10px 14px -10px #3c321a73;overflow-x:auto}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .sf-material-row{flex:0 0 112px;list-style:none;display:block;position:relative;border:0}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .sf-book{gap:0;width:112px;padding:0;display:flex;flex-direction:column}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .cover{
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .sf-material-row{flex:0 0 112px;list-style:none;display:block;position:relative;border:0}
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .sf-book{gap:0;width:112px;padding:0;display:flex;flex-direction:column}
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .cover{
   height:150px;aspect-ratio:auto;background:#4b6190;border:0;border-radius:2px 6px 6px 2px;
   box-shadow:2px 3px 0 var(--op-rule),4px 6px 12px #3c321a20}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .sf-material-row:nth-child(3n+2) .cover{background:#c3a26f}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .sf-material-row:nth-child(3n) .cover{background:#3d3733}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .cover .spine{flex-basis:8px;background:#0002}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .spine span{display:none}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .face{padding:12px 9px 10px;background:none;min-width:0}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .face h4{
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .sf-material-row:nth-child(3n+2) .cover{background:#c3a26f}
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .sf-material-row:nth-child(3n) .cover{background:#3d3733}
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .cover .spine{flex-basis:8px;background:#0002}
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .spine span{display:none}
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .face{padding:12px 9px 10px;background:none;min-width:0}
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .face h4{
   background:var(--op-hi);padding:5px 6px;font:15px/1.35 var(--op-hand);color:var(--op-pen);
   box-shadow:0 1px 1px #0004;margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .face .tag{display:none}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .face .foot{display:block;font:10px/1.5 var(--op-print)}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .face .rev{color:#fff9}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .under{display:none}
-body[data-sf-notebook="on"] .sf-materials .sf-book-add{
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .face .tag{display:none}
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .face .foot{display:block;font:10px/1.5 var(--op-print)}
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .face .rev{color:#fff9}
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .under{display:none}
+body[data-sf-style="notebook"] .sf-materials .sf-book-add{
   display:grid;place-content:center;flex:0 0 112px;height:150px;background:transparent;
   border:1.5px dashed var(--op-pencil);border-radius:2px;color:var(--op-pencil);
   font:13px/1.6 var(--op-print);cursor:pointer;text-align:center}
-body[data-sf-notebook="on"] .sf-materials .sf-book-add input{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .sf-material-version{position:absolute;right:6px;bottom:8px;padding:2px 5px;border:0;background:var(--op-hi);color:var(--op-pen);font-size:10px}
-body[data-sf-notebook="on"] .sf-materials .sf-shelf .cover{width:112px;flex:none}
+body[data-sf-style="notebook"] .sf-materials .sf-book-add input{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden}
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .sf-material-version{position:absolute;right:6px;bottom:8px;padding:2px 5px;border:0;background:var(--op-hi);color:var(--op-pen);font-size:10px}
+body[data-sf-style="notebook"] .sf-materials .sf-shelf .cover{width:112px;flex:none}
 .sf-materials .sf-assets-head .sf-import-drop{flex-direction:row;align-items:center;padding:0;border:0;background:none}
 .sf-materials .sf-assets-head .sf-import-drop>.sf-note{display:none}
 .sf-materials .sf-assets-head{min-height:76px;border-bottom:1px solid var(--op-rule);padding:20px 32px}
-body[data-sf-notebook="on"] .sf-materials .sf-cardgrid{gap:28px 24px;padding:12px 4px 24px}
-body[data-sf-notebook="on"] .sf-materials .sf-cardgrid .sf-acard{
+body[data-sf-style="notebook"] .sf-materials .sf-cardgrid{gap:28px 24px;padding:12px 4px 24px}
+body[data-sf-style="notebook"] .sf-materials .sf-cardgrid .sf-acard{
   position:relative;border-radius:0;background:var(--op-hi);box-shadow:var(--op-shadow-card);
   padding:22px 20px;transform:rotate(-.4deg);gap:12px}
-body[data-sf-notebook="on"] .sf-materials .sf-cardgrid .sf-material-row:nth-child(even) .sf-acard{transform:rotate(.5deg)}
-body[data-sf-notebook="on"] .sf-materials .sf-cardgrid .sf-acard::before{
+body[data-sf-style="notebook"] .sf-materials .sf-cardgrid .sf-material-row:nth-child(even) .sf-acard{transform:rotate(.5deg)}
+body[data-sf-style="notebook"] .sf-materials .sf-cardgrid .sf-acard::before{
   content:"";position:absolute;top:-9px;left:calc(50% - 30px);width:60px;height:19px;
   background:#e9ddb3aa;border:1px solid #d5cda555;transform:rotate(-5deg);pointer-events:none}
-body[data-sf-notebook="on"] .sf-materials .sf-cardgrid .sf-acard:hover{translate:0 -3px}
-body[data-sf-notebook="on"] .sf-materials .sf-acard .a-title{font:20px/1.6 var(--op-hand)}
-body[data-sf-notebook="on"] .sf-materials .sf-acard .a-front{
+body[data-sf-style="notebook"] .sf-materials .sf-cardgrid .sf-acard:hover{translate:0 -3px}
+body[data-sf-style="notebook"] .sf-materials .sf-acard .a-title{font:20px/1.6 var(--op-hand)}
+body[data-sf-style="notebook"] .sf-materials .sf-acard .a-front{
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
   font:14px/1.75 var(--op-print);color:var(--op-ink)}
-body[data-sf-notebook="on"] .sf-materials .sf-sec-head{gap:16px;margin:24px 0 20px}
-body[data-sf-notebook="on"] .sf-materials .sf-sec-head h2{font:400 24px/1.4 var(--op-hand);white-space:nowrap}
-body[data-sf-notebook="on"] .sf-materials .sf-sec-head .cnt{color:var(--op-pencil);font-size:12px}
-body[data-sf-notebook="on"] .sf-materials .sf-reader-outline .sf-tree-row.leaf{font:17px/1.8 var(--op-hand);
+body[data-sf-style="notebook"] .sf-materials .sf-sec-head{gap:16px;margin:24px 0 20px}
+body[data-sf-style="notebook"] .sf-materials .sf-sec-head h2{font:400 24px/1.4 var(--op-hand);white-space:nowrap}
+body[data-sf-style="notebook"] .sf-materials .sf-sec-head .cnt{color:var(--op-pencil);font-size:12px}
+body[data-sf-style="notebook"] .sf-materials .sf-reader-outline .sf-tree-row.leaf{font:17px/1.8 var(--op-hand);
   padding:10px 6px;border-bottom:1px dashed var(--op-rule-hi)}
-body[data-sf-notebook="on"] .sf-materials .sf-reader-page .sf-material-reader{
+body[data-sf-style="notebook"] .sf-materials .sf-reader-page .sf-material-reader{
   background-color:var(--op-page);background-image:var(--op-lines);background-size:var(--op-lines-size)}
 
 .sf-materials .sf-book-structure{display:flex;flex-direction:column;align-self:start;width:100%;height:max(420px,calc(100dvh - 245px));min-width:0;overflow:hidden}

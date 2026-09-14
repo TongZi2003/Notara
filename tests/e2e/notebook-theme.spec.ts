@@ -11,12 +11,13 @@ function value<T>(reply: RemoteResult<T>): T { if (!reply.ok) throw new Error(JS
 test('notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft', async ({ page, classroom }, info) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await enterClassroom(page, classroom.authUrl);
+  await openAppearance(page); await page.getByTestId('theme-notebook').click(); await closeAppearance(page);
   await expect(page.locator('body')).toHaveAttribute('data-sf-notebook', 'on');
   await sendInput(page, '求单调区间之前，我先把定义域写出来。');
   await expect(page.locator('[data-conversation-scroll]').getByText('已收到：求单调区间之前，我先把定义域写出来。', { exact: true })).toBeVisible();
   await page.evaluate(async () => { await document.fonts.load('18px "SF Long Cang"', '先看定义域'); await document.fonts.load('18px "SF Kalam"', 'abc'); });
   expect(await page.evaluate(() => document.fonts.check('18px "SF Long Cang"', '先看定义域'))).toBe(true);
-  await expect(page.locator('[data-slot="main.conversation"] > [data-phase]')).toHaveCSS('background-image', /gradient/);
+  await expect(page.locator('[data-sf-conversation-paper]')).toHaveCSS('background-image', /gradient/);
   await expect(page.locator('[data-composer-input]')).toHaveCSS('font-family', /SF Long Cang/);
   await expect(page.locator('[data-chat-flow-kind="assistant-step"] p').first()).toHaveCSS('font-family', /SF Long Cang/);
   await page.screenshot({ path: info.outputPath('notebook-classroom.png'), fullPage: true });
@@ -66,16 +67,16 @@ test('notebook fonts, paper controls and browser routes preserve the actual nati
     else if (route === 'sets') await openSetManagement(page);
     else await page.getByRole('button', { name: title, exact: true }).first().click();
     await expect(page).toHaveURL(new RegExp('#studyforge/' + (route === 'home' ? 'classroom' : route) + '$'));
-    await expect(route === 'home' ? page.locator('[data-slot="main.conversation"]') : page.getByTestId('studyforge-page-studyforge.' + route)).toBeVisible();
+    await expect(route === 'home' ? page.getByTestId('learning-workspace') : page.getByTestId('studyforge-page-studyforge.' + route)).toBeVisible();
     if (route === 'courses') {
       await expect(page.getByTestId('studyforge-page-studyforge.courses')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
       await expect(page.getByTestId('roadmap-canvas')).toHaveCSS('background-image', 'none');
     }
   }
   await openAppearance(page);
-  await page.getByTestId('notebook-toggle').click();
-  await expect(page.locator('body')).toHaveAttribute('data-sf-notebook', 'off');
-  await page.getByTestId('notebook-toggle').click();
+  await page.getByTestId('theme-modern').click();
+  await expect(page.locator('body')).toHaveAttribute('data-sf-style', 'modern');
+  await page.getByTestId('theme-notebook').click();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByTestId('notebook-appearance')).toBeVisible();
   await expect.poll(async () => (await page.getByTestId('notebook-appearance').boundingBox())?.width ?? 0).toBeGreaterThan(290);
@@ -89,6 +90,7 @@ test('notebook fonts, paper controls and browser routes preserve the actual nati
 test('notebook card slips open the real card and its source returns to the originating lesson without recording study', async ({ page, classroom }, info) => {
   const client = await connectRuntime(classroom);
   await enterClassroom(page, classroom.authUrl);
+  await openAppearance(page); await page.getByTestId('theme-notebook').click(); await closeAppearance(page);
   await sendInput(page, '从函数这一节开始。');
   await expect(page.locator('[data-conversation-scroll]').getByText('已收到：从函数这一节开始。', { exact: true })).toBeVisible();
   const book = value(await client.rpc<MaterialView>('studyforgeMaterials/import', { input: { operationId: 'notebook-book', material: { title: '函数笔记', fileName: '函数.md', mediaType: 'text/markdown' }, base64: Buffer.from('先写定义域，再讨论单调性。').toString('base64') } }));

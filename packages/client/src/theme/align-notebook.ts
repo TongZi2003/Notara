@@ -5,6 +5,12 @@ export function alignNotebook(): () => void {
   const metrics = new Map<string, number>();
   let frame: number | undefined;
   let closed = false;
+  const restore = (): void => {
+    for (const [element, prior] of changed) for (const [key, value] of prior) {
+      if (value) element.style.setProperty(key, value); else element.style.removeProperty(key);
+    }
+    changed.clear();
+  };
   const selector = '[data-chat-flow-kind="assistant-step"] :is(p,li:not(:has(p,li)),h1,h2,h3,h4,h5,h6),.sf-tool-step summary,'
     + ':is([data-chat-flow-kind="user"],[data-chat-flow-kind="steering"]) [data-slot="conversation.chat.node"]>div>div:first-child>div:not([data-message-attachments])';
   const set = (element: HTMLElement, key: string, value: string): void => {
@@ -33,11 +39,11 @@ export function alignNotebook(): () => void {
     if (frame !== undefined || closed) return;
     frame = requestAnimationFrame(() => {
       frame = undefined;
-      if (document.body.dataset.sfNotebook !== 'on') return;
+      if (document.body.dataset.sfNotebook !== 'on' || document.body.dataset.sfStyle === 'modern') { restore(); return; }
       const row = Number.parseFloat(getComputedStyle(document.body).getPropertyValue('--nb-row')) || 32;
       const grid = document.body.dataset.sfPaper === 'fangge';
       for (const flow of document.querySelectorAll<HTMLElement>('[data-chat-flow]')) {
-        const paper = flow.closest<HTMLElement>('[data-slot="main.conversation"]>[data-phase]');
+        const paper = flow.closest<HTMLElement>('[data-sf-conversation-paper]');
         if (!paper) continue;
         const origin = flow.getBoundingClientRect().top;
         // The whole sheet moves with the written content, including during a
@@ -85,12 +91,12 @@ export function alignNotebook(): () => void {
   });
   content.observe(document.body, { childList: true, subtree: true, characterData: true });
   const appearance = new MutationObserver(schedule);
-  appearance.observe(document.body, { attributes: true, attributeFilter: ['data-sf-notebook', 'data-sf-paper', 'data-sf-size', 'data-sf-scheme', 'data-sf-table'] });
+  appearance.observe(document.body, { attributes: true, attributeFilter: ['data-sf-notebook', 'data-sf-style', 'data-sf-paper', 'data-sf-size', 'data-sf-scheme', 'data-sf-table'] });
   const fonts = (): void => { metrics.clear(); schedule(); };
   const scroll = (): void => {
-    if (document.body.dataset.sfNotebook !== 'on') return;
+    if (document.body.dataset.sfNotebook !== 'on' || document.body.dataset.sfStyle === 'modern') return;
     for (const flow of document.querySelectorAll<HTMLElement>('[data-chat-flow]')) {
-      const paper = flow.closest<HTMLElement>('[data-slot="main.conversation"]>[data-phase]');
+      const paper = flow.closest<HTMLElement>('[data-sf-conversation-paper]');
       if (paper) set(paper, '--sf-paper-scroll-offset', `${flow.getBoundingClientRect().top - paper.getBoundingClientRect().top}px`);
     }
   };
@@ -100,8 +106,6 @@ export function alignNotebook(): () => void {
     closed = true; if (frame !== undefined) cancelAnimationFrame(frame);
     resize.disconnect(); content.disconnect(); appearance.disconnect(); document.fonts.removeEventListener('loadingdone', fonts);
     document.removeEventListener('scroll', scroll, true);
-    for (const [element, prior] of changed) for (const [key, value] of prior) {
-      if (value) element.style.setProperty(key, value); else element.style.removeProperty(key);
-    }
+    restore();
   };
 }

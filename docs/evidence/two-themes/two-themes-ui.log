@@ -1,0 +1,52 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/two-themes.spec.ts
+
+
+Running 3 tests using 1 worker
+
+(node:17471) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/two-themes.spec.ts:8:1 › two complete themes preserve paper preferences, native drafts, menus and responsive settings (10.9s)
+  ✘  2 tests/e2e/two-themes.spec.ts:46:1 › both themes cover every root page, real card editor, material reader and workbench nodes (25.2s)
+(node:17581) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 tests/e2e/two-themes.spec.ts:86:1 › modern conversation and pending/saved confirmation do not inherit paper or handwriting (10.1s)
+
+
+  1) tests/e2e/two-themes.spec.ts:46:1 › both themes cover every root page, real card editor, material reader and workbench nodes
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  getByTestId('studyforge-page-studyforge.memory')
+    Expected: "rgb(255, 255, 255)"
+    Received: "rgba(0, 0, 0, 0)"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveCSS" getByTestId('studyforge-page-studyforge.memory') with timeout 15000ms
+      - waiting for getByTestId('studyforge-page-studyforge.memory')
+        34 × locator resolved to <main class="sf-orig sf-page-scroll sf-memory-page" data-testid="studyforge-page-studyforge.memory">…</main>
+           - unexpected value "rgba(0, 0, 0, 0)"
+
+
+      59 |       await expect(root).toBeVisible();
+      60 |       if (style === 'modern') {
+    > 61 |         await expect(root).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+         |                            ^
+      62 |         const fonts = await root.locator('h1,h2,button,select').evaluateAll(els => els.filter(el => el.getClientRects().length).map(el => getComputedStyle(el).fontFamily));
+      63 |         expect(fonts.every(font => !/SF Long Cang|SF WenKai|Songti|Kaiti/.test(font))).toBe(true);
+      64 |       }
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/two-themes.spec.ts:61:28
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:17498) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/two-themes-both-themes-cov-17493--reader-and-workbench-nodes/error-context.md
+
+  1 failed
+    tests/e2e/two-themes.spec.ts:46:1 › both themes cover every root page, real card editor, material reader and workbench nodes
+  2 passed (47.0s)

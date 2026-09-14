@@ -174,7 +174,7 @@ export function CardEditor({ ctx, sessionId, target, seed, onSaved, onCancel }: 
     <header className="ce-head">
       <span className="ce-seal" aria-hidden="true">{baseline === undefined ? '新' : '改'}</span>
       <div>
-        <p>手写本 · 一张卡</p>
+        <p>卡片内容</p>
         <h2>{baseline === undefined ? '新建一张卡' : '改这张卡'}</h2>
       </div>
       {baseline !== undefined && <span className="sf-meta" data-testid="card-editor-version">正在改 {versionLabel(baseline)}</span>}
@@ -259,7 +259,7 @@ export function CardEditor({ ctx, sessionId, target, seed, onSaved, onCancel }: 
       </div>
 
       <aside className="ce-preview">
-        <div className="ce-preview-head"><b>纸面</b><span>保存后就是这张卡</span></div>
+        <div className="ce-preview-head"><b>预览</b><span>保存后的样子</span></div>
         <article className="tk">
           <header className="tk-head">
             <span className="tk-no">{PRESENTATION_LABELS[draft.presentation]}</span>
@@ -271,7 +271,7 @@ export function CardEditor({ ctx, sessionId, target, seed, onSaved, onCancel }: 
             <div className="tk-part-label">背面</div>
             <MarkdownBody text={preview} testId="card-editor-preview-back" />
           </div>}
-          {!written && <p className="sf-note">写点字，这张纸就有内容了。</p>}
+          {!written && <p className="sf-note">填写内容后即可预览。</p>}
         </article>
       </aside>
     </div>

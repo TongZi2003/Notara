@@ -10,5 +10,5 @@ declare module '*/lesson-import.css' {}
 declare module '*/creation.css' {}
 declare module '*classroom-trace.css';
 declare module '*/learning-workspace.css' {}
-declare module '*/soft-paper.css' {}
+declare module '*/modern.css' {}
 declare module '*/controls.css' {}

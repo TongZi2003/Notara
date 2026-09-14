@@ -4,11 +4,12 @@ import { test, expect, enterClassroom, sendInput, typeInput } from './fixtures/c
 test('written baselines follow the ruled page through scrolling, font changes and expansion', async ({ page, classroom }, info) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await enterClassroom(page, classroom.authUrl);
+  await openAppearance(page); await page.getByTestId('theme-notebook').click(); await closeAppearance(page);
   await sendInput(page, '[markdown]');
   const paragraphs = page.locator('[data-chat-flow-kind="assistant-step"] p');
   await expect(paragraphs.last()).toContainText('阅读后请写出下一步');
   const measure = () => page.evaluate(() => {
-    const paper = document.querySelector<HTMLElement>('[data-slot="main.conversation"]>[data-phase]')!;
+    const paper = document.querySelector<HTMLElement>('[data-sf-conversation-paper]')!;
     const css = getComputedStyle(paper), row = parseFloat(css.getPropertyValue('--nb-row'));
     const line = paper.getBoundingClientRect().top + parseFloat(css.backgroundPositionY) + row;
     return [...document.querySelectorAll<HTMLElement>('[data-chat-flow-kind="assistant-step"] p')]

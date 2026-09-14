@@ -1,7 +1,7 @@
 /* Original B@3831987 map composition, scoped to the DSH course workspace. */
 .sf-orig.sf-courses-page{padding:0;overflow:hidden;display:flex;flex-direction:column;height:100%;min-height:0}
 /* One stationary sheet and tab bar for every course view. */
-.sf-orig.sf-courses-page,body[data-sf-notebook=on] .sf-orig.sf-courses-page{background-color:var(--paper);background-image:radial-gradient(rgba(90,104,138,.16) 1px,transparent 1.2px);background-size:26px 26px;background-position:0 0}
+.sf-orig.sf-courses-page,body[data-sf-style=notebook] .sf-orig.sf-courses-page{background-color:var(--paper);background-image:radial-gradient(rgba(90,104,138,.16) 1px,transparent 1.2px);background-size:26px 26px;background-position:0 0}
 .sf-courses-page>.sf-courses-tabs{flex:none;margin:0;padding:10px 20px;border-bottom:1px solid var(--rule);background:var(--paper-hi)}
 .sf-courses-page>.sf-course-map{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;overflow:hidden}
 .sf-courses-content{flex:1;min-height:0;overflow:auto}
@@ -66,14 +66,14 @@
 .sf-map-editor{position:absolute;inset:0;background:rgba(20,18,14,.25);z-index:12;display:flex;justify-content:flex-end}
 .sf-map-editor>.sf-route-editor{width:min(500px,100%);margin:0!important;max-height:100%;overflow:auto;box-sizing:border-box;background:var(--paper-hi);padding:18px}
 /* B@3831987 notebook.css: colored slips, tape and a pin for the current lesson. */
-body[data-sf-notebook=on] .sf-map-card:not(.planned){background:#fdf1b0;border:0;border-radius:1px;padding:20px 14px 12px;box-shadow:var(--nb-slip-shadow);color:#3a3531;--gray:#756e61;--ink-3:#756e61;--rule:#d9d2bd}
-body[data-sf-notebook=on] .sf-map-card:nth-of-type(3n+2):not(.planned){background:#e6efdc}
-body[data-sf-notebook=on] .sf-map-card:nth-of-type(3n):not(.planned){background:#f7ded4}
-body[data-sf-notebook=on] .sf-map-card:not(.planned)::before{content:"";position:absolute;top:-8px;left:80px;width:54px;height:17px;background:#e9ddb3aa;transform:rotate(-4deg);pointer-events:none}
-body[data-sf-notebook=on] .sf-map-card.cur::after{content:"";position:absolute;top:9px;right:10px;width:12px;height:12px;border-radius:50%;background:#c93a2e;box-shadow:0 1px 2px #0004,inset 0 -2px 0 #0003;pointer-events:none}
-body[data-sf-notebook=on] .sf-map-card.planned{background:transparent;box-shadow:none;border:1.5px dashed var(--nb-pencil)}
-body[data-sf-notebook=on] .sf-map-title{font-family:var(--nb-hand);font-size:19px;font-weight:400}
-body[data-sf-notebook=on] .sf-map-panel h3{font-family:var(--nb-hand)}
+body[data-sf-style=notebook] .sf-map-card:not(.planned){background:#fdf1b0;border:0;border-radius:1px;padding:20px 14px 12px;box-shadow:var(--nb-slip-shadow);color:#3a3531;--gray:#756e61;--ink-3:#756e61;--rule:#d9d2bd}
+body[data-sf-style=notebook] .sf-map-card:nth-of-type(3n+2):not(.planned){background:#e6efdc}
+body[data-sf-style=notebook] .sf-map-card:nth-of-type(3n):not(.planned){background:#f7ded4}
+body[data-sf-style=notebook] .sf-map-card:not(.planned)::before{content:"";position:absolute;top:-8px;left:80px;width:54px;height:17px;background:#e9ddb3aa;transform:rotate(-4deg);pointer-events:none}
+body[data-sf-style=notebook] .sf-map-card.cur::after{content:"";position:absolute;top:9px;right:10px;width:12px;height:12px;border-radius:50%;background:#c93a2e;box-shadow:0 1px 2px #0004,inset 0 -2px 0 #0003;pointer-events:none}
+body[data-sf-style=notebook] .sf-map-card.planned{background:transparent;box-shadow:none;border:1.5px dashed var(--nb-pencil)}
+body[data-sf-style=notebook] .sf-map-title{font-family:var(--nb-hand);font-size:19px;font-weight:400}
+body[data-sf-style=notebook] .sf-map-panel h3{font-family:var(--nb-hand)}
 @keyframes sf-map-panel-in{from{transform:translateX(100%)}to{transform:translateX(0)}}
 @media(max-width:1050px){.sf-map-filter{top:60px;width:min(420px,calc(100% - 28px))}.sf-map-controls{left:14px;right:auto}.sf-map-hint{font-size:10px}}
 @media(max-width:600px){.sf-courses-page>.sf-courses-tabs{padding:8px}.sf-map-filter{left:8px;max-width:calc(100% - 16px);width:420px;padding:8px}.sf-map-controls{left:8px;top:10px}.sf-map-controls button{padding:5px}.sf-map-panel{width:100%}.sf-map-canvas{min-height:480px}.sf-map-hint{left:8px;max-width:270px}.sf-map-filter input[type=date]{width:108px}}

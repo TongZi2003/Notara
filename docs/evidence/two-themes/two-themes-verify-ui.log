@@ -1,0 +1,54 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/two-themes.spec.ts tests/e2e/notebook-theme.spec.ts tests/e2e/notebook-baseline.spec.ts tests/e2e/notebook-paper-confirmation.spec.ts
+
+
+Running 7 tests using 1 worker
+
+(node:18519) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/notebook-baseline.spec.ts:4:1 › written baselines follow the ruled page through scrolling, font changes and expansion (11.8s)
+  ✘  2 tests/e2e/notebook-paper-confirmation.spec.ts:6:1 › the whole conversation uses paper, wide tables stay inside, and confirmation uses the original loose slip (25.7s)
+(node:18658) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 tests/e2e/notebook-theme.spec.ts:11:1 › notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft (11.7s)
+  ✓  4 tests/e2e/notebook-theme.spec.ts:90:1 › notebook card slips open the real card and its source returns to the originating lesson without recording study (10.3s)
+  ✓  5 tests/e2e/two-themes.spec.ts:8:1 › two complete themes preserve paper preferences, native drafts, menus and responsive settings (10.3s)
+  ✓  6 tests/e2e/two-themes.spec.ts:46:1 › both themes cover every root page, real card editor, material reader and workbench nodes (11.5s)
+  ✓  7 tests/e2e/two-themes.spec.ts:91:1 › modern conversation and pending/saved confirmation do not inherit paper or handwriting (10.1s)
+
+
+  1) tests/e2e/notebook-paper-confirmation.spec.ts:6:1 › the whole conversation uses paper, wide tables stay inside, and confirmation uses the original loose slip
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator: getByTestId('open-lesson')
+    Expected: "rgba(0, 0, 0, 0)"
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveCSS" getByTestId('open-lesson') with timeout 15000ms
+      - waiting for getByTestId('open-lesson')
+
+
+      42 |     return table.width < wrap.width && Math.abs((table.left + table.right) - (wrap.left + wrap.right)) < 2;
+      43 |   })).toBe(true);
+    > 44 |   await expect(page.getByTestId('open-lesson')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+         |                                                 ^
+      45 |   await expect(page.locator('[data-slot="conversation.session.header.actions"] [data-testid="open-lesson-settings"]')).toHaveCount(0);
+      46 |   await expect(tables.first().locator('td').first()).toHaveCSS('font-family', /SF Long Cang/);
+      47 |   const proposal = page.getByTestId('inline-proposal');
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/notebook-paper-confirmation.spec.ts:44:49
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:18575) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/notebook-paper-confirmatio-5e643-ses-the-original-loose-slip/error-context.md
+
+  1 failed
+    tests/e2e/notebook-paper-confirmation.spec.ts:6:1 › the whole conversation uses paper, wide tables stay inside, and confirmation uses the original loose slip
+  6 passed (1.5m)

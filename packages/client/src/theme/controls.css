@@ -3,7 +3,6 @@
 body[data-sf-notebook=on]{--sf-ui-font:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;--sf-ui-size:13px;--sf-ui-radius:8px;--sf-menu-radius:12px;--nb-print:var(--sf-ui-font);--dsw-font-family:var(--sf-ui-font)}
 body[data-sf-notebook=on] .sf-orig{--font-ui:var(--sf-ui-font);--r-control:8px;--t-micro:12px;--t-meta:12px;--t-label:13px}
 body[data-sf-notebook=on] :is(button,input,select,textarea,summary):focus-visible{outline:2px solid color-mix(in srgb,var(--nb-pen) 65%,transparent)!important;outline-offset:2px}
-body[data-sf-notebook=on][data-sf-style=soft]{--nb-pencil:#646e64}
 body[data-sf-notebook=on] :is(.sf-page,.sf-orig,.sf-cards-page,.sf-lesson,.sf-creation,.sf-lesson-modal,.sf-original-sidebar,.sf-control-menu) :is(select,input:not([type=checkbox]):not([type=radio]):not([type=range])){box-sizing:border-box;min-width:0;max-width:100%;min-height:32px;border:1px solid var(--nb-rule);border-radius:var(--sf-ui-radius)!important;background:var(--nb-hi);padding:5px 10px;color:var(--nb-ink);font:400 13px/20px var(--sf-ui-font)!important;letter-spacing:normal}
 body[data-sf-notebook=on] :is(select,.sf-action,.sf-quiet,.sf-original-sidebar button,.sf-original-sidebar select,.sf-meta,.sf-note,.sf-library-filters,.sf-library-row small,.sf-creation small,.sf-org-actions,button[role=tab]){font-family:var(--sf-ui-font)!important}
 body[data-sf-notebook=on] :is(.sf-action,.sf-quiet){font-size:13px!important;line-height:20px;letter-spacing:normal;border-radius:var(--sf-ui-radius)!important}

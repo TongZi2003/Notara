@@ -56,7 +56,7 @@ body[data-sf-notebook="on"] :is(input,textarea,select){accent-color:var(--nb-pen
 body[data-sf-notebook="on"] :is(.sf-card-editor,.sf-knowledge-editor,.sf-org-form,.sf-lesson) :is(input,textarea,select){background:var(--nb-hi);border:1px solid var(--nb-rule-hi);color:var(--nb-pen);border-radius:2px;padding:8px 10px;font-family:var(--nb-print)}
 
 /* One ruled page, with the native stream, tools, queue and composer intact. */
-body[data-sf-notebook="on"] [data-slot="main.conversation"]>[data-phase]{background-color:var(--nb-page);background-image:var(--nb-lines);background-size:var(--nb-lines-size);background-position:0 calc(var(--sf-paper-scroll-offset,0px) - 4px)}
+body[data-sf-notebook="on"] [data-sf-conversation-paper]{background-color:var(--nb-page);background-image:var(--nb-lines);background-size:var(--nb-lines-size);background-position:0 calc(var(--sf-paper-scroll-offset,0px) - 4px)}
 body[data-sf-notebook="on"] :is([data-conversation-scroll],[data-composer-seat]){
   --dsw-alias-bg-base:var(--nb-page);--dsw-alias-bg-layer-1:var(--nb-hi);--dsw-alias-bg-layer-2:var(--nb-paper);
   --dsw-alias-label-primary:var(--nb-ink);--dsw-alias-label-secondary:var(--nb-pencil);--dsw-alias-label-tertiary:var(--nb-pencil);

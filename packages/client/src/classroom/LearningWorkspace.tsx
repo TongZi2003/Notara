@@ -91,7 +91,7 @@ function Workspace({ ctx, sessionId, blank, running, title, nativeConversation, 
             <button aria-label={`${LABELS[view]}布局`} onClick={() => setMenu(menu === view ? undefined : view)}>⋯</button><button aria-label={`关闭${LABELS[view]}`} onClick={() => close(view)}>×</button>
             {menu === view && <div className="sf-workspace-pane-menu"><button onClick={() => arrange(view, view)}>只看{LABELS[view]}</button>{open.filter(target => target !== view).map(target => <div key={target}><small>{LABELS[target]}</small>{EDGES.map(edge => <button key={edge} onClick={() => move(view, target, edge)}>{EDGE_LABELS[edge]}</button>)}</div>)}<button onClick={() => setMenu(undefined)}>收起菜单</button></div>}
           </header>
-          <div className="sf-workspace-pane-content">
+          <div className="sf-workspace-pane-content" data-sf-conversation-paper={view === 'chat' ? true : undefined}>
             {view === 'chat' ? nativeConversation : state.visited.includes(view) && (view === 'thoughts' ? <ClassroomTrace key={sessionId} ctx={ctx} sessionId={sessionId} running={running} /> : <MaterialsView key={sessionId} ctx={ctx} sessionId={sessionId} host={host} running={running} visible={visible} />)}
           </div>
           {dragging && dragging !== view && visible && <div className="sf-workspace-drops">{EDGES.map(edge => <div key={edge} data-edge={edge} data-testid={`drop-${view}-${edge}`} data-over={over === view + edge}

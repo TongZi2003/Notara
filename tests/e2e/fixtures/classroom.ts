@@ -91,7 +91,7 @@ export async function sendInput(page: Page, text: string): Promise<void> {
 
 export async function openAppearance(page: Page): Promise<void> {
   await page.getByRole('button', { name: /^(Settings|设置)$/ }).click();
-  await page.getByRole('button', { name: '字体与纸张', exact: true }).click();
+  await page.getByRole('button', { name: '外观', exact: true }).click();
   await expect(page.getByTestId('notebook-appearance')).toBeVisible();
 }
 export async function closeAppearance(page: Page): Promise<void> {

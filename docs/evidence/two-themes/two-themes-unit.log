@@ -1,0 +1,13 @@
+
+> studyforge-dsh@0.0.0 test:unit
+> vitest run --config vitest.unit.config.ts tests/unit/appearance.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+ ✓ |unit| tests/unit/appearance.test.ts (2 tests) 1ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  11:34:23
+   Duration  82ms (transform 17ms, setup 0ms, import 22ms, tests 1ms, environment 0ms)
