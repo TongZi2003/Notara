@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 
 /** A control menu escapes clipped panes but remains within the viewport. The
  * anchor stays local; scrolling/resizing repositions it, Escape restores focus. */
-export function ControlPopover({ label, title, className = '', testId, triggerTestId, value, disabled, chevron = true, children }: {
-  label: ReactNode; title: string; className?: string; testId?: string; triggerTestId?: string; value?: string; disabled?: boolean; chevron?: boolean; children: ReactNode | ((close: () => void) => ReactNode);
+export function ControlPopover({ label, title, className = '', menuClassName = '', testId, triggerTestId, value, disabled, chevron = true, children }: {
+  label: ReactNode; title: string; className?: string; menuClassName?: string; testId?: string; triggerTestId?: string; value?: string; disabled?: boolean; chevron?: boolean; children: ReactNode | ((close: () => void) => ReactNode);
 }): React.JSX.Element {
   const [open, setOpen] = useState(false), [position, setPosition] = useState({ left: 8, top: 8, maxHeight: 320 });
   const trigger = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null);
@@ -29,6 +29,6 @@ export function ControlPopover({ label, title, className = '', testId, triggerTe
   }, [open]);
   return <div className={'sf-control-popover ' + className} data-testid={testId}>
     <button type="button" className="sf-control-trigger" data-testid={triggerTestId} value={value} disabled={disabled} title={title} aria-label={title} aria-haspopup="dialog" aria-expanded={open} ref={trigger} onClick={() => setOpen(!open)}>{label}{chevron && <span aria-hidden="true">⌄</span>}</button>
-    {open && createPortal(<div className="sf-control-menu" role="dialog" aria-label={title} ref={menu} style={{ left: position.left, top: position.top, maxHeight: position.maxHeight }}>{typeof children === 'function' ? children(() => { setOpen(false); }) : children}</div>, document.body)}
+    {open && createPortal(<div className={'sf-control-menu ' + menuClassName} role="dialog" aria-label={title} ref={menu} style={{ left: position.left, top: position.top, maxHeight: position.maxHeight }}>{typeof children === 'function' ? children(() => { setOpen(false); }) : children}</div>, document.body)}
   </div>;
 }

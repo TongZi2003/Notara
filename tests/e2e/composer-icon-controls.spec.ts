@@ -38,7 +38,7 @@ test('narrow composer keeps a real glyph on every icon control and restores labe
     await page.mouse.move(chat.x + width, edge.y + 30, { steps: 8 }); await page.mouse.up();
   };
   const separate = async () => {
-    const buttons = [page.locator('.sf-composer-more>summary'), agent, subject, model, send];
+    const buttons = [page.getByRole('button', { name: '更多学习操作', exact: true }), agent, subject, model, send];
     const rects = await Promise.all(buttons.map(button => button.boundingBox()));
     const outer = (await card.boundingBox())!;
     for (const [index, rect] of rects.entries()) {

@@ -13,13 +13,16 @@ body[data-sf-learning-ui] [data-slot="conversation.input.model"] button,body[dat
 .sf-subject-menu form>input{width:100%;min-width:0;border:0;background:transparent;color:inherit;font:inherit;padding:8px 5px}
 .sf-learning-mode [role=status]{position:absolute;bottom:100%;left:0;white-space:nowrap;font-size:12px;background:var(--nb-hi,#fff);padding:6px 9px;border:1px solid var(--nb-rule,#ddd)}
 .sf-composer-more{position:relative;flex:none}
-.sf-composer-more>summary{list-style:none;font:24px/30px sans-serif;width:30px;height:30px;text-align:center;border-radius:50%;cursor:pointer;color:var(--nb-pen,#26437c)}
-.sf-composer-more>summary::-webkit-details-marker{display:none}
-.sf-composer-more>summary:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.sf-composer-menu{position:absolute;bottom:calc(100% + 8px);left:0;width:174px;z-index:20;background:var(--dsw-specific-menu,#fff);border:1px solid var(--nb-rule,#ddd);padding:6px;box-shadow:0 6px 22px #30251016;border-radius:6px}
+.sf-composer-more>.sf-control-trigger{justify-content:center;width:30px;height:30px;color:var(--nb-pen,#26437c)}
+.sf-control-menu.sf-composer-menu{display:flex;flex-direction:column;overflow:hidden}
+.sf-composer-search{display:flex;align-items:center;gap:9px;padding:7px 10px 10px;flex:none;border-bottom:1px solid var(--nb-rule,#ddd)}
+.sf-composer-search>input{min-width:0;width:100%;border:0;background:transparent;outline-offset:1px;color:inherit;font:inherit;padding:3px 0;line-height:20px;box-sizing:border-box}
+.sf-composer-skills{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;flex:1 1 auto;padding:5px 0;scroll-padding:5px}
+.sf-composer-upload{flex:none;border-top:1px solid var(--nb-rule,#ddd);padding-top:5px;margin:0}
+.sf-composer-empty,.sf-composer-notice{padding:10px;margin:0;color:var(--nb-pencil);font:var(--sf-text-meta)/1.6 var(--sf-ui-font)}
+.sf-composer-notice{flex:none}
 .sf-composer-menu button{display:block;width:100%;border:0;background:none;color:inherit;font:var(--sf-ui-size)/1.6 var(--dsw-font-family,var(--nb-print,sans-serif));padding:8px 10px;text-align:left;cursor:pointer}
 .sf-composer-menu button:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.sf-composer-menu hr{border:0;border-top:1px solid var(--nb-rule,#ddd);margin:5px 4px}
 body[data-sf-learning-ui] [data-testid="composer-import"]>.sf-import{display:none}
 .sf-learning-entry{padding:16px 0 0;width:100%;box-sizing:border-box;color:var(--nb-pencil,var(--dsw-alias-label-secondary))}
 .sf-learning-suggestions{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;padding:2px 1px 10px}

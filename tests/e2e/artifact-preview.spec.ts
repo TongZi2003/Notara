@@ -10,6 +10,6 @@ test('HTML artifact runs in sandbox and installs a versioned classroom skill', a
   await page.getByTestId('install-artifact').click(); await expect(page.getByRole('status')).toContainText('已安装');
   await page.screenshot({ path: info.outputPath('installed-html.png'), fullPage: true });
   await page.getByRole('button', { name: '回到创作对话', exact: true }).click(); await page.getByTestId('agent-role').click(); await page.getByRole('dialog', { name: '智能体身份', exact: true }).getByRole('button', { name: '教学者', exact: true }).click();
-  await page.locator('.sf-composer-more summary').click(); await page.getByRole('button', { name: '数一数', exact: true }).click();
+  await page.getByRole('button', { name: '更多学习操作', exact: true }).click(); await page.getByRole('button', { name: '数一数', exact: true }).click();
   await expect(page.locator('[data-composer-chip="studyforge-task"]')).toContainText('数一数');
 });

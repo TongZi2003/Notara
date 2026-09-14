@@ -1,10 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SubjectPicker } from './SubjectPicker.tsx';
 import { insertTaskSkill } from './skill-draft.ts';
 import type { TeachingChoice } from '@studyforge/contracts/teaching';
 import { RolePicker } from '../creation/RolePicker.tsx';
+import { ControlPopover } from './ControlPopover.tsx';
 
 export function registerLearningComposer(ctx: Context): void {
   const previous = document.body.getAttribute('data-sf-learning-ui');
@@ -23,7 +24,6 @@ export function registerLearningComposer(ctx: Context): void {
 
 function MoreActions({ ctx, sessionId, useSessions }: PropsRuntime<'conversation.input.left'> & { ctx: Context }): React.JSX.Element | null {
   const learning = useSessions(state => state.byId[sessionId]?.projectionValues?.agentPreset === 'studyforge-learning');
-  const menu = useRef<HTMLDetailsElement>(null);
   const [notice, setNotice] = useState('');
   const [skills, setSkills] = useState<TeachingChoice[]>([]);
   useEffect(() => {
@@ -32,13 +32,8 @@ function MoreActions({ ctx, sessionId, useSessions }: PropsRuntime<'conversation
     read(); window.addEventListener('studyforge:learning-changed', read);
     return () => { live = false; window.removeEventListener('studyforge:learning-changed', read); };
   }, [ctx]);
-  useEffect(() => {
-    const close = (event: PointerEvent): void => { if (menu.current?.open && !menu.current.contains(event.target as Node)) menu.current.open = false; };
-    document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
-  }, []);
   if (!learning) return null;
-  const insert = (text: string): void => {
+  const insert = (text: string, close: () => void): void => {
     if (ctx.sessions.list.getSnapshot().current !== sessionId || ctx.conversation.blocks.storeFor(sessionId).getSnapshot()) return;
     const actx = ctx.sessions.scope(sessionId);
     if (!actx) return;
@@ -54,29 +49,43 @@ function MoreActions({ ctx, sessionId, useSessions }: PropsRuntime<'conversation
     });
     if (!applied) { setNotice('输入已变化，请再选一次。'); return; }
     setNotice('');
-    if (menu.current) menu.current.open = false;
+    close();
     document.querySelector<HTMLElement>('[data-composer-input]')?.focus();
   };
-  return <details className="sf-composer-more" ref={menu} onKeyDown={event => { if (event.key === 'Escape' && menu.current) menu.current.open = false; }}>
-    <summary aria-label="更多学习操作" title="更多学习操作">＋</summary>
-    <div className="sf-composer-menu">
-      {skills.map(skill => <button type="button" key={skill.id} title={skill.description} onClick={() => {
+  return <ControlPopover key={sessionId} className="sf-composer-more" menuClassName="sf-composer-menu" title="更多学习操作" chevron={false}
+    label={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M12 4v16M4 12h16" /></svg>}>
+    {close => <LearningActionsMenu skills={skills} notice={notice} onSkill={skill => {
         if (!insertTaskSkill(ctx, sessionId, skill)) { setNotice('请等当前输入准备完成，再选择技能。'); return; }
-        setNotice(''); if (menu.current) menu.current.open = false;
+        setNotice(''); close();
         document.querySelector<HTMLElement>('[data-composer-input]')?.focus();
-      }}><LearningActionIcon kind={skill.id} /><span>{skill.title}</span></button>)}
-      <button type="button" onClick={() => insert('请通过一道题或一个问题，检查我对当前内容的理解。')}><LearningActionIcon kind="check" /><span>检查我的理解</span></button>
-      <hr />
-      <button type="button" onClick={() => {
+      }} onCheck={() => insert('请通过一道题或一个问题，检查我对当前内容的理解。', close)} onUpload={() => {
         if (ctx.sessions.list.getSnapshot().current !== sessionId) return;
         const picker = document.querySelector<HTMLInputElement>('[data-composer-seat] [data-testid="composer-import"] input[type="file"]');
         if (!picker || picker.disabled) { setNotice('请等当前资料上传完成后再添加。'); return; }
-        if (menu.current) menu.current.open = false;
+        close();
         picker.click();
-      }}><LearningActionIcon kind="upload" /><span>上传新资料到资料库</span></button>
-      {notice && <p role="status">{notice}</p>}
+      }} />}
+  </ControlPopover>;
+}
+
+function LearningActionsMenu({ skills, notice, onSkill, onCheck, onUpload }: {
+  skills: readonly TeachingChoice[]; notice: string; onSkill: (skill: TeachingChoice) => void; onCheck: () => void; onUpload: () => void;
+}): React.JSX.Element {
+  const [query, setQuery] = useState('');
+  const needle = query.trim().normalize('NFKC').toLocaleLowerCase();
+  const matches = (text: string): boolean => text.normalize('NFKC').toLocaleLowerCase().includes(needle);
+  const visible = skills.filter(skill => matches(skill.title + ' ' + skill.description));
+  const check = matches('检查我的理解');
+  return <>
+    <div className="sf-composer-search"><LearningActionIcon kind="studyforge-semantic-search" /><input type="search" aria-label="搜索学习操作" placeholder="搜索技能…" autoFocus value={query} onChange={event => setQuery(event.target.value)} /></div>
+    <div className="sf-composer-skills" role="group" aria-label="学习技能" key={needle}>
+      {visible.map(skill => <button type="button" key={skill.id} title={skill.description} onClick={() => onSkill(skill)}><LearningActionIcon kind={skill.id} /><span>{skill.title}</span></button>)}
+      {check && <button type="button" onClick={onCheck}><LearningActionIcon kind="check" /><span>检查我的理解</span></button>}
+      {!visible.length && !check && <p className="sf-composer-empty">没有匹配的学习操作</p>}
     </div>
-  </details>;
+    <footer className="sf-composer-upload"><button type="button" onClick={onUpload}><LearningActionIcon kind="upload" /><span>上传新资料到资料库</span></button></footer>
+    {notice && <p className="sf-composer-notice" role="status">{notice}</p>}
+  </>;
 }
 
 /** One restrained line-icon family; installed skills get a plugin symbol. */

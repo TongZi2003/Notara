@@ -33,7 +33,7 @@ test('learning modes stay inside the native composer and real recommendations hi
   const a = (await page.getByTestId('learning-entry').boundingBox())!;
   expect(a.y).toBeGreaterThan(m.y + m.height);
   await page.screenshot({ path: info.outputPath('home-modes-and-suggestions.png'), fullPage: true });
-  await page.locator('.sf-composer-more summary').click();
+  await page.getByRole('button', { name: '更多学习操作', exact: true }).click();
   await expect(page.getByRole('button', { name: '打开资料库', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '整理成讲义', exact: true }).click();
   await expect(input).toContainText('我想学习三角函数');
@@ -41,7 +41,7 @@ test('learning modes stay inside the native composer and real recommendations hi
   await expect(page.getByTestId('learning-entry')).toBeVisible();
   await page.locator('[data-composer-seat] input[type="file"][hidden]').setInputFiles({ name: '临时说明.txt', mimeType: 'text/plain', buffer: Buffer.from('一份仅用于当前对话的附件') });
   await expect(page.getByText('临时说明.txt', { exact: false }).first()).toBeVisible();
-  await page.locator('.sf-composer-more summary').click();
+  await page.getByRole('button', { name: '更多学习操作', exact: true }).click();
   await page.getByRole('button', { name: '检查我的理解', exact: true }).click();
   await expect(input).toContainText('检查我对当前内容的理解');
   await expect(page.getByText('临时说明.txt', { exact: false }).first()).toBeVisible();

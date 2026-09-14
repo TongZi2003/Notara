@@ -114,7 +114,7 @@ test('compact Agent and Subject menus keep the split composer toolbar on one lin
   const agent = page.getByTestId('agent-role'), subject = page.getByTestId('subject-picker').getByRole('button');
   await expect(agent).toHaveText('Agent'); await expect(subject).toHaveText('Subject');
   await expect(agent.locator('svg')).toBeVisible(); await expect(subject.locator('svg')).toBeVisible();
-  const buttons = [page.locator('.sf-composer-more>summary'), agent, subject, page.locator('[data-slot="conversation.input.model"] button').first()];
+  const buttons = [page.getByRole('button', { name: '更多学习操作', exact: true }), agent, subject, page.locator('[data-slot="conversation.input.model"] button').first()];
   const boxes = await Promise.all(buttons.map(button => button.boundingBox()));
   expect(Math.max(...boxes.map(box => box!.y)) - Math.min(...boxes.map(box => box!.y))).toBeLessThan(5);
   await agent.click(); const menu = page.getByRole('dialog', { name: '智能体身份', exact: true });

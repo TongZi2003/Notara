@@ -30,7 +30,7 @@ test('whiteboard defaults to the library and filters actual lesson references wi
   await typeInput(page, '我想讨论这部分');
   const chip = page.locator('[data-composer-chip="studyforge-source"]');
   await expect(chip).toContainText('函数原文');
-  await page.locator('.sf-composer-more summary').click();
+  await page.getByRole('button', { name: '更多学习操作', exact: true }).click();
   await page.getByRole('button', { name: '整理本课要点', exact: true }).click();
   await expect(chip).toContainText('函数原文');
   await expect(page.locator('[data-composer-input]')).toContainText('我想讨论这部分');
