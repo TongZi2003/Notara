@@ -38,7 +38,7 @@ function MaterialsView({ ctx, sessionId, running, visible, host }: { ctx: Contex
 function Workspace({ ctx, sessionId, blank, running, title, nativeConversation, host }: {
   ctx: Context; sessionId: string; blank: boolean; running: boolean; title: string; nativeConversation: ReactNode; host: LessonResourcesFace;
 }): React.JSX.Element {
-  const extensions = useWorkbenchChoices(ctx);
+  const extensions = useWorkbenchChoices(ctx, sessionId);
   const views: WorkspaceView[] = [...VIEWS, ...extensions.map(row => row.id as WorkspaceView)];
   const LABELS: Record<string, string> = { ...BASE_LABELS, ...Object.fromEntries(extensions.map(row => [row.id, row.title])) };
   const state = useSyncExternalStore(subscribeWorkspace, () => workspaceLayout(sessionId, blank));

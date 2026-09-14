@@ -1,0 +1,7 @@
+{
+  "name":"@notara/argument-studio","version":"1.0.1",
+  "files":["workbench.html","argument.md","README.md"],
+  "notara":{"apiVersion":1,"title":"论证工作台","description":"把观点、证据、反例与修订放在同一条论证线上。",
+    "skills":[{"id":"argument","title":"检验我的论证","description":"检查理由能否支持结论，寻找真正相关的反例。","entry":"argument.md"}],
+    "workbenches":[{"id":"argument-board","title":"论证工作台","description":"逐步整理一个值得讨论的问题。","entry":"workbench.html","permissions":["draft","save-note"]}]}
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@notara/worldbook",
+  "version": "1.0.0",
+  "description": "可编辑的课堂背景与城邦议事厅情境。",
+  "files": ["worldbook.json", "scenario.md", "README.md"],
+  "notara": {
+    "apiVersion": 1,
+    "title": "世界书 · 城邦议事厅",
+    "description": "维护背景、术语和人物设定，按关键词带入课堂。",
+    "worldbooks": [{"id":"worldbook","title":"世界书","description":"编辑背景条目，为本课选择要带入的内容。","entry":"worldbook.json"}],
+    "skills": [{"id":"scenario","title":"进入情境学习","description":"在虚构城邦中讨论资源、证据与公共决策。","entry":"scenario.md"}]
+  }
+}

@@ -2,7 +2,7 @@
 
 产品设计与执行记录分别见 [设计](../../../docs/superpowers/specs/2026-09-14-notara-plugins-design.md)、[计划](../../../docs/superpowers/plans/2026-09-14-notara-plugins.md)、[验收](../../../docs/dev-log/2026-09-14-Notara-plugins-v1.md)。
 
-首版支持 npm 包中的 `notara.apiVersion=1`，提供 skills、workbenches、teaching、subjects。完整的可安装示例在 [出题与复盘](../../examples/plugins/study-kit/README.md)。本地目录及 `.tgz`/`.tar.gz` 均通过插件页检查后确认安装。
+支持 npm 包中的 `notara.apiVersion=1`，提供 skills、workbenches、teaching、subjects、worldbooks。完整独立包：[出题与复盘](../../examples/plugins/study-kit/README.md)、[世界书](../../examples/plugins/worldbook/README.md)、[函数实验台](../../examples/plugins/function-lab/README.md)、[论证工作台](../../examples/plugins/argument-studio/README.md)。本地目录及 `.tgz`/`.tar.gz` 均通过插件页检查后确认安装。
 
 Host Remote 为 `studyforgePlugins/{prepare,installPackage,list,setEnabled,uninstallPackage,workbenches,openWorkbench,saveNote}`；安装/卸载方法不能命名为 install/uninstall，它们是原生客户端服务保留名称。`PluginView.state` 是加载结果，`enabled` 是请求设置；首次安装可成功保存记录但state=failed，界面不得显示成已启用。
 
@@ -10,7 +10,27 @@ Host Remote 为 `studyforgePlugins/{prepare,installPackage,list,setEnabled,unins
 
 HTML 工作台只能通过宿主注入的 `Notara.saveNote({title,body})` 请求展示完整确认区。确认之后使用现有 CardService 保存 note，不推进复习。宿主绑定课堂与操作号；工作台不能任意选择学生、覆盖旧卡或调用 Remote。`Notara.onSaved` 接收已保存的标题。工作台默认跟随主题；颜色、字体、字号与圆角 token 见示例 README。
 
-带 `dsh.bundle.patch` 的包按可信本机代码处理，通过独立 Include 挂在顶层 Loader；运行中原生变更延后至重启。自包含 HTML 与 Node 代码不共享权限模型。首版不加载原生客户端 bundle，也不接受未实现的 worldbooks/agents 等贡献字段。
+带 `dsh.bundle.patch` 的包按可信本机代码处理，通过独立 Include 挂在顶层 Loader；运行中原生变更延后至重启。自包含 HTML 与 Node 代码不共享权限模型。不加载原生客户端 bundle，也不接受未实现的 agents 等贡献字段。
+
+## 世界书与工作台草稿
+
+`notara.worldbooks` 使用与技能相同的 `id/title/description/entry` 声明；entry 是 `{entries:[{title,content,keywords,enabled,always}]}` JSON，安装时完整校验。每份自动提供动态世界书工作台，不增加基础视图。条目最多60个，每条2000字，文档JSON上限50000字符。
+
+用户编辑副本独立存于 `worldbook`，启用存于 `worldbookuse`，默认每课关闭；包更新不覆盖副本、卸载不删除。世界书改动使用expectedVersion防止并发覆盖；导出可保留本地草稿。首次打开只读种子，首次保存才创建副本。
+
+世界书通过 `system-prompt/assemble` 的原生 `contexts` 接入。输入只取已被原生inbox claim的真实用户消息，工具/回执/排队尾部不会替换触发文本；按输入id固定一轮。NFKC和大小写不敏感的字面关键词匹配，最多8条/6000字符，完整条目选取，省略数明确。原生动态上下文表达当前背景，历史快照保留，不追溯抹除，不新增学生消息或学情。
+
+HTML声明 `permissions:["draft","save-note"]` 后可调用：
+
+```js
+const draft = await Notara.loadDraft(); // JSON值，无草稿时null
+await Notara.saveDraft({ parameter: 2, observation: '我的观察' });
+Notara.saveNote({ title: '实验笔记', body: '正文' }); // 宿主完整确认
+```
+
+草稿绑定课堂、工作台、固定digest，JSON上限64000字符，SDK串行保存并携带revision，失败保留当前输入；不自动重写卡片。Remote用JSON文本承载草稿（锁定Typert不能编码外部递归JSON类型），宿主重新解析并用Zod校验。消息仍检查opaque iframe来源/nonce/严格字段/权限。
+
+新增Remote：`readWorldbook/saveWorldbook/useWorldbook/previewWorldbook/readDraft/saveDraft`。世界书是用户背景、草稿是工作中内容；两者都不推进复习。自动多智能体课堂、实时工作台控制和世界书语义检索尚未实现。
 
 ## 原生斜杠菜单接缝
 

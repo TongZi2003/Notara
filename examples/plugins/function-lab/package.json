@@ -1,0 +1,7 @@
+{
+  "name":"@notara/function-lab","version":"1.0.0",
+  "files":["workbench.html","explore.md","README.md"],
+  "notara":{"apiVersion":1,"title":"函数实验台","description":"先预测，再拖动参数验证图像变化。",
+    "skills":[{"id":"explore","title":"探索函数变化","description":"围绕预测、单变量实验与边界检验学习函数。","entry":"explore.md"}],
+    "workbenches":[{"id":"lab","title":"函数实验台","description":"二次函数与正弦函数的参数实验。","entry":"workbench.html","permissions":["draft","save-note"]}]}
+}

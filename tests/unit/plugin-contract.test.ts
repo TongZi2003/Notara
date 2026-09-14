@@ -4,7 +4,7 @@ import { availableTree, readLayout, dockView, leaves, type WorkspaceView } from 
 test('plugin contributions reject unknown capability, duplicate ids and escaping paths', () => {
   const input = { name: '@notara/test', version: '1.0.0', notara: { apiVersion: 1, title: '练习', skills: [{ id: 'quiz', title: '出题', entry: 'quiz.md' }] } };
   expect(PluginManifestSchema.safeParse(input).success).toBe(true);
-  expect(PluginManifestSchema.safeParse({ ...input, notara: { ...input.notara, worldbooks: [] } }).success).toBe(false);
+  expect(PluginManifestSchema.safeParse({ ...input, notara: { ...input.notara, agents: [] } }).success).toBe(false);
   for (const entry of ['../escape.md', '/outside.md', 'nested/../../escape.md', 'nested\\outside.md']) expect(PluginManifestSchema.safeParse({ ...input, notara: { ...input.notara, skills: [{ ...input.notara.skills[0], entry }] } }).success).toBe(false);
   expect(PluginManifestSchema.safeParse({ ...input, notara: { ...input.notara, skills: [...input.notara.skills, ...input.notara.skills] } }).success).toBe(false);
 });

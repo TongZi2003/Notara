@@ -118,14 +118,32 @@ export class PluginManager {
     }
   }
   async dispose(): Promise<void> { await this.tail; this.closed = true; for (const item of this.loaded.values()) await item.dispose(); this.loaded.clear(); this.listeners.clear(); }
-  workbenches(): WorkbenchChoice[] { return this.active().flatMap(({ ref, version }) => version.manifest.notara.workbenches.map(item => ({ id: 'plugin-' + ref.slice(7) + '-' + item.id, pluginRef: ref, contributionId: item.id, digest: version.digest, title: item.title, description: item.description }))); }
+  workbenches(sessionId?: string): WorkbenchChoice[] {
+    const active = this.active(), choices = new Map<string, WorkbenchChoice>();
+    const add = (ref: string, version: PluginVersion, contributionId?: string): void => {
+      for (const item of [...version.manifest.notara.workbenches, ...version.manifest.notara.worldbooks]) {
+        if (contributionId && item.id !== contributionId) continue;
+        const id = 'plugin-' + ref.slice(7) + '-' + item.id;
+        choices.set(id, { id, pluginRef: ref, contributionId: item.id, digest: version.digest, title: item.title, description: item.description });
+      }
+    };
+    for (const { ref, version } of active) add(ref, version);
+    // A renamed/removed contribution must remain usable in lessons that pinned
+    // it. Disable/uninstall still removes all capabilities for that package.
+    if (sessionId) for (const pin of this.pins.list(this.context())) if (pin.data.sessionId === sessionId && active.some(row => row.ref === pin.data.pluginRef)) {
+      add(pin.data.pluginRef, this.get(pin.data.pluginRef, pin.data.digest), pin.data.contributionId);
+    }
+    return [...choices.values()];
+  }
   async openWorkbench(sessionId: string, id: string): Promise<WorkbenchContent> {
-    const choice = this.workbenches().find(item => item.id === id); if (!choice) throw new Error('plugin_not_enabled');
+    const choice = this.workbenches(sessionId).find(item => item.id === id); if (!choice) throw new Error('plugin_not_enabled');
     await this.host.studyforgeAccess.forSession(sessionId);
     const key = packageId(sessionId + ':' + id), context = this.context();
     let pin = this.pins.list(context).find(row => row.ref === 'pluginpin:' + key);
     if (!pin) pin = await this.pins.create({ ...context, operationId: 'pin:' + key }, key, { sessionId, pluginRef: choice.pluginRef, contributionId: choice.contributionId, digest: choice.digest });
-    const version = this.get(choice.pluginRef, pin.data.digest), contribution = version.manifest.notara.workbenches.find(entry => entry.id === choice.contributionId);
+    const version = this.get(choice.pluginRef, pin.data.digest), worldbook = version.manifest.notara.worldbooks.find(entry => entry.id === choice.contributionId);
+    if (worldbook) return { ...choice, digest: version.digest, title: worldbook.title, kind: 'worldbook', html: '', permissions: ['save-note'] };
+    const contribution = version.manifest.notara.workbenches.find(entry => entry.id === choice.contributionId);
     if (!contribution) throw new Error('plugin_workbench_missing');
     return { ...choice, digest: version.digest, title: contribution.title, html: this.body(choice.pluginRef, version.digest, contribution.entry), permissions: contribution.permissions };
   }

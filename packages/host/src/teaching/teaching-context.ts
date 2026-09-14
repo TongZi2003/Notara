@@ -17,6 +17,7 @@ import { lessonSubjects, subjectBrief, pinSubjects } from './subject-context.ts'
 import { studentContext } from '../learning-service.ts';
 import { installTaskSkills, taskChoices, taskLabels } from './task-skills.ts';
 import { activeArtifacts, installedBody } from '../creation/artifact-service.ts';
+import { worldbookContext } from '../plugins/worldbook-context.ts';
 
 export function teachingBody(host: Context, id: string): string {
   if (!id.startsWith('creation:') && !id.startsWith('plugin:')) return host.studyforgeTeachingCatalog.body(id);
@@ -92,6 +93,7 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
     && agent.session.header.origin !== 'subagent'
     && !!agent.session.header.cwd && realpathSync(agent.session.header.cwd) === host.studyforgeAccess.root;
   const disclose = installToolDisclosure(host, owns);
+  const worldbook = worldbookContext(host);
   host.effect(() => host.systemPrompt.section({
     name: 'studyforge:teaching', order: 20000,
     text: ({ agent }) => {
@@ -123,6 +125,12 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
       await pinSubjects(host, binding, host.studyforgeCourseMetadata.read(binding).data);
     }
     const result = await next();
+    if (owns(context.agent)) {
+      const background = await worldbook(context.agent);
+      // Native snapshots mark the current user-role reference context. Their
+      // history remains auditable; no extra student-authored message is created.
+      if (background) result.contexts.push({ name: 'notara:worldbook', text: background });
+    }
     // A saved-result notice resumes the same teacher with the same tools.
     // Confirmation/idempotency belong to the writers, not a blanket tool ban
     // that contradicts the receipt's instruction to continue teaching.

@@ -1,7 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { WorkbenchNoteSchema, type WorkbenchChoice, type WorkbenchContent } from '@studyforge/contracts/plugins';
+import { WorkbenchNoteSchema, WorkbenchDraftValueSchema, type WorkbenchChoice, type WorkbenchContent } from '@studyforge/contracts/plugins';
 import { notifyPlugins } from './PluginManager.tsx';
+import { WorldbookWorkbench } from './WorldbookWorkbench.tsx';
+import { draftSDK } from './workbench-sdk.ts';
 import './plugins.css';
 
 const CHANNEL = 'notara.workbench.v1';
@@ -15,18 +17,18 @@ async function themeFonts(family: string): Promise<string> {
     return fonts.get(file)!;
   }))).join('\n');
 }
-export function useWorkbenchChoices(ctx: Context): WorkbenchChoice[] {
+export function useWorkbenchChoices(ctx: Context, sessionId: string): WorkbenchChoice[] {
   const [rows, setRows] = useState<WorkbenchChoice[]>([]);
   useEffect(() => {
     let live = true;
-    const read = (): void => { void ctx.remote.studyforgePlugins.workbenches().then(reply => { if (live && reply.ok) setRows(reply.value); }).catch(() => {}); };
+    const read = (): void => { void ctx.remote.studyforgePlugins.workbenches({ sessionId }).then(reply => { if (live && reply.ok) setRows(reply.value); }).catch(() => {}); };
     read(); window.addEventListener('studyforge:learning-changed', read); window.addEventListener('focus', read);
     return () => { live = false; window.removeEventListener('studyforge:learning-changed', read); window.removeEventListener('focus', read); };
-  }, [ctx]);
+  }, [ctx, sessionId]);
   return rows;
 }
 export function workbenchDocument(content: string, nonce: string): string {
-  const sdk = `(function(){const nonce=${JSON.stringify(nonce)},channel=${JSON.stringify(CHANNEL)};let listeners=[];window.Notara={saveNote(note){parent.postMessage({channel,nonce,type:'save-note',note},'*')},onSaved(fn){listeners.push(fn);return()=>{listeners=listeners.filter(item=>item!==fn)}}};const style=document.createElement('style');document.head.append(style);addEventListener('message',event=>{if(event.source!==parent||event.data?.channel!==channel||event.data?.nonce!==nonce)return;const data=event.data;if(data.type==='theme'){for(const [key,value] of Object.entries(data.tokens))document.documentElement.style.setProperty(key,value);document.documentElement.dataset.theme=data.theme;style.textContent=data.fonts||'';}if(data.type==='saved')listeners.forEach(fn=>fn({title:data.title}));});parent.postMessage({channel,nonce,type:'ready'},'*');})();`;
+  const sdk = `(function(){const nonce=${JSON.stringify(nonce)},channel=${JSON.stringify(CHANNEL)};let listeners=[];window.Notara={saveNote(note){parent.postMessage({channel,nonce,type:'save-note',note},'*')},onSaved(fn){listeners.push(fn);return()=>{listeners=listeners.filter(item=>item!==fn)}}};${draftSDK()}const style=document.createElement('style');document.head.append(style);addEventListener('message',event=>{if(event.source!==parent||event.data?.channel!==channel||event.data?.nonce!==nonce)return;const data=event.data;if(data.type==='theme'){for(const [key,value] of Object.entries(data.tokens))document.documentElement.style.setProperty(key,value);document.documentElement.dataset.theme=data.theme;style.textContent=data.fonts||'';}if(data.type==='saved')listeners.forEach(fn=>fn({title:data.title}));});parent.postMessage({channel,nonce,type:'ready'},'*');})();`;
   return '<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data: blob:; font-src data:; connect-src \'none\'; form-action \'none\'; base-uri \'none\'"><style>html,body{margin:0;background:var(--notara-background,#fff);color:var(--notara-text,#222);font:var(--notara-font-size,15px)/1.7 var(--notara-font,system-ui)}body{padding:18px;box-sizing:border-box}button,input,textarea,select{font:inherit;color:inherit;border:1px solid var(--notara-border,#ddd);border-radius:var(--notara-radius,8px);background:var(--notara-surface,#fff);padding:8px;box-sizing:border-box;max-width:100%}button{cursor:pointer}button:hover{color:var(--notara-accent,#3468c0)}h1,h2,h3{font-size:var(--notara-heading-size,18px);font-weight:600}textarea{resize:vertical}</style><script>' + sdk + '</script></head><body>' + content + '</body></html>';
 }
 export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionId: string; id: string }): React.JSX.Element {
@@ -38,6 +40,7 @@ export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionI
   useEffect(() => {
     if (!content) return;
     let live = true;
+    const draftRequests = new Set<string>();
     const post = (data: object): void => { if (live) frame.current?.contentWindow?.postMessage({ channel: CHANNEL, nonce, ...data }, '*'); };
     const theme = async (): Promise<void> => {
       const css = getComputedStyle(document.body), family = css.getPropertyValue('--sf-ui-font');
@@ -49,6 +52,16 @@ export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionI
       if (event.source !== frame.current?.contentWindow || !event.data || event.data.channel !== CHANNEL || event.data.nonce !== nonce) return;
       const data = event.data;
       if (data.type === 'ready') { void theme(); return; }
+      if (data.type === 'draft-read' || data.type === 'draft-save') {
+        const save = data.type === 'draft-save', keys = save ? ['channel','nonce','type','requestId','value','expectedVersion'] : ['channel','nonce','type','requestId'];
+        if (Object.keys(data).some(key => !keys.includes(key)) || typeof data.requestId !== 'string' || !/^[0-9]{1,12}$/.test(data.requestId) || draftRequests.has(data.requestId)) return;
+        if (!content.permissions.includes('draft') || draftRequests.size >= 8 || save && (!Number.isSafeInteger(data.expectedVersion) || data.expectedVersion < 0 || !WorkbenchDraftValueSchema.safeParse(data.value).success)) { post({ type: 'draft-result', requestId: data.requestId, ok: false }); return; }
+        draftRequests.add(data.requestId);
+        const target = { sessionId, id, digest: content.digest };
+        const task = save ? ctx.remote.studyforgePlugins.saveDraft({ ...target, operationId: nonce + ':' + data.requestId, expectedVersion: data.expectedVersion, json: JSON.stringify(data.value) }) : ctx.remote.studyforgePlugins.readDraft(target);
+        void task.then(reply => post({ type: 'draft-result', requestId: data.requestId, ...(reply.ok ? { ok: true, value: { revision: reply.value.revision, value: JSON.parse(reply.value.json) } } : { ok: false }) })).catch(() => post({ type: 'draft-result', requestId: data.requestId, ok: false })).finally(() => draftRequests.delete(data.requestId));
+        return;
+      }
       if (data.type !== 'save-note' || !content.permissions.includes('save-note') || pendingRef.current) return;
       if (Object.keys(data).some(key => !['channel','nonce','type','note'].includes(key))) return;
       const note = WorkbenchNoteSchema.safeParse(data.note); if (!note.success) { setNotice('笔记内容不完整或过长，请在工作台中调整。'); return; }
@@ -57,7 +70,8 @@ export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionI
     window.addEventListener('message', onMessage);
     const observer = new MutationObserver(() => { void theme(); }); observer.observe(document.body, { attributes: true, attributeFilter: ['data-sf-style','data-sf-scheme','data-sf-size','data-sf-tone','data-ds-dark-theme'] }); void theme();
     return () => { live = false; window.removeEventListener('message', onMessage); observer.disconnect(); };
-  }, [content, nonce]);
+  }, [content, nonce, ctx, sessionId, id]);
+  if (content?.kind === 'worldbook') return <WorldbookWorkbench ctx={ctx} sessionId={sessionId} id={id} />;
   return <section className="sf-plugin-workbench">
     {content ? <iframe ref={frame} title={content.title} sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={srcDoc} /> : <p role="status">{notice || '正在打开工作台…'}</p>}
     {content && notice && <p role="status">{notice}</p>}

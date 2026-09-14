@@ -5,7 +5,7 @@ import { mkdir, readdir, readFile, writeFile, copyFile, realpath, stat, rm } fro
 import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { initProfile, resolveProfileDir, readProfileManifest, resolveBundleDir } from '@deepseek-ai/dsh-app-boot';
-import { PluginManifestSchema, PluginSourceSchema, type PluginSource, type PluginVersion } from '@studyforge/contracts/plugins';
+import { PluginManifestSchema, PluginSourceSchema, WorldbookDocumentSchema, type PluginSource, type PluginVersion } from '@studyforge/contracts/plugins';
 
 const require = createRequire(import.meta.url);
 export const dshAnchor = require.resolve('@deepseek-ai/dsh/package.json');
@@ -29,7 +29,7 @@ export function readPluginText(workspace: string, version: PluginVersion, entry:
 export async function runPackageManager(profileHome: string, profile: string, source: string): Promise<void> {
   await new Promise<void>((resolveDone, reject) => {
     const child = spawn(process.execPath, [dshBin, 'plugin', '--profile', profile, 'add', 'file:' + source, '--ignore-scripts', '--config.manage-package-manager-versions=false', '--config.confirmModulesPurge=false'], {
-      cwd: profileHome, env: { ...process.env, DSH_HOME: profileHome, DSH_TELEMETRY_DISABLED: '1', CI: 'true' }, stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: profileHome, env: { ...process.env, DSH_HOME: profileHome, DSH_TELEMETRY_DISABLED: '1', COREPACK_ENABLE_AUTO_PIN: '0', CI: 'true' }, stdio: ['ignore', 'pipe', 'pipe'],
     });
     // Keep dependency-manager diagnostics out of student-visible Remote errors.
     child.stdout.resume(); child.stderr.resume();
@@ -80,12 +80,13 @@ export async function preparePackage(workspace: string, input: PluginSource): Pr
     if (raw.dsh?.client) throw new Error('plugin_native_client_unsupported');
     const manifest = PluginManifestSchema.parse({ name: raw.name, version: raw.version, notara: raw.notara });
     const files = await inventory(packageRoot);
-    const all = [...manifest.notara.skills, ...manifest.notara.teaching, ...manifest.notara.subjects, ...manifest.notara.workbenches];
+    const all = [...manifest.notara.skills, ...manifest.notara.teaching, ...manifest.notara.subjects, ...manifest.notara.workbenches, ...manifest.notara.worldbooks];
     if (!all.length && !raw.dsh?.bundle?.patch) throw new Error('plugin_empty');
     for (const entry of all) {
       const match = files.find(file => file.path === entry.entry);
       if (!match || (await stat(join(packageRoot, entry.entry))).size > 1_000_000 || !(await readFile(join(packageRoot, entry.entry), 'utf8')).trim()) throw new Error('plugin_entry_missing');
     }
+    for (const entry of manifest.notara.worldbooks) WorldbookDocumentSchema.parse(JSON.parse(await readFile(join(packageRoot, entry.entry), 'utf8')));
     const version: PluginVersion = { manifest, digest: hash(JSON.stringify(files)), snapshot, files, native: !!raw.dsh?.bundle?.patch,
       packagePath: relative(root, packageRoot).split(sep).join('/'), profilePath: relative(root, profile).split(sep).join('/'), installedAt: new Date().toISOString() };
     await writeFile(join(root, 'candidate.json'), JSON.stringify(version), { mode: 0o600 });

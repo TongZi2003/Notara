@@ -69,7 +69,8 @@ import { StudyForgeHandoffs } from './handoff-service.ts';
 import { registerHandoffTools } from './tools/handoff-tools.ts';
 import { CreationRecordSchema, InstalledArtifactSchema } from '@studyforge/contracts/creation';
 import { StudyForgeCreation, installCreationContext } from './creation-service.ts';
-import { PluginRecordSchema, PluginPinSchema } from '@studyforge/contracts/plugins';
+import { PluginRecordSchema, PluginPinSchema, WorldbookRecordSchema, WorldbookUseSchema, WorkbenchDraftSchema } from '@studyforge/contracts/plugins';
+import { WorkbenchData } from './plugins/workbench-data.ts';
 import { PluginManager } from './plugins/plugin-manager.ts';
 import { StudyForgePlugins } from './plugins-service.ts';
 export { StudyForgePlugins } from './plugins-service.ts';
@@ -109,6 +110,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const pluginPins = await owner.collection('pluginpin', PluginPinSchema);
     const plugins = new PluginManager(ctx, pluginRecords, pluginPins);
     ctx.effect(() => ctx.reflect.provide('studyforgePluginsManager', plugins));
+    const workbenchData = new WorkbenchData(ctx, await owner.collection('worldbook', WorldbookRecordSchema), await owner.collection('worldbookuse', WorldbookUseSchema), await owner.collection('workbenchdraft', WorkbenchDraftSchema));
+    ctx.effect(() => ctx.reflect.provide('studyforgeWorkbenchData', workbenchData));
     ctx.effect(() => () => plugins.dispose());
     ctx.plugin(StudyForgePlugins);
 

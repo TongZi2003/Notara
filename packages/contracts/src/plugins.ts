@@ -6,9 +6,10 @@ export const PluginCapabilitiesSchema = z.object({
   apiVersion: z.literal(1), title: z.string().trim().min(1).max(160), description: z.string().max(2000).default(''),
   skills: z.array(Contribution).max(30).default([]), teaching: z.array(Contribution).max(20).default([]),
   subjects: z.array(Contribution.extend({ subjects: z.array(z.string().trim().min(1).max(80)).min(1).max(12) })).max(20).default([]),
-  workbenches: z.array(Contribution.extend({ permissions: z.array(z.literal('save-note')).max(1).default([]) })).max(12).default([]),
+  workbenches: z.array(Contribution.extend({ permissions: z.array(z.enum(['save-note', 'draft'])).max(2).default([]) })).max(12).default([]),
+  worldbooks: z.array(Contribution).max(8).default([]),
 }).strict().superRefine((value, ctx) => {
-  const all = [...value.skills, ...value.teaching, ...value.subjects, ...value.workbenches];
+  const all = [...value.skills, ...value.teaching, ...value.subjects, ...value.workbenches, ...value.worldbooks];
   if (new Set(all.map(entry => entry.id)).size !== all.length) ctx.addIssue({ code: 'custom', message: 'contribution ids must be unique' });
 });
 export const PluginManifestSchema = z.object({
@@ -40,6 +41,22 @@ export type PluginRecord = z.infer<typeof PluginRecordSchema>;
 export interface PluginView { ref: string; revision: number; name: string; title: string; description: string; version: string; digest: string; enabled: boolean; native: boolean; state: 'installed' | 'enabled' | 'failed' | 'restart-required'; issue?: string; manifest: PluginManifest; creationRef?: string }
 export interface PluginCandidate { candidateId: string; manifest: PluginManifest; digest: string; native: boolean; current?: PluginView }
 export interface WorkbenchChoice { id: string; pluginRef: string; contributionId: string; digest: string; title: string; description: string }
-export interface WorkbenchContent extends WorkbenchChoice { html: string; permissions: string[] }
+export interface WorkbenchContent extends WorkbenchChoice { html: string; permissions: string[]; kind?: 'html' | 'worldbook' }
 export const PluginPinSchema = z.object({ sessionId: z.string(), pluginRef: z.string(), contributionId: z.string(), digest: z.string() }).strict();
 export const WorkbenchNoteSchema = z.object({ title: z.string().trim().min(1).max(160), body: z.string().trim().min(1).max(100_000) }).strict();
+export const WorldbookEntrySchema = z.object({
+  title: z.string().trim().min(1).max(120), content: z.string().trim().min(1).max(2000),
+  keywords: z.array(z.string().trim().min(1).max(80)).max(20), enabled: z.boolean(), always: z.boolean(),
+}).strict();
+export const WorldbookDocumentSchema = z.object({ entries: z.array(WorldbookEntrySchema).max(60) }).strict()
+  .refine(value => JSON.stringify(value).length <= 50_000, 'worldbook_too_large');
+export type WorldbookDocument = z.infer<typeof WorldbookDocumentSchema>;
+export const WorldbookRecordSchema = z.object({ id: z.string(), document: WorldbookDocumentSchema }).strict();
+export const WorldbookUseSchema = z.object({ sessionId: z.string(), id: z.string(), enabled: z.boolean() }).strict();
+export interface WorldbookView { document: WorldbookDocument; revision: number; enabled: boolean; useRevision: number }
+export interface WorldbookSelection { entries: (WorldbookDocument['entries'][number] & { book: string })[]; omitted: number; text: string }
+export const WorkbenchDraftValueSchema = z.json().refine(value => JSON.stringify(value).length <= 64_000, 'draft_too_large');
+export type WorkbenchDraftValue = z.infer<typeof WorkbenchDraftValueSchema>;
+export const WorkbenchDraftSchema = z.object({ sessionId: z.string(), id: z.string(), digest: z.string(), value: WorkbenchDraftValueSchema }).strict();
+/** JSON travels as text because the pinned Typert generator rejects external recursive JSONType. */
+export interface WorkbenchDraftView { revision: number; json: string }

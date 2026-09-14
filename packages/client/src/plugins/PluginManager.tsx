@@ -8,7 +8,7 @@ export const notifyPlugins = (): void => { window.dispatchEvent(new Event('study
 const STATUS = { enabled: '已启用', installed: '已安装 · 未启用', failed: '加载失败', 'restart-required': '需要重启' };
 const names = (plugin: PluginCandidate | PluginView): { kind: string; title: string }[] => {
   const value = plugin.manifest.notara;
-  return [...value.skills.map(row => ({ kind: '技能', title: row.title })), ...value.workbenches.map(row => ({ kind: '工作台', title: row.title })), ...value.teaching.map(row => ({ kind: '教学模式', title: row.title })), ...value.subjects.map(row => ({ kind: '科目教法', title: row.title }))];
+  return [...value.skills.map(row => ({ kind: '技能', title: row.title })), ...value.workbenches.map(row => ({ kind: '工作台', title: row.title })), ...value.worldbooks.map(row => ({ kind: '世界书', title: row.title })), ...value.teaching.map(row => ({ kind: '教学模式', title: row.title })), ...value.subjects.map(row => ({ kind: '科目教法', title: row.title }))];
 };
 async function base64(file: File): Promise<string> {
   if (file.size > 30_000_000) throw new Error('插件包不能超过 30 MB。');
