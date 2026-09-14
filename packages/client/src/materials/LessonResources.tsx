@@ -25,7 +25,7 @@ import { CardDetail } from '../cards/CardDetail.tsx';
 import { KnowledgeEditor } from '../cards/KnowledgeEditor.tsx';
 import { LessonImport } from '../classroom/LessonImport.tsx';
 import { Mindmap, type MindNode } from './mindmap.tsx';
-import { kindLabel, lessonMindProjection, positionLabel, rowKey, versionKeyOf } from './lesson-materials-mindmap.ts';
+import { kindLabel, lessonMindProjection, positionLabel, versionKeyOf } from './lesson-materials-mindmap.ts';
 import { closeSheet, emptyDeck, lessonDecks, lessonRelations, openSheet, parentTrail, type DeckContent } from './lesson-deck.ts';
 import { bookNodeIntent, breakdownLabel, type BreakdownAction } from './book-breakdown.ts';
 import { SourcePane, type SourcePaneFace } from './SourcePane.tsx';
@@ -209,8 +209,8 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
   }, [deck.active, deck.sheets, graph, projection]);
   // Reopening the native deck restores navigation, then reads these books anew.
   useEffect(() => {
-    for (const row of rows) if (row.source && expanded.includes(rowKey(row)) && !structures.has(versionKeyOf(row.source.materialId, row.source.versionId))) readBook(row.source);
-  }, [rows, expanded, structures]);
+    for (const [key, row] of projection.rows) if (row.source && expanded.includes(key) && !structures.has(versionKeyOf(row.source.materialId, row.source.versionId))) readBook(row.source);
+  }, [projection.rows, expanded, structures]);
 
   /**
    * A saved structure moves when 继续拆解's confirmation lands (the skeleton was

@@ -113,7 +113,8 @@ function actionCopy(name: string, args: Fields, result: Fields): string {
       const changed = fields(patch, { title: '标题', front: '卡面', sections: '卡背', notes: '笔记', body: '正文', tags: '标签', sources: '来源', chapter: '章节' });
       return `修改${titleOf(result) || (name === 'update_card' ? '卡片' : '方法笔记')}${changed ? `的${changed}` : ''}`;
     }
-    case 'propose_card': return args.kind === 'method' ? '准备收录锦囊' : quoted(args.title) ? `准备卡片${quoted(args.title)}` : base;
+    case 'propose_card': return args.kind === 'method' ? '准备收录锦囊' : args.kind === 'cards' && Array.isArray(args.cards)
+      ? `整理${quoted(args.title)}的 ${args.cards.length} 张待确认卡片` : quoted(args.title) ? `准备卡片${quoted(args.title)}` : base;
     case 'record_review': case 'propose_review': return ['忘', '糊', '牢', '涉', '初'].includes(String(args.mark)) ? `将这次复习记为“${args.mark}”` : base;
     case 'propose_handoff': return `${args.kind === 'revise' ? '更正' : '整理'}课后小结${quoted(args.title)}`;
     case 'propose_route': return args.action === 'add' && array(args.nodes).length ? `安排接下来的 ${array(args.nodes).length} 节课程` : args.action === 'edit' ? `调整课程${quoted(patch.title)}` : base;

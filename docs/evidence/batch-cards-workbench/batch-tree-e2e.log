@@ -1,0 +1,88 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/card-batch-confirmation.spec.ts tests/e2e/workbench-hierarchy.spec.ts
+
+
+Running 2 tests using 1 worker
+
+(node:11703) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/card-batch-confirmation.spec.ts:8:1 › a batch is a compact selectable checklist, with individual edits and one save after reload (24.1s)
+(node:11766) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  2 tests/e2e/workbench-hierarchy.spec.ts:12:1 › a book has one tree, cards stay inside collapsed chapters, and page references open their own page (27.1s)
+
+
+  1) tests/e2e/card-batch-confirmation.spec.ts:8:1 › a batch is a compact selectable checklist, with individual edits and one save after reload
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByTestId('inline-proposal').filter({ hasText: '和差公式 · 三道原题' }).getByTestId('proposal-preview')
+    Expected: 3
+    Received: 0
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveCount" getByTestId('inline-proposal').filter({ hasText: '和差公式 · 三道原题' }).getByTestId('proposal-preview') with timeout 15000ms
+      - waiting for getByTestId('inline-proposal').filter({ hasText: '和差公式 · 三道原题' }).getByTestId('proposal-preview')
+        34 × locator resolved to 0 elements
+           - unexpected value "0"
+
+
+      14 |     cards: ['展开两角和', '配角求值', '判断象限'].map(title => ({ title, front: '保留原题条件。\n'.repeat(12), sections: [{ title: '思路', body: '先观察角之间的关系。' }] })) } }));
+      15 |   const proposal = page.getByTestId('inline-proposal').filter({ hasText: '和差公式 · 三道原题' });
+    > 16 |   await expect(proposal.getByTestId('proposal-preview')).toHaveCount(3);
+         |                                                          ^
+      17 |   await expect(proposal.getByTestId('proposal-front')).toHaveCount(0);
+      18 |   await expect(proposal.getByTestId('proposal-confirm-all')).toHaveText('保存选中 3 张');
+      19 |   expect(value(await client.rpc<CardView[]>('studyforgeLearning/cards', {}))).toEqual([]);
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/card-batch-confirmation.spec.ts:16:58
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:11709) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/card-batch-confirmation-a--3b355-s-and-one-save-after-reload/error-context.md
+
+  2) tests/e2e/workbench-hierarchy.spec.ts:12:1 › a book has one tree, cards stay inside collapsed chapters, and page references open their own page
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  locator('[data-composer-input]')
+    Expected: "true"
+    Received: "false"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveAttribute" locator('[data-composer-input]') with timeout 15000ms
+      - waiting for locator('[data-composer-input]')
+        34 × locator resolved to <div tabindex="0" role="textbox" data-phase="inert" class="uV2eYG_input" aria-haspopup="menu" aria-expanded="true" aria-multiline="true" contenteditable="false" data-composer-input="true" aria-label="Choose workspace" data-placeholder="Choose a workspace to start"></div>
+           - unexpected value "false"
+
+
+       at fixtures/classroom.ts:84
+
+      82 |   // Native preparation blocks (e.g. loading this message's source crops)
+      83 |   // explicitly make the composer inert until its visible reference is ready.
+    > 84 |   await expect(input).toHaveAttribute('contenteditable', 'true');
+         |                       ^
+      85 |   await page.keyboard.insertText(text);
+      86 | }
+      87 | export async function sendInput(page: Page, text: string): Promise<void> {
+        at typeInput (/Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/fixtures/classroom.ts:84:23)
+        at sendInput (/Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/fixtures/classroom.ts:88:3)
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/workbench-hierarchy.spec.ts:24:50
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:11773) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/workbench-hierarchy-a-book-7852a-erences-open-their-own-page/error-context.md
+
+  2 failed
+    tests/e2e/card-batch-confirmation.spec.ts:8:1 › a batch is a compact selectable checklist, with individual edits and one save after reload
+    tests/e2e/workbench-hierarchy.spec.ts:12:1 › a book has one tree, cards stay inside collapsed chapters, and page references open their own page

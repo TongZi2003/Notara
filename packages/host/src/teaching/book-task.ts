@@ -36,7 +36,7 @@ export function bookTaskInstructions(task: BookBreakdownIntent): string {
     `本次节点操作：${task.action === 'cards' ? '拆成题卡' : '细分目录'}。目标：${task.nodePath ?? '书根'}。`,
     '固定原件与完整范围：' + JSON.stringify({ material: task.material, sources: task.sources }),
     task.action === 'cards'
-      ? '先用list_cards按materialId和chapter检查已有卡，再read_material逐题读取上述原文范围。用propose_card提交普通题卡；sources必须准确指向这个原件版本，chapter省略时Host挂回所选章节。不要改成讲解、测验或另排目录，不用register_cards绕过确认。可用原生subagent帮忙读取、分题，只把已读材料和制卡要求交给它；它返回草稿，由你核对后提案。'
+      ? '先用list_cards按materialId和chapter检查已有卡，再read_material逐题读取上述原文范围。同批读清的题卡放进一次propose_card(kind=cards, title, cards)调用，学生可勾选后一起批准；不要逐题调用propose_card。sources必须准确指向这个原件版本，chapter省略时Host挂回所选章节。不要改成讲解、测验或另排目录，不用register_cards绕过确认。可用原生subagent帮忙读取、分题，只把已读材料和制卡要求交给它；它返回草稿，由你核对后合成一批提案。'
       : '读取已有目录和范围内原文，用propose_skeleton提出有用的下一层目录，保持其他分支。只看目录得到的父节点detail=outline，读清并细化的实际片段detail=refined；父章节整段不代表全章整理完成。',
     '这里只授权准备提案；学生确认后才保存。不要因为保存回执切换活动。',
   ].join('\n');

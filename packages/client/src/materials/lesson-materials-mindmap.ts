@@ -39,7 +39,7 @@ export function bookHint(node: BookNode, all?: readonly BookNode[]): string {
   const suffix = count === undefined ? '' : count ? ` · ${String(count)} 张题卡` : ' · 尚无题卡';
   switch (node.kind) {
     case 'book': return '书' + suffix;
-    case 'section': return (node.detail === 'refined' ? '已细化' : '目录轮廓') + (node.sources[0] ? ' · ' + positionLabel(node.sources[0].locator) : '') + suffix;
+    case 'section': return (node.detail === 'refined' ? '已细化' : '目录轮廓') + (node.sources.length ? ' · ' + [...new Set(node.sources.map(source => positionLabel(source.locator)))].join('、') : '') + suffix;
     case 'card': return '卡片';
     case 'knowledge': return '知识';
   }
@@ -75,7 +75,20 @@ export interface LessonMindInput {
 /** The lesson's materials as map nodes: one node per real row, books open into their own tree. */
 export function lessonMindProjection(input: LessonMindInput): LessonMindProjection {
   const nodes: MindNode[] = [], rows = new Map<string, LessonResource>(), books = new Map<string, BookNode>(), taken = new Map<string, number>();
-  for (const row of input.rows) {
+  // A page reference is a position inside one immutable book, not another
+  // copy of the book's entire tree. Keep its exact anchor as a leaf for reading.
+  const bookRows = new Map<string, LessonResource>();
+  const isBookRow = (row: LessonResource): boolean => row.kind === 'material' && row.source !== null
+    && (input.mediaTypeOf(row.source.materialId) === undefined || isBookFormat(input.mediaTypeOf(row.source.materialId)!));
+  for (const row of input.rows) if (isBookRow(row) && row.source) {
+    const version = versionKeyOf(row.source.materialId, row.source.versionId);
+    const prior = bookRows.get(version);
+    bookRows.set(version, { ...row, tabKey: `material:${version}`, title: input.materialTitleOf?.(row.source.materialId) ?? row.title,
+      source: { materialId: row.source.materialId, versionId: row.source.versionId }, quote: null,
+      origins: [...(prior?.origins ?? []), ...row.origins] });
+  }
+  const grouped = [...bookRows.values(), ...input.rows.filter(row => !isBookRow(row) || row.source?.locator !== undefined)];
+  for (const row of grouped) {
     // Settings, plans and closeout belong to the lesson overview. Only
     // readable learning material becomes a node in this map.
     if (!['material', 'card', 'knowledge', 'diagram'].includes(row.kind)) continue;
@@ -88,15 +101,16 @@ export function lessonMindProjection(input: LessonMindInput): LessonMindProjecti
     rows.set(key, row);
     const mediaType = row.source === null ? undefined : input.mediaTypeOf(row.source.materialId);
     const structure = row.source === null ? undefined : input.structures.get(versionKeyOf(row.source.materialId, row.source.versionId));
-    const book = row.source !== null && (mediaType === undefined || isBookFormat(mediaType));
-    const children = structure === undefined ? [] : openBook(nodes, books, structure, key, `${key}/`);
+    const parentBook = isBookRow(row) && row.source?.locator ? bookRows.get(versionKeyOf(row.source.materialId, row.source.versionId)) : undefined;
+    const book = row.kind === 'material' && row.source !== null && !parentBook && (mediaType === undefined || isBookFormat(mediaType));
+    const children = !book || structure === undefined ? [] : openBook(nodes, books, structure, key, `${key}/`);
     const root = book ? structure?.nodes.find(node => node.kind === 'book') : undefined;
     nodes.push({
-      key, title: row.title ?? libraryTitle(row, input) ?? kindLabel(row.kind), kind: rowKind(row, book), hint: [rowHint(row), root && bookHint(root, structure!.nodes)].filter(Boolean).join(' · '),
-      parent: undefined, children: [...children], ...(book && structure === undefined ? { expandable: true } : {}),
+      key, title: parentBook && row.source?.locator ? positionLabel(row.source.locator) : row.title ?? libraryTitle(row, input) ?? kindLabel(row.kind), kind: rowKind(row, book), hint: [rowHint(row), root && bookHint(root, structure!.nodes)].filter(Boolean).join(' · '),
+      parent: parentBook ? rowKey(parentBook) : undefined, children: [...children], ...(book && structure === undefined ? { expandable: true } : {}),
     });
   }
-  return { nodes, rows, books };
+  return { nodes: nodes.map(node => ({ ...node, children: [...new Set([...node.children, ...nodes.filter(child => child.parent === node.key).map(child => child.key)])] })), rows, books };
 }
 
 /**

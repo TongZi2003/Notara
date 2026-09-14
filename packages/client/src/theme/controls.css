@@ -34,6 +34,18 @@ body[data-sf-workspace] [data-slot="conversation.input.right"]{flex:none;gap:2px
 body[data-sf-workspace] [data-slot="conversation.input.model"]{min-width:0;flex:0 1 auto}
 body[data-sf-workspace] :is(.sf-learning-mode,.sf-subject-picker){flex:none}
 .sf-control-menu .sf-subject-menu{position:static;inset:auto;width:auto;max-width:none;max-height:none;padding:0;background:none;border:0;border-radius:0;box-shadow:none}.sf-control-menu .sf-subject-menu label{overflow-wrap:anywhere}.sf-control-menu .sf-subject-menu form{gap:5px}.sf-control-menu .sf-subject-menu form input{width:100%;flex:1;min-width:0}.sf-control-menu .sf-subject-menu form button{flex:none}
+/* One batch is a checklist; card faces unfold only when the student opens them. */
+.sf-proposal-batch-bar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 0;color:var(--nb-pencil);font:13px/20px var(--sf-ui-font,system-ui)}
+.sf-proposal-batch-bar>span{margin-right:auto}.sf-proposal-batch-bar label{display:flex;align-items:center;gap:6px;cursor:pointer}.sf-proposal-batch-bar .sf-action{white-space:nowrap}
+body[data-sf-notebook=on] .sf-proposal-batch-items>.sf-proposal-item{margin:0;border-top:1px solid var(--nb-rule)}
+.sf-proposal-batch-row{display:flex;align-items:center;gap:10px;min-width:0;padding:3px 0}
+.sf-proposal-batch-row>input,.sf-proposal-batch-bar input{width:16px;height:16px;flex:none;accent-color:var(--nb-pen);cursor:pointer}
+.sf-proposal-batch-preview{flex:1;min-width:0;display:flex;align-items:center;gap:10px;text-align:left;min-height:44px;padding:8px 6px;border:0;border-radius:8px;background:transparent;color:var(--nb-ink);cursor:pointer;font:13px/20px var(--sf-ui-font,system-ui)}
+.sf-proposal-batch-preview:hover{background:color-mix(in srgb,var(--nb-pen) 5%,transparent)}
+.sf-proposal-batch-title{flex:1;min-width:0;overflow-wrap:anywhere}.sf-proposal-batch-status{flex:none;color:var(--nb-pencil);font-size:12px}
+.sf-proposal-batch-items [data-item-status=applied] .sf-proposal-batch-status{color:var(--nb-pen)}
+.sf-proposal-batch-items [data-item-status=failed] .sf-proposal-batch-status{color:var(--nb-seal)}
+body[data-sf-notebook=on] .sf-proposal-batch-items .sf-proposal-actions{margin-bottom:16px}
 .sf-branch-list{list-style:none;padding:0;margin:0}.sf-branch-list button{width:100%;white-space:normal;overflow-wrap:anywhere}.sf-branch-list button[aria-current=page]{color:var(--nb-pen);opacity:1;background:color-mix(in srgb,var(--nb-pen) 6%,transparent)}
 body[data-sf-notebook=on] [role=menu],body[data-sf-notebook=on] [role=listbox]{font:400 13px/20px var(--sf-ui-font)!important;border-radius:12px!important}
 body[data-sf-notebook=on] :is([role=menu],[role=listbox]) :is(button,span,label,small){font-family:var(--sf-ui-font)!important;font-size:13px!important;line-height:20px!important}

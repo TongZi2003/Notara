@@ -103,7 +103,9 @@ export async function observeEvidence(
 ): Promise<EvidenceInputRow> {
   const observation = await ctx.sessionQuery.observeSession(SessionId(sessionId));
   try {
-    const inherited = observation.events.findLastIndex(event => event.type === 'session/end-seed');
+    // Restoring this same session also appends end-seed, without inherited.
+    // Only a fork's inherited prefix belongs to another classroom.
+    const inherited = observation.events.findLastIndex(event => event.type === 'session/end-seed' && event.data.inherited === true);
     return await narrowEvidence(sessionId, observation.events.slice(inherited + 1), options.resolveObjects);
   } finally {
     observation[Symbol.dispose]();

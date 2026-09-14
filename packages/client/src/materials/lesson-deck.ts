@@ -32,16 +32,28 @@ export function closeSheet(state: DeckState, id: string): DeckState {
 export interface RelationEdge { readonly from: string; readonly to: string; readonly label: string }
 /** Follow only recorded links and source anchors. Relations are edges, never invented parents. */
 export function lessonRelations(base: LessonMindProjection, cards: ReadonlyMap<string, CardView>, pinned: ReadonlyMap<string, CardView>, expanded: readonly string[], titleOf: (id: string) => string | undefined, hierarchy: readonly string[] = base.nodes.map(node => node.key)) {
-  const visible = new Set(visibleMindNodes(base.nodes, hierarchy).map(node => node.key));
-  // Once a saved output is visible in its book, that is its node. Explicitly
-  // attached cards and fixed revisions remain separate reading references.
-  const inBook = new Map([...base.books].flatMap(([key, node]) => node.kind === 'card' && visible.has(key) ? [[node.target, key] as const] : []));
+  // A card remains owned by its book even while that branch is collapsed.
+  // Pinned old revisions keep their own reading reference.
+  const inBook = new Map([...base.books].flatMap(([key, node]) => node.kind === 'card' ? [[node.target, key] as const] : []));
   const aliases = new Map<string, string>();
   for (const [key, row] of base.rows) {
     const bookKey = row.target && inBook.get(row.target);
-    if (bookKey && row.kind === 'card' && row.cardVersion === undefined && row.origins.length > 0 && row.origins.every(origin => origin.from === 'output')) aliases.set(key, bookKey);
+    if (bookKey && row.kind === 'card' && row.cardVersion === undefined) aliases.set(key, bookKey);
   }
-  const nodes = base.nodes.filter(node => !aliases.has(node.key)), requests = new Map<string, LessonPaneRequest>(), views = new Map<string, CardView>();
+  // Before the lazy book read arrives, source-bound cards wait under that
+  // book. Once read, the authoritative chapter nodes above replace them.
+  const owned = new Map<string, string>();
+  for (const [key, row] of base.rows) {
+    if (row.kind !== 'card' || row.cardVersion !== undefined || !row.target || aliases.has(key)) continue;
+    const card = cards.get(row.target);
+    const book = base.nodes.find(node => node.kind === 'book' && card?.content.sources.some(source => source.materialId === base.rows.get(node.key)?.source?.materialId));
+    if (book) owned.set(key, book.key);
+  }
+  const nodes: MindNode[] = base.nodes.filter(node => !aliases.has(node.key)).map(node => ({ ...node,
+    parent: owned.get(node.key) ?? node.parent,
+    children: [...new Set([...node.children.filter(key => !aliases.has(key)), ...[...owned].filter(([, parent]) => parent === node.key).map(([key]) => key)])],
+  })), requests = new Map<string, LessonPaneRequest>(), views = new Map<string, CardView>();
+  const visible = new Set(visibleMindNodes(nodes, hierarchy).map(node => node.key));
   const relationsOpen = new Set(expanded.map(key => aliases.get(key) ?? key));
   for (const node of nodes) {
     const row = base.rows.get(node.key), book = base.books.get(node.key);

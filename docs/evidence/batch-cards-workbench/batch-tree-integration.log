@@ -1,0 +1,39 @@
+
+> studyforge-dsh@0.0.0 test:integration
+> vitest run --config vitest.integration.config.ts tests/integration/card-batch-confirmation.test.ts tests/integration/native-confirmation.test.ts tests/integration/confirmation-v2.test.ts tests/integration/tool-schema-projection.test.ts
+
+
+ RUN  v4.0.18 /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+
+stdout | tests/integration/tool-schema-projection.test.ts > every assembled tool the model received has an object root and a native-compliant registration
+{"initialTools":8,"initialSchemaBytes":7556,"loadedSchemaBytes":81934,"assembledTools":49,"studyforgeTools":39,"builtinTools":10,"projectedObjectUnionRoots":["propose_card","propose_handoff","propose_plan","propose_route","propose_set"],"plainObjectRoots":44,"names":["delegate_assistant","delegate_peer","delegate_problem","delegate_search","glob","grep","interrupt_agent","list_cards","list_materials","list_plans","list_sets","load_tools","note_memory","note_method","preview_region","propose_card","propose_handoff","propose_lesson_settings","propose_plan","propose_review","propose_route","propose_set","propose_skeleton","query_evidence","read","read_card","read_cards","read_handoff","read_image","read_lesson","read_material","read_memory","read_method","read_plan","read_route","read_set","read_skeleton","record_review","register_cards","revise_memory","revise_method","search_learning","search_memory","send_message","skill","subagent","update_card","web_fetch","web_search"],"nestedUntypedObjectUnionPaths":["delegate_problem.properties.sources.items.properties.locator","preview_region.properties.source.properties.locator","propose_card.oneOf[0].properties.sources.items.properties.locator","propose_card.oneOf[1].properties.cards.items.properties.sources.items.properties.locator","propose_lesson_settings.properties.lessonMaterials.properties.materials.items","propose_lesson_settings.properties.lessonMaterials.properties.materials.items.oneOf[0].properties.source.properties.locator","propose_plan.oneOf[0].properties.content","propose_plan.oneOf[0].properties.content.oneOf[0].properties.entries.items.properties.sources.items.properties.locator","propose_plan.oneOf[1].properties.patch.properties.entries.items.properties.sources.items.properties.locator","propose_route.oneOf[0].properties.nodes.items.properties.materials.properties.materials.items","propose_route.oneOf[0].properties.nodes.items.properties.materials.properties.materials.items.oneOf[0].properties.source.properties.locator","propose_route.oneOf[1].properties.patch.properties.materials.properties.materials.items","propose_route.oneOf[1].properties.patch.properties.materials.properties.materials.items.oneOf[0].properties.source.properties.locator","propose_skeleton.properties.change.properties.nodes.items.properties.sources.items.properties.locator","read_material.properties.source.properties.locator","register_cards.properties.cards.items.properties.sources.items.properties.locator","update_card.properties.patch.properties.sources.items.properties.locator"]}
+
+ ✓ |integration| tests/integration/tool-schema-projection.test.ts (1 test) 7135ms
+   ✓ every assembled tool the model received has an object root and a native-compliant registration  7135ms
+ ✓ |integration| tests/integration/confirmation-v2.test.ts (11 tests) 720ms
+ ❯ |integration| tests/integration/native-confirmation.test.ts (1 test | 1 failed) 12462ms
+   × native proposal survives restart, confirmation saves once and its plugin receipt never becomes student evidence 12462ms
+ ✓ |integration| tests/integration/card-batch-confirmation.test.ts (1 test) 17547ms
+   ✓ one native batch survives restart, saves only the displayed selection once, and delivers one combined receipt  17547ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |integration| tests/integration/native-confirmation.test.ts > native proposal survives restart, confirmation saves once and its plugin receipt never becomes student evidence
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/integration/native-confirmation.test.ts:43:26
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  1 failed | 13 passed (14)
+   Start at  10:41:10
+   Duration  25.98s (transform 182ms, setup 0ms, import 468ms, tests 37.86s, environment 0ms)

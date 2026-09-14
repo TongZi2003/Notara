@@ -114,10 +114,11 @@ export function ProposalInbox({ ctx, sessionId, callIds, inline, refreshToken, o
 function InlineProposal({ ctx, proposal, onChanged }: { ctx: Context; proposal: ProposalView; onChanged: (view: ProposalView) => void }): React.JSX.Element {
   const saved = proposal.items.every(item => item.status === 'applied');
   const rejected = proposal.items.every(item => item.status === 'rejected');
-  const [open, setOpen] = useState(!saved && !rejected);
-  useEffect(() => { if (saved || rejected) setOpen(false); }, [saved, rejected]);
+  const settled = proposal.items.every(item => item.status === 'applied' || item.status === 'rejected');
+  const [open, setOpen] = useState(!settled);
+  useEffect(() => { if (settled) setOpen(false); }, [settled]);
   return <details className="sf-inline-proposal" data-testid="inline-proposal" open={open} onToggle={event => setOpen(event.currentTarget.open)}>
-    <summary><span>{proposal.title}</span><span className="sf-note">{saved ? '已经保存' : rejected ? '已经取消' : '待你确认'}</span></summary>
+    <summary><span>{proposal.title}</span><span className="sf-note">{saved ? '已经保存' : rejected ? '已经取消' : settled ? `已保存 ${proposal.items.filter(item => item.status === 'applied').length} 项，其余已取消` : '待你确认'}</span></summary>
     <ProposalCard ctx={ctx} proposal={proposal} inline onChanged={onChanged} />
   </details>;
 }

@@ -14,7 +14,7 @@ import { canonicalPath } from '@studyforge/domain/access';
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeTrace: StudyForgeTrace; studyforgeThoughts: RecordStore<typeof ThoughtGraphSchema>; } }
 const idOf = (session: string): string => createHash('sha256').update(session).digest('hex');
 export function ownEvents(events: readonly SessionEvent[]): readonly SessionEvent[] {
-  const boundary = events.findLastIndex(event => event.type === 'session/end-seed');
+  const boundary = events.findLastIndex(event => event.type === 'session/end-seed' && event.data.inherited === true);
   return events.slice(boundary + 1);
 }
 function acyclic(nodes: readonly ThoughtNode[], edges: ThoughtGraph['edges']): void {

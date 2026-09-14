@@ -25,12 +25,20 @@ export const proposalOutput = () => ({ schema: toolSchema(ProposalViewSchema), r
 export function registerProposalTools(host: Context): void {
   const schema = z.discriminatedUnion('kind', [
     CardContentSchema.extend({ kind: z.literal('card') }).strict(),
+    z.object({ kind: z.literal('cards'), title: z.string().trim().min(1), cards: z.array(CardContentSchema).min(1) }).strict(),
     z.object({ kind: z.literal('method'), target: EntityRefSchema }).strict(),
   ]);
-  host.effect(() => host.tools.register({ name: 'propose_card', description: '向学生提案保存普通卡，或收录已保存的私人知识为锦囊。kind=card时填写作者内容；kind=method时选择刚读过的同一知识target，不复制成普通卡。确认前尚未入库，不替学生确认。', parameters: toolSchema(schema), output: proposalOutput(),
+  host.effect(() => host.tools.register({ name: 'propose_card', description: '向学生提案保存普通卡，或收录已保存的私人知识为锦囊。同批拆出的多张卡用kind=cards，填写批次标题title和cards数组，一次调用形成一份可勾选、一起批准的提案；不要逐卡调用。单张用kind=card填写作者内容；kind=method选择刚读过的同一知识target，不复制成普通卡。确认前尚未入库，不替学生确认。', parameters: toolSchema(schema), output: proposalOutput(),
     async execute(args, execution) {
       const input = schema.parse(args), prior = await existingProposal(host, execution);
       if (prior) return prior;
+      if (input.kind === 'cards') {
+        const context = await teacherContext(host, execution);
+        const cards = [];
+        for (const content of input.cards) cards.push(await bindTaskCard(host, execution, context, content));
+        return proposeFromTool(host, execution, { title: input.title,
+          items: cards.map(content => ({ target: null, baseline: null, effect: { kind: 'card-create', content } })) });
+      }
       if (input.kind === 'card') {
         const { kind: _kind, ...content } = input;
         const bound = await bindTaskCard(host, execution, await teacherContext(host, execution), content);

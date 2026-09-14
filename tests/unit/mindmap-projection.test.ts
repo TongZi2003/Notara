@@ -88,8 +88,9 @@ test('a lesson row is a book node only when the file really is a book, and cards
   const closed = lessonMindProjection({ rows, structures: new Map(), mediaTypeOf: id => types.get(id) });
   expect(closed.nodes.map(node => [node.key, node.kind, node.expandable])).toEqual([
     ['row:material:material:m1@v1', 'book', true],
-    ['row:card:card:standalone', 'card', undefined],
     ['row:material:material:m2@v2', 'book', true],
+    ['row:card:card:standalone', 'card', undefined],
+    ['row:material:material:m2@v2#1', 'material', undefined],
   ]);
   // The book is only a book because the library says so; a plain file never offers to open.
   const image = lessonMindProjection({ rows: [rows[2]!], structures: new Map(), mediaTypeOf: () => 'image/png' });
@@ -103,6 +104,21 @@ test('a lesson row is a book node only when the file really is a book, and cards
     .toEqual(['row:material:material:m1@v1/section:函数/定义域']);
   // The card inside the book is the book's own node, with its own target.
   expect(open.books.get('row:material:material:m1@v1/card:定义域卡片')).toMatchObject({ kind: 'card', target: 'card:定义域卡片' });
+});
+
+test('page references share one book tree but keep their distinct reading anchors', () => {
+  const rows: LessonResource[] = [1, 3].map(page => ({ kind: 'material', tabKey: `page:${page}`, target: null,
+    title: '函数原文', source: { materialId: 'm1', versionId: 'v1', locator: { kind: 'pdf', page } }, quote: null, origins: [{ from: 'message', messageId: `message:${page}` }] }));
+  const projection = lessonMindProjection({ rows, structures: new Map([['m1@v1', structure()]]), mediaTypeOf: () => 'application/pdf' });
+  expect(projection.nodes.filter(node => node.kind === 'book')).toHaveLength(1);
+  const root = projection.nodes.find(node => node.kind === 'book')!;
+  expect(visibleMindNodes(projection.nodes, []).map(node => node.key)).toEqual([root.key]);
+  const pages = visibleMindNodes(projection.nodes, [root.key]).filter(node => node.kind === 'material');
+  expect(pages.map(node => node.title)).toEqual(['第 1 页', '第 3 页']);
+  expect(pages.every(node => node.children.length === 0 && node.parent === root.key)).toBe(true);
+  expect(pages.map(node => projection.rows.get(node.key)?.source?.locator)).toEqual(rows.map(row => row.source?.locator));
+  const section = structure().nodes[1]!;
+  expect(bookHint({ ...section, sources: rows.map(row => row.source!) as typeof section.sources })).toContain('第 1 页、第 3 页');
 });
 
 test('lesson settings and closeout stay out of the material map', () => {

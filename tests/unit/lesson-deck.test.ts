@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { CardContentSchema, type CardView } from '@studyforge/contracts/cards';
 import { closeSheet, emptyDeck, lessonRelations, openSheet, parentTrail } from '../../packages/client/src/materials/lesson-deck.ts';
 import type { LessonMindProjection } from '../../packages/client/src/materials/lesson-materials-mindmap.ts';
+import { visibleMindNodes } from '../../packages/client/src/materials/mindmap-model.ts';
+import type { LessonResource } from '@studyforge/domain/lesson-resources';
 const card = (ref: string, links: string[] = [], version = 1): CardView => ({ ref, version, history: [], content: CardContentSchema.parse({ title: ref, links }) });
 const base = (view: CardView, pinned?: number): LessonMindProjection => ({
   nodes: [{ key: 'root', title: '书', kind: 'book', hint: '', children: ['card'] }, { key: 'card', title: view.ref, kind: 'card', hint: '', parent: 'root', children: [] }],
   books: new Map(), rows: new Map([['card', { kind: 'card', target: view.ref, title: view.ref, tabKey: 'card', source: null, quote: null, origins: [], ...(pinned === undefined ? {} : { cardVersion: pinned }) }]]),
 });
 describe('lesson deck navigation', () => {
-  it('saved outputs use the visible chapter node, while collapsed books and explicit fixed cards retain their entries', () => {
+  it('saved outputs stay inside collapsed books, while fixed old cards retain their reading references', () => {
     const a = card('card:a'), original = base(a);
     const row = original.rows.get('card')!;
     const projection: LessonMindProjection = { nodes: [...original.nodes, { key: 'output', kind: 'card', title: 'A', hint: '', children: [] }],
@@ -16,10 +18,27 @@ describe('lesson deck navigation', () => {
       rows: new Map([['output', { ...row, origins: [{ from: 'output', operationId: 'o1', revision: 1 }] }]]),
     };
     const graph = (hierarchy: string[]) => lessonRelations(projection, new Map([[a.ref, a]]), new Map(), [], () => undefined, hierarchy);
-    expect(graph([]).nodes.map(n => n.key)).toContain('output');
+    expect(graph([]).nodes.map(n => n.key)).not.toContain('output');
+    expect(visibleMindNodes(graph([]).nodes, []).map(n => n.key)).toEqual(['root']);
     expect(graph(['root']).nodes.map(n => n.key)).not.toContain('output');
     const fixed = { ...projection, rows: new Map([['output', { ...row, cardVersion: 1, origins: [{ from: 'course' as const }] }]]) };
     expect(lessonRelations(fixed, new Map([[a.ref, a]]), new Map(), [], () => undefined).nodes.map(n => n.key)).toContain('output');
+  });
+  it('source-bound inventory cards wait under unopened books; independent cards remain roots', () => {
+    const a = card('card:a'), standalone = card('card:independent');
+    const source = { materialId: 'm1', versionId: 'v1', locator: { kind: 'pdf' as const, page: 3 } };
+    const anchored = { ...a, content: { ...a.content, sources: [source] } };
+    const projection: LessonMindProjection = {
+      nodes: ['book', a.ref, standalone.ref].map(key => ({ key, title: key, kind: key === 'book' ? 'book' : 'card', hint: '', children: [] })), books: new Map(),
+      rows: new Map<string, LessonResource>([
+        ['book', { kind: 'material', tabKey: 'book', source: { materialId: 'm1', versionId: 'v1' }, target: null, title: '原文', quote: null, origins: [] }],
+        ...[a, standalone].map(view => [view.ref, { kind: 'card' as const, tabKey: view.ref, source: null, target: view.ref, title: view.ref, quote: null, origins: [] }] as const),
+      ]),
+    };
+    const graph = lessonRelations(projection, new Map([[a.ref, anchored], [standalone.ref, standalone]]), new Map(), [], () => undefined, []);
+    expect(visibleMindNodes(graph.nodes, []).map(n => n.key)).toEqual(['book', standalone.ref]);
+    expect(visibleMindNodes(graph.nodes, ['book']).map(n => n.key)).toEqual(['book', a.ref, standalone.ref]);
+    expect(parentTrail(graph.nodes, a.ref).map(n => n.key)).toEqual(['book']);
   });
   it('keeps concurrent pages, deduplicates exact addresses, and closes only the chosen page', () => {
     const a = { kind: 'card' as const, target: 'card:a', title: 'A', version: 1 };

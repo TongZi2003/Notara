@@ -168,7 +168,7 @@ test('every assembled tool the model received has an object root and a native-co
   // scalar or an unconstrained schema.
   const card = assembled!.find(tool => tool.name === 'propose_card')!;
   expect(card.parameters).toMatchObject({ type: 'object' });
-  expect((card.parameters.oneOf as { type?: unknown }[]).map(branch => branch.type)).toEqual(['object', 'object']);
+  expect((card.parameters.oneOf as { type?: unknown }[]).map(branch => branch.type)).toEqual(['object', 'object', 'object']);
 
   console.log(JSON.stringify({
     initialTools: initial.length,

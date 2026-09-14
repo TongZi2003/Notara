@@ -32,4 +32,7 @@ test('thought nodes bind actual messages, edits survive restart, cycles fail and
   expect(value(await client.rpc<CourseView>('studyforgeCourses/read', { input: child })).data).toMatchObject({ closure: null, subjects: ['物理'], teachingRef: 'feynman' });
   await runtime.restart(); client = await connectRuntime(runtime);
   expect((await read()).nodes.find(n => n.id === note.id)?.position).toEqual({ x: 350, y: 180 });
+  value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '接着研究系统边界。' }] } }));
+  await expect.poll(async () => (await read()).nodes.some(n => n.body.includes('接着研究系统边界'))).toBe(true);
+  expect((await read()).nodes.some(n => n.id === original.id)).toBe(true);
 }, 45_000);

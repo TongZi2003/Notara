@@ -1,0 +1,52 @@
+import { test, expect, enterClassroom, sendInput } from './fixtures/classroom.ts';
+import { connectRuntime } from '../fixtures/http-runtime.ts';
+import type { ProposalView } from '@studyforge/contracts/proposals';
+import type { CardView } from '@studyforge/contracts/cards';
+import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
+const value = <T,>(reply: RemoteResult<T>): T => { if (!reply.ok) throw new Error(JSON.stringify(reply.error)); return reply.value; };
+
+test('a batch is a compact selectable checklist, with individual edits and one save after reload', async ({ page, classroom }, info) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  const client = await connectRuntime(classroom);
+  await page.setViewportSize({ width: 1117, height: 747 });
+  await enterClassroom(page, classroom.authUrl);
+  await sendInput(page, '[tool]' + JSON.stringify({ name: 'propose_card', arguments: { kind: 'cards', title: '和差公式 · 三道原题',
+    cards: ['展开两角和', '配角求值', '判断象限'].map(title => ({ title, front: '保留原题条件。\n'.repeat(12), sections: [{ heading: '思路', body: '先观察角之间的关系。' }] })) } }));
+  const proposal = page.getByTestId('inline-proposal').filter({ hasText: '和差公式 · 三道原题' });
+  await expect(proposal.getByTestId('proposal-preview')).toHaveCount(3);
+  await expect(proposal.getByTestId('proposal-front')).toHaveCount(0);
+  await expect(proposal.getByTestId('proposal-confirm-all')).toHaveText('保存选中 3 张');
+  expect(value(await client.rpc<CardView[]>('studyforgeLearning/cards', {}))).toEqual([]);
+  await proposal.getByLabel('选择卡片：判断象限').uncheck();
+  await proposal.getByTestId('proposal-preview').first().click();
+  await proposal.getByTestId('proposal-edit').click();
+  await expect(proposal.getByTestId('proposal-confirm-all')).toBeDisabled();
+  await proposal.getByTestId('proposal-editor-title').fill('两角和的展开');
+  await proposal.getByTestId('proposal-editor-save').click();
+  await expect(proposal.getByTestId('proposal-preview').first()).toContainText('两角和的展开');
+  await proposal.getByTestId('proposal-preview').first().click();
+  await expect(proposal.getByTestId('proposal-confirm-all')).toHaveText('保存选中 2 张');
+  await page.screenshot({ path: info.outputPath('batch-checklist.png'), fullPage: true });
+  await page.setViewportSize({ width: 520, height: 844 });
+  await expect(proposal.getByTestId('proposal-confirm-all')).toBeVisible();
+  await expect.poll(async () => {
+    const bounds = await proposal.getByTestId('proposal-batch-bar').boundingBox();
+    return bounds !== null && bounds.x >= 0 && bounds.x + bounds.width <= 521;
+  }).toBe(true);
+  await page.screenshot({ path: info.outputPath('batch-mobile.png'), fullPage: true });
+  await proposal.getByTestId('proposal-confirm-all').click();
+  await expect.poll(async () => value(await client.rpc<CardView[]>('studyforgeLearning/cards', {})).length).toBe(2);
+  await expect(proposal.getByTestId('proposal-batch-bar')).toContainText('已保存 2 张');
+  await expect(proposal.getByTestId('proposal-confirm-all')).toBeDisabled();
+  await enterClassroom(page, classroom.authUrl);
+  await expect(proposal.getByTestId('proposal-batch-bar')).toContainText('已保存 2 张');
+  const last = proposal.getByTestId('proposal-item').last();
+  await expect(last).toHaveAttribute('data-item-status', 'pending');
+  await last.getByTestId('proposal-preview').click();
+  await last.getByTestId('proposal-reject').click();
+  await expect(proposal).not.toHaveAttribute('open');
+  await expect(proposal.locator('summary')).toContainText('已保存 2 项，其余已取消');
+  expect(value(await client.rpc<ProposalView[]>('studyforgeProposals/list', { input: {} })).flatMap(row => row.items.map(item => item.status))).toEqual(['applied', 'applied', 'rejected']);
+  expect(value(await client.rpc<CardView[]>('studyforgeLearning/cards', {}))).toHaveLength(2);
+  expect(errors).toEqual([]);
+});

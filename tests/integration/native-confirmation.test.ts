@@ -49,7 +49,7 @@ test('native proposal survives restart, confirmation saves once and its plugin r
   expect(last.messages.filter(message => message.source.kind === 'plugin' && message.source.plugin === 'studyforge')).toHaveLength(1);
   // Confirmation resumes the same teacher. It may read the saved result and
   // propose the next step; a receipt must not silently erase its tools.
-  expect(last.toolNames).toContain('read_skeleton');
+  expect(last.toolNames).toContain('read_lesson');
   expect(last.toolNames).toContain('read_material');
   expect(last.toolNames).toContain('propose_card');
   value(await client.rpc('studyforgeProposals/confirm', { input: request }));

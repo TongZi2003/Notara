@@ -50,6 +50,8 @@ export function ProposalCard({ ctx, proposal, inline = false, onChanged }: Propo
   const [showOriginal, setShowOriginal] = useState<string>();
   const [recheckedSkeleton, setRecheckedSkeleton] = useState<{ version: number; paths: string[] }>();
   const [editing, setEditing] = useState<string | undefined>(undefined);
+  const [excluded, setExcluded] = useState<ReadonlySet<string>>(() => new Set());
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const [draft, setDraft] = useState<{ title: string; front: string; back: string; body: string }>({ title: '', front: '', back: '', body: '' });
   const operationFor = useStableOperationId();
   const [catalogue, setCatalogue] = useState<Catalogue>();
@@ -70,6 +72,15 @@ export function ProposalCard({ ctx, proposal, inline = false, onChanged }: Propo
   }, [ctx, editing, proposal.ref]);
 
   const pending = proposal.items.filter(item => item.status === 'pending');
+  const cardBatch = proposal.items.length > 1 && proposal.items.every(item => item.draft.effect.kind === 'card-create');
+  const undecided = proposal.items.filter(item => item.status === 'pending' || item.status === 'failed');
+  const selected = undecided.filter(item => !excluded.has(item.id));
+  const savedCount = proposal.items.filter(item => item.status === 'applied').length;
+  function toggle(set: ReadonlySet<string>, id: string): ReadonlySet<string> {
+    const next = new Set(set);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  }
 
   function take(view: ProposalView): void {
     if (view.items.some(item => item.status === 'applied')) window.dispatchEvent(new Event('studyforge:learning-changed'));
@@ -190,13 +201,42 @@ export function ProposalCard({ ctx, proposal, inline = false, onChanged }: Propo
       <h3 data-testid="proposal-title">{proposal.title}</h3>
     </header>}
 
-    {pending.length > 1 && editing === undefined && <div className="sf-proposal-bulk">
+    {cardBatch && <div className="sf-proposal-batch-bar" data-testid="proposal-batch-bar">
+      <span>{proposal.items.length} 张卡片{savedCount > 0 ? ` · 已保存 ${savedCount} 张` : ''}</span>
+      {undecided.length > 0 && <>
+        <label><input type="checkbox" aria-label="全选待保存卡片" checked={selected.length === undecided.length}
+          ref={element => { if (element) element.indeterminate = selected.length > 0 && selected.length < undecided.length; }}
+          disabled={busy !== undefined || editing !== undefined}
+          onChange={event => setExcluded(event.target.checked ? new Set() : new Set(undecided.map(item => item.id)))} />全选</label>
+        <button type="button" className="sf-action" data-testid="proposal-confirm-all"
+          disabled={busy !== undefined || editing !== undefined || selected.length === 0}
+          onClick={() => { void decide('confirm', selected); }}>
+          {busy?.kind === 'decide' ? '正在保存…' : `保存选中 ${selected.length} 张`}
+        </button>
+      </>}
+    </div>}
+
+    {!cardBatch && pending.length > 1 && editing === undefined && <div className="sf-proposal-bulk">
       <button type="button" className="sf-action" data-testid="proposal-confirm-all" disabled={busy !== undefined}
         onClick={() => { void decide('confirm', pending); }}>全部保存（{String(pending.length)} 项）</button>
     </div>}
 
-    <ul className="sf-proposal-items" data-testid="proposal-items">
+    <ul className={`sf-proposal-items${cardBatch ? ' sf-proposal-batch-items' : ''}`} data-testid="proposal-items">
       {proposal.items.map(item => <li className="sf-proposal-item" key={item.id} data-item-status={item.status} data-testid="proposal-item">
+        {cardBatch && item.draft.effect.kind === 'card-create' && <div className="sf-proposal-batch-row">
+          <input type="checkbox" aria-label={`选择卡片：${item.draft.effect.content.title}`}
+            checked={(item.status === 'pending' || item.status === 'failed') && !excluded.has(item.id)}
+            disabled={busy !== undefined || editing !== undefined || item.status === 'applied' || item.status === 'rejected'}
+            onChange={() => setExcluded(current => toggle(current, item.id))} />
+          <button type="button" className="sf-proposal-batch-preview" data-testid="proposal-preview"
+            aria-expanded={expanded.has(item.id) || editing === item.id}
+            onClick={() => setExpanded(current => toggle(current, item.id))}>
+            <span className="sf-proposal-batch-title">{item.draft.effect.content.title}</span>
+            <span className="sf-proposal-batch-status">{statusCopy(item)}</span>
+            <span aria-hidden="true">{expanded.has(item.id) || editing === item.id ? '⌃' : '⌄'}</span>
+          </button>
+        </div>}
+        {(!cardBatch || expanded.has(item.id) || editing === item.id) && <>
         <div className="sf-proposal-slip" data-testid="proposal-slip">
         <div className="sf-proposal-item-head">
           <span className="sf-meta">{item.draft.effect.kind === 'skeleton-save'
@@ -306,6 +346,7 @@ export function ProposalCard({ ctx, proposal, inline = false, onChanged }: Propo
             && <button type="button" className="sf-quiet" data-testid="proposal-redeliver" disabled={busy !== undefined}
               onClick={() => { void retryDelivery(); }}>重新送一次回执</button>}
         </div>
+        </>}
       </li>)}
     </ul>
 
