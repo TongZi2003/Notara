@@ -78,7 +78,7 @@ test('native classroom keeps its own composer and carries the student lesson sur
         expect(await surface.innerText()).not.toMatch(/studyforge\.|sessionId|schema|\/Users\//);
         // The default course page is the roadmap; the lesson list is its own tab.
         await page.getByTestId('courses-view').selectOption('list');
-        await expect(page.getByTestId('native-lessons-empty')).toContainText('暂无课堂记录');
+        await expect(page.getByTestId('course-tree-empty')).toContainText('暂无课程');
       }
     }
     await openRoot(page, '首页');
@@ -117,7 +117,7 @@ test('native classroom keeps its own composer and carries the student lesson sur
     const courses = page.getByTestId('studyforge-page-studyforge.courses');
     await expect(courses).toBeVisible();
     await page.getByTestId('courses-view').selectOption('list');
-    await expect(page.getByTestId('studyforge-lessons')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId('roadmap-nodes')).toBeVisible({ timeout: 20_000 });
     await expect(courses).toContainText('一次函数');
     await page.screenshot({ path: testInfo.outputPath('courses-after-lesson.png') });
 

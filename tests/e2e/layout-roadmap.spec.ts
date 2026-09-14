@@ -32,13 +32,15 @@ test('the default roadmap shows real lessons, places and mounts them on the same
   await expect(canvas.locator('.sf-map-title')).toContainText(['自己开的函数课']);
   await expect(canvas.getByTestId('map-edge')).toHaveCount(1);
   expect(value(await client.rpc<RouteView>('studyforgeOrganization/route', {}))).toEqual(child);
+  await page.locator('.sf-course-filters summary').click();
   await page.getByTestId('roadmap-filter-today').click();
   await expect(canvas.locator('.sf-map-title')).toHaveText(['自己开的函数课']);
   await page.getByTestId('roadmap-filter-from').fill('2027-02-13');
   await page.getByTestId('roadmap-filter-to').fill('2027-02-13');
   await expect(canvas.locator('.sf-map-title')).toHaveText(['函数这条学习线', '接着看图像']);
-  await expect(page.getByTestId('roadmap-filter-count')).toHaveText('命中 1 节');
+  await expect(page.getByTestId('roadmap-filter-count')).toHaveText('1 节匹配');
   await page.getByTestId('roadmap-filter-clear').click();
+  await page.locator('.sf-course-filters summary').click();
   await expect(canvas.locator('.sf-map-title')).toHaveCount(3);
   const scale = await page.getByTestId('map-world').getAttribute('data-scale');
   await page.getByTestId('map-zoom-in').click(); await expect(page.getByTestId('map-world')).not.toHaveAttribute('data-scale', scale!);
@@ -46,6 +48,7 @@ test('the default roadmap shows real lessons, places and mounts them on the same
 
   const ordinary = canvas.locator(`[data-node-id="${summary.nodeId}"]`);
   await ordinary.getByRole('button', { name: '详情', exact: true }).click();
+  await page.getByTestId('roadmap-node-mount').click();
   await page.getByTestId('roadmap-mount-select').selectOption({ label: '函数这条学习线' });
   await expect.poll(async () => value(await client.rpc<RouteView>('studyforgeOrganization/route', {})).nodes.find(node => node.session?.sessionId === native.sessionId)?.parent).toBe(planned.nodes[0]!.id);
   await page.getByRole('button', { name: '关闭课程详情', exact: true }).click();

@@ -12,7 +12,7 @@
  */
 import { test as base, expect, type Page } from '@playwright/test';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
-import { enterClassroom, typeInput, openCoursesList } from './fixtures/classroom.ts';
+import { enterClassroom, typeInput, openCoursesList, openCourseDetail } from './fixtures/classroom.ts';
 
 const test = base.extend<{ dsh: IsolatedRuntime }>({
   dsh: async ({}, use, testInfo) => {
@@ -48,10 +48,11 @@ async function planNode(page: Page, title: string, date?: string): Promise<void>
 }
 
 async function mountUnder(page: Page, child: string, parent: string): Promise<void> {
-  const row = page.getByTestId('roadmap-node').filter({ hasText: child });
-  await row.getByTestId('roadmap-node-mount').click();
+  await openCourseDetail(page, child);
+  await page.getByTestId('roadmap-node-mount').click();
   await page.getByTestId('roadmap-mount-select').selectOption({ label: parent });
-  await expect(page.getByTestId('roadmap-mount')).toHaveCount(0);
+  await page.getByRole('button', { name: '关闭课程详情', exact: true }).click();
+  await page.getByRole('button', { name: '展开' + parent, exact: true }).click();
 }
 
 async function rowTitles(page: Page): Promise<string[]> {
@@ -69,7 +70,7 @@ test('a date range narrows the roadmap, keeps ancestors as context, and clearing
   page.on('pageerror', error => errors.push(error.message));
   await enterClassroom(page, dsh.authUrl);
   await openCourses(page);
-  await expect(page.getByTestId('roadmap-empty')).toBeVisible();
+  await expect(page.getByTestId('course-tree-empty')).toBeVisible();
 
   // One undated direction, one planned today, and a March branch with a child.
   await planNode(page, '没有日期的方向');
@@ -112,6 +113,7 @@ test('a date range narrows the roadmap, keeps ancestors as context, and clearing
   await openCourses(page);
   // The read is a real Remote call, so wait for it rather than sampling the DOM
   // the moment the page mounts.
+  await page.getByRole('button', { name: '展开三月总复习', exact: true }).click();
   await expect.poll(() => rowTitles(page)).toEqual(stored);
   expect(errors).toEqual([]);
 });
@@ -123,6 +125,7 @@ test('an opened planned lesson stays visible in the whole roadmap and keeps its 
   await openCourses(page);
   await planNode(page, '今天开的一节', localDay());
 
+  await openCourseDetail(page, '今天开的一节');
   await page.getByTestId('roadmap-node-start').click();
   // Starting the node really opens one native lesson: the student lands in it and
   // can type there. The composer is the real input, not a Remote call.
@@ -136,7 +139,7 @@ test('an opened planned lesson stays visible in the whole roadmap and keeps its 
   // Back on the course page the node shows the lesson it really opened.
   await openCourses(page);
   await expect(page.getByTestId('roadmap-node-opened')).toBeVisible();
-  await expect(page.getByTestId('studyforge-lessons')).toContainText('今天开的一节');
+  await expect(page.getByTestId('roadmap-node-title')).toHaveCount(1);
   await page.screenshot({ path: testInfo.outputPath('roadmap-opened.png'), fullPage: true });
 
   // Filtering the roadmap never hides the lesson the student really started.
@@ -178,11 +181,12 @@ test('a card the student really placed keeps its coordinate, and a content edit 
 
   // A real content edit elsewhere leaves the student's own placement alone.
   await page.getByTestId('courses-view').selectOption('list');
-  const row = page.getByTestId('roadmap-node').filter({ hasText: '另一节' });
-  await row.getByTestId('roadmap-node-edit').click();
+  await openCourseDetail(page, '另一节');
+  await page.getByTestId('roadmap-node-edit').click();
   await page.getByTestId('route-editor-title').fill('另一节（改过）');
   await page.getByTestId('route-editor-save').click();
   await expect(page.getByTestId('roadmap-node').filter({ hasText: '另一节（改过）' })).toBeVisible();
+  await page.getByRole('button', { name: '关闭课程详情', exact: true }).click();
   await page.getByTestId('courses-view').selectOption('roadmap');
   await expect(card).toHaveAttribute('data-x', placedX ?? '');
   await expect(card).toHaveAttribute('data-y', placedY ?? '');

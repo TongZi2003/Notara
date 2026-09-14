@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { autoMapPositions, fitMap, zoomMap, type MapCamera, type MapPoint } from './map-geometry.ts';
 import './course-map.css';
 
@@ -19,17 +19,15 @@ interface Props {
   readonly nodes: readonly CourseGraphNode[];
   readonly selected?: string;
   readonly busy: boolean;
-  readonly toolbar: ReactNode;
   onSelect(key?: string): void;
   onOpen(key: string): void;
   onPlace(key: string, position: MapPoint | null): Promise<void>;
   onTidy(): Promise<void>;
-  onCreate(): void;
 }
 const COLORS = ['#26437c', '#3e7c59', '#c93a2e', '#8a6d2f', '#5a688a', '#7c3e63'];
 
 /** Presentation only. Camera is transient; the caller owns the one layout writer. */
-export function CourseMapCanvas({ nodes, selected, busy, toolbar, onSelect, onOpen, onPlace, onTidy, onCreate }: Props): React.JSX.Element {
+export function CourseMapCanvas({ nodes, selected, busy, onSelect, onOpen, onPlace, onTidy }: Props): React.JSX.Element {
   const viewport = useRef<HTMLDivElement>(null);
   const world = useRef<HTMLDivElement>(null);
   const [camera, setCamera] = useState<MapCamera>({ x: 0, y: 150, z: 0.8 });
@@ -154,18 +152,16 @@ export function CourseMapCanvas({ nodes, selected, busy, toolbar, onSelect, onOp
           onPointerDown={event => down(event, node.key)} onPointerMove={move} onPointerUp={event => end(event)} onPointerCancel={event => end(event, true)}
           onClick={() => { if (!suppressClick.current) onSelect(node.key); }}
           onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onSelect(node.key); } }}>
-          <div className="sf-map-meta"><i style={{ background: color(node) }} />{node.planned ? '◇ 还没上' : node.archived ? '已归档' : node.current ? '当前课' : '上过的课'}{node.date && ' · ' + node.date.slice(5)}</div>
+          <div className="sf-map-meta"><i style={{ background: color(node) }} />{node.planned ? '待开课' : node.archived ? '已归档' : node.current ? '当前课堂' : '已开课'}{node.date && ' · ' + node.date.slice(5)}</div>
           <div className="sf-map-title">{node.title}</div>{node.preview && <div className="sf-map-preview">{node.preview}</div>}
-          <div className="sf-map-actions"><button type="button" disabled={busy} onClick={event => { event.stopPropagation(); onOpen(node.key); }}>{node.planned ? '开这节' : '打开'}</button>
+          <div className="sf-map-actions"><button type="button" disabled={busy && node.planned} onClick={event => { event.stopPropagation(); onOpen(node.key); }}>{node.planned ? '开始课程' : '进入对话'}</button>
             <button type="button" onClick={event => { event.stopPropagation(); onSelect(node.key); }}>详情</button>
-            {node.position && <button type="button" data-testid="roadmap-node-auto" disabled={busy} onClick={event => { event.stopPropagation(); void onPlace(node.key, null); }}>排回原位</button>}</div>
+            {node.position && <button type="button" data-testid="roadmap-node-auto" disabled={busy} onClick={event => { event.stopPropagation(); void onPlace(node.key, null); }}>重置位置</button>}</div>
           {node.lineName && <span className="sf-map-line-name" style={{ color: color(node) }}>— {node.lineName}</span>}
         </div>;
       })}
     </div>
-    <div className="sf-map-float sf-map-filter" data-testid="map-filter">{toolbar}</div>
     <div className="sf-map-float sf-map-controls" data-testid="map-controls">
-      <button type="button" data-testid="roadmap-create" disabled={busy} onClick={onCreate}>安排新课</button>
       <button type="button" data-testid="map-tidy" disabled={busy || !nodes.length} onClick={() => { void onTidy().then(fit); }}>整理</button>
       <button type="button" data-testid="map-locate" onClick={locate}>定位</button><span className="sf-map-separator" />
       <button type="button" data-testid="map-zoom-out" aria-label="缩小路线图" onClick={() => zoom(1 / 1.2)}>−</button>

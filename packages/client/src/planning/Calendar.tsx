@@ -11,10 +11,11 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import type { CalendarDay } from '@studyforge/contracts/calendar';
 import type { CardView } from '@studyforge/contracts/cards';
-import type { RouteNode } from '@studyforge/contracts/routes';
+import type { RouteNativeLesson, RouteNode } from '@studyforge/contracts/routes';
 import { useEffect, useRef, useState } from 'react';
 import { LearningObject } from '../classroom/LearningObject.tsx';
 import { PlanEditor } from './PlanEditor.tsx';
+import { DayActivities } from './DayActivities.tsx';
 
 const WEEKDAYS = '日一二三四五六';
 function civilDay(at: Date, timeZone: string): string { return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(at); }
@@ -36,6 +37,7 @@ export function Calendar({ ctx, onOpen }: { ctx: Context; onOpen(target: string)
   const [view, setView] = useState<'month' | 'list'>('month');
   const [day, setDay] = useState<CalendarDay>();
   const [cards, setCards] = useState<readonly CardView[]>([]), [nodes, setNodes] = useState<readonly RouteNode[]>([]);
+  const [lessons, setLessons] = useState<readonly RouteNativeLesson[]>([]);
   const [notice, setNotice] = useState(''), [refresh, setRefresh] = useState(0), [detailsOpen, setDetailsOpen] = useState(false);
   const [planning, setPlanning] = useState(false);
   const request = useRef(0);
@@ -59,6 +61,12 @@ export function Calendar({ ctx, onOpen }: { ctx: Context; onOpen(target: string)
     void ctx.remote.studyforgeOrganization.route().then(result => { if (live && result.ok) setNodes(result.value.nodes); }, () => { if (live) setNodes([]); });
     return () => { live = false; };
   }, [ctx, refresh]);
+  useEffect(() => {
+    if (!detailsOpen) return;
+    let live = true;
+    void ctx.remote.studyforgeOrganization.routeLessons().then(result => { if (live && result.ok) setLessons(result.value); }, () => {});
+    return () => { live = false; };
+  }, [ctx, refresh, detailsOpen]);
   useEffect(() => {
     if (!detailsOpen) return;
     const seq = ++request.current;
@@ -133,15 +141,7 @@ export function Calendar({ ctx, onOpen }: { ctx: Context; onOpen(target: string)
         </div>
         {notice && <p role="status" className="mini-note">{notice}<button className="sf-quiet" onClick={() => setRefresh(n => n + 1)}>重试</button></p>}
         {!day && !notice && <p role="status" className="mini-note">正在读取安排…</p>}
-        {target ? <LearningObject key={target} ctx={ctx} target={target} onBack={() => setTarget(undefined)} /> : day && <div data-testid="calendar-day">
-          <section><h3>课程安排</h3>
-            {day.scheduledCourses.length ? <div className="sf-linear-tree">{day.scheduledCourses.map(course => <button className="cal-lrow" key={course.target} data-testid="calendar-course" onClick={() => open(course.target)}>{course.title}<small>{course.opened ? '回到课堂' : '开始学习'}</small></button>)}</div> : <p className="mini-note">这天没有安排课程。</p>}
-          </section>
-          <section><h3>复习</h3><p className="mini-note" data-testid="calendar-due">{day.relation === 'future' ? '预计到期' : '当天到期'} {day.dueCount} 张{day.relation === 'today' && day.overdueCount ? `，另有 ${day.overdueCount} 张待补复习` : ''}</p></section>
-          {day.activity.length > 0 && <section><h3>学习记录</h3><div className="sf-linear-tree">{day.activity.map((item, i) => <div className="cal-lrow" key={i}>
-            <span>{item.title}</span>{item.target && <button className="sf-quiet" onClick={() => open(item.kind === 'course' ? item.sourceRefs.find(ref => ref.startsWith('session:')) ?? item.target! : item.target!)}>查看</button>}
-          </div>)}</div></section>}
-        </div>}</>}
+        {target ? <LearningObject key={target} ctx={ctx} target={target} onBack={() => setTarget(undefined)} /> : day && <DayActivities key={date} day={day} lessons={lessons} nodes={nodes} onOpen={open} />}</>}
       </aside>}
     </div>
   </main>;

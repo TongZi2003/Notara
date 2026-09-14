@@ -313,3 +313,56 @@ test('本次配置只合并自己点名的字段，并发写别的字段不被�
   expect(after.localTime).toBe('21:00'); // named by neither patch, so it stays
   expect(after.lastGenerated).toMatchObject({ date: '2026-09-11', timeZone: 'Asia/Shanghai' });
 });
+
+/**
+ * 课堂来源不新增列，只用已有的 `sourceRefs`：一行自己点名的 `session:` ref。
+ * 同卡同一天被两节课各自记录时必须是两行；同一节课对同一对象的重复写入仍旧
+ * 一行；没有课堂的那条不继承邻行的课堂——课外记录不许被推断归属。
+ */
+test('课堂来源留在 sourceRefs：save 带写入课堂、同卡跨两课不合并、课外没有课堂', async () => {
+  const fixture = await seed();
+  const review = new ReviewService(fixture.cardStore);
+  /** 真实课堂写入的老师上下文：一次课一个 session，通道只能是课内。 */
+  const classroom = (sessionId: string) => ({ workspaceId: 'student-a', sessionId, actor: 'teacher' as const, purpose: 'learning' as const });
+  const inClass = async (sessionId: string, id: string, occurredAt: string, sequence: number): Promise<void> => {
+    const ctx = classroom(sessionId);
+    const occurrence = review.freeze(ctx, 'card:card-c', { id, occurredAt, timeZone: 'Asia/Shanghai', order: { sessionId, sequence } });
+    await review.record({ ...ctx, operationId: 'rev-' + id }, 'card:card-c', {
+      occurrence, mark: '牢', channel: '课内', note: '',
+      basis: [{ sessionId, messageId: 'm-' + id, occurredAt, source: 'classroom_evidence', quote: '学生说：先看分母。' }],
+    });
+  };
+  at('2026-09-12T15:00:00+08:00');
+  await inClass('lesson-a', 'occ-c-1', '2026-09-12T10:00:00+08:00', 1);
+  await inClass('lesson-b', 'occ-c-2', '2026-09-12T11:00:00+08:00', 1);
+  await inClass('lesson-a', 'occ-c-3', '2026-09-12T12:00:00+08:00', 2);
+  // 同一张卡的课外记档：真实宿主不带 session，也不许借同一节课的名。
+  const outside = review.freeze(READ, 'card:card-c', { id: 'occ-c-4', occurredAt: '2026-09-12T13:00:00+08:00', timeZone: 'Asia/Shanghai', order: null });
+  await review.record({ ...READ, operationId: 'rev-occ-c-4' }, 'card:card-c', { occurrence: outside, mark: '糊', channel: '课外', note: '', basis: [] });
+
+  const today = fixture.projection.readDay(READ, { date: '2026-09-12', timeZone: 'Asia/Shanghai' });
+
+  // 每一条当日记档读的是它自己那条 occurrence 的课堂；同课的第二条与原条同键，仍旧一行。
+  expect(today.activity.filter(item => item.kind === 'review').map(item => item.sourceRefs)).toEqual([
+    ['card:card-c', 'session:lesson-a'],
+    ['card:card-c', 'session:lesson-b'],
+    ['card:card-c'],
+  ]);
+  // save 也一样带写入课堂：跨课堂两行，同课堂的重复写入并成一行，课外那条没有课堂。
+  expect(today.activity.filter(item => item.kind === 'card' && item.target === 'card:card-c').map(item => item.sourceRefs)).toEqual([
+    ['card:card-c', 'session:lesson-a'],
+    ['card:card-c', 'session:lesson-b'],
+    ['card:card-c'],
+  ]);
+  // 课堂外的真实 save：写入时真的有课，就带那节课。
+  expect(today.activity.find(item => item.kind === 'card' && item.target === 'card:card-e')?.sourceRefs)
+    .toEqual(['card:card-e', 'session:lesson-a']);
+  // 真开课带它自己绑定的原生课，不是别的行。
+  const past = fixture.projection.readDay(READ, { date: '2026-09-10', timeZone: 'Asia/Shanghai' });
+  expect(past.activity.find(item => item.kind === 'course')).toMatchObject({
+    title: '已开课', target: routeNodeRef('p-open'), sourceRefs: [routeNodeRef('p-open'), 'session:s-open'],
+  });
+  // 课外那条（order: null）没有课堂；同一天那张卡的课堂记录不许扩散过来。
+  const yesterday = fixture.projection.readDay(READ, { date: '2026-09-11', timeZone: 'Asia/Shanghai' });
+  expect(yesterday.activity.find(item => item.kind === 'review')?.sourceRefs).toEqual(['card:card-e']);
+});

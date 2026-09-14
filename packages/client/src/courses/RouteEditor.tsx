@@ -114,22 +114,21 @@ export function RouteEditor({ route, node, materials, cards, choices, pending, n
     material.versions.map(version => ({ id: `${material.materialId}|${version.versionId}`, label: `${material.title} · ${version.fileName}` })));
 
   return <form className="sf-route-editor" data-testid="route-editor" onSubmit={event => { event.preventDefault(); submit(); }}>
-    <h3 data-testid="route-editor-heading">{node === null ? '新排一节课' : '改这一节'}</h3>
+    <h3 data-testid="route-editor-heading">{node === null ? '新建课程' : '课堂设置'}</h3>
     <label>课名
       <input data-testid="route-editor-title" value={title} onChange={event => { setTitle(event.target.value); }} placeholder="例如：二次函数顶点式" />
     </label>
-    <label>{node === null ? '接在哪一节后面' : '上一节（不改就留空）'}
+    {node === null && <label>上级课程
       <select data-testid="route-editor-parent" value={parent} onChange={event => { setParent(event.target.value); }}>
-        <option value="">（新的一支）</option>
+        <option value="">无上级课程</option>
         {mountable.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.title}</option>)}
       </select>
-    </label>
-    <label>安排在哪天
+    </label>}
+    <label>课程日期
       <input type="date" data-testid="route-editor-date" value={date} onChange={event => { setDate(event.target.value); }} />
     </label>
     <fieldset>
-      <legend>这一节用什么</legend>
-      <p className="sf-note">可以一样都不用；用了就按下面的顺序摆在课堂上，点开头那颗点亮的就是先打开的那一份。</p>
+      <legend>本课资料</legend>
       <ol className="sf-route-materials sf-linear-tree" data-testid="route-editor-materials">
         {materialsDraft.map((item, index) => <li key={item.key} data-testid="route-editor-material">
           <label className="sf-route-material-first">
@@ -172,7 +171,7 @@ export function RouteEditor({ route, node, materials, cards, choices, pending, n
       </div>
     </fieldset>
     <fieldset>
-      <legend>这节课怎么上</legend>
+      <legend>教学设置</legend>
       {node !== null && (inherited.teachingRef !== undefined || inherited.stance !== undefined) && <p className="sf-note" data-testid="route-editor-inherited">
         不填就跟上一节一样：{[inherited.teachingRef === undefined ? '' : choices.find(choice => choice.id === inherited.teachingRef)?.title ?? '已有设置', inherited.stance ?? ''].filter(part => part !== '').join(' · ')}
       </p>}
@@ -182,17 +181,17 @@ export function RouteEditor({ route, node, materials, cards, choices, pending, n
           {choices.map(choice => <option key={choice.id} value={choice.id}>{choice.title}</option>)}
         </select>
       </label>
-      <label>这一节抓什么
+      <label>学习重点
         <textarea data-testid="route-editor-stance" rows={3} value={stance} onChange={event => { setStance(event.target.value); }}
           placeholder="例如：先看清顶点和对称轴，再决定怎么配方。" />
       </label>
-      <label>给这一节起个名（可留空）
+      <label>路线名称（选填）
         <input data-testid="route-editor-decl-name" value={declName} onChange={event => { setDeclName(event.target.value); }} />
       </label>
     </fieldset>
     <div className="sf-route-editor-actions">
-      <button type="submit" className="sf-action" data-testid="route-editor-save" disabled={pending || title.trim() === ''}>{node === null ? '排上' : '保存这一节'}</button>
-      <button type="button" className="sf-action sf-action-quiet" data-testid="route-editor-cancel" onClick={onCancel}>先不改</button>
+      <button type="submit" className="sf-action" data-testid="route-editor-save" disabled={pending || title.trim() === ''}>{node === null ? '创建课程' : '保存设置'}</button>
+      <button type="button" className="sf-action sf-action-quiet" data-testid="route-editor-cancel" onClick={onCancel}>取消</button>
     </div>
     {notice !== '' && <p className="sf-notice" role="status" data-testid="route-editor-notice">{notice}</p>}
   </form>;

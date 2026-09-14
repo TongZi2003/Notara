@@ -10,12 +10,15 @@
  * here writes, starts a model call, closes a lesson or keeps a second activity
  * ledger; a read that fails throws instead of presenting an empty day.
  *
- * Two properties matter and are enforced here rather than by convention:
+ * Three properties matter and are enforced here rather than by convention:
  *  - a review occurrence is placed on the civil day of its own `occurredAt` in
  *    its own frozen zone, never the day it was confirmed, so a late fact lands
  *    on the day it really happened;
  *  - due/overdue count learned cards only (`review` present). An unlearned card
- *    waits in the deck and a knowledge object never enters the due数 at all.
+ *    waits in the deck and a knowledge object never enters the due数 at all;
+ *  - the classroom a row really belongs to stays the one `session:` ref inside
+ *    its existing `sourceRefs` — the convention the calendar already reads. A
+ *    record with no classroom keeps none, and none is ever inferred.
  *
  * The projection is pure over records the store already schema-validated; the
  * DTO shape (`CalendarDaySchema`) is validated at the Host boundary and by the
@@ -84,23 +87,33 @@ export function readDay(query: DateQuery, asOf: string, inputs: DayInputs): Cale
   const activity: ActivityItem[] = [];
   const seen = new Set<string>();
   const push = (item: ActivityItem): void => {
-    const key = `${item.kind}\u0000${item.target ?? item.title}`;
+    // The classroom is part of a row's identity: the same card really recorded
+    // by two lessons on one day stays two rows, while one lesson's repeated
+    // save of one object still collapses to one.
+    const key = `${item.kind}\u0000${item.target ?? item.title}\u0000${classroomOf(item)}`;
     if (seen.has(key)) return;
     seen.add(key);
     activity.push(item);
   };
 
-  // A review lands on the day of its own action, in the zone it was frozen in.
+  // A review lands on the day of its own action, in the zone it was frozen in,
+  // and keeps the classroom that really recorded it. Every occurrence of that
+  // day is read on its own — never the first one found — so one card recorded
+  // by two lessons stays two rows, and an 课外 record names no classroom.
   for (const card of [...inputs.cards].sort(byRef)) {
-    if (!card.data.history.some(entry => occurrenceDay(entry.occurrence) === date)) continue;
-    push({ kind: 'review', title: card.data.content.title, target: card.ref, sourceRefs: [card.ref] });
+    for (const entry of card.data.history) {
+      if (occurrenceDay(entry.occurrence) !== date) continue;
+      push({ kind: 'review', title: card.data.content.title, target: card.ref,
+        sourceRefs: [card.ref, ...sessionRef(entry.occurrence.order?.sessionId)] });
+    }
   }
 
-  // Real save operations: an object this day really wrote, in its own zone day.
+  // Real save operations: an object this day really wrote, in its own zone day,
+  // carrying the classroom that wrote it whenever the store's own change row
+  // named one. Every kind, not just a course row.
   for (const save of [...inputs.saves].sort(byTarget)) {
     if (civilDay(save.committedAt, query.timeZone) !== date) continue;
-    push({ kind: save.kind, title: save.title, target: save.target,
-      sourceRefs: save.kind === 'course' && save.sessionId ? [save.target, 'session:' + save.sessionId] : [save.target] });
+    push({ kind: save.kind, title: save.title, target: save.target, sourceRefs: saveRefs(save) });
   }
 
   // Original arrangements: the plan line this day was scheduled for.
@@ -128,12 +141,13 @@ export function readDay(query: DateQuery, asOf: string, inputs: DayInputs): Cale
     push({ kind: 'plan', title: content.title, target: plan.ref, sourceRefs: [plan.ref, ...candidates.map(card => card.ref)] });
   }
 
-  // A lesson that really opened carries its native binding's own time.
+  // A lesson that really opened carries its native binding's own time and the
+  // one native session it really opened.
   for (const node of [...inputs.route.nodes].sort(byNodeId)) {
     if (node.session === undefined) continue;
     if (civilDay(node.session.openedAt, query.timeZone) !== date) continue;
     const target = routeNodeRef(node.id);
-    push({ kind: 'course', title: node.title, target, sourceRefs: [target] });
+    push({ kind: 'course', title: node.title, target, sourceRefs: [target, ...sessionRef(node.session.sessionId)] });
   }
 
   // Due/overdue: learned cards only, one row per card. Due is that same day,
@@ -202,6 +216,22 @@ export class CalendarProjection {
   filterRoadmap(ctx: HostContext, filter: RoadmapDateFilter | null): RoadmapFilterResult {
     return filterRoadmap(this.readers.route.read(ctx), filter);
   }
+}
+
+/** The classroom a projected row came from: the one `session:` ref its own refs carry. */
+function classroomOf(item: ActivityItem): string {
+  return item.sourceRefs.find(ref => ref.startsWith('session:')) ?? '';
+}
+
+/** The one classroom ref a record really names; an action outside a lesson names none. */
+function sessionRef(sessionId: string | undefined): readonly string[] {
+  return sessionId === undefined ? [] : ['session:' + sessionId];
+}
+
+/** One save's own refs: the object written plus the classroom that wrote it, listed once. */
+function saveRefs(save: DaySave): string[] {
+  const session = sessionRef(save.sessionId);
+  return session.length === 0 || session[0] === save.target ? [save.target] : [save.target, ...session];
 }
 
 /** Same-layer order is by identity, so a projection never depends on store iteration order. */

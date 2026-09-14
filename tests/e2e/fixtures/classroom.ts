@@ -57,11 +57,16 @@ export async function openCourses(page: Page): Promise<void> {
   await expect(page.getByTestId('studyforge-page-studyforge.courses')).toBeVisible();
 }
 
-/** Existing row-editor flows still exist, but the student chooses the list tab. */
+/** The tree and map share their course projection and detail panel. */
 export async function openCoursesList(page: Page): Promise<void> {
   await openCourses(page);
   await page.getByTestId('courses-view').selectOption('list');
   await expect(page.getByTestId('course-lessons')).toBeVisible();
+}
+export async function openCourseDetail(page: Page, title: string): Promise<void> {
+  if (await page.getByTestId('course-node-detail').count()) await page.getByRole('button', { name: '关闭课程详情', exact: true }).click();
+  await page.getByTestId('roadmap-node-title').filter({ hasText: title }).click();
+  await expect(page.getByTestId('course-node-detail')).toBeVisible();
 }
 /** Settings and imports live in the native rightbar's 开始 page. */
 export async function openLessonStart(page: Page): Promise<void> {

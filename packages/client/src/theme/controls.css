@@ -62,5 +62,9 @@ body[data-sf-workspace] [class*="_headerUtilities"],body[data-sf-workspace] [cla
   body[data-sf-workspace] .sf-control-trigger>span,
   body[data-sf-workspace] [data-slot="conversation.input.model"] button>span,
   body[data-sf-workspace] [data-slot="conversation.input.model"] button>svg~svg{display:none}
+  /* The native trigger hides its own icon above its 360px breakpoint, so this
+     wider icon band must paint the leading model glyph itself; only trailing
+     svgs are hidden, so an icon-less build still shows the chevron. */
+  body[data-sf-workspace] [data-slot="conversation.input.model"] button>svg:first-of-type{display:block!important}
   body[data-sf-workspace] [data-composer-card] [class*="_trailing"]{align-items:center;gap:6px}
 }

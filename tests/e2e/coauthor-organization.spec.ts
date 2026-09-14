@@ -10,7 +10,7 @@
  */
 import { test as base, expect, type Page } from '@playwright/test';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
-import { enterClassroom, typeInput, openCards, openCoursesList } from './fixtures/classroom.ts';
+import { enterClassroom, typeInput, openCards, openCoursesList, openCourseDetail } from './fixtures/classroom.ts';
 
 const test = base.extend<{ dsh: IsolatedRuntime }>({
   dsh: async ({}, use, testInfo) => {
@@ -64,8 +64,8 @@ async function planNode(page: Page, title: string, options: { readonly date?: st
 }
 
 async function editNode(page: Page, title: string, next: string): Promise<void> {
-  const row = page.getByTestId('roadmap-node').filter({ hasText: title });
-  await row.getByTestId('roadmap-node-edit').click();
+  await openCourseDetail(page, title);
+  await page.getByTestId('roadmap-node-edit').click();
   await page.getByTestId('route-editor-title').fill(next);
 }
 
@@ -81,18 +81,20 @@ test('a planned node really opens one native lesson, and a restart keeps it boun
   await enterClassroom(page, dsh.authUrl);
   await createCard(page, '二次函数顶点', '求 $y=x^2-4x+3$ 的顶点。');
   await openCourses(page);
-  await expect(page.getByTestId('native-lessons-empty')).toBeVisible();
+  await expect(page.getByTestId('course-tree-empty')).toBeVisible();
 
   await planNode(page, '二次函数顶点式', { date: localDay(), card: '二次函数顶点', stance: '先看清顶点和对称轴。' });
   const node = page.getByTestId('roadmap-node').filter({ hasText: '二次函数顶点式' });
   await expect(node.getByTestId('roadmap-node-date')).not.toBeEmpty();
-  await expect(node.getByTestId('roadmap-node-decl')).toContainText('苏格拉底授课');
-  await expect(node.getByTestId('roadmap-node-decl')).toContainText('先看清顶点和对称轴。');
+  await openCourseDetail(page, '二次函数顶点式');
+  const detail = page.getByTestId('course-node-detail');
+  await expect(detail.getByTestId('roadmap-node-decl')).toContainText('苏格拉底授课');
+  await expect(detail.getByTestId('roadmap-node-decl')).toContainText('先看清顶点和对称轴。');
   // The reference reads as the card's own title, never as an internal id.
-  await expect(node.getByTestId('roadmap-node-materials')).toContainText('二次函数顶点');
+  await expect(detail.getByTestId('roadmap-node-materials')).toContainText('二次函数顶点');
   await page.screenshot({ path: testInfo.outputPath('course-planned-node.png'), fullPage: true });
 
-  await node.getByTestId('roadmap-node-start').click();
+  await detail.getByTestId('roadmap-node-start').click();
   // Starting the node opens one real lesson: the student is in it and can type.
   const composer = page.locator('[data-composer-input]');
   await expect(composer).toBeVisible();
@@ -105,7 +107,7 @@ test('a planned node really opens one native lesson, and a restart keeps it boun
   // lesson appears in the native lesson list with the node's own title.
   await openCourses(page);
   await expect(node.getByTestId('roadmap-node-opened')).toBeVisible();
-  await expect(page.getByTestId('studyforge-lessons').getByRole('button', { name: /二次函数顶点式/ })).toHaveCount(1);
+  await expect(page.getByTestId('roadmap-node-title').filter({ hasText: '二次函数顶点式' })).toHaveCount(1);
   await page.screenshot({ path: testInfo.outputPath('course-node-opened.png'), fullPage: true });
 
   // A fresh boot reads the Host again: still one node, still the one real lesson.
@@ -113,7 +115,7 @@ test('a planned node really opens one native lesson, and a restart keeps it boun
   await openCourses(page);
   await expect(page.getByTestId('roadmap-node')).toHaveCount(1);
   await expect(page.getByTestId('roadmap-node-opened')).toBeVisible();
-  await expect(page.getByTestId('studyforge-lessons').getByRole('button', { name: /二次函数顶点式/ })).toHaveCount(1);
+  await expect(page.getByTestId('roadmap-node-title').filter({ hasText: '二次函数顶点式' })).toHaveCount(1);
   expect(errors).toEqual([]);
 });
 
@@ -147,7 +149,7 @@ test('two writers move different nodes from the same read, and only the same nod
     // Now the same node: A's baseline was read before either save, so its save is
     // refused and the draft survives.
     await page.getByTestId('route-editor-save').click();
-    await expect(page.getByTestId('route-editor-notice')).toContainText('刚被别人改过');
+    await expect(page.getByTestId('route-editor-notice')).toContainText('刚有修改');
     await expect(page.getByTestId('route-editor-title')).toHaveValue('甲节（A 抢改）');
     await page.screenshot({ path: testInfo.outputPath('route-node-conflict.png'), fullPage: true });
 

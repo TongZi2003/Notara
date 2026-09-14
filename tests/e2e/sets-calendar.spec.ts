@@ -42,7 +42,9 @@ test('calendar opens date details in a recoverable right pane and keeps review p
   await page.getByLabel('查看日期').fill(date);
   await expect(page.getByTestId('calendar-course')).toHaveCount(2);
   await expect(page.getByTestId('calendar-due')).toContainText('0 张');
-  await page.getByTestId('calendar-course').filter({ hasText: '第二节课' }).click();
+  const lesson = page.getByTestId('calendar-activity-group').filter({ hasText: '第二节课' });
+  await lesson.locator('summary').click();
+  await lesson.getByTestId('calendar-course').click();
   await expect(page.locator('[data-composer-input]')).toBeVisible();
   const route = value(await client.rpc<RouteView>('studyforgeOrganization/route', {}));
   expect(route.nodes.find(node => node.title === '第一节课')?.session).toBeUndefined();

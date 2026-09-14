@@ -5,16 +5,15 @@
  * at a lower priority than the shell's placeholder so it shadows that
  * placeholder and nothing else. The sidebar row still belongs to the shell.
  *
- * Two halves, both reading the real Host: the native lesson list plus the
- * planned roadmap, and the precise-target plan editor. Nothing here starts a
- * second Session, keeps an open-tab ledger or mirrors a native capability list.
+ * Tree and map share the real Host's native/planned course projection and one
+ * detail surface. Nothing here starts a second Session, keeps an open-tab
+ * ledger or mirrors a native capability list.
  */
 import type { Context } from '@deepseek-ai/cordis';
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type { SessionId } from '@studyforge/contracts';
 import { useCallback, useState } from 'react';
-import { CourseMap, NativeLessonList, type NativeLessonRow } from './CourseMap.tsx';
-import { CourseRoadmap } from './CourseRoadmap.tsx';
+import { CourseRoadmap, type NativeLessonRow } from './CourseRoadmap.tsx';
 // The ported page sheet; importing it here too keeps the course page styled in a
 // composition that registers this page without the organization page beside it.
 import '../planning/original-pages.css';
@@ -110,14 +109,7 @@ export function registerCourses(ctx: Context): void {
               <option value="roadmap">路线图</option><option value="list">课程树</option>
             </select>
           </header>
-          {tab === 'roadmap' ? <CourseRoadmap ctx={ctx} lessons={lessons} {...(list.current ? { currentSessionId: list.current } : {})} onOpenLesson={open} />
-          : <div className="sf-courses-content"><div className="plain-wrap">
-            <section className="sf-courses-block" data-testid="course-lessons">
-              <h2>课堂记录</h2>
-              <NativeLessonList lessons={lessons} loaded={list.phase === 'ready'} onOpenLesson={open} />
-            </section>
-            <CourseMap ctx={ctx} lessons={lessons} lessonsLoaded={list.phase === 'ready'} onOpenLesson={open} />
-          </div></div>}
+          <CourseRoadmap ctx={ctx} view={tab} lessons={lessons} {...(list.current ? { currentSessionId: list.current } : {})} onOpenLesson={open} />
       </main>;
     },
   )), 'studyforge: course page');
