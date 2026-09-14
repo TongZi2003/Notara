@@ -318,6 +318,14 @@ test('拆卡挂点在提案前固定；旁支改动可继续，错误章节、�
   await fixture.skeletonStore.update(create('task-side-change', current.revision), objectRef(SKELETON_KIND, book.materialId), {},
     row => ({ ...row, nodes: [...row.nodes, node('新旁支', lineAnchor(book, 5))] }));
   await expect(bindTaskCard(host, execution, HOST, card)).resolves.toMatchObject({ chapter: '第一节' });
+  const finer = await fixture.skeletons.read(READ, book.materialId);
+  await fixture.skeletonStore.update(create('task-refined', finer.revision), objectRef(SKELETON_KIND, book.materialId), {},
+    row => ({ ...row, nodes: [...row.nodes, node('第一节/例1', lineAnchor(book, 3))] }));
+  await expect(bindTaskCard(host, execution, HOST, card)).rejects.toThrow('已有子目录');
+  const bound = await bindTaskCard(host, execution, HOST, { ...card, chapter: '第一节/例1' });
+  expect(bound.chapter).toBe('第一节/例1');
+  // An explicitly chosen broad chapter remains valid for a cross-section card.
+  await expect(bindTaskCard(host, execution, HOST, { ...card, chapter: '第一节' })).resolves.toMatchObject({ chapter: '第一节' });
   const after = await fixture.exploration.read(READ, book);
   expect(refusalCode(() => validateBookBreakdown({ ...after, nodes: after.nodes.filter(n => n.key !== 'section:第一节') }, task))).toBe('book_node_missing');
   expect(refusalCode(() => validateBookBreakdown({ ...after, nodes: after.nodes.map(n => n.key === 'section:第一节' ? { ...n, sources: [lineAnchor(book, 4)] } : n) }, task))).toBe('book_node_changed');
