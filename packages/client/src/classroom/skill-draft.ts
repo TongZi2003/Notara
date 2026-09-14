@@ -5,6 +5,13 @@ export const TASK_REFERENCE = 'studyforge-task';
 
 /** Native reference nodes persist with the native draft and serialize at send. */
 export function registerTaskDraft(ctx: Context): void {
+  // The product source supplies readable titles and frozen reference chips.
+  // Keep the native skill toolview, execution provider and non-lesson sources.
+  ctx.effect(() => ctx.inputTriggers.registerSourceFilter((sessionId, source) => {
+    if (source.trigger !== '/' || source.name !== 'skill') return true;
+    const id = ctx.sessions.list.getSnapshot().ids.find(id => id === sessionId);
+    return !id || ctx.sessions.list.getSnapshot().byId[id]?.projectionValues?.agentPreset !== 'studyforge-learning';
+  }));
   ctx.effect(() => ctx.inputTriggers.registerSource({ trigger: '@', name: 'studyforge-knowledge', async candidates() { return []; }, onPick() {}, codec: {
     clipboardText: () => '【知识笔记】', async serialize(ref) {
       const pin = JSON.parse(ref) as { target: string; version: number };

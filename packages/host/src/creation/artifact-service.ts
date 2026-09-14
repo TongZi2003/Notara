@@ -7,14 +7,17 @@ import type { RecordStore, PreparedRecordChange } from '@studyforge/domain/stora
 import { z } from 'zod';
 import { canonicalPath } from '@studyforge/domain/access';
 import { readProject, fileDigest, projectRoot } from './project-store.ts';
+import { creationPlugin, creationInstallation, creationManifest, publishCreationPackage } from './package-publication.ts';
+import { pluginSkillId } from '../plugins/plugin-manager.ts';
 
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeInstalledArtifacts: RecordStore<typeof InstalledArtifactSchema>; } }
 
 const workspaceContext = (host: Context): HostContext => ({ workspaceId: host.studyforgeAccess.workspaceId, actor: 'student', purpose: 'learning' });
 const idOf = (ref: string): string => { if (!/^creation:[a-f0-9]{24}$/.test(ref)) throw new Error('artifact_target_invalid'); return ref.slice('creation:'.length); };
 export function installation(host: Context, ref: string): ArtifactInstallation | undefined {
+  if (creationPlugin(host, ref)) return creationInstallation(host, ref);
   const row = host.studyforgeInstalledArtifacts.list(workspaceContext(host)).find(row => row.data.projectRef === ref);
-  if (!row) return undefined;
+  if (!row || row.data.removed) return undefined;
   const version = row.data.versions.find(version => version.digest === row.data.activeDigest)!;
   return { revision: row.version, enabled: row.data.enabled, digest: version.digest, title: version.manifest.title, kind: version.manifest.kind,
     ...(version.publication ? { publication: version.publication } : {}) };
@@ -45,9 +48,11 @@ export async function installArtifact(host: Context, input: { ref: string; diges
   const context = workspaceContext(host), project = host.studyforgeCreationRecords.read(context, input.ref), view = readProject(host, project), check = artifactCheck(host, input.ref);
   if (view.digest !== input.digest) throw new Error('artifact_snapshot_changed');
   if (check.issues.length || !view.manifest) throw new Error('artifact_not_ready');
+  if (view.manifest.kind !== 'markdown' && !project.data.target) return publishCreationPackage(host, view, input.expectedVersion);
   const current = host.studyforgeInstalledArtifacts.list(context).find(row => row.data.projectRef === input.ref);
   const known = current?.data.versions.find(version => version.digest === input.digest);
-  if (current?.version !== input.expectedVersion && !(input.expectedVersion === 0 && !current) && !known) throw new Error('version_conflict');
+  if (current?.data.enabled && !current.data.removed && current.data.activeDigest === input.digest) return installation(host, input.ref)!;
+  if ((current?.data.removed ? 0 : current?.version ?? 0) !== input.expectedVersion) throw new Error('version_conflict');
   const path = snapshotRoot(host, input.ref, input.digest); mkdirSync(path, { recursive: true, mode: 0o700 });
   for (const file of view.files) {
     const absolute = join(path, file.path);
@@ -58,11 +63,11 @@ export async function installArtifact(host: Context, input: { ref: string; diges
   let savedRevision = 0;
   const publish = async (material?: PreparedRecordChange): Promise<void> => {
     const version = known ?? { digest: input.digest, manifest: view.manifest!, files: view.files.map(file => ({ path: file.path, digest: file.digest })), installedAt: new Date().toISOString(), ...(publication ? { publication } : {}) };
-    const record = { projectRef: input.ref, activeDigest: input.digest, enabled: true, versions: [version] };
-    const mutation = { ...context, operationId: input.operationId, expectedVersion: input.expectedVersion };
-    const change = input.expectedVersion === 0
+    const record = { projectRef: input.ref, activeDigest: input.digest, enabled: true, removed: false, versions: [version] };
+    const mutation = { ...context, operationId: input.operationId + ':artifact:' + (current?.version ?? 0), expectedVersion: current?.version ?? 0 };
+    const change = !current
       ? host.studyforgeInstalledArtifacts.prepareCreate(mutation, idOf(input.ref), record)
-      : host.studyforgeInstalledArtifacts.prepareUpdate(mutation, 'artifact:' + idOf(input.ref), { digest: input.digest }, previous => ({ ...previous, activeDigest: input.digest, enabled: true,
+      : host.studyforgeInstalledArtifacts.prepareUpdate(mutation, 'artifact:' + idOf(input.ref), { digest: input.digest }, previous => ({ ...previous, activeDigest: input.digest, enabled: true, removed: false,
         versions: previous.versions.some(item => item.digest === input.digest) ? previous.versions : [...previous.versions, version] }));
     await host.studyforgeRecords.atomic(material ? [material, change] : [change]); savedRevision = change.result.version;
   };
@@ -86,17 +91,41 @@ export async function installArtifact(host: Context, input: { ref: string; diges
     }
   }
   if (!savedRevision) await publish();
+  host.studyforgePluginsManager.changed();
   return { revision: savedRevision, enabled: true, digest: input.digest, title: view.manifest.title, kind: view.manifest.kind, ...(publication ? { publication } : {}) };
 }
 
-export function artifactSkillName(projectRef: string, digest: string): string { return 'studyforge-user-' + idOf(projectRef) + '-' + digest.slice(0, 16); }
+export function artifactSkillName(projectRef: string, digest: string): string {
+  if (projectRef.startsWith('plugin:')) { const [ref, id] = projectRef.split('#'); return pluginSkillId(ref!, digest, id!); }
+  return 'studyforge-user-' + idOf(projectRef) + '-' + digest.slice(0, 16);
+}
 export function activeArtifacts(host: Context): { ref: string; digest: string; manifest: ArtifactManifest; installedAt: string }[] {
-  return host.studyforgeInstalledArtifacts.list(workspaceContext(host)).filter(row => row.data.enabled).flatMap(row => {
+  const bundled = host.studyforgePluginsManager.active().flatMap(({ ref, version }) => {
+    if (version.creation) return [{ ref: version.creation.ref, digest: version.creation.digest, manifest: creationManifest(version), installedAt: version.installedAt }];
+    const entries = [ ...version.manifest.notara.skills.map(item => ({ ...item, kind: 'skill' as const, subjects: [] as string[] })),
+      ...version.manifest.notara.teaching.map(item => ({ ...item, kind: 'teaching' as const, subjects: [] as string[] })),
+      ...version.manifest.notara.subjects.map(item => ({ ...item, kind: 'subject' as const })) ];
+    return entries.map(item => ({ ref: ref + '#' + item.id, digest: version.digest, manifest: { title: item.title, description: item.description, kind: item.kind, subjects: item.subjects, entry: 'content.md' as const }, installedAt: version.installedAt }));
+  });
+  return [...bundled, ...host.studyforgeInstalledArtifacts.list(workspaceContext(host)).filter(row => row.data.enabled && !creationPlugin(host, row.data.projectRef)).flatMap(row => {
     const active = row.data.versions.find(version => version.digest === row.data.activeDigest);
     return active ? [{ ref: row.data.projectRef, digest: active.digest, manifest: active.manifest, installedAt: active.installedAt }] : [];
-  });
+  })];
 }
 export function installedBody(host: Context, ref: string, digest: string): { manifest: ArtifactManifest; body: string } {
+  if (ref.startsWith('plugin:')) {
+    const [pluginRef, id] = ref.split('#'), version = host.studyforgePluginsManager.get(pluginRef!, digest);
+    const options = version.manifest.notara;
+    const item = options.skills.find(item => item.id === id) ?? options.teaching.find(item => item.id === id) ?? options.subjects.find(item => item.id === id);
+    if (!item) throw new Error('plugin_contribution_missing');
+    const kind = options.skills.includes(item) ? 'skill' : options.teaching.includes(item) ? 'teaching' : 'subject';
+    return { manifest: { kind, title: item.title, description: item.description, subjects: 'subjects' in item ? item.subjects as string[] : [], entry: 'content.md' }, body: host.studyforgePluginsManager.body(pluginRef!, digest, item.entry) };
+  }
+  const packaged = creationPlugin(host, ref);
+  if (packaged) {
+    const version = packaged.data.versions.find(item => item.creation?.digest === digest);
+    if (version) { const manifest = creationManifest(version); return { manifest, body: host.studyforgePluginsManager.body(packaged.ref, version.digest, manifest.entry) }; }
+  }
   const row = host.studyforgeInstalledArtifacts.read(workspaceContext(host), 'artifact:' + idOf(ref));
   const version = row.data.versions.find(item => item.digest === digest);
   if (!version) throw new Error('artifact_version_missing');
@@ -112,6 +141,9 @@ export function installedBody(host: Context, ref: string, digest: string): { man
 }
 
 export async function setArtifactEnabled(host: Context, input: { ref: string; expectedVersion: number; operationId: string; enabled: boolean }): Promise<ArtifactInstallation> {
+  const packaged = creationPlugin(host, input.ref);
+  if (packaged) { await host.studyforgePluginsManager.setEnabled({ ref: packaged.ref, expectedVersion: input.expectedVersion, enabled: input.enabled }); return creationInstallation(host, input.ref)!; }
   await host.studyforgeInstalledArtifacts.update({ ...workspaceContext(host), expectedVersion: input.expectedVersion, operationId: input.operationId }, 'artifact:' + idOf(input.ref), { enabled: input.enabled }, previous => ({ ...previous, enabled: input.enabled }));
+  host.studyforgePluginsManager.changed();
   return installation(host, input.ref)!;
 }

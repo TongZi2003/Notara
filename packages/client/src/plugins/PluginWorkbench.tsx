@@ -1,0 +1,76 @@
+import type { Context } from '@deepseek-ai/cordis';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { WorkbenchNoteSchema, type WorkbenchChoice, type WorkbenchContent } from '@studyforge/contracts/plugins';
+import { notifyPlugins } from './PluginManager.tsx';
+import './plugins.css';
+
+const CHANNEL = 'notara.workbench.v1';
+const fonts = new Map<string, Promise<string>>();
+const FONT_FILES: Record<string, string> = { 'SF Long Cang': 'longcang', 'SF Kalam': 'kalam', 'SF Ma Shan Zheng': 'mashanzheng', 'SF Patrick Hand': 'patrickhand', 'SF WenKai': 'wenkai', 'SF Caveat': 'caveat', 'SF Zhi Mang Xing': 'zhimangxing' };
+async function themeFonts(family: string): Promise<string> {
+  return (await Promise.all(Object.entries(FONT_FILES).filter(([name]) => family.includes(name)).map(([name, file]) => {
+    if (!fonts.has(file)) fonts.set(file, fetch('/studyforge/notebook/fonts/' + file + '.woff2').then(reply => { if (!reply.ok) throw new Error('font_unavailable'); return reply.blob(); }).then(blob => new Promise<string>((resolve, reject) => {
+      const reader = new FileReader(); reader.onload = () => resolve('@font-face{font-family:' + JSON.stringify(name) + ';src:url(' + JSON.stringify(reader.result) + ') format("woff2");font-display:swap}'); reader.onerror = reject; reader.readAsDataURL(blob);
+    })).catch(() => ''));
+    return fonts.get(file)!;
+  }))).join('\n');
+}
+export function useWorkbenchChoices(ctx: Context): WorkbenchChoice[] {
+  const [rows, setRows] = useState<WorkbenchChoice[]>([]);
+  useEffect(() => {
+    let live = true;
+    const read = (): void => { void ctx.remote.studyforgePlugins.workbenches().then(reply => { if (live && reply.ok) setRows(reply.value); }).catch(() => {}); };
+    read(); window.addEventListener('studyforge:learning-changed', read); window.addEventListener('focus', read);
+    return () => { live = false; window.removeEventListener('studyforge:learning-changed', read); window.removeEventListener('focus', read); };
+  }, [ctx]);
+  return rows;
+}
+export function workbenchDocument(content: string, nonce: string): string {
+  const sdk = `(function(){const nonce=${JSON.stringify(nonce)},channel=${JSON.stringify(CHANNEL)};let listeners=[];window.Notara={saveNote(note){parent.postMessage({channel,nonce,type:'save-note',note},'*')},onSaved(fn){listeners.push(fn);return()=>{listeners=listeners.filter(item=>item!==fn)}}};const style=document.createElement('style');document.head.append(style);addEventListener('message',event=>{if(event.source!==parent||event.data?.channel!==channel||event.data?.nonce!==nonce)return;const data=event.data;if(data.type==='theme'){for(const [key,value] of Object.entries(data.tokens))document.documentElement.style.setProperty(key,value);document.documentElement.dataset.theme=data.theme;style.textContent=data.fonts||'';}if(data.type==='saved')listeners.forEach(fn=>fn({title:data.title}));});parent.postMessage({channel,nonce,type:'ready'},'*');})();`;
+  return '<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data: blob:; font-src data:; connect-src \'none\'; form-action \'none\'; base-uri \'none\'"><style>html,body{margin:0;background:var(--notara-background,#fff);color:var(--notara-text,#222);font:var(--notara-font-size,15px)/1.7 var(--notara-font,system-ui)}body{padding:18px;box-sizing:border-box}button,input,textarea,select{font:inherit;color:inherit;border:1px solid var(--notara-border,#ddd);border-radius:var(--notara-radius,8px);background:var(--notara-surface,#fff);padding:8px;box-sizing:border-box;max-width:100%}button{cursor:pointer}button:hover{color:var(--notara-accent,#3468c0)}h1,h2,h3{font-size:var(--notara-heading-size,18px);font-weight:600}textarea{resize:vertical}</style><script>' + sdk + '</script></head><body>' + content + '</body></html>';
+}
+export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionId: string; id: string }): React.JSX.Element {
+  const [content, setContent] = useState<WorkbenchContent>(), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<{ title: string; body: string; operationId: string }>();
+  const pendingRef = useRef(false), frame = useRef<HTMLIFrameElement>(null), nonce = useMemo(() => crypto.randomUUID(), [id, sessionId]);
+  useEffect(() => { let live = true; void ctx.remote.studyforgePlugins.openWorkbench({ sessionId, id }).then(reply => { if (!live) return; if (reply.ok) setContent(reply.value); else setNotice('工作台暂时不可用，请在插件页检查状态。'); }).catch(() => { if (live) setNotice('工作台暂时无法打开，请稍后重试。'); }); return () => { live = false; }; }, [ctx, sessionId, id]);
+  const srcDoc = useMemo(() => content ? workbenchDocument(content.html, nonce) : '', [content, nonce]);
+  useEffect(() => {
+    if (!content) return;
+    let live = true;
+    const post = (data: object): void => { if (live) frame.current?.contentWindow?.postMessage({ channel: CHANNEL, nonce, ...data }, '*'); };
+    const theme = async (): Promise<void> => {
+      const css = getComputedStyle(document.body), family = css.getPropertyValue('--sf-ui-font');
+      const mappings = { '--notara-background': '--nb-page', '--notara-surface': '--nb-hi', '--notara-text': '--nb-ink', '--notara-muted': '--nb-pencil', '--notara-border': '--nb-rule', '--notara-accent': '--nb-pen', '--notara-font': '--sf-ui-font', '--notara-font-size': '--sf-ui-size', '--notara-heading-size': '--sf-text-section', '--notara-radius': '--sf-ui-radius' };
+      const tokens = Object.fromEntries(Object.entries(mappings).map(([key, token]) => [key, css.getPropertyValue(token).trim()]));
+      post({ type: 'theme', theme: document.body.dataset.sfStyle, tokens, fonts: await themeFonts(family) });
+    };
+    const onMessage = (event: MessageEvent): void => {
+      if (event.source !== frame.current?.contentWindow || !event.data || event.data.channel !== CHANNEL || event.data.nonce !== nonce) return;
+      const data = event.data;
+      if (data.type === 'ready') { void theme(); return; }
+      if (data.type !== 'save-note' || !content.permissions.includes('save-note') || pendingRef.current) return;
+      if (Object.keys(data).some(key => !['channel','nonce','type','note'].includes(key))) return;
+      const note = WorkbenchNoteSchema.safeParse(data.note); if (!note.success) { setNotice('笔记内容不完整或过长，请在工作台中调整。'); return; }
+      pendingRef.current = true; setPending({ ...note.data, operationId: crypto.randomUUID() }); setNotice('');
+    };
+    window.addEventListener('message', onMessage);
+    const observer = new MutationObserver(() => { void theme(); }); observer.observe(document.body, { attributes: true, attributeFilter: ['data-sf-style','data-sf-scheme','data-sf-size','data-sf-tone','data-ds-dark-theme'] }); void theme();
+    return () => { live = false; window.removeEventListener('message', onMessage); observer.disconnect(); };
+  }, [content, nonce]);
+  return <section className="sf-plugin-workbench">
+    {content ? <iframe ref={frame} title={content.title} sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={srcDoc} /> : <p role="status">{notice || '正在打开工作台…'}</p>}
+    {content && notice && <p role="status">{notice}</p>}
+    {pending && <section className="sf-plugin-note" role="dialog" aria-modal="true" aria-label="保存笔记">
+      <h3>保存到笔记本</h3><label>标题<input aria-label="笔记标题" disabled={busy} value={pending.title} onChange={event => setPending({ ...pending, title: event.target.value })} /></label>
+      <label>正文<textarea aria-label="笔记正文" disabled={busy} value={pending.body} onChange={event => setPending({ ...pending, body: event.target.value })} /></label>
+      <div className="sf-plugin-actions"><button className="sf-action" disabled={busy || !pending.title.trim() || !pending.body.trim()} onClick={() => {
+        setBusy(true); void ctx.remote.studyforgePlugins.saveNote({ sessionId, id, digest: content!.digest, operationId: pending.operationId, note: { title: pending.title, body: pending.body } }).then(reply => {
+          if (!reply.ok) { setNotice('笔记暂时无法保存，请检查插件状态后重试。'); return; }
+          frame.current?.contentWindow?.postMessage({ channel: CHANNEL, nonce, type: 'saved', title: reply.value.content.title }, '*');
+          setPending(undefined); pendingRef.current = false; setNotice('已保存：' + reply.value.content.title); notifyPlugins();
+        }).catch(() => setNotice('暂时没收到保存结果，可以重试；同一笔记不会重复保存。')).finally(() => setBusy(false));
+      }}>{busy ? '正在保存…' : '确认保存'}</button><button className="sf-quiet" disabled={busy} onClick={() => { setPending(undefined); pendingRef.current = false; }}>取消</button></div>
+    </section>}
+  </section>;
+}

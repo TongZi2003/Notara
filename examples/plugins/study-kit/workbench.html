@@ -1,0 +1,21 @@
+<style>
+main{max-width:640px;margin:auto}header{margin-bottom:24px}header p{color:var(--notara-muted);margin:4px 0}h1{margin:0}label{display:block;margin:0 0 18px}label span{display:block;margin-bottom:6px}input,textarea{display:block;width:100%}textarea{min-height:100px}footer{display:flex;align-items:center;gap:16px;flex-wrap:wrap}footer p{color:var(--notara-muted);margin:0}
+</style>
+<main>
+  <header><h1>学习复盘</h1><p>用自己的话留下这一课。</p></header>
+  <label><span>笔记标题</span><input id="title" placeholder="这一课的主题" maxlength="160"></label>
+  <label><span>我的理解</span><textarea id="understanding" placeholder="我能独立说明什么？"></textarea></label>
+  <label><span>还想弄清的问题</span><textarea id="questions" placeholder="还有哪些疑问或想验证的地方？"></textarea></label>
+  <label><span>下一步</span><textarea id="next" placeholder="接下来想读、练习或尝试什么？"></textarea></label>
+  <footer><button id="save">整理为笔记</button><p id="status" role="status"></p></footer>
+</main>
+<script>
+document.getElementById('save').addEventListener('click', () => {
+  const text = id => document.getElementById(id).value.trim();
+  const title = text('title');
+  const body = [['我的理解','understanding'],['还想弄清的问题','questions'],['下一步','next']].filter(([,id]) => text(id)).map(([heading,id]) => '## ' + heading + '\n\n' + text(id)).join('\n\n');
+  if (!title || !body) { document.getElementById('status').textContent = '请填写标题和至少一段内容。'; return; }
+  window.Notara.saveNote({ title, body });
+});
+window.Notara.onSaved(({title}) => { document.getElementById('status').textContent = '已保存：' + title; });
+</script>

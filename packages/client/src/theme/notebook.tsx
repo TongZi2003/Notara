@@ -199,7 +199,7 @@ export function registerNotebook(ctx: Context, navigation: MaterialNavigation): 
   }
 }
 
-const ROUTES = { home: 'studyforge.home', courses: 'studyforge.courses', materials: 'studyforge.materials', cards: 'studyforge.cards', sets: 'studyforge.sets', memory: 'studyforge.memory', calendar: 'studyforge.calendar', appearance: 'studyforge.appearance', creator: 'studyforge.creator', classroom: null } as const;
+const ROUTES = { home: 'studyforge.home', courses: 'studyforge.courses', materials: 'studyforge.materials', cards: 'studyforge.cards', sets: 'studyforge.sets', memory: 'studyforge.memory', calendar: 'studyforge.calendar', appearance: 'studyforge.appearance', creator: 'studyforge.creator', plugins: 'studyforge.plugins', classroom: null } as const;
 function readRoute(hash: string): MainPanelId | null | undefined {
   const key = hash.replace(/^#studyforge\//, '');
   return hash.startsWith('#studyforge/') && Object.hasOwn(ROUTES, key) ? ROUTES[key as keyof typeof ROUTES] as MainPanelId | null : undefined;

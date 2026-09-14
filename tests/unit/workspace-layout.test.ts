@@ -7,7 +7,7 @@ describe('three independent workspace views', () => {
       const tree = dockView(seed, moving, target, edge);
       expect(leaves(tree).sort()).toEqual([...VIEWS].sort());
       const { panes } = geometry(tree, { x: 0, y: 0, width: 1200, height: 800 });
-      for (const pane of Object.values(panes)) { expect(pane.width).toBeGreaterThan(0); expect(pane.height).toBeGreaterThan(0); }
+      for (const pane of Object.values(panes)) { expect(pane!.width).toBeGreaterThan(0); expect(pane!.height).toBeGreaterThan(0); }
     }
   });
   it('collapses empty branches, restores a hidden view and bounds resize', () => {

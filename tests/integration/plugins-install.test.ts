@@ -1,0 +1,35 @@
+import { afterEach, expect, test } from 'vitest';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
+import { connectRuntime } from '../fixtures/http-runtime.ts';
+import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
+
+let runtime: IsolatedRuntime | undefined;
+afterEach(async () => { await runtime?.stop(); });
+const value = <T>(reply: RemoteResult<T>): T => { if (!reply.ok) throw new Error(JSON.stringify(reply.error)); return reply.value; };
+test('external package installs independently, updates atomically, disables and survives restart', async () => {
+  runtime = await startIsolated({ testModel: true });
+  let client = await connectRuntime(runtime);
+  const directory = join(runtime.root, 'external-plugin'); await mkdir(directory);
+  const manifest = { name: 'notara-test-kit', version: '1.0.0', notara: { apiVersion: 1, title: '测试学习插件', skills: [{ id: 'quiz', title: '独立出题', description: '根据所选资料出题', entry: 'quiz.md' }], workbenches: [{ id: 'notes', title: '学习复盘', entry: 'index.html', permissions: ['save-note'] }] } };
+  const source = async (version: string, text: string) => { await writeFile(join(directory, 'package.json'), JSON.stringify({ ...manifest, version })); await writeFile(join(directory, 'quiz.md'), text); await writeFile(join(directory, 'index.html'), '<main>学习复盘</main>'); };
+  await source('1.0.0', '原版教学：先让学生独立作答。');
+  const prepare = () => client.rpc<any>('studyforgePlugins/prepare', { input: { kind: 'directory', path: directory } }).then(value);
+  const candidate = await prepare(); expect(candidate.manifest.name).toBe('notara-test-kit');
+  const install = (preview: any, expectedVersion: number) => client.rpc<any>('studyforgePlugins/installPackage', { input: { candidateId: preview.candidateId, expectedVersion, trustNative: false } });
+  let installed = value(await install(candidate, 0)); expect(installed.state).toBe('enabled');
+  expect(value(await install(candidate, 0)).revision).toBe(installed.revision);
+  expect(JSON.stringify(value(await client.rpc('studyforgeTeaching/tasks', {})))).toContain('独立出题');
+  await source('1.0.0', 'same version with different bytes');
+  expect((await install(await prepare(), installed.revision)).ok).toBe(false);
+  await source('1.1.0', '新版教学：先澄清学习目标。');
+  installed = value(await install(await prepare(), installed.revision)); expect(installed.version).toBe('1.1.0');
+  await runtime.restart(); client = await connectRuntime(runtime);
+  const rows = value(await client.rpc<any[]>('studyforgePlugins/list', {})); expect(rows.find(row => row.ref === installed.ref)?.state).toBe('enabled');
+  installed = value(await client.rpc<any>('studyforgePlugins/setEnabled', { input: { ref: installed.ref, expectedVersion: installed.revision, enabled: false } }));
+  expect(installed.state).toBe('installed');
+  expect(JSON.stringify(value(await client.rpc('studyforgeTeaching/tasks', {})))).not.toContain('独立出题');
+  value(await client.rpc('studyforgePlugins/uninstallPackage', { input: { ref: installed.ref, expectedVersion: installed.revision } }));
+  expect(value(await client.rpc<any[]>('studyforgePlugins/list', {}))).toHaveLength(0);
+}, 90_000);

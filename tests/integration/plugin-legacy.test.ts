@@ -1,0 +1,23 @@
+import { afterEach, expect, test } from 'vitest';
+import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
+import { connectRuntime } from '../fixtures/http-runtime.ts';
+import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
+import type { ArtifactView, ArtifactInstallation } from '@studyforge/contracts/creation';
+import type { MaterialView } from '@studyforge/contracts/material-records';
+import type { PluginView } from '@studyforge/contracts/plugins';
+let runtime: IsolatedRuntime | undefined;
+afterEach(async () => { await runtime?.stop(); });
+const value = <T>(reply: RemoteResult<T>): T => { if (!reply.ok) throw new Error(JSON.stringify(reply.error)); return reply.value; };
+test('legacy publication can unregister and restore the same snapshot without deleting its source', async () => {
+  runtime = await startIsolated({ testModel: true }); const client = await connectRuntime(runtime);
+  const material = value(await client.rpc<MaterialView>('studyforgeMaterials/import', { input: { operationId: 'source', material: { title:'原教法', fileName:'教法.md', mediaType:'text/markdown' }, base64: Buffer.from('# 原教法').toString('base64') } }));
+  const artifact = value(await client.rpc<ArtifactView>('studyforgeCreation/create', { input: { operationId:'legacy', title:'旧技能', kind:'skill', references:[], content:'# 新教法', target:{ref:'material:' + material.materialId, version:material.revision} } }));
+  const publish = () => client.rpc<ArtifactInstallation>('studyforgeCreation/publishArtifact', { input:{ref:artifact.ref,digest:artifact.digest,operationId:'same-install',expectedVersion:0} }).then(value);
+  const first = await publish(); expect(first.enabled).toBe(true);
+  const legacy = value(await client.rpc<PluginView[]>('studyforgePlugins/list', {}))[0]!; expect(legacy.ref).toMatch(/^legacy:/);
+  value(await client.rpc('studyforgePlugins/uninstallPackage', { input:{ref:legacy.ref,expectedVersion:legacy.revision} }));
+  expect(value(await client.rpc<PluginView[]>('studyforgePlugins/list', {}))).toHaveLength(0);
+  expect((await publish()).enabled).toBe(true);
+  expect(value(await client.rpc<PluginView[]>('studyforgePlugins/list', {}))).toHaveLength(1);
+  expect(value(await client.rpc<MaterialView[]>('studyforgeMaterials/list', {}))).toHaveLength(1);
+},45_000);

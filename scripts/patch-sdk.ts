@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import './patch-layout.ts';
 import './patch-sidebar.ts';
 import './patch-steering-display.ts';
+import './patch-input-source-filter.ts';
 import { stripConversationSeams, applyConversationSeams } from './patch-conversation-views.ts';
 
 const project = join(dirname(fileURLToPath(import.meta.url)), '..');

@@ -69,6 +69,10 @@ import { StudyForgeHandoffs } from './handoff-service.ts';
 import { registerHandoffTools } from './tools/handoff-tools.ts';
 import { CreationRecordSchema, InstalledArtifactSchema } from '@studyforge/contracts/creation';
 import { StudyForgeCreation, installCreationContext } from './creation-service.ts';
+import { PluginRecordSchema, PluginPinSchema } from '@studyforge/contracts/plugins';
+import { PluginManager } from './plugins/plugin-manager.ts';
+import { StudyForgePlugins } from './plugins-service.ts';
+export { StudyForgePlugins } from './plugins-service.ts';
 export { StudyForgeCreation } from './creation-service.ts';
 export { StudyForgeHandoffs } from './handoff-service.ts';
 export { StudyForgeProposals } from './proposals-service.ts';
@@ -86,7 +90,7 @@ export type { ProbeReply } from '@studyforge/contracts';
 
 export interface Config { root: string; timeZone: string; }
 export const Config: Schema<Config> = Schema.object({ root: Schema.string().required(), timeZone: Schema.string().default('UTC') });
-export const inject = ['storage', 'workspaceRegistry', 'sessions', 'sessionQuery', 'sessionProjections', 'sessionController', 'typert', 'tools', 'agentPresets', 'attachments', 'llm', 'systemPrompt', 'skills', 'subagents', 'timer'];
+export const inject = ['storage', 'workspaceRegistry', 'sessions', 'sessionQuery', 'sessionProjections', 'sessionController', 'typert', 'tools', 'agentPresets', 'attachments', 'llm', 'systemPrompt', 'skills', 'subagents', 'timer', 'loader', 'clientModules'];
 declare module '@deepseek-ai/cordis' {
   interface Context {
     studyforgeRecords: Awaited<ReturnType<typeof openWorkspaceRecords>>;
@@ -101,6 +105,13 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const unprovide = ctx.reflect.provide('studyforgeRecords', owner);
     ctx.effect(() => async () => { unprovide(); await owner.close(); });
     await installExecutionAccess(ctx, config.root, workspace.id);
+    const pluginRecords = await owner.collection('plugin', PluginRecordSchema);
+    const pluginPins = await owner.collection('pluginpin', PluginPinSchema);
+    const plugins = new PluginManager(ctx, pluginRecords, pluginPins);
+    ctx.effect(() => ctx.reflect.provide('studyforgePluginsManager', plugins));
+    ctx.effect(() => () => plugins.dispose());
+    ctx.plugin(StudyForgePlugins);
+
     const courseRecords = await owner.collection('course', CourseMetadataSchema);
     const relations = await owner.collection('relation', LibraryRelationSchema);
     ctx.effect(() => ctx.reflect.provide('studyforgeRelations', relations));
@@ -227,6 +238,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     registerDelegationTools(ctx, { assistantsDir: fileURLToPath(new URL('../teaching-resources/assistants', import.meta.url)) });
     try { await dispatcher.flush({ workspaceId: workspace.id, purpose: 'learning', actor: 'system' }); }
     catch { /* Stored pending receipts remain available for explicit retry. */ }
+    await plugins.restore();
     ctx.plugin(StudyForgeProbe);
   } catch (error) { await owner.close(); throw error; }
 }

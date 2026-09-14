@@ -21,6 +21,7 @@ import { registerNotebookSidebar } from '../shell/NotebookSidebar.tsx';
 import { registerToolActivity } from '../classroom/ToolActivity.tsx';
 import { registerContentNavigation } from '../materials/content-navigation.tsx';
 import { registerTaskDraft } from '../classroom/skill-draft.ts';
+import { registerPlugins } from '../plugins/PluginManager.tsx';
 import { registerCreation } from '../creation/register-creation.tsx';
 import { registerClassroomTrace } from '../classroom/ClassroomTrace.tsx';
 import { registerLearningWorkspace } from '../classroom/LearningWorkspace.tsx';
@@ -42,12 +43,13 @@ export async function apply(ctx: Context): Promise<void> {
   ctx.plugin({ inject: ['slots', 'sessions', 'layout'], apply: registerContentNavigation });
   ctx.plugin({ inject: ['remote.studyforgeTeaching', 'remote.studyforgeLearning', 'inputTriggers', 'conversation', 'sessions'], apply: registerTaskDraft });
   ctx.plugin({ inject: ['remote.studyforgeCreation', 'slots', 'sessions', 'layout'], apply: registerCreation });
+  ctx.plugin({ inject: ['remote.studyforgePlugins', 'slots', 'layout'], apply: registerPlugins });
   ctx.plugin({ inject: ['slots', 'layout', 'sessions', 'uiWorkspace', 'remote.studyforgeOrganization'], apply: registerNotebookSidebar });
   ctx.plugin({ inject: ['theme', 'slots', 'layout', 'sessions'], apply: scope => registerNotebook(scope, materialNavigation) });
   // Remote namespaces are separately injected properties: reading
   // `ctx.remote.studyforgeCourses` needs its own nested inject entry.
   ctx.plugin({ inject: ['remote.studyforgeLibrary', 'remote.studyforgeCreation', 'remote.studyforgeCourses', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'remote.studyforgeMemory', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'remote.studyforgeHandoffs', 'remote.studyforgeProposals', 'slots', 'uiConversation', 'sidebarRight', 'sidebarRightTabs', 'layout', 'sessions'], apply: registerClassroom });
-  ctx.plugin({ inject: ['slots', 'sessions', 'layout', 'conversation', 'sidebarRight', 'remote.studyforgeTrace', 'remote.studyforgeLibrary', 'remote.studyforgeCreation', 'remote.studyforgeCourses', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'remote.studyforgeMemory', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'remote.studyforgeHandoffs', 'remote.studyforgeProposals'], apply: registerLearningWorkspace });
+  ctx.plugin({ inject: ['slots', 'sessions', 'layout', 'conversation', 'sidebarRight', 'remote.studyforgeTrace', 'remote.studyforgeLibrary', 'remote.studyforgeCreation', 'remote.studyforgeCourses', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'remote.studyforgeMemory', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'remote.studyforgeHandoffs', 'remote.studyforgeProposals', 'remote.studyforgePlugins'], apply: registerLearningWorkspace });
   // The student-facing system note and the opt-in Raw debug surfaces read the
   // same session binding the native Chat owns; they open no second source.
   ctx.plugin({ inject: ['remote.studyforgeCourses', 'slots', 'sessions'], apply: registerDebugSurfaces });

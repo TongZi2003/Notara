@@ -27,6 +27,7 @@
     "lib/typert.remote-client.d.ts"
   ],
   "dependencies": {
+    "@deepseek-ai/dsh-app-boot": "0.1.5-rc.2",
     "@deepseek-ai/dsh-agent-presets": "0.1.5-rc.2",
     "@deepseek-ai/dsh-api-workspace-files": "0.1.5-rc.2",
     "@deepseek-ai/dsh-fs": "0.1.5-rc.2",
@@ -48,6 +49,7 @@
     "zod": "4.6.2"
   },
   "peerDependencies": {
+    "@deepseek-ai/dsh": "0.1.5-rc.2",
     "@deepseek-ai/cordis": "4.0.2"
   }
 }

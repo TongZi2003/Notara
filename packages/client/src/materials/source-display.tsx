@@ -2,7 +2,8 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { StoredEntry, SlotMap, SnapshotSelectorHook, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type { SessionSnapshot } from '@deepseek-ai/dsh-api-session-controller/client';
 import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewSlotProps } from '@deepseek-ai/dsh-client-ui-chat/client';
-import { useMemo, useState, type ComponentType } from 'react';
+import { useMemo, useState, useSyncExternalStore, type ComponentType } from 'react';
+import { displaySkillReferences } from '../plugins/skill-labels.ts';
 import { decodeSourceFragments, encodeSourceFragment, type SourceFragment } from '@studyforge/contracts/source-context';
 import { openLessonSource } from './native-preview-adapter.ts';
 import { cardAddress } from './CardResource.tsx';
@@ -115,6 +116,15 @@ function decorate(ctx: Context, name: keyof SlotMap & string, cell: string, wrap
 }
 
 export function registerSourceDisplay(ctx: Context): void {
+  let labels: Record<string, string> = {}, live = true;
+  const listeners = new Set<() => void>();
+  const subscribe = (listener: () => void): (() => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
+  const getLabels = (): Record<string, string> => labels;
+  const refreshLabels = (): void => { void ctx.remote.studyforgeTeaching.taskLabels().then(reply => {
+    if (!live || !reply.ok) return; labels = Object.fromEntries(reply.value.map(row => [row.id, row.title])); for (const listener of listeners) listener();
+  }).catch(() => {}); };
+  refreshLabels(); window.addEventListener('studyforge:learning-changed', refreshLabels);
+  ctx.effect(() => () => { live = false; window.removeEventListener('studyforge:learning-changed', refreshLabels); listeners.clear(); });
   // Pending steering has not become a keyed message yet. Keep the native
   // bubble and its image/copy behavior, projecting only the visible content.
   ctx.effect(() => ctx.slots.inject('conversation.chat.pending', () => ctx.slots.register({ name: 'conversation.chat.pending' },
@@ -123,9 +133,12 @@ export function registerSourceDisplay(ctx: Context): void {
     const View = Native as unknown as ComponentType<ChatNodeViewProps<typeof kind>>;
     return ((props: ChatNodeViewProps<typeof kind>) => {
       const content = props.node.data.content;
-      const node = { ...props.node, data: { ...props.node.data, content: cleanContent(content) } } as typeof props.node;
+      const known = useSyncExternalStore(subscribe, getLabels);
+      const skills = displaySkillReferences(cleanContent(content), props.node.data.skillNames ?? [], known);
+      const node = { ...props.node, data: { ...props.node.data, content: skills.content } } as typeof props.node;
       const displayProps = { ...props, node } as ChatNodeViewProps<typeof kind>;
       return <><View {...displayProps} />
+        {skills.titles.length > 0 && <div className="sf-message-skills">{skills.titles.map((title, i) => <span key={i} data-ref-chip="skill" title={title}>{title}</span>)}</div>}
         <SourceLinks ctx={ctx} sessionId={String(props.sessionId)} fragments={fragmentsOf(content)} /></>;
     }) as unknown as ComponentType<never>;
   });

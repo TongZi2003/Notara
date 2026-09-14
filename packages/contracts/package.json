@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./plugins": { "types": "./lib/types/plugins.d.ts", "default": "./lib/types/plugins.js" },
     "./classroom-trace": { "types": "./lib/types/classroom-trace.d.ts", "default": "./lib/types/classroom-trace.js" },
     "./library": { "types": "./lib/types/library.d.ts", "default": "./lib/types/library.js" },
     "./creation": { "types": "./lib/types/creation.d.ts", "default": "./lib/types/creation.js" },

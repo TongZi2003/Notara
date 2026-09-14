@@ -1,0 +1,14 @@
+{
+  "name": "@notara/study-kit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "出题技能与学习复盘工作台",
+  "files": ["quiz.md", "workbench.html", "README.md"],
+  "notara": {
+    "apiVersion": 1,
+    "title": "出题与复盘",
+    "description": "围绕所学出一组题，再把自己的理解与疑问整理成笔记。",
+    "skills": [{ "id": "quiz", "title": "出一组题", "description": "围绕选定资料和目标出题，收集独立作答后反馈。", "entry": "quiz.md" }],
+    "workbenches": [{ "id": "reflection", "title": "学习复盘", "description": "整理收获、疑问与下一步，确认后存为笔记。", "entry": "workbench.html", "permissions": ["save-note"] }]
+  }
+}

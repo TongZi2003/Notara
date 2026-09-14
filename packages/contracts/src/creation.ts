@@ -35,7 +35,7 @@ export type ArtifactCreate = z.infer<typeof ArtifactCreateSchema>;
 export const ArtifactSaveSchema = z.object({ ref: z.string().min(1), path: z.enum(['manifest.json', 'content.md', 'index.html']), expectedDigest: z.string().min(1), content: z.string().max(1_000_000) }).strict();
 
 export const InstalledArtifactSchema = z.object({
-  projectRef: z.string(), activeDigest: z.string(), enabled: z.boolean(),
+  projectRef: z.string(), activeDigest: z.string(), enabled: z.boolean(), removed: z.boolean().optional(),
   versions: z.array(z.object({ digest: z.string(), manifest: ArtifactManifestSchema, files: z.array(z.object({ path: z.string(), digest: z.string() }).strict()), installedAt: z.string(),
     publication: z.object({ ref: z.string(), revision: z.number().int().positive() }).strict().optional(),
   }).strict()).min(1),

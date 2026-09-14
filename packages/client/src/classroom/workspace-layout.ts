@@ -1,6 +1,13 @@
 /** Browser-local arrangement only. Never writes lesson facts or native drafts. */
 export const VIEWS = ['chat', 'thoughts', 'materials'] as const;
-export type WorkspaceView = typeof VIEWS[number];
+export type WorkspaceView = typeof VIEWS[number] | `plugin-${string}`;
+const isView = (value: unknown): value is WorkspaceView => typeof value === 'string' && ((VIEWS as readonly string[]).includes(value) || /^plugin-[a-f0-9]{24}-[a-z][a-z0-9-]{0,47}$/.test(value));
+/** Keep unavailable views in saved layout, prune only the current render. */
+export function availableTree(tree: SplitTree | null, available: readonly WorkspaceView[]): SplitTree | null {
+  if (tree === null || typeof tree === 'string') return tree !== null && available.includes(tree) ? tree : null;
+  const a = availableTree(tree.a, available), b = availableTree(tree.b, available);
+  return a === null ? b : b === null ? a : { ...tree, a, b };
+}
 export type Edge = 'left' | 'right' | 'top' | 'bottom';
 export type SplitTree = WorkspaceView | { axis: 'x' | 'y'; ratio: number; a: SplitTree; b: SplitTree };
 export interface WorkspaceLayout { tree: SplitTree | null; active: WorkspaceView; visited: WorkspaceView[] }
@@ -57,15 +64,15 @@ export function readLayout(raw: unknown, fallback: WorkspaceLayout): WorkspaceLa
   if (!raw || typeof raw !== 'object') return fallback;
   const input = raw as Record<string, unknown>, seen = new Set<string>();
   function validTree(value: unknown, depth = 0): value is SplitTree {
-    if (typeof value === 'string') { if (!(VIEWS as readonly string[]).includes(value) || seen.has(value)) return false; seen.add(value); return true; }
-    if (!value || typeof value !== 'object' || depth > 1) return false;
+    if (typeof value === 'string') { if (!isView(value) || seen.has(value) || seen.size >= 24) return false; seen.add(value); return true; }
+    if (!value || typeof value !== 'object' || depth > 23) return false;
     const split = value as Record<string, unknown>;
     return (split.axis === 'x' || split.axis === 'y') && typeof split.ratio === 'number' && Number.isFinite(split.ratio) && split.ratio >= .2 && split.ratio <= .8 && validTree(split.a, depth + 1) && validTree(split.b, depth + 1);
   }
   if (input.tree !== null && !validTree(input.tree)) return fallback;
-  if (!(VIEWS as readonly unknown[]).includes(input.active)) return fallback;
+  if (!isView(input.active)) return fallback;
   const tree = input.tree as SplitTree | null, active = input.active as WorkspaceView;
-  const visited = Array.isArray(input.visited) ? input.visited.filter((v): v is WorkspaceView => (VIEWS as readonly unknown[]).includes(v)) : [];
+  const visited = Array.isArray(input.visited) ? input.visited.filter((v): v is WorkspaceView => isView(v)) : [];
   return { tree, active, visited: [...new Set<WorkspaceView>(['chat', ...visited, ...leaves(tree)])] };
 }
 const states = new Map<string, WorkspaceLayout>(), listeners = new Set<() => void>();

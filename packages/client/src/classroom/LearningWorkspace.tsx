@@ -5,7 +5,9 @@ import { ClassroomTrace } from './ClassroomTrace.tsx';
 import { LessonResources, type LessonResourcesFace } from '../materials/LessonResources.tsx';
 import { LearningObject } from './LearningObject.tsx';
 import { LessonSettingsModal } from './LessonSettings.tsx';
-import { VIEWS, adaptTree, dockView, geometry, leaves, removeView, resizeTree, revealWorkspaceView, subscribeWorkspace, updateWorkspace, workspaceLayout, type Edge, type Rect, type SplitTree, type WorkspaceView } from './workspace-layout.ts';
+import { PluginWorkbench, useWorkbenchChoices } from '../plugins/PluginWorkbench.tsx';
+import { PluginIcon } from '../plugins/PluginManager.tsx';
+import { VIEWS, availableTree, adaptTree, dockView, geometry, leaves, removeView, resizeTree, revealWorkspaceView, subscribeWorkspace, updateWorkspace, workspaceLayout, type Edge, type Rect, type SplitTree, type WorkspaceView } from './workspace-layout.ts';
 import './learning-workspace.css';
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -14,10 +16,11 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'conversation.workspace': { kind: 'single'; scope: 'session-maybe'; owner: { nativeConversation: ReactNode } };
   }
 }
-const LABELS: Record<WorkspaceView, string> = { chat: '对话', thoughts: '思维图', materials: '资料工作台' };
+const BASE_LABELS: Record<string, string> = { chat: '对话', thoughts: '思维图', materials: '资料工作台' };
 const EDGE_LABELS: Record<Edge, string> = { left: '放到左侧', right: '放到右侧', top: '放到上方', bottom: '放到下方' };
 const EDGES = ['left', 'right', 'top', 'bottom'] as const;
 function ViewIcon({ view }: { view: WorkspaceView }): React.JSX.Element {
+  if (view.startsWith('plugin-')) return <PluginIcon />;
   return <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">{view === 'chat' ? <path d="M4 3.5h12v10H9l-4 3v-3H4zM7 7h6M7 10h4" /> : view === 'thoughts' ? <><rect x="7" y="2" width="6" height="4" rx="1" /><path d="M10 6v4M4 13v-3h12v3" /><rect x="1" y="13" width="6" height="4" rx="1" /><rect x="13" y="13" width="6" height="4" rx="1" /></> : <><rect x="2" y="3" width="10" height="14" rx="1" /><path d="M5 3v14M14 5h4v11h-4" /></>}</svg>;
 }
 
@@ -35,6 +38,9 @@ function MaterialsView({ ctx, sessionId, running, visible, host }: { ctx: Contex
 function Workspace({ ctx, sessionId, blank, running, title, nativeConversation, host }: {
   ctx: Context; sessionId: string; blank: boolean; running: boolean; title: string; nativeConversation: ReactNode; host: LessonResourcesFace;
 }): React.JSX.Element {
+  const extensions = useWorkbenchChoices(ctx);
+  const views: WorkspaceView[] = [...VIEWS, ...extensions.map(row => row.id as WorkspaceView)];
+  const LABELS: Record<string, string> = { ...BASE_LABELS, ...Object.fromEntries(extensions.map(row => [row.id, row.title])) };
   const state = useSyncExternalStore(subscribeWorkspace, () => workspaceLayout(sessionId, blank));
   const surface = useRef<HTMLDivElement>(null), [size, setSize] = useState({ width: 1000, height: 700 });
   const [dragging, setDragging] = useState<WorkspaceView>(), [over, setOver] = useState(''), [settings, setSettings] = useState(false);
@@ -55,9 +61,10 @@ function Workspace({ ctx, sessionId, blank, running, title, nativeConversation, 
     return () => { delete document.body.dataset.sfWorkspace; if (expanded && !ctx.sidebarRight.isExpanded()) ctx.sidebarRight.toggleExpanded(); };
   }, [ctx]);
   useEffect(() => { setMenu(undefined); setSettings(false); lastRects.current = {}; }, [sessionId]);
-  const open = leaves(state.tree), narrow = size.width < 650;
+  const currentTree = availableTree(state.tree, views);
+  const open = leaves(currentTree), narrow = size.width < 650;
   const active = open.includes(state.active) ? state.active : open[0];
-  const drawn = narrow ? active ?? null : adaptTree(state.tree, size.width);
+  const drawn = narrow ? active ?? null : adaptTree(currentTree, size.width);
   const { panes, dividers } = geometry(drawn, { x: 0, y: 0, ...size });
   Object.assign(lastRects.current, panes);
   const arrange = (tree: SplitTree | null, activeView = state.active): void => {
@@ -69,7 +76,7 @@ function Workspace({ ctx, sessionId, blank, running, title, nativeConversation, 
   const endDrag = (): void => { setDragging(undefined); setOver(''); };
   function preset(event: React.MouseEvent<HTMLButtonElement>, tree: SplitTree, selected: WorkspaceView = 'chat'): void { arrange(tree, selected); event.currentTarget.closest('details')?.removeAttribute('open'); }
   return <main className="sf-learning-workspace" data-testid="learning-workspace" data-narrow={narrow}>
-    <header className="sf-workspace-bar"><nav aria-label="课堂视图">{VIEWS.map(view => <button key={view} type="button" draggable={!narrow} onDragStart={event => startDrag(event, view)} onDragEnd={endDrag}
+    <header className="sf-workspace-bar"><nav aria-label="课堂视图">{views.map(view => <button key={view} type="button" draggable={!narrow} onDragStart={event => startDrag(event, view)} onDragEnd={endDrag}
       data-testid={`workspace-open-${view}`} aria-pressed={open.includes(view)} data-current={active === view} onClick={() => revealWorkspaceView(sessionId, view)}><ViewIcon view={view} /><span>{LABELS[view]}</span></button>)}</nav>
       <details className="sf-workspace-layout-menu"><summary aria-label="调整布局" title="调整布局">▥</summary><div>
         <button onClick={e => preset(e, 'chat')}>只看对话</button>
@@ -82,7 +89,7 @@ function Workspace({ ctx, sessionId, blank, running, title, nativeConversation, 
       </div></details>
     </header>
     <div className="sf-workspace-surface" ref={surface} data-testid="workspace-surface" onDragEnd={endDrag}>
-      {VIEWS.map(view => {
+      {views.map(view => {
         const rect = panes[view] ?? lastRects.current[view] ?? { x: 0, y: 0, ...size }, visible = !!panes[view];
         return <section key={view} className="sf-workspace-pane" data-testid={`workspace-pane-${view}`} data-view={view} data-current={active === view} data-visible={visible} aria-label={LABELS[view]} aria-hidden={!visible} {...(!visible ? { inert: '' } : {})}
           style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height, visibility: visible ? 'visible' : 'hidden' }}
@@ -92,7 +99,7 @@ function Workspace({ ctx, sessionId, blank, running, title, nativeConversation, 
             {menu === view && <div className="sf-workspace-pane-menu"><button onClick={() => arrange(view, view)}>只看{LABELS[view]}</button>{open.filter(target => target !== view).map(target => <div key={target}><small>{LABELS[target]}</small>{EDGES.map(edge => <button key={edge} onClick={() => move(view, target, edge)}>{EDGE_LABELS[edge]}</button>)}</div>)}<button onClick={() => setMenu(undefined)}>收起菜单</button></div>}
           </header>
           <div className="sf-workspace-pane-content" data-sf-conversation-paper={view === 'chat' ? true : undefined}>
-            {view === 'chat' ? nativeConversation : state.visited.includes(view) && (view === 'thoughts' ? <ClassroomTrace key={sessionId} ctx={ctx} sessionId={sessionId} running={running} /> : <MaterialsView key={sessionId} ctx={ctx} sessionId={sessionId} host={host} running={running} visible={visible} />)}
+            {view === 'chat' ? nativeConversation : state.visited.includes(view) && (view.startsWith('plugin-') ? <PluginWorkbench key={sessionId + view} ctx={ctx} sessionId={sessionId} id={view} /> : view === 'thoughts' ? <ClassroomTrace key={sessionId} ctx={ctx} sessionId={sessionId} running={running} /> : <MaterialsView key={sessionId} ctx={ctx} sessionId={sessionId} host={host} running={running} visible={visible} />)}
           </div>
           {dragging && dragging !== view && visible && <div className="sf-workspace-drops">{EDGES.map(edge => <div key={edge} data-edge={edge} data-testid={`drop-${view}-${edge}`} data-over={over === view + edge}
             onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setOver(view + edge); }} onDrop={event => { event.preventDefault(); move(dragging, view, edge); }}>{EDGE_LABELS[edge]}</div>)}</div>}
@@ -109,7 +116,7 @@ function Workspace({ ctx, sessionId, blank, running, title, nativeConversation, 
           const end = (): void => { node.removeEventListener('pointermove', movePointer); node.removeEventListener('lostpointercapture', end); };
           node.addEventListener('pointermove', movePointer); node.addEventListener('lostpointercapture', end);
         }} />)}
-      {!state.tree && <div className="sf-workspace-empty" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (dragging) { revealWorkspaceView(sessionId, dragging); endDrag(); } }}><span>打开一个视图</span><div>{VIEWS.map(view => <button key={view} onClick={() => revealWorkspaceView(sessionId, view)}>{LABELS[view]}</button>)}</div></div>}
+      {!currentTree && <div className="sf-workspace-empty" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (dragging) { revealWorkspaceView(sessionId, dragging); endDrag(); } }}><span>打开一个视图</span><div>{views.map(view => <button key={view} onClick={() => revealWorkspaceView(sessionId, view)}>{LABELS[view]}</button>)}</div></div>}
     </div>
     {settings && <LessonSettingsModal ctx={ctx} sessionId={sessionId} title={title} readCourse={readCourse} refreshToken={running} onClose={() => setSettings(false)} />}
   </main>;

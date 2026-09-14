@@ -15,11 +15,11 @@ import { installToolDisclosure } from '../tools/tool-disclosure.ts';
 import { guidedBrief, registerGuidedLearning } from './guided-learning.ts';
 import { lessonSubjects, subjectBrief, pinSubjects } from './subject-context.ts';
 import { studentContext } from '../learning-service.ts';
-import { installTaskSkills, taskChoices } from './task-skills.ts';
+import { installTaskSkills, taskChoices, taskLabels } from './task-skills.ts';
 import { activeArtifacts, installedBody } from '../creation/artifact-service.ts';
 
 export function teachingBody(host: Context, id: string): string {
-  if (!id.startsWith('creation:')) return host.studyforgeTeachingCatalog.body(id);
+  if (!id.startsWith('creation:') && !id.startsWith('plugin:')) return host.studyforgeTeachingCatalog.body(id);
   const [ref, digest] = id.split('@');
   const resource = installedBody(host, ref!, digest!);
   if (resource.manifest.kind !== 'teaching') throw new Error('teaching_configuration_missing');
@@ -60,6 +60,8 @@ export class StudyForgeTeaching extends TypertRemoteService {
   async choices(): Promise<TeachingChoice[]> { return [...this.ctx.studyforgeTeachingCatalog.choices]; }
   @Remote('tasks')
   async tasks(): Promise<TeachingChoice[]> { return taskChoices(this.ctx); }
+  @Remote('taskLabels')
+  async taskLabels(): Promise<{ id: string; title: string }[]> { return taskLabels(this.ctx); }
   @Remote('modes')
   async modes(): Promise<TeachingChoice[]> { return [...this.ctx.studyforgeTeachingCatalog.choices.filter(choice => INTERACTION_MODES.includes(choice.id)), ...activeArtifacts(this.ctx).filter(item => item.manifest.kind === 'teaching').map(item => ({ id: item.ref + '@' + item.digest, title: item.manifest.title, description: item.manifest.description }))]; }
   @Remote('subjects')

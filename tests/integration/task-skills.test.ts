@@ -13,10 +13,10 @@ test('task skills use the native provider and slash invocation injects the same 
   runtime = await startIsolated({ testModel: true });
   const client = await connectRuntime(runtime);
   const choices = value(await client.rpc<{ id: string; title: string }[]>('studyforgeTeaching/tasks', {}));
-  expect(choices.map(item => item.title)).toEqual(['按语义查找','作文批改','出一组题','整理成讲义','互动演示']);
+  expect(choices.map(item => item.title)).toEqual(['按语义查找','作文批改','整理成讲义','互动演示']);
   const { sessionId } = value(await client.rpc<SessionCreateValue>('session/create', { request: { cwd: join(runtime.root, 'classroom'), agentPreset: 'studyforge-learning' } }));
-  value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '/studyforge-quiz 围绕当前问题出题。' }] } }));
+  value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '/studyforge-semantic-search 查找与当前问题有关的资料。' }] } }));
   await expect.poll(async () => value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(item => item.sessionId === sessionId)?.running).toBe(false);
   const requests = await readFile(join(runtime.root, 'model-requests.jsonl'), 'utf8');
-  expect(requests).toContain('skill-invocation'); expect(requests).toContain('根据学生指定资料和学习目标出题');
+  expect(requests).toContain('skill-invocation'); expect(requests).toContain('按语义查找');
 }, 40_000);

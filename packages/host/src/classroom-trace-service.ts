@@ -11,6 +11,7 @@ import { SourceUseSchema } from '@studyforge/contracts/content-history';
 import { toolSchema } from './tools/tool-schema.ts';
 import { teacherContext } from './tools/learning-context.ts';
 import { canonicalPath } from '@studyforge/domain/access';
+import { taskLabels } from './teaching/task-skills.ts';
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeTrace: StudyForgeTrace; studyforgeThoughts: RecordStore<typeof ThoughtGraphSchema>; } }
 const idOf = (session: string): string => createHash('sha256').update(session).digest('hex');
 export function ownEvents(events: readonly SessionEvent[]): readonly SessionEvent[] {
@@ -32,7 +33,18 @@ export class StudyForgeTrace extends TypertRemoteService {
     try {
       parent = observed.header.parentSession;
       let turn = 0;
+      let questionBatch: ThoughtNode[] = [];
+      const skillTitles = new Map(taskLabels(this.ctx).map(row => [row.id, row.title]));
       for (const event of ownEvents(observed.events)) {
+        if (['step/start', 'turn/end', 'tool/call', 'assistant/message'].includes(event.type)) questionBatch = [];
+        if (event.type === 'user/message') {
+          const invocation = z.object({ kind: z.literal('skill-invocation'), name: z.string() }).safeParse(event.data.source);
+          if (invocation.success && skillTitles.has(invocation.data.name)) for (const node of questionBatch) {
+            let found = false;
+            const body = node.body.replace(/(^|\s)\/([\w-]+)(?=\s|$)/gu, (whole, space: string, name: string) => { if (name !== invocation.data.name) return whole; found = true; return space; }).trim();
+            if (found) { node.body = body + '\n\n技能：' + skillTitles.get(invocation.data.name); node.title = (body || skillTitles.get(invocation.data.name)!).replace(/[#*`\n]/g, ' ').slice(0, 72); }
+          }
+        }
         if (event.type === 'turn/start') turn = event.data.turn;
         if (event.type === 'user/message' || event.type === 'assistant/message') {
           const user = event.type === 'user/message', message = user ? event.data : event.data.message;
@@ -44,6 +56,7 @@ export class StudyForgeTrace extends TypertRemoteService {
           const sources = decoded.fragments.flatMap(fragment => fragment.context.selection?.sources ?? (fragment.context.currentMaterial?.kind === 'source' ? [fragment.context.currentMaterial.source] : []));
           const targets = decoded.fragments.flatMap(fragment => fragment.context.currentMaterial?.kind === 'card' ? [{ ref: fragment.context.currentMaterial.cardRef, ...(fragment.context.currentMaterial.cardVersion ? { version: fragment.context.currentMaterial.cardVersion } : {}), title: fragment.titles[0]?.title ?? '卡片' }] : []);
           nodes.push({ id: 'event:' + event.seq, title: system ? '保存结果' : text.replace(/[#*`\n]/g, ' ').slice(0, 72), body: text.slice(0, 20000), kind: system ? 'result' : user ? 'question' : 'answer', sequence: event.seq, turn, sources, targets });
+          if (user && !system) questionBatch.push(nodes.at(-1)!);
         }
         if (event.type === 'tool/result' && !event.data.message.content.some(block => block.isError)) {
           const use = SourceUseSchema.safeParse(event.data.meta), node = nodes.at(-1);

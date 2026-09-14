@@ -21,7 +21,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 type Props = PropsRuntime<'sidebar.content'>;
 type Panel = { id: MainPanelId; title: string };
-const PRIMARY = ['studyforge.home', 'studyforge.sets', 'studyforge.courses', 'studyforge.materials', 'studyforge.calendar', 'studyforge.memory'];
+const PRIMARY = ['studyforge.home', 'studyforge.sets', 'studyforge.courses', 'studyforge.materials', 'studyforge.calendar', 'studyforge.memory', 'studyforge.plugins'];
 
 /** Original navigation composition; every action delegates to native services. */
 export function registerNotebookSidebar(ctx: Context): void {
