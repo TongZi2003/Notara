@@ -7,6 +7,7 @@ import { LearningObject } from './LearningObject.tsx';
 import { LessonSettingsModal } from './LessonSettings.tsx';
 import { PluginWorkbench, useWorkbenchChoices } from '../plugins/PluginWorkbench.tsx';
 import { PluginIcon } from '../plugins/PluginManager.tsx';
+import { WorkbenchGuide } from './WorkbenchGuide.tsx';
 import { VIEWS, availableTree, adaptTree, dockView, geometry, leaves, removeView, resizeTree, revealWorkspaceView, subscribeWorkspace, updateWorkspace, workspaceLayout, type Edge, type Rect, type SplitTree, type WorkspaceView } from './workspace-layout.ts';
 import './learning-workspace.css';
 
@@ -117,7 +118,7 @@ function Workspace({ ctx, sessionId, blank, running, title, nativeConversation, 
           const end = (): void => { node.removeEventListener('pointermove', movePointer); node.removeEventListener('lostpointercapture', end); };
           node.addEventListener('pointermove', movePointer); node.addEventListener('lostpointercapture', end);
         }} />)}
-      {!currentTree && <div className="sf-workspace-empty" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (dragging) { revealWorkspaceView(sessionId, dragging); endDrag(); } }}><span>打开一个视图</span><div>{views.map(view => <button key={view} onClick={() => revealWorkspaceView(sessionId, view)}>{LABELS[view]}</button>)}</div></div>}
+      {!currentTree && <div className="sf-workspace-empty" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (dragging) { revealWorkspaceView(sessionId, dragging); endDrag(); } }}><WorkbenchGuide extensions={extensions} onOpen={view => revealWorkspaceView(sessionId, view)} /></div>}
     </div>
     {settings && <LessonSettingsModal ctx={ctx} sessionId={sessionId} title={title} readCourse={readCourse} refreshToken={running} onClose={() => setSettings(false)} />}
   </main>;

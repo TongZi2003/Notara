@@ -34,7 +34,25 @@
 .sf-workspace-pane .sf-thought-body:has(.sf-thought-detail) .sf-mindmap-zoom{top:12px;bottom:auto}
 .sf-workspace-divider{position:absolute;z-index:20;background:var(--workspace-line);cursor:col-resize;touch-action:none;transition:background .15s}.sf-workspace-divider[data-axis=y]{cursor:row-resize}.sf-workspace-divider:hover,.sf-workspace-divider:focus-visible{background:var(--nb-pen);outline:none}.sf-workspace-divider:after{content:'';position:absolute;inset:0 -2px}.sf-workspace-divider[data-axis=y]:after{inset:-2px 0}
 .sf-workspace-drops{position:absolute;inset:38px 0 0;z-index:45;pointer-events:none}.sf-workspace-drops>div{position:absolute;display:grid;place-items:center;background:#6489a817;border:1px dashed #7f9eaf99;color:#345a8a;border-radius:6px;pointer-events:auto;font:var(--sf-text-meta) var(--nb-print);backdrop-filter:blur(1px)}.sf-workspace-drops>div[data-over=true]{background:#527da838;border:2px solid #527da8}.sf-workspace-drops>[data-edge=left]{left:7px;top:25%;bottom:25%;width:24%}.sf-workspace-drops>[data-edge=right]{right:7px;top:25%;bottom:25%;width:24%}.sf-workspace-drops>[data-edge=top]{left:29%;right:29%;height:23%;top:7px}.sf-workspace-drops>[data-edge=bottom]{left:29%;right:29%;height:23%;bottom:7px}
-.sf-workspace-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px}.sf-workspace-empty>span{font:var(--sf-text-section) var(--nb-hand)}.sf-workspace-empty>div{display:flex;gap:20px}.sf-workspace-empty button{border:0;background:none;color:var(--nb-pen);cursor:pointer}
+.sf-workspace-empty{position:absolute;inset:0;overflow:auto;overscroll-behavior:contain;container:workbench-guide / inline-size}
+.sf-workbench-guide{width:min(880px,100%);box-sizing:border-box;margin:0 auto;padding:36px 32px 48px;color:var(--nb-ink);font:var(--sf-ui-size)/1.6 var(--sf-ui-font)}
+.sf-guide-head{margin-bottom:24px}.sf-guide-head h1{font:500 22px/1.4 var(--sf-ui-font);color:var(--nb-pen);margin:0 0 8px}.sf-guide-head p{font:var(--sf-text-meta)/1.7 var(--sf-ui-font);color:var(--nb-pencil);margin:0}
+.sf-guide-essentials{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.sf-workbench-guide button{box-sizing:border-box;min-width:0;cursor:pointer;text-align:left;font:inherit;color:inherit;transition:background .15s,border-color .15s}
+.sf-guide-primary{display:flex;flex-direction:column;gap:9px;padding:20px 18px 18px;border:1px solid var(--workspace-line);border-radius:var(--sf-menu-radius);background:var(--nb-hi)}
+.sf-guide-illustration{display:block;color:var(--nb-pen);margin-bottom:6px}.sf-guide-illustration svg{display:block;width:42px;height:42px}
+.sf-guide-title{font:500 var(--sf-text-item)/1.4 var(--sf-ui-font);color:var(--nb-ink)}.sf-guide-primary>.sf-guide-title{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}.sf-guide-title>span{color:var(--nb-pencil);font-size:14px}
+.sf-guide-description{font:400 var(--sf-text-meta)/1.7 var(--sf-ui-font);color:var(--nb-pencil);overflow-wrap:anywhere}
+.sf-guide-primary:hover{border-color:var(--nb-pen);background:color-mix(in srgb,var(--nb-pen) 3%,var(--nb-hi))}
+.sf-guide-extensions{margin-top:30px}.sf-guide-extensions h2{font:500 var(--sf-ui-size)/1.4 var(--sf-ui-font);color:var(--nb-pencil);margin:0 0 10px}
+.sf-guide-plugin-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:28px}
+.sf-guide-plugin{display:flex;align-items:center;gap:13px;padding:15px 4px;border:0;border-bottom:1px solid var(--workspace-line);background:transparent;border-radius:0}
+.sf-guide-plugin-icon{display:grid;place-items:center;flex:none;width:40px;height:40px;color:var(--nb-pen)}.sf-guide-plugin-icon svg{width:30px;height:30px}
+.sf-guide-plugin-copy{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}.sf-guide-plugin-copy .sf-guide-description{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.sf-guide-arrow{flex:none;color:var(--nb-pencil);opacity:.5;font-size:14px}
+.sf-guide-plugin:hover{background:color-mix(in srgb,var(--nb-pen) 4%,transparent)}.sf-guide-plugin:hover .sf-guide-arrow{opacity:1;color:var(--nb-pen)}
+@container workbench-guide (max-width:620px){.sf-workbench-guide{padding:26px 20px 36px}.sf-guide-essentials{gap:10px}.sf-guide-primary{padding:16px 12px}.sf-guide-plugin-list{column-gap:18px}}
+@container workbench-guide (max-width:460px){.sf-guide-essentials,.sf-guide-plugin-list{grid-template-columns:1fr}.sf-guide-primary{display:grid;grid-template-columns:42px minmax(0,1fr);column-gap:15px;row-gap:5px}.sf-guide-illustration{grid-row:1/3;margin:0;align-self:center}.sf-guide-description{grid-column:2}.sf-guide-extensions{margin-top:24px}}
+@media(prefers-reduced-motion:reduce){.sf-workbench-guide button{transition:none}}
 /* The dock shell owns width now. Remove only the native conversation width
    gestures and learning file rail, leaving its message/composer lifecycle intact. */
 body[data-sf-workspace] [class*="_rightbarCol"],body[data-sf-workspace] [data-side="right"],body[data-sf-workspace] [data-slot="conversation.session.header.corner"]{display:none!important}
