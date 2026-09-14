@@ -13,3 +13,4 @@ declare module '*/learning-workspace.css' {}
 declare module '*/modern.css' {}
 declare module '*/controls.css' {}
 declare module '*/typography.css' {}
+declare module '*/library-browser.css' {}

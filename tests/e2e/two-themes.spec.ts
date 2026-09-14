@@ -64,7 +64,7 @@ test('both themes cover every root page, real card editor, material reader and w
       await openRoot(page, label); const root = page.getByTestId(`studyforge-page-studyforge.${route}`);
       await expect(root).toBeVisible();
       await expect(page.getByTestId('notebook-sidebar').getByRole('button', { name: label, exact: true })).toHaveClass(/\bon\b/);
-      if (route === 'materials') await expect(root.getByTestId('material-row')).toHaveCount(2);
+      if (route === 'materials') { await expect(root.getByTestId('material-row')).toHaveCount(1); await expect(root.locator('.sf-library-source-open')).toHaveAttribute('aria-expanded', 'false'); }
       if (route === 'sets') await expect(root).toContainText('高考数学');
       if (route === 'courses') await expect(root.locator('.sf-map-card')).toHaveCount(1);
       if (route === 'memory') await expect.poll(async () => (await root.innerText()).includes('正在读')).toBe(false);

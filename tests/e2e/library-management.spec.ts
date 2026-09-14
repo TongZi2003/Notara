@@ -3,11 +3,11 @@ test('unified library edits an original, keeps versions and prepares semantic se
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 900 }); await enterClassroom(page, classroom.authUrl); await openRoot(page, '资料');
   await page.getByTestId('materials-empty').locator('input[type="file"]').setInputFiles({ name: '守恒笔记.md', mimeType: 'text/markdown', buffer: Buffer.from('# 守恒\n原文内容') });
-  await page.getByTestId('library-browser').getByRole('button', { name: /守恒笔记/ }).click();
+  await page.getByTestId('library-browser').getByRole('button', { name: '预览：守恒笔记', exact: true }).click();
   await page.getByRole('button', { name: '阅读原文', exact: true }).click(); await page.getByRole('button', { name: '编辑原文', exact: true }).click();
   await page.getByRole('textbox', { name: '编辑原文正文' }).fill('# 守恒\n明确系统边界'); await page.getByRole('button', { name: '保存新版本', exact: true }).click();
   await expect(page.getByTestId('materials-notice')).toContainText('已保存新版本'); await page.getByTestId('materials-back').click();
-  await page.getByTestId('library-browser').getByRole('button', { name: /守恒笔记/ }).click();
+  await page.getByTestId('library-browser').getByRole('button', { name: '预览：守恒笔记', exact: true }).click();
   await page.getByRole('button', { name: '按语义查找', exact: true }).click();
   await expect(page.locator('[data-composer-chip="studyforge-task"]')).toContainText('按语义查找');
   await expect(page.locator('[data-composer-chip="studyforge-source"]')).toContainText('守恒笔记');
@@ -20,7 +20,7 @@ test('thought sources reveal the independent materials pane and each map retains
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1600, height: 1000 }); await enterClassroom(page, classroom.authUrl); await openRoot(page, '资料');
   await page.getByTestId('materials-empty').locator('input[type="file"]').setInputFiles({ name: '能量与系统.md', mimeType: 'text/markdown', buffer: Buffer.from('# 能量\n先定义系统，再讨论能量守恒。\n封闭系统与外界没有物质交换。') });
-  await page.getByTestId('library-browser').getByRole('button', { name: /能量与系统/ }).click();
+  await page.getByTestId('library-browser').getByRole('button', { name: '预览：能量与系统', exact: true }).click();
   await page.getByRole('button', { name: '带入课堂', exact: true }).click();
   await expect(page.locator('[data-composer-chip="studyforge-source"]')).toBeVisible();
   await typeInput(page, '解释这里的系统边界'); await page.getByRole('button', { name: 'Send message', exact: true }).click();
