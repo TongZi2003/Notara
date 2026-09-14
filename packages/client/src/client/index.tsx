@@ -8,6 +8,7 @@ import contribution from '@studyforge/host/remote';
 import { useState } from 'react';
 import { registerDebugSurfaces } from '../debug/register-debug.ts';
 import { registerStudentShell } from '../shell/register-slots.tsx';
+import { PRODUCT_NAME } from '../shell/brand.ts';
 import { registerClassroom } from '../classroom/Classroom.tsx';
 import { registerMaterials } from '../materials/register-materials.tsx';
 import { registerCardSurfaces } from '../cards/register-cards.tsx';
@@ -84,7 +85,7 @@ function registerProbe(ctx: Context): void {
       }
     }
     return <main style={{ padding: 32 }} data-testid="probe-panel">
-      <h1>StudyForge · 接入验证</h1>
+      <h1>{PRODUCT_NAME} · 接入验证</h1>
       <button data-testid="probe-send" disabled={pending} onClick={() => { void inspect(); }}>检查连接</button>
       <p data-testid="probe-result">{result}</p>
     </main>;

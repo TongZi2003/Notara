@@ -7,6 +7,7 @@ import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import { StudyForgeShell, type StudentLesson } from './StudyForgeShell.tsx';
 import { STUDENT_PAGES, type StudentPageId, type StudentPageSpec } from './navigation.ts';
+import { mountProductTitle, PRODUCT_NAME } from './brand.ts';
 
 const css = `
 /* StudyForge paper-and-ink surface. Scoped to the pages this client owns: the
@@ -54,6 +55,7 @@ const css = `
 
 /** Replace only owned contributions; the native frame, Conversation, rightbar and settings survive. */
 export function registerStudentShell(ctx: Context): void {
+  ctx.effect(mountProductTitle);
   const lifetime = new AbortController();
   const style = document.createElement('style');
   style.dataset.studyforgeStyle = 'p2';
@@ -68,7 +70,7 @@ export function registerStudentShell(ctx: Context): void {
     )));
   }
   ctx.effect(() => ctx.slots.inject('sidebar.brand.name', () => ctx.slots.register(
-    { name: 'sidebar.brand.name', priority: -10 }, () => <span className="sf-brand">StudyForge</span>,
+    { name: 'sidebar.brand.name', priority: -10 }, () => <span className="sf-brand">{PRODUCT_NAME}</span>,
   )));
 }
 

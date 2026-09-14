@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis';
+import { PRODUCT_MARK } from '../shell/brand.ts';
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
@@ -135,7 +136,7 @@ export function registerNotebook(ctx: Context, navigation: MaterialNavigation): 
     </main>;
   }
   ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({ name: 'settings.section', id: 'studyforge.appearance', label: '外观', order: 30 }, () => <Settings embedded />)));
-  ctx.effect(() => ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register({ name: 'sidebar.brand.mark', priority: -10 }, ({ size }: PropsRuntime<'sidebar.brand.mark'>) => <span className="sf-notebook-seal" style={{ width: size, height: size }} aria-hidden="true">学</span>)));
+  ctx.effect(() => ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register({ name: 'sidebar.brand.mark', priority: -10 }, ({ size }: PropsRuntime<'sidebar.brand.mark'>) => <span className="sf-notebook-seal" style={{ width: size, height: size }} aria-hidden="true">{PRODUCT_MARK}</span>)));
   ctx.effect(() => ctx.slots.inject('conversation.hero.brand.mark', () => ctx.slots.register({ name: 'conversation.hero.brand.mark', priority: -10 }, () => <span className="sf-notebook-welcome">今天想学什么？</span>)));
   ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: APPEARANCE, priority: 0 }, Settings)));
   ctx.effect(() => ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'studyforge.notebook.routes' }, RouteBridge)));
