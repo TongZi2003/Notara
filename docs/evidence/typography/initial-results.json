@@ -1,0 +1,122 @@
+[
+  {
+    "file": "notebook-baseline.spec.ts",
+    "title": "written baselines follow the ruled page through scrolling, font changes and expansion",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 12150,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "file": "notebook-paper-confirmation.spec.ts",
+    "title": "the whole conversation uses paper, wide tables stay inside, and confirmation uses the original loose slip",
+    "status": "unexpected",
+    "runs": [
+      {
+        "status": "failed",
+        "durationMs": 26964,
+        "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCSS\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[data-chat-flow-kind=\"assistant-step\"] table').first().locator('td').first()\nExpected pattern: \u001b[32m/system-ui/\u001b[39m\nReceived string:  \u001b[31m\"\\\"Songti SC\\\", STSong, \\\"Noto Serif SC\\\", serif\"\u001b[39m\nTimeout: 15000ms"
+      }
+    ]
+  },
+  {
+    "file": "two-themes.spec.ts",
+    "title": "two complete themes preserve paper preferences, native drafts, menus and responsive settings",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 10573,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "file": "two-themes.spec.ts",
+    "title": "both themes cover every root page, real card editor, material reader and workbench nodes",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 12426,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "file": "two-themes.spec.ts",
+    "title": "modern conversation and pending/saved confirmation do not inherit paper or handwriting",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 10898,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "file": "workspace-docking.spec.ts",
+    "title": "three peer views preserve the native draft through docking, resizing, hiding and narrow switching",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 10339,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "file": "workspace-docking.spec.ts",
+    "title": "two themes remember the notebook paper choice independently",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 9744,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "file": "workspace-docking.spec.ts",
+    "title": "layout menu supports every pair and the native conversation returns when the workspace plugin unloads",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 11545,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "file": "workspace-docking.spec.ts",
+    "title": "student controls share typography and rounded shapes; subject menus fit narrow panes without coding launchers",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 10387,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "file": "workspace-docking.spec.ts",
+    "title": "compact Agent and Subject menus keep the split composer toolbar on one line at 1117px",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 9625,
+        "error": ""
+      }
+    ]
+  }
+]

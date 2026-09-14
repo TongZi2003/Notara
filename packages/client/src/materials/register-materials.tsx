@@ -60,7 +60,7 @@ const css = `
 .sf-material-version:hover{border-color:#26437c;color:#26437c}
 .sf-material-version input{display:none}
 .sf-material-head{display:flex;flex-direction:column;gap:8px}
-.sf-material-head h2{font-size:clamp(18px,1.6vw,22px);font-weight:500;margin:0;line-height:1.4}
+.sf-material-head h2{font-size:var(--sf-text-section);font-weight:500;margin:0;line-height:1.4}
 .sf-material-head .sf-meta{margin:0}
 .sf-material-head .sf-note{margin:0;font-size:12px}
 .sf-material-head-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}

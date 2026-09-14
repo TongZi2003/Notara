@@ -77,7 +77,7 @@ test('the whole conversation uses paper, wide tables stay inside, and confirmati
   await page.getByTestId('notebook-paper').selectOption('fangge');
   await page.getByTestId('notebook-table-font').selectOption('print');
   await closeAppearance(page);
-  await expect(tables.first().locator('td').first()).toHaveCSS('font-family', /system-ui/);
+  await expect(tables.first().locator('td').first()).toHaveCSS('font-family', /Songti SC/);
   await expect(paper).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await expect(paper).toHaveCSS('background-image', /linear-gradient.*linear-gradient/);
   await page.screenshot({ path: info.outputPath('paper-white-mobile.png'), fullPage: true });

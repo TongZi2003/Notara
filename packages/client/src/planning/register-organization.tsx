@@ -62,7 +62,7 @@ const css = `
 .sf-org-row span,.sf-org-row small{font-size:12px}.sf-org-row[aria-current=true]{border-left:3px solid #26437c;background:#f6f1e3}
 .sf-org-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.sf-org-actions h2,.sf-org-actions h3{flex:1}
 .sf-org-form{display:flex;flex-direction:column;gap:16px;max-width:68ch}.sf-org-form label{display:flex;flex-direction:column;gap:5px}
-.sf-org-form input,.sf-org-form select,.sf-org-form textarea,.sf-calendar-body input{border:1px solid #d9d2bd;border-radius:3px;background:#fffdf6;color:#26437c;font:inherit;padding:7px;min-width:0;max-width:100%;box-sizing:border-box}
+.sf-org-form input,.sf-org-form select,.sf-org-form textarea,.sf-calendar-body input{border:1px solid var(--nb-rule);border-radius:var(--sf-ui-radius);background:var(--nb-hi);color:var(--nb-ink);font:var(--nb-size)/1.6 var(--sf-ui-font);padding:7px;min-width:0;max-width:100%;box-sizing:border-box}
 .sf-org-form .sf-org-check{display:flex;flex-direction:row;align-items:center;gap:8px;padding:4px 0}.sf-org-check input{flex:none}
 .sf-org-form fieldset{border:1px solid #d9d2bd;max-height:220px;overflow:auto}.sf-daily-settings{margin-top:32px;border-top:1px solid #d9d2bd;padding:14px 0}.sf-daily-settings summary{cursor:pointer;margin-bottom:14px}
 .sf-book-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,38%);gap:18px}

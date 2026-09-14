@@ -2,6 +2,8 @@ import { expect, test } from 'vitest';
 import { readAppearance } from '../../packages/client/src/theme/appearance.ts';
 test('new and formerly disabled/soft appearances use modern; original notebooks retain their style', () => {
   expect(readAppearance(null).style).toBe('modern');
+  expect(readAppearance(null).face).toBe('hand');
+  expect(readAppearance({ face: 'print' }).face).toBe('print');
   expect(readAppearance({ enabled: true }).style).toBe('notebook');
   expect(readAppearance({ style: 'notebook' }).style).toBe('notebook');
   expect(readAppearance({ style: 'soft' }).style).toBe('modern');

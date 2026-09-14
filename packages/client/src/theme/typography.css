@@ -1,0 +1,20 @@
+/* One hierarchy for both appearances. Component styles consume roles, never
+   enlarge list labels to compensate for a different font. Reading size remains
+   a user preference; navigation stays compact when that preference changes. */
+body[data-sf-notebook]{
+  --sf-system-font:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --sf-print-font:"Songti SC","STSong","Noto Serif SC",serif;
+  --sf-ui-font:var(--nb-hand);
+  --sf-text-meta:14px;--sf-ui-size:15px;
+  --sf-text-item:16px;--sf-text-section:18px;--sf-text-page:22px;--sf-text-hero:30px;
+  --sf-reading-heading:max(var(--nb-size),var(--sf-text-section));
+  --sf-reading-subheading:max(var(--nb-size),var(--sf-text-item));
+  --sf-ui-radius:4px;--sf-menu-radius:8px;
+  --dsw-font-family:var(--sf-ui-font);
+}
+body[data-sf-notebook][data-sf-style=modern]{
+  --sf-ui-font:var(--sf-system-font);
+  --sf-text-meta:12px;--sf-ui-size:13px;
+  --sf-text-item:15px;--sf-text-section:16px;--sf-text-page:20px;--sf-text-hero:28px;
+  --sf-ui-radius:8px;--sf-menu-radius:14px;
+}

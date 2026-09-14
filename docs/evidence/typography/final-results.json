@@ -1,0 +1,57 @@
+[
+  {
+    "file": "notebook-baseline.spec.ts",
+    "title": "written baselines follow the ruled page through scrolling, font changes and expansion",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 12058
+      }
+    ]
+  },
+  {
+    "file": "notebook-paper-confirmation.spec.ts",
+    "title": "the whole conversation uses paper, wide tables stay inside, and confirmation uses the original loose slip",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 12394
+      }
+    ]
+  },
+  {
+    "file": "two-themes.spec.ts",
+    "title": "two complete themes preserve paper preferences, native drafts, menus and responsive settings",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 10934
+      }
+    ]
+  },
+  {
+    "file": "two-themes.spec.ts",
+    "title": "both themes cover every root page, real card editor, material reader and workbench nodes",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 12226
+      }
+    ]
+  },
+  {
+    "file": "two-themes.spec.ts",
+    "title": "modern conversation and pending/saved confirmation do not inherit paper or handwriting",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 10186
+      }
+    ]
+  }
+]

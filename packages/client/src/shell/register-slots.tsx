@@ -25,10 +25,10 @@ const css = `
 [data-composer-seat]{background:#fdfaf1}
 .sf-page{box-sizing:border-box;height:100%;min-height:0;display:flex;flex-direction:column;overflow:auto;background:#fdfaf1;color:#26437c;font-family:"Songti SC","Noto Serif SC",serif}
 .sf-page-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;border-bottom:1px solid #d9d2bd;padding:28px clamp(22px,5vw,64px) 18px;font-size:13px;letter-spacing:.08em}
-.sf-page-date{color:#777d88;font-family:system-ui,sans-serif;font-size:11px;letter-spacing:.03em}
+.sf-page-date{color:var(--nb-pencil);font-family:var(--sf-ui-font);font-size:var(--sf-text-meta);letter-spacing:.03em}
 .sf-page-body{padding:clamp(28px,7vh,72px) clamp(22px,5vw,64px);max-width:62ch}
-.sf-page-index{font-size:14px;color:#a9a28b;display:block;margin-bottom:24px;font-family:system-ui,sans-serif}
-.sf-page-body h1{font-size:clamp(24px,2.4vw,34px);font-weight:500;margin:0 0 18px;letter-spacing:.02em;line-height:1.4}
+.sf-page-index{font-size:var(--sf-text-meta);color:var(--nb-pencil);display:block;margin-bottom:24px;font-family:var(--sf-ui-font)}
+.sf-page-body h1{font-size:var(--sf-text-page);font-weight:500;margin:0 0 18px;letter-spacing:.02em;line-height:1.4}
 .sf-page-body p{font-size:14px;line-height:1.9;color:#5a688a;margin:0 0 26px}
 .sf-note{font-size:13px;color:#8a887c;margin:0}
 .sf-action{display:inline-flex;align-items:center;gap:32px;padding:12px 18px;border:1px solid #26437c;background:#26437c;color:#fdfaf1;border-radius:3px;cursor:pointer;font:inherit;font-size:14px;transition:background 140ms ease}

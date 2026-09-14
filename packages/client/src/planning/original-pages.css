@@ -13,12 +13,12 @@
    app.css 自己的值：宋体标题、#26437c 墨、880/760 的纸页宽度、硬边卡片。
    这一层先写全，下面「状态二」再把笔记本那一层盖上去。 */
 .sf-orig{
-  --font-ui: "Songti SC", "STSong", "Noto Serif SC", serif;
-  --font-song: "Songti SC", "STSong", "Noto Serif SC", serif;
-  --font-kai: "LXGW WenKai", "Kaiti SC", "STKaiti", "KaiTi", serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
-  --t-micro: 11px; --t-meta: 12px; --t-label: 13px; --t-body: 15px;
-  --t-handout: 16px; --t-lead: 17px; --t-title: 24px; --t-display: 34px; --t-hero: 44px;
+  --font-ui:var(--sf-ui-font);
+  --font-song:var(--sf-ui-font);
+  --font-kai:var(--sf-ui-font);
+  --font-mono:var(--sf-ui-font);
+  --t-micro:var(--sf-text-meta); --t-meta:var(--sf-text-meta); --t-label:var(--sf-ui-size); --t-body:var(--nb-size);
+  --t-handout:var(--sf-text-item); --t-lead:var(--sf-text-section); --t-title:var(--sf-text-page); --t-display:var(--sf-text-page); --t-hero:var(--sf-text-hero);
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
   --r-control: 2px; --r-card: 3px;
   --motion: 140ms cubic-bezier(.4,0,.2,1);
@@ -52,30 +52,31 @@
 body[data-sf-style=notebook] .sf-orig.sf-calendar-page{background-image:none}
 .sf-calendar-header{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;padding:24px 28px 18px;border-bottom:1px solid var(--rule)}
 .sf-calendar-period,.sf-calendar-actions,.sf-calendar-actions nav{display:flex;align-items:center;gap:8px}
-.sf-calendar-period h1{font:28px/1.4 var(--nb-hand,var(--font-song));margin:0 14px 0 0}
+.sf-calendar-period h1{font:var(--sf-text-page)/1.4 var(--nb-hand,var(--font-song));margin:0 14px 0 0}
 .sf-calendar-actions{gap:18px}
 .sf-calendar-workspace{display:flex;position:relative;flex:1;min-height:0;overflow:hidden}
 .sf-calendar-main{display:flex;flex-direction:column;flex:1;min-width:0;padding:16px 28px 24px;overflow:auto}
 .sf-calendar-page .cal-grid{flex:1;grid-template-rows:repeat(6,minmax(68px,1fr));min-height:408px;box-shadow:none}
 .sf-calendar-page .cal-c{min-height:0;padding:10px 8px;display:flex;flex-direction:column;justify-content:flex-start}
 .sf-calendar-page .cal-c[aria-pressed=true]{box-shadow:inset 0 0 0 2px var(--pen);background:var(--pen-wash)}
-.sf-calendar-page .cal-c i{font:16px/1.5 var(--nb-hand,var(--font-kai));margin-bottom:6px}
-.sf-calendar-page .cal-dow{font-size:12px;min-height:28px}
+.sf-calendar-page .cal-c i{font:var(--sf-ui-size)/1.5 var(--nb-hand,var(--font-kai));margin-bottom:6px}
+.sf-calendar-page .cal-dow{font-size:var(--sf-text-meta);min-height:28px}
 .sf-calendar-day-link{border:0;background:none;color:var(--ink);font:inherit;cursor:pointer;padding:0}
 .sf-calendar-detail{flex:0 0 310px;box-sizing:border-box;min-width:0;overflow:auto;background:var(--paper-hi);border-left:1px solid var(--rule);padding:20px 22px}
 .sf-calendar-detail>header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:18px}
-.sf-calendar-detail>header h2{font:24px/1.5 var(--nb-hand,var(--font-song))}
+.sf-calendar-detail>header h2{font:var(--sf-text-section)/1.5 var(--nb-hand,var(--font-song))}
 .sf-calendar-date-picker{display:flex;gap:6px;align-items:center;margin-bottom:24px}
 .sf-calendar-date-picker input{flex:1;min-width:0;width:0;border:0;border-bottom:1px solid var(--rule);background:transparent;color:var(--ink);font:14px/1.6 var(--font-ui);padding:5px 0}
 .sf-calendar-detail section{margin:0 0 24px}
-.sf-calendar-detail h3{margin:0 0 10px;font:18px/1.5 var(--nb-hand,var(--font-song))}
+.sf-calendar-detail section>h3{margin:0 0 10px;font:var(--sf-text-section)/1.5 var(--nb-hand,var(--font-song))}
 .sf-calendar-detail .cal-lrow{white-space:normal;overflow-wrap:anywhere}
 .sf-calendar-detail .cal-lrow small{margin-left:auto;flex:none}
+.sf-calendar-detail .cal-lrow>.sf-quiet{flex:none;white-space:nowrap}
 .sf-calendar-detail[data-panel=plans]{flex-basis:390px;width:390px}
 .sf-calendar-detail .sf-plan-editor{max-width:100%;border:0;background:none;padding:0}
 .sf-calendar-detail .sf-plan-editor>h2{display:none}
 @media(max-width:1150px){.sf-calendar-detail{position:absolute;inset:0 0 0 auto;width:320px;max-width:100%;z-index:12;box-shadow:-8px 0 28px #3c321a18}}
-@media(max-width:600px){.sf-calendar-header{padding:16px;gap:14px}.sf-calendar-period{flex-wrap:wrap}.sf-calendar-period h1{font-size:24px;margin-right:6px}.sf-calendar-actions{justify-content:space-between;width:100%}.sf-calendar-main{padding:12px}.sf-calendar-page .cal-c{padding:6px 4px}.sf-calendar-page .cal-c i{font-size:14px}.sf-calendar-page .cal-c .lb{font-size:10px}}
+@media(max-width:600px){.sf-calendar-header{padding:16px;gap:14px}.sf-calendar-period{flex-wrap:wrap}.sf-calendar-period h1{font-size:var(--sf-text-page);margin-right:6px}.sf-calendar-actions{justify-content:space-between;width:100%}.sf-calendar-main{padding:12px}.sf-calendar-page .cal-c{padding:6px 4px}.sf-calendar-page .cal-c i{font-size:14px}.sf-calendar-page .cal-c .lb{font-size:var(--sf-text-meta)}}
 
 .sf-orig .btn{ padding:6px 14px; border:1px solid var(--rule-hi); border-radius: var(--r-control); background:transparent;
   color: var(--ink); font-size: var(--t-label); transition: all var(--motion); }
@@ -113,32 +114,32 @@ body[data-sf-style=notebook] .sf-orig.sf-calendar-page{background-image:none}
 .sf-orig .ledger-row .time{ font-family: var(--font-mono); font-size: var(--t-meta); color: var(--ink-3); }
 /* ===== 日历 · 月历默认（照抄 RiLi 母版）===== */
 .sf-orig .cal-top{ display:flex; align-items:center; gap:10px; margin-bottom: var(--s3); flex-wrap:wrap; }
-.sf-orig .cal-top h2{ font-family: var(--font-song); font-size:18px; font-weight:700; }
-.sf-orig .cal-top .nv{ width:26px; height:26px; cursor:pointer; background:transparent; border:1px solid var(--rule-hi); border-radius:2px; color: var(--ink); font-size:11px; }
+.sf-orig .cal-top h2{ font-family: var(--font-song); font-size:var(--sf-text-section); font-weight:700; }
+.sf-orig .cal-top .nv{ width:26px; height:26px; cursor:pointer; background:transparent; border:1px solid var(--rule-hi); border-radius:2px; color: var(--ink); font-size:var(--sf-text-meta); }
 .sf-orig .cal-top .views{ margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
 .sf-orig .cal-top :is(button,h2){white-space:nowrap}
-.sf-orig .cal-dow{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); font-family: var(--font-kai); font-size:12px; color: var(--gray); text-align:center; margin-bottom:2px; min-height:24px;line-height:24px; }
+.sf-orig .cal-dow{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); font-family: var(--font-kai); font-size:var(--sf-text-meta); color: var(--gray); text-align:center; margin-bottom:2px; min-height:24px;line-height:24px; }
 .sf-orig .cal-grid{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); border:1px solid var(--rule); background:var(--paper-hi); }
 .sf-orig .cal-c{ border-right:1px solid var(--rule); border-bottom:1px solid var(--rule); padding:4px 6px; min-height:82px; overflow:hidden; text-align:left; background:none; border-top:0; border-left:0; font-family:inherit; color:inherit; cursor:pointer; }
 .sf-orig .cal-c:hover{ background: var(--seal-wash); }
-.sf-orig .cal-c i{ font-style:normal; font-family: var(--font-mono); font-size:10px; color: var(--gray); display:block; }
+.sf-orig .cal-c i{ font-style:normal; font-family: var(--font-mono); font-size:var(--sf-text-meta); color: var(--gray); display:block; }
 .sf-orig .cal-c.out i{ color:#c9c1a8; }
 .sf-orig .cal-c.today{ background: var(--seal-wash); box-shadow:inset 0 0 0 1.5px var(--seal); }
 .sf-orig .cal-c.today i{ color: var(--seal); font-weight:700; }
-.sf-orig .cal-c .lb{ font-size:10.5px; line-height:1.5; color: var(--ink); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
+.sf-orig .cal-c .lb{ font-size:var(--sf-text-meta); line-height:1.5; color: var(--ink); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
 .sf-orig .cal-c .lb.done{ color: var(--gray); }
 .sf-orig .cal-c .lb.route{ color: var(--seal); }
-.sf-orig .cal-c .du{ display:inline-block; font-size:9px; color: var(--seal); border:1px solid var(--seal); border-radius:99px; padding:0 5px; margin-top:2px; font-family: var(--font-kai); }
+.sf-orig .cal-c .du{ display:inline-block; font-size:var(--sf-text-meta); color: var(--seal); border:1px solid var(--seal); border-radius:99px; padding:0 5px; margin-top:2px; font-family: var(--font-kai); }
 .sf-orig .cal-list{ border:1px solid var(--rule); background:var(--paper-hi); }
 .sf-orig .cal-lday{ border-bottom:1px solid var(--rule); padding:8px 14px 10px; }
 .sf-orig .cal-lday:last-child{ border-bottom:0; }
-.sf-orig .cal-ldate{ font-family:var(--font-mono); font-size:11px; color:var(--gray); margin-bottom:4px; }
+.sf-orig .cal-ldate{ font-family:var(--font-mono); font-size:var(--sf-text-meta); color:var(--gray); margin-bottom:4px; }
 .sf-orig .cal-lday.today .cal-ldate{ color:var(--seal); font-weight:700; }
 .sf-orig .cal-lrow{ display:flex; align-items:baseline; gap:8px; width:100%; text-align:left; background:none; border:0; padding:3px 0; font-family:inherit; color:var(--ink); font-size:13px; cursor:pointer; }
 .sf-orig .cal-lrow:hover{ background:var(--seal-wash); }
-.sf-orig .cal-lrow .k{ flex:none; font-size:10.5px; font-family:var(--font-kai); color:var(--seal); border:1px solid var(--seal); border-radius:2px; padding:0 4px; }
+.sf-orig .cal-lrow .k{ flex:none; font-size:var(--sf-text-meta); font-family:var(--font-kai); color:var(--seal); border:1px solid var(--seal); border-radius:2px; padding:0 4px; }
 .sf-orig .cal-lrow .k.dim{ color:var(--gray); border-color:var(--rule); }
-.sf-orig .cal-lrow small{ color:var(--gray); font-size:11px; }
+.sf-orig .cal-lrow small{ color:var(--gray); font-size:var(--sf-text-meta); }
 
 /* ===== 学习集 ===== */
 .sf-orig .set-card{ border-bottom:1px solid var(--rule); }
@@ -147,25 +148,25 @@ body[data-sf-style=notebook] .sf-orig.sf-calendar-page{background-image:none}
 .sf-orig .set-shelf{ flex:1; min-width:0; display:grid; grid-template-columns:minmax(130px,1fr) minmax(180px,1fr) auto; align-items:center; gap:16px; padding:13px 4px; border:0; background:transparent; color:var(--ink); text-align:left; cursor:pointer; }
 .sf-orig .set-shelf:hover{ background:var(--seal-wash); }
 .sf-orig .set-card-name{ font-family:var(--font-song); font-size:16px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.sf-orig .set-card-meta{ min-width:0; display:flex; flex-direction:column; gap:3px; font-size:11.5px; color:var(--ink-3); }
+.sf-orig .set-card-meta{ min-width:0; display:flex; flex-direction:column; gap:3px; font-size:var(--sf-text-meta); color:var(--ink-3); }
 .sf-orig .set-card-meta b{ font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .sf-orig .set-card-meta i{ font-style:normal; font-family:var(--font-mono); color:var(--ink-4); }
-.sf-orig .set-shelf em{ font-style:normal; font-family:var(--font-kai); font-size:11.5px; color:var(--seal); white-space:nowrap; }
+.sf-orig .set-shelf em{ font-style:normal; font-family:var(--font-kai); font-size:var(--sf-text-meta); color:var(--seal); white-space:nowrap; }
 .sf-orig .set-settings-toggle{ flex:none; }
 .sf-orig .set-editor{ margin:0 0 14px; padding:16px; border:1px solid var(--rule); background:var(--paper-hi); }
 .sf-orig .set-card-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:var(--s2) 0; }
-.sf-orig .set-card-row label{ font-family: var(--font-kai); font-size:11px; color: var(--gray); letter-spacing:1px; }
+.sf-orig .set-card-row label{ font-family: var(--font-kai); font-size:var(--sf-text-meta); color: var(--gray); letter-spacing:1px; }
 .sf-orig .set-card-row input{ flex:1; min-width:180px; }
 .sf-orig .set-advanced{ margin-top:14px; border-top:1px solid var(--rule); padding-top:12px; }
-.sf-orig .set-advanced > summary{ cursor:pointer; list-style:none; font:600 13px var(--font-song); color:var(--ink-2); }
+.sf-orig .set-advanced > summary{ cursor:pointer; list-style:none; font:600 var(--sf-ui-size) var(--font-song); color:var(--ink-2); }
 .sf-orig .set-advanced > summary::-webkit-details-marker{ display:none; }
 .sf-orig .set-advanced > summary::before{ content:'▸'; display:inline-block; width:18px; color:var(--seal); }
 .sf-orig .set-advanced[open] > summary::before{ content:'▾'; }
 .sf-orig .set-field{ display:flex; flex-direction:column; gap:5px; }
-.sf-orig .set-field > span{ font-family: var(--font-kai); font-size:11px; color: var(--gray); letter-spacing:1px; }
+.sf-orig .set-field > span{ font-family: var(--font-kai); font-size:var(--sf-text-meta); color: var(--gray); letter-spacing:1px; }
 .sf-orig .set-picks{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:8px 16px; border:0; border-top:1px solid var(--rule); margin:0; padding:12px 0; }
 .sf-orig .set-picks legend{ font-family: var(--font-song); font-weight:600; font-size:var(--t-label); padding-right:8px; }
-.sf-orig .set-pick{ display:flex; align-items:flex-start; gap:7px; font-size:12.5px; color:var(--ink-2); line-height:1.7; }
+.sf-orig .set-pick{ display:flex; align-items:flex-start; gap:7px; font-size:var(--sf-text-meta); color:var(--ink-2); line-height:1.7; }
 .sf-orig .set-pick input{ flex:none; margin-top:3px; }
 .sf-orig .set-picks:empty::after{ content:""; }
 
@@ -174,23 +175,23 @@ body[data-sf-style=notebook] .sf-orig.sf-calendar-page{background-image:none}
   box-shadow: var(--shadow-card); padding: var(--s6); font-size: var(--t-body); line-height:1.9; }
 .sf-orig .memory-sheet h1,.sf-orig .memory-sheet h2{ font-family: var(--font-song); font-size: var(--t-lead); margin-bottom: var(--s3); }
 .sf-orig .memory-sheet ul{ padding-left:1.3em; }
-.sf-orig .mem-toolbar{ display:flex; align-items:center; gap:8px; font-family: var(--font-kai); font-size:11px; margin: var(--s3) 0; flex-wrap:wrap; }
+.sf-orig .mem-toolbar{ display:flex; align-items:center; gap:8px; font-family: var(--font-kai); font-size:var(--sf-text-meta); margin: var(--s3) 0; flex-wrap:wrap; }
 .sf-orig .mem-toolbar .note{ margin-left:auto; color: var(--gray); }
 .sf-orig .mem-block{ background: var(--paper-hi); border:1px solid var(--rule); border-left:3px double var(--ink); border-radius:3px; padding:12px 16px; margin-bottom:12px; text-align:left; width:100%; font-family:inherit; color:inherit; }
 .sf-orig .mem-block.ability{ border-left-color:#7a6a4a; }
 .sf-orig .mem-block .mh{ display:flex; align-items:center; gap:10px; cursor:pointer; flex-wrap:wrap; }
 .sf-orig .mem-block .mt{ font-size:15px; font-weight:700; font-family: var(--font-song); }
-.sf-orig .mem-block .rw{ margin-left:auto; font-family: var(--font-mono); font-size:10px; color: var(--gray); }
-.sf-orig .mem-block .brief{ font-size:12.5px; color:var(--ink-3); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.sf-orig .mem-sec{ font-size:11.5px; color: var(--seal); font-family: var(--font-kai); margin:10px 0 4px; }
+.sf-orig .mem-block .rw{ margin-left:auto; font-family: var(--font-mono); font-size:var(--sf-text-meta); color: var(--gray); }
+.sf-orig .mem-block .brief{ font-size:var(--sf-text-meta); color:var(--ink-3); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sf-orig .mem-sec{ font-size:var(--sf-text-meta); color: var(--seal); font-family: var(--font-kai); margin:10px 0 4px; }
 .sf-orig .mem-assert{ font-size:14px; line-height:1.9; font-family: var(--font-song); }
 .sf-orig .mem-hrow{ display:flex; gap:10px; padding:5px 0; border-bottom:1px solid var(--rule); }
 .sf-orig .mem-hrow:last-child{ border-bottom:0; }
-.sf-orig .mem-hrow .hd{ font-family: var(--font-mono); font-size:10.5px; color: var(--gray); flex:0 0 48px; margin-top:3px; }
-.sf-orig .mem-hrow .ht{ font-family: var(--font-kai); font-size:12.5px; line-height:1.8; color: var(--ink-2); flex:1; }
-.sf-orig .ability-pill{ font-size:11px; color:#7a6a4a; font-family: var(--font-kai); border:1px solid #7a6a4a; border-radius:99px; padding:0 7px; }
-.sf-orig .mem-search{ margin-left:auto; flex:1; max-width:220px; border:1px solid var(--rule); border-radius:2px; background:var(--paper-hi); padding:8px 10px; font-family:var(--font-mono); font-size:10.5px; color:var(--ink); outline:0; }
-.sf-orig .memory-evidence{ margin-top:8px; font-size:12px; color:var(--ink-3); }
+.sf-orig .mem-hrow .hd{ font-family: var(--font-mono); font-size:var(--sf-text-meta); color: var(--gray); flex:0 0 48px; margin-top:3px; }
+.sf-orig .mem-hrow .ht{ font-family: var(--font-kai); font-size:var(--sf-text-meta); line-height:1.8; color: var(--ink-2); flex:1; }
+.sf-orig .ability-pill{ font-size:var(--sf-text-meta); color:#7a6a4a; font-family: var(--font-kai); border:1px solid #7a6a4a; border-radius:99px; padding:0 7px; }
+.sf-orig .mem-search{ margin-left:auto; flex:1; max-width:220px; border:1px solid var(--rule); border-radius:2px; background:var(--paper-hi); padding:8px 10px; font-family:var(--font-mono); font-size:var(--sf-text-meta); color:var(--ink); outline:0; }
+.sf-orig .memory-evidence{ margin-top:8px; font-size:var(--sf-text-meta); color:var(--ink-3); }
 .sf-orig .memory-evidence summary{ cursor:pointer; font-family:var(--font-kai); }
 .sf-orig .memory-evidence p{ margin:6px 0 0; line-height:1.8; }
 
@@ -211,7 +212,7 @@ body[data-sf-style=notebook] .sf-orig.sf-calendar-page{background-image:none}
 .sf-orig .sf-roadmap-row.sf-roadmap-context{ opacity:.14; }
 .sf-orig .sf-roadmap-row-head{ display:flex; align-items:baseline; gap:8px; }
 .sf-orig .sf-roadmap-title{ font-family: var(--font-song); font-size:13px; font-weight:600; line-height:1.5; }
-.sf-orig .sf-roadmap-row > .sf-meta{ font-family: var(--font-mono); font-size:10px; color: var(--gray); white-space:normal; }
+.sf-orig .sf-roadmap-row > .sf-meta{ font-family: var(--font-mono); font-size:var(--sf-text-meta); color: var(--gray); white-space:normal; }
 .sf-orig .sf-roadmap-actions{ display:flex; gap:7px; align-items:center; margin-top:2px; padding-top:6px; border-top:1px solid var(--rule); flex-wrap:wrap; }
 .sf-orig .sf-roadmap-actions .sf-quiet,.sf-orig .sf-roadmap-actions .sf-action{ padding:3px 10px; font-size: var(--t-micro); }
 .sf-orig .sf-roadmap-mount{ border-top:1px solid var(--rule); padding-top:6px; }
@@ -222,8 +223,8 @@ body[data-sf-style=notebook] .sf-orig.sf-calendar-page{background-image:none}
 .sf-orig .sf-roadmap-edges path.planned{ stroke-dasharray:4 3; }
 .sf-orig .sf-roadmap-filter{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; border:1px solid var(--rule); border-radius:3px;
   background:var(--paper-hi); box-shadow: var(--shadow-card); padding:10px 12px; }
-.sf-orig .sf-roadmap-filter label{ display:flex; gap:6px; align-items:center; font-size:12px; color:var(--ink-3); }
-.sf-orig .sf-roadmap-filter input[type=date]{ border:1px solid var(--rule); border-radius:2px; background:var(--paper); color:var(--ink); font:inherit; font-size:12px; padding:4px 7px; }
+.sf-orig .sf-roadmap-filter label{ display:flex; gap:6px; align-items:center; font-size:var(--sf-text-meta); color:var(--ink-3); }
+.sf-orig .sf-roadmap-filter input[type=date]{ border:1px solid var(--rule); border-radius:2px; background:var(--paper); color:var(--ink); font:inherit; font-size:var(--sf-text-meta); padding:4px 7px; }
 .sf-orig .sf-roadmap-canvas{ position:relative; border:1px dashed var(--rule-hi); border-radius:3px; background:var(--paper-hi) radial-gradient(rgba(90,104,138,.16) 1px, transparent 1.2px); background-size:26px 26px; overflow:auto; min-height:320px; touch-action:none; }
 .sf-orig .sf-roadmap-card{ position:absolute; display:flex; flex-direction:column; gap:6px; width:230px; min-width:0; max-width:none; border:1px solid var(--rule);
   border-radius:3px; background:var(--paper-hi); color:var(--ink); cursor:grab; padding:9px 11px 8px; user-select:none; }
@@ -252,9 +253,9 @@ body[data-sf-style=notebook] .sf-orig.sf-calendar-page{background-image:none}
 .sf-orig .sf-notice{ border:1px solid var(--rule-hi); border-radius: var(--r-card); background: var(--paper-hi);
   color: var(--ink-2); font-size: var(--t-meta); line-height:1.8; padding:8px 10px; }
 .sf-orig .sf-field{ display:flex; flex-direction:column; gap:5px; font-size: var(--t-meta); color: var(--ink-3); }
-.sf-orig .sf-field > span{ font-family: var(--font-kai); font-size:11px; letter-spacing:.06em; }
+.sf-orig .sf-field > span{ font-family: var(--font-kai); font-size:var(--sf-text-meta); letter-spacing:.06em; }
 .sf-orig .sf-cards-search,.sf-orig .mem-search{ border:1px solid var(--rule); border-radius:2px; background: var(--paper-hi);
-  color: var(--ink); font-family: var(--font-mono); font-size:10.5px; padding:8px 10px; min-width:0; outline:0; }
+  color: var(--ink); font-family: var(--font-mono); font-size:var(--sf-text-meta); padding:8px 10px; min-width:0; outline:0; }
 .sf-orig .sf-cards-search:focus,.sf-orig .mem-search:focus{ border-color: var(--seal); }
 .sf-orig .set-card-row input,.sf-orig .set-field input,.sf-orig .set-field textarea,.sf-orig .mem-field input,
 .sf-orig .sf-memory-editor input,.sf-orig .sf-memory-editor textarea{
@@ -319,28 +320,28 @@ body[data-sf-style="notebook"] .sf-orig :is(.btn.primary,.sf-action):hover{backg
 /* B: :root[data-hand="on"] :is(.chip,.tk-tag,.dl-tag){color:var(--ink);border-color:var(--rule-hi)} + .chip.on{background:var(--ink);…} */
 body[data-sf-style="notebook"] .sf-orig :is(.chip,.sf-chip){color:var(--ink); border-color:var(--rule-hi)}
 body[data-sf-style="notebook"] .sf-orig :is(.chip.on,.sf-chip-on){background:var(--ink); border-color:var(--ink); color:var(--paper-hi)}
-body[data-sf-style="notebook"] .sf-orig .sec-head h2{font-size:24px; white-space:nowrap}
-body[data-sf-style="notebook"] .sf-orig :is(.sec-head .cnt,.mini-note,.sf-meta){color:var(--pencil); font-size:12px; line-height:1.7}
+body[data-sf-style="notebook"] .sf-orig .sec-head h2{font-size:var(--sf-text-page); white-space:nowrap}
+body[data-sf-style="notebook"] .sf-orig :is(.sec-head .cnt,.mini-note,.sf-meta){color:var(--pencil); font-size:var(--sf-text-meta); line-height:1.7}
 /* B: :root[data-hand="on"] :is(.home-box,.continue-card,.home-act,.ext-card){border-radius:0;box-shadow:0 2px 5px #3c321a10;background:var(--slip)} */
 /* B: :root[data-hand="on"] .cal-c{min-height:110px;padding:10px 8px;display:flex;flex-direction:column;align-items:flex-start} 等 */
-body[data-sf-style="notebook"] .sf-orig .cal-c{min-height:110px; padding:10px 8px; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start}
-body[data-sf-style="notebook"] .sf-orig .cal-c i{font:18px/24px var(--nb-hand); color:var(--pencil)}
+body[data-sf-style="notebook"] .sf-orig .cal-c{min-height:0; padding:10px 8px; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start}
+body[data-sf-style="notebook"] .sf-orig .cal-c i{font:var(--sf-ui-size)/24px var(--nb-hand); color:var(--pencil)}
 body[data-sf-style="notebook"] .sf-orig .cal-c.today{background:var(--pen-wash); box-shadow:inset 0 0 0 1px var(--pen)}
 body[data-sf-style="notebook"] .sf-orig .cal-c .lb{font:15px/1.7 var(--nb-hand)}
-body[data-sf-style="notebook"] .sf-orig .cal-c .du{font:13px/1.7 var(--nb-hand); border-radius:2px; transform:rotate(-3deg)}
+body[data-sf-style="notebook"] .sf-orig .cal-c .du{font:var(--sf-ui-size)/1.7 var(--nb-hand); border-radius:2px; transform:rotate(-3deg)}
 /* B: :root[data-hand="on"] .mem-* —— 记忆块在纸上是「写上去的」，不是卡片 */
 body[data-sf-style="notebook"] .sf-orig .mem-toolbar{margin:var(--nb-row) 0; font-family:var(--font-ui)}
 body[data-sf-style="notebook"] .sf-orig .mem-block{border:0; border-radius:0; background:none; padding:var(--nb-row) 0; margin:0}
-body[data-sf-style="notebook"] .sf-orig .mem-block .mt{font:23px/var(--nb-row) var(--nb-hand); color:var(--pen)}
+body[data-sf-style="notebook"] .sf-orig .mem-block .mt{font:var(--sf-text-item)/var(--nb-row) var(--nb-hand); color:var(--pen)}
 body[data-sf-style="notebook"] .sf-orig .mem-block .brief{font:16px/var(--nb-row) var(--nb-hand); color:var(--pencil)}
-body[data-sf-style="notebook"] .sf-orig .mem-sec{color:var(--pencil); font:13px/var(--nb-row) var(--nb-hand); margin:var(--nb-row) 0 0}
+body[data-sf-style="notebook"] .sf-orig .mem-sec{color:var(--pencil); font:var(--sf-ui-size)/var(--nb-row) var(--nb-hand); margin:var(--nb-row) 0 0}
 body[data-sf-style="notebook"] .sf-orig .mem-assert{font:var(--nb-size)/var(--nb-row) var(--nb-hand); color:var(--ink)}
 body[data-sf-style="notebook"] .sf-orig .mem-assert p{margin:0}
 body[data-sf-style="notebook"] .sf-orig .mem-block .mh{min-height:var(--nb-row); line-height:var(--nb-row)}
 body[data-sf-style="notebook"] .sf-orig .mem-old{font:var(--nb-size)/var(--nb-row) var(--nb-hand)}
 body[data-sf-style="notebook"] .sf-orig .mem-old p{margin:0}
 body[data-sf-style="notebook"] .sf-orig .mem-hrow{border:0; gap:16px; padding:0; font:16px/var(--nb-row) var(--nb-hand); color:var(--pencil)}
-body[data-sf-style="notebook"] .sf-orig .mem-hrow .hd{font:12px/var(--nb-row) var(--font-ui); color:var(--pencil); min-width:56px}
+body[data-sf-style="notebook"] .sf-orig .mem-hrow .hd{font:var(--sf-text-meta)/var(--nb-row) var(--font-ui); color:var(--pencil); min-width:56px}
 body[data-sf-style="notebook"] .sf-orig .mem-hrow .ht{font:16px/var(--nb-row) var(--nb-hand); color:var(--pencil)}
 /* B: :root[data-hand="on"] .map-card{background:#fdf1b0;border-radius:1px;padding:20px 14px 12px;box-shadow:var(--shadow-slip);border:0} */
 body[data-sf-style="notebook"] .sf-orig .sf-roadmap-card{background:#fdf1b0; border-radius:1px; padding:20px 14px 12px; box-shadow:var(--shadow-slip); border:0}
@@ -367,10 +368,10 @@ body[data-sf-style="notebook"] .sf-orig .sf-lessons button{font-family:var(--nb-
   .sf-orig .set-picks{grid-template-columns:minmax(0,1fr);min-width:0}
   .sf-orig .set-card-row input{min-width:0;flex-basis:100%}
   .sf-orig .cal-top .views{flex-basis:100%;margin-left:0;justify-content:flex-start}
-  .sf-orig .cal-top h2{flex:1;font-size:24px}
-  .sf-orig .cal-top .chip{padding:6px 10px;min-height:30px;font-size:12px}
+  .sf-orig .cal-top h2{flex:1;font-size:var(--sf-text-page)}
+  .sf-orig .cal-top .chip{padding:6px 10px;min-height:30px;font-size:var(--sf-text-meta)}
   body[data-sf-style="notebook"] .sf-orig .plain-wrap{max-width:1160px; padding:24px 16px}
   body[data-sf-style="notebook"] .sf-orig.sf-memory-page .plain-wrap{margin:12px; width:calc(100% - 24px); padding:24px 20px}
   body[data-sf-style="notebook"] .sf-orig .cal-c{min-height:88px; padding:6px 3px}
-  body[data-sf-style="notebook"] .sf-orig .cal-c .lb{font-size:12px}
+  body[data-sf-style="notebook"] .sf-orig .cal-c .lb{font-size:var(--sf-text-meta)}
 }

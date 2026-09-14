@@ -8,6 +8,7 @@ import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import type { MaterialNavigation } from '../materials/material-navigation.ts';
 import { alignNotebook } from './align-notebook.ts';
+import './typography.css';
 import './notebook.css';
 import './modern.css';
 import { APPEARANCE_KEY as KEY, DEFAULT_APPEARANCE as DEFAULTS, readAppearance, type Appearance } from './appearance.ts';
@@ -31,7 +32,7 @@ const LIGHT: Record<string, string> = {
   '--dsw-alias-button-contrast-fill': '#26437c', '--dsw-alias-button-elevated-fill': '#fdfaf1',
   '--dsw-alias-interactive-bg-hover': '#e9e2cf', '--dsw-alias-interactive-bg-active': '#e2d8bf',
   '--dsw-alias-markdown-code-block': '#eee7d6', '--dsw-alias-markdown-inline-code': '#ebe3cd',
-  '--dsw-specific-bubble': 'transparent', '--dsw-font-family': '"Songti SC", "STSong", "Noto Serif SC", serif',
+  '--dsw-specific-bubble': 'transparent', '--dsw-font-family': 'var(--sf-ui-font)',
   '--dsw-specific-sidebar-fill': '#efe7d2', '--dsw-specific-sidebar-nav-item-active': '#e2d8bf', '--dsw-specific-sidebar-nav-item-hover': '#e9e2cf',
   '--dsw-specific-input-major': '#fdfaf1', '--dsw-specific-menu': '#fdfaf1',
 };

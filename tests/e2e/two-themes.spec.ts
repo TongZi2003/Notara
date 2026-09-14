@@ -27,6 +27,9 @@ test('two complete themes preserve paper preferences, native drafts, menus and r
   await closeAppearance(page);
   await expect(page.locator('[data-composer-input]')).toContainText('主题切换时保留这条草稿');
   await expect(page.locator('[data-composer-input]')).toHaveCSS('font-family', /SF WenKai/);
+  await expect(page.getByTestId('agent-role')).toHaveCSS('font-family', /SF WenKai/);
+  await expect(page.locator('[data-slot="conversation.input.model"] button').first()).toHaveCSS('font-family', /SF WenKai/);
+  await expect(page.locator('.sf-notebook-welcome')).toHaveCSS('font-size', '30px');
   await openAppearance(page); await page.getByTestId('theme-modern').click(); await closeAppearance(page);
   await expect(page.locator('[data-composer-input]')).toContainText('主题切换时保留这条草稿');
   await expect(page.locator('[data-composer-input]')).toHaveCSS('background-image', 'none');
@@ -46,6 +49,7 @@ test('two complete themes preserve paper preferences, native drafts, menus and r
 });
 
 test('both themes cover every root page, real card editor, material reader and workbench nodes', async ({ page, classroom }, info) => {
+  test.setTimeout(150_000);
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 960 }); await enterClassroom(page, classroom.authUrl);
   await sendInput(page, '从三角函数开始学习');
@@ -69,11 +73,42 @@ test('both themes cover every root page, real card editor, material reader and w
         const fonts = await root.locator('h1,h2,button,select').evaluateAll(els => els.filter(el => el.getClientRects().length).map(el => getComputedStyle(el).fontFamily));
         expect(fonts.every(font => !/SF Long Cang|SF WenKai|Songti|Kaiti/.test(font))).toBe(true);
       }
+      // Check the student-facing typography, not just the existence of a page.
+      const type = await root.locator('h1,h2,h3,button,select,.sf-meta,.sf-note,.mini-note').evaluateAll(els => els
+        .filter(el => el.getClientRects().length && el.textContent?.trim())
+        .map(el => ({ text: el.textContent?.trim().slice(0, 35), font: getComputedStyle(el).fontFamily, size: parseFloat(getComputedStyle(el).fontSize) })));
+      expect(type.filter(item => item.size > 22), `${style} ${route}: oversized interface text`).toEqual([]);
+      if (style === 'notebook') expect(type.filter(item => !/SF Kalam|SF Long Cang/.test(item.font)), `${route}: mixed notebook fonts`).toEqual([]);
+      if (route === 'calendar') {
+        await root.locator('.cal-c.today').click();
+        const detail = page.getByTestId('calendar-detail');
+        await expect(page.getByTestId('calendar-day')).toBeVisible();
+        await expect(detail.locator('header h2')).toHaveCSS('font-size', style === 'modern' ? '16px' : '18px');
+        const sectionSize = await detail.locator('h3').first().evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+        const rowSizes = await detail.locator('.cal-lrow').evaluateAll(els => els.map(el => parseFloat(getComputedStyle(el).fontSize)));
+        expect(rowSizes.every(size => size <= sectionSize)).toBe(true);
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect.poll(() => detail.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+        await page.screenshot({ path: info.outputPath(`${style}-calendar-detail-mobile.png`), fullPage: true });
+        await page.setViewportSize({ width: 1440, height: 960 });
+        await detail.getByRole('button', { name: '关闭日期详情' }).click();
+      }
       await page.screenshot({ path: info.outputPath(`${style}-${route}.png`), fullPage: true });
     }
     await openCards(page); const row = page.getByTestId('card-row').first(); await expect(row).toBeVisible();
     await row.getByTestId('card-row-open').click(); await expect(page.getByTestId('card-detail')).toBeVisible();
+    if (style === 'notebook') {
+      await expect(page.getByTestId('card-detail-front')).toHaveCSS('font-family', /SF Kalam/);
+      await openAppearance(page); await page.getByTestId('notebook-face').selectOption('print'); await closeAppearance(page);
+      await expect(page.getByTestId('card-detail-front')).toHaveCSS('font-family', /Songti/);
+      await openAppearance(page); await page.getByTestId('notebook-face').selectOption('hand'); await closeAppearance(page);
+      await expect(page.getByTestId('card-detail-front')).toHaveCSS('font-family', /SF Kalam/);
+    }
     await page.getByTestId('card-detail-edit').click(); await expect(page.getByTestId('card-editor')).toBeVisible();
+    if (style === 'notebook') {
+      const editorFonts = await page.getByTestId('card-editor').locator('input,textarea,label,h2').evaluateAll(els => els.filter(el => el.getClientRects().length).map(el => getComputedStyle(el).fontFamily));
+      expect(editorFonts.filter(font => !/SF Kalam|SF Long Cang/.test(font))).toEqual([]);
+    }
     await page.screenshot({ path: info.outputPath(`${style}-card-editor.png`), fullPage: true });
     await openRoot(page, '首页');
     await page.getByTestId('workspace-open-materials').click();
@@ -81,7 +116,10 @@ test('both themes cover every root page, real card editor, material reader and w
     const map = page.getByTestId('lesson-materials-map'), node = map.locator('[data-kind=book]').first();
     await expect(node).toBeVisible();
     if (style === 'modern') { await expect(node).toHaveCSS('background-color', 'rgb(255, 255, 255)'); await expect(node).toHaveCSS('border-top-left-radius', '14px'); }
-    else await expect(node).toHaveCSS('background-color', 'rgb(253, 241, 176)');
+    else { await expect(node).toHaveCSS('background-color', 'rgb(253, 241, 176)'); await expect(node.locator('.sf-mind-title')).toHaveCSS('font-size', '16px'); }
+    // Nodes keep their centre coordinate in both appearances; this transform
+    // is graph geometry, not a notebook decoration.
+    await expect.poll(() => node.evaluate(el => Math.abs(el.getBoundingClientRect().width / 2 + new DOMMatrix(getComputedStyle(el).transform).m41) < 1)).toBe(true);
     await node.getByTestId('lesson-resource-open').click(); await expect(page.getByTestId('lesson-materials-pane')).toContainText('观察角之间的关系');
     await page.screenshot({ path: info.outputPath(`${style}-reader-workbench.png`), fullPage: true });
     await page.getByTestId('lesson-materials-pane').getByTestId('mindmap-back').click();
@@ -103,6 +141,8 @@ test('modern conversation and pending/saved confirmation do not inherit paper or
   await expect(proposal.getByTestId('proposal-item-status')).toHaveCSS('transform', 'none');
   await openAppearance(page); await page.getByTestId('theme-notebook').click(); await closeAppearance(page);
   await expect(proposal.getByTestId('proposal-item-status')).not.toHaveCSS('transform', 'none');
+  await expect(proposal.locator('summary').first()).toHaveCSS('font-family', /SF Kalam/);
+  await expect(proposal.getByTestId('proposal-content')).toHaveCSS('font-size', '16px');
   await openAppearance(page); await page.getByTestId('theme-modern').click(); await closeAppearance(page);
   await expect.poll(async () => page.locator('[data-chat-flow] [style*="--sf-ink-shift"]').count()).toBe(0);
 });

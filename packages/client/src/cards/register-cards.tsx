@@ -57,7 +57,7 @@ const css = `
 .sf-action-quiet{background:transparent;color:#26437c;border-color:#cfc7ae}
 .sf-action-quiet:hover{background:#f6f1e3}
 .sf-review-result{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
-.sf-cards h2{font-size:clamp(20px,2vw,26px);font-weight:500;margin:0;line-height:1.4}
+.sf-cards h2{font-size:var(--sf-text-page);font-weight:500;margin:0;line-height:1.4}
 .sf-cards-head{display:flex;justify-content:space-between;align-items:center;gap:16px}
 .sf-cards-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
 .sf-chip-row{display:flex;flex-wrap:wrap;gap:6px}
