@@ -1,3 +1,4 @@
+import { entityReferenceContent } from './entity-reference-output.ts';
 import type { Context } from '@deepseek-ai/cordis';
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { z } from 'zod';
@@ -19,7 +20,7 @@ export function registerOrganizationTools(host: Context): void {
   const ref = z.object({ target: z.string().min(1) }).strict();
   function read(name: string, description: string, input: z.ZodType, output: z.ZodType, run: (args: unknown, execution: ToolRunContext) => Promise<unknown>): void {
     host.effect(() => host.tools.register({ name, description, parameters: toolSchema(input),
-      output: { schema: toolSchema(output), render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
+      output: { schema: toolSchema(output), render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }, ...entityReferenceContent(value)] },
       execute: run,
     }));
   }

@@ -45,6 +45,8 @@ export interface SourcePaneProps {
    * "you are reading this" mark.
    */
   readonly browseId?: string | undefined;
+  readonly sourceIndex?: number | undefined;
+  readonly onLocate?: ((anchor: MaterialContext, index: number) => void) | undefined;
 }
 
 type State =
@@ -53,14 +55,15 @@ type State =
   | { readonly status: 'ready'; readonly version: MaterialVersion; readonly data: Uint8Array; readonly index: DocxIndex | undefined };
 
 /** Read one position of one original; a second position re-reads the same version. */
-export function SourcePane({ face, sessionId, anchors, browseId }: SourcePaneProps): React.JSX.Element {
-  const [at, setAt] = useState(0);
+export function SourcePane({ face, sessionId, anchors, browseId, sourceIndex, onLocate }: SourcePaneProps): React.JSX.Element {
+  const [localIndex, setAt] = useState(0);
+  const at = sourceIndex ?? localIndex;
   const anchor = anchors[Math.min(at, Math.max(anchors.length - 1, 0))];
   if (anchor === undefined) return <p className="sf-note" role="status">这处原文暂时读不出来。</p>;
   return <>
     {anchors.length > 1 && <nav className="sf-source-anchors" aria-label="这处原文的位置">
       {anchors.map((item, index) => <button key={`${item.versionId}-${String(index)}`} type="button" className="sf-quiet"
-        aria-pressed={index === at} data-testid="source-anchor" onClick={() => { setAt(index); }}>{anchorName(item, index)}</button>)}
+        aria-pressed={index === at} data-testid="source-anchor" onClick={() => { setAt(index); onLocate?.(item, index); }}>{anchorName(item, index)}</button>)}
     </nav>}
     <SourceBody key={`${anchor.materialId}@${anchor.versionId}:${String(at)}`} face={face} sessionId={sessionId} anchor={anchor} browseId={browseId} />
   </>;

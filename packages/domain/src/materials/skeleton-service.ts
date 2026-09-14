@@ -90,10 +90,10 @@ export class SkeletonService {
    * list, and nothing is created to remember that it was read.
    * @throws `material_missing`/`workspace_mismatch` for a book this workspace does not own.
    */
-  async read(ctx: HostContext, materialIdInput: string): Promise<SkeletonView> {
+  async read(ctx: HostContext, materialIdInput: string, revision?: number): Promise<SkeletonView> {
     const materialId = MaterialIdSchema.parse(materialIdInput);
     await this.materials.get(ctx, materialId);
-    const saved = this.existing(ctx, materialId);
+    const saved = revision === undefined ? this.existing(ctx, materialId) : this.records.read(ctx, refOf(materialId), revision);
     if (saved === undefined) return SkeletonViewSchema.parse({ materialId, nodes: [] });
     if (saved.data.materialId !== materialId) {
       throw new SkeletonError('skeleton_record_mismatch', `这份骨架记的是另一本书（${saved.data.materialId}），不能当作 ${materialId} 的结构。`);

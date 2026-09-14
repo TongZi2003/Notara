@@ -25,6 +25,7 @@ import { registerPlugins } from '../plugins/PluginManager.tsx';
 import { registerCreation } from '../creation/register-creation.tsx';
 import { registerClassroomTrace } from '../classroom/ClassroomTrace.tsx';
 import { registerLearningWorkspace } from '../classroom/LearningWorkspace.tsx';
+import { registerEntityReferences } from '../materials/entity-reference.ts';
 
 export const inject = ['remote', 'slots'];
 
@@ -38,6 +39,7 @@ export async function apply(ctx: Context): Promise<void> {
     return;
   }
   ctx.plugin({ inject: ['slots', 'layout', 'sessions'], apply: registerStudentShell });
+  ctx.plugin({ inject: ['remote.studyforgeLibrary', 'sessions'], apply: registerEntityReferences });
   ctx.plugin({ inject: ['slots', 'layout'], apply: registerToolActivity });
   ctx.plugin({ inject: ['slots', 'sessions', 'layout', 'conversation', 'inputTriggers', 'sidebarRight', 'remote.studyforgeTrace', 'remote.studyforgeCreation'], apply: registerClassroomTrace });
   ctx.plugin({ inject: ['slots', 'sessions', 'layout'], apply: registerContentNavigation });

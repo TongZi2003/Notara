@@ -6,6 +6,7 @@ import { requestLessonPane } from '../materials/lesson-pane-request.ts';
 import { openContentClassroom } from '../materials/content-navigation.tsx';
 import { revealWorkspaceView } from '../classroom/workspace-layout.ts';
 import type {SessionId} from '@deepseek-ai/dsh-session/types';
+import { openEntityReference } from '../materials/entity-reference.ts';
 
 const permissions: Record<string,string> = { 'document-read':'document', 'document-write':'document', 'source-pick':'sources', 'source-open':'sources', compose:'compose', 'seminar-list':'seminar', 'seminar-start':'seminar', 'seminar-follow':'seminar', 'seminar-stop':'seminar', worldbook:'worldbook-context' };
 export async function learningAction(ctx:Context, sessionId:string, content:WorkbenchContent, action:string, payload:unknown, pick:()=>Promise<unknown>):Promise<unknown> {
@@ -18,8 +19,8 @@ export async function learningAction(ctx:Context, sessionId:string, content:Work
   if(action==='source-open'){
     const data=z.object({link:PluginLinkSchema}).strict().parse(payload),link=unwrap(await ctx.remote.notaraWorkbench.resolveLink({...target,link:data.link}));
     if(ctx.sessions.list.getSnapshot().current!==sessionId)throw new Error('classroom_changed');
-    if(link.kind==='source')requestLessonPane(sessionId,{kind:'source',title:link.title,anchors:[link.source]});
-    else if(link.kind==='card')requestLessonPane(sessionId,{kind:'card',title:link.title,target:link.ref,version:link.version});
+    if(link.kind==='source')await openEntityReference(ctx,sessionId,{kind:'source',source:link.source});
+    else if(link.kind==='card')await openEntityReference(ctx,sessionId,{kind:'card',ref:link.ref,version:link.version});
     else await openContentClassroom(ctx,{sessionId:link.sessionId});return {opened:true};
   }
   if(action==='compose'){

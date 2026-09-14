@@ -1,3 +1,4 @@
+import { entityReferenceContent } from './entity-reference-output.ts';
 import type { Context } from '@deepseek-ai/cordis';
 import { z } from 'zod';
 import { EntityRefSchema } from '@studyforge/contracts';
@@ -8,7 +9,7 @@ import { observedVersion, teacherContext } from './learning-context.ts';
 export function registerKnowledgeTools(host: Context): void {
   const readInput = z.object({ target: EntityRefSchema }).strict();
   const editInput = z.object({ target: EntityRefSchema, patch: KnowledgePatchSchema.omit({ links_remove: true }) }).strict();
-  const output = { schema: toolSchema(KnowledgeViewSchema), render: (_args: unknown, value: unknown) => [{ type: 'text' as const, text: JSON.stringify(KnowledgeViewSchema.parse(value)) }] };
+  const output = { schema: toolSchema(KnowledgeViewSchema), render: (_args: unknown, value: unknown) => [{ type: 'text' as const, text: JSON.stringify(KnowledgeViewSchema.parse(value)) }, ...entityReferenceContent(value)] };
   host.effect(() => host.tools.register({ name: 'read_method', description: '读知识：按search_learning中knowledge命中的target，读取私人知识或方法条目的正文、关系、公共教法来源和收录状态；关于学生的观察用read_memory。知识没有第二复习梯子。', parameters: toolSchema(readInput), output,
     async execute(args, execution) { return host.studyforgeKnowledgeService.read(await teacherContext(host, execution), readInput.parse(args).target); },
   }));

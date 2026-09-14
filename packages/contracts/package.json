@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./entity-reference": { "types": "./lib/types/entity-reference.d.ts", "default": "./lib/types/entity-reference.js" },
     "./plugin-learning": { "types": "./lib/types/plugin-learning.d.ts", "default": "./lib/types/plugin-learning.js" },
     "./plugins": { "types": "./lib/types/plugins.d.ts", "default": "./lib/types/plugins.js" },
     "./classroom-trace": { "types": "./lib/types/classroom-trace.d.ts", "default": "./lib/types/classroom-trace.js" },

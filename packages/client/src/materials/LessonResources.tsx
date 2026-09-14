@@ -23,6 +23,9 @@ import type { LessonResource, LessonResourcesProjection } from '@studyforge/doma
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CardDetail } from '../cards/CardDetail.tsx';
 import { KnowledgeEditor } from '../cards/KnowledgeEditor.tsx';
+import { MarkdownBody } from '../cards/MarkdownBody.tsx';
+import type { KnowledgeView } from '@studyforge/contracts/knowledge';
+import { focusEntityNode } from './entity-reference-focus.ts';
 import { LessonImport } from '../classroom/LessonImport.tsx';
 import { Mindmap, type MindNode } from './mindmap.tsx';
 import { kindLabel, lessonMindProjection, positionLabel, versionKeyOf } from './lesson-materials-mindmap.ts';
@@ -87,6 +90,7 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
   useEffect(() => { lessonDecks.set(sessionId, deck); }, [sessionId, deck]);
   useEffect(() => {
     const desk = surface.current;
+    if (desk?.dataset.referenceActive === 'true') { desk.scrollLeft = 0; return; }
     const columns = desk?.querySelectorAll<HTMLElement>('[data-sheet-id]');
     const column = [...(columns ?? [])].find(element => element.dataset.sheetId === (deck.active ?? 'map'));
     if (!desk || !column) return;
@@ -145,6 +149,7 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
   }, [host, sessionId, refreshToken, focus]);
   useEffect(() => subscribeLessonPane(sessionId, request => {
     setNotice(undefined);
+    if (request.entity) setDeck(old => ({ ...old, scope: 'all' }));
     setOpen(request);
   }), [sessionId]);
 
@@ -175,9 +180,12 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
     const lesson = state.status === 'ready' ? state.rows : [];
     if (deck.scope === 'lesson') return lesson;
     const inventory = [...workbenchMaterials(materials, lesson)];
+    for (const sheet of deck.sheets) if ('entity' in sheet.content && sheet.content.entity) for (const source of sheet.content.entity.sources) {
+      if (!inventory.some(row=>row.source?.materialId===source.materialId && row.source.versionId===source.versionId)) inventory.push({kind:'material',target:null,tabKey:`material:${source.materialId}@${source.versionId}`,title:library.titles.get(source.materialId)??'原文',source:{materialId:source.materialId,versionId:source.versionId},quote:null,origins:[]});
+    }
     for (const item of [...cards.values(), ...knowledge]) if (!inventory.some(row => row.target === item.ref)) inventory.push({ kind: item.ref.startsWith('card:') ? 'card' : 'knowledge', target: item.ref, tabKey: item.ref, title: item.content.title, source: null, quote: null, origins: [] });
     return inventory;
-  }, [state, materials, cards, knowledge, deck.scope]);
+  }, [state, materials, cards, knowledge, deck.scope, deck.sheets, library]);
   useEffect(() => {
     let live = true;
     const pinned = state.status === 'ready' ? state.rows.filter(row => row.kind === 'card' && row.target !== null && row.cardVersion !== undefined) : [];
@@ -199,14 +207,29 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
       return row?.target === ref || (row?.source && 'material:' + row.source.materialId === ref) || (book && 'target' in book && book.target === ref);
     })?.key;
     for (const edge of userRelations) { const from = keyOf(edge.from), to = keyOf(edge.to); if (from && to) graph.edges.push({ from, to, label: edge.label }); }
-    return graph;
-  }, [projection, cards, pinnedCards, deck.related, library, expanded, userRelations]);
+    const focusKeys = new Map<string,string>(), versions = new Map([...cards.values(),...knowledge].map(row=>[row.ref,row.version]));
+    for (const sheet of deck.sheets) if ('entity' in sheet.content && sheet.content.entity) {
+      const source = sheet.content.kind === 'source' && sheet.sourceIndex !== undefined ? sheet.content.anchors[sheet.sourceIndex] : undefined;
+      const entity = source ? { ...sheet.content.entity, reference: { kind: 'source' as const, source }, sources: [source] } : sheet.content.entity;
+      const result = focusEntityNode(graph.nodes,projection,versions,entity);
+      graph.nodes=result.nodes; focusKeys.set(sheet.id,result.key); graph.requests.set(result.key,sheet.content);
+    }
+    return {...graph,focusKeys};
+  }, [projection, cards, pinnedCards, deck.related, library, expanded, userRelations, deck.sheets, knowledge]);
   useEffect(() => {
-    const sheet = deck.sheets.find(item => item.id === deck.active); if (!sheet || sheet.nodeKey) return;
-    const key = graph.nodes.find(node => { const row = projection.rows.get(node.key), book = projection.books.get(node.key); return sheet.content.kind === 'source' ? row?.source?.materialId === sheet.content.anchors[0]?.materialId && row?.source?.versionId === sheet.content.anchors[0]?.versionId : row?.target === sheet.content.target || (book && 'target' in book && book.target === sheet.content.target); })?.key;
+    const sheet = deck.sheets.find(item => item.id === deck.active); if (!sheet) return;
+    const focusKey = graph.focusKeys.get(sheet.id);
+    if (!focusKey && sheet.nodeKey) return;
+    const key = focusKey ?? graph.nodes.find(node => { const row = projection.rows.get(node.key), book = projection.books.get(node.key); return sheet.content.kind === 'source' ? row?.source?.materialId === sheet.content.anchors[0]?.materialId && row?.source?.versionId === sheet.content.anchors[0]?.versionId && JSON.stringify(row?.source?.locator)===JSON.stringify(sheet.content.anchors[0]?.locator) : row?.target === sheet.content.target && (!('version' in sheet.content) || sheet.content.version===undefined || (row.cardVersion??cards.get(sheet.content.target)?.version)===sheet.content.version) || (book && 'target' in book && book.target === sheet.content.target && (!('version' in sheet.content)||sheet.content.version===undefined||cards.get(sheet.content.target)?.version===sheet.content.version)); })?.key;
     if (!key) return;
-    setDeck(old => ({ ...old, selected: key, expanded: [...new Set([...old.expanded, ...parentTrail(graph.nodes, key).map(node => node.key)])], sheets: old.sheets.map(item => item.id === sheet.id ? { ...item, nodeKey: key } : item) }));
+    const parents = parentTrail(graph.nodes, key).map(node => node.key), focusTrail = JSON.stringify(parents);
+    if (sheet.nodeKey === key && sheet.focusTrail === focusTrail) return;
+    setDeck(old => ({ ...old, selected: key, expanded: [...new Set([...old.expanded, ...parents])], sheets: old.sheets.map(item => item.id === sheet.id ? { ...item, nodeKey: key, focusTrail } : item) }));
   }, [deck.active, deck.sheets, graph, projection]);
+  useEffect(() => {
+    const sheet=deck.sheets.find(item=>item.id===deck.active);
+    if (sheet && 'entity' in sheet.content && sheet.content.entity) for(const source of sheet.content.entity.sources) readBook(source);
+  }, [deck.active, deck.sheets]);
   // Reopening the native deck restores navigation, then reads these books anew.
   useEffect(() => {
     for (const [key, row] of projection.rows) if (row.source && expanded.includes(key) && !structures.has(versionKeyOf(row.source.materialId, row.source.versionId))) readBook(row.source);
@@ -240,7 +263,7 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
   const reading = useRef(new Set<string>());
   function readBook(source: MaterialContext): void {
     const key = versionKeyOf(source.materialId, source.versionId);
-    if (reading.current.has(key)) return;
+    if (reading.current.has(key) || structures.has(key)) return;
     reading.current.add(key);
     const at = sessionId;
     setBusy(true);
@@ -338,7 +361,7 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
       {deck.sheets.map(sheet => <button key={sheet.id} type="button" className="sf-quiet" aria-pressed={deck.active === sheet.id}
         onClick={() => { setDeck(old => ({ ...old, active: sheet.id })); }}>{sheet.content.title}</button>)}
     </nav>}
-    <div className="sf-deck-surface" ref={surface} data-testid="lesson-deck-surface">
+    <div className="sf-deck-surface" ref={surface} data-testid="lesson-deck-surface" data-reference-active={deck.sheets.some(sheet => sheet.id === deck.active && 'entity' in sheet.content && !!sheet.content.entity)}>
     <section className="sf-deck-map" data-sheet-id="map" aria-label="资料白板">
     {(deck.scope === 'lesson' ? state.status : libraryStatus) !== 'ready' ? <p className="sf-note" role="status">{(deck.scope === 'lesson' ? state.status : libraryStatus) === 'loading' ? '正在读取资料…' : '资料暂时取不到，请稍后刷新。'}</p> : graph.nodes.length === 0 && deck.scope === 'lesson' ?
       <div className="sf-workbench-empty"><p>本节课还没有引用资料</p><button type="button" className="sf-quiet" onClick={() => setDeck(old => ({ ...old, scope: 'all' }))}>查看全部资料</button></div> : graph.nodes.length === 0 ?
@@ -361,7 +384,7 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
       return <div className="sf-deck-sheet" key={sheet.id} data-sheet-id={sheet.id} data-active={deck.active === sheet.id}
         onPointerDownCapture={() => { setDeck(old => old.active === sheet.id ? old : { ...old, active: sheet.id }); }}
         onFocusCapture={() => { setDeck(old => old.active === sheet.id ? old : { ...old, active: sheet.id }); }}>
-      <Pane open={open} onBack={close}>
+      <Pane open={open} onBack={close} sourceIndex={sheet.sourceIndex}>
         <nav className="sf-deck-trail" aria-label="父级与关系">
           {trail.map(parent => <button type="button" className="sf-quiet" data-testid="deck-parent" key={parent.key} onClick={() => { pick(parent); }}>↑ {parent.title}</button>)}
           {node && graph.canRelate(node.key) && <button type="button" className="sf-quiet" onClick={() => { relate(node, false); }}>查看关联</button>}
@@ -369,7 +392,8 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
             onClick={() => { void breakdown(node, action); }}>{breakdownLabel(action)}</button>)}
         </nav>
         {open.kind === 'source'
-          ? <><SourcePane face={host} sessionId={sessionId} anchors={open.anchors} browseId={activeBrowseId} />
+          ? <><SourcePane face={host} sessionId={sessionId} anchors={open.anchors} browseId={activeBrowseId} sourceIndex={sheet.sourceIndex}
+              onLocate={(_, sourceIndex) => setDeck(old => ({ ...old, sheets: old.sheets.map(item => item.id === sheet.id ? { ...item, sourceIndex, nodeKey: undefined } : item) }))} />
             {open.anchors.map((source, i) => <ContentHistory key={i} ctx={ctx} query={{ source }} refreshToken={refreshToken}
               onRefine={node && breakdownTarget(node) ? anchor => { void breakdown(node, 'directory', anchor); } : undefined}
               onSource={anchor => setOpen({ kind: 'source', title: open.title, anchors: [anchor] })} />)}</>
@@ -377,7 +401,7 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
             ? <CardPane ctx={ctx} host={host} sessionId={sessionId} target={open.target} version={open.version} browseId={activeBrowseId}
               onSource={(anchors, title) => { setOpen({ kind: 'source', title, anchors }); }} />
             : open.kind === 'knowledge'
-              ? <KnowledgeEditor ctx={ctx} target={open.target} sessionId={sessionId} onSaved={() => { setFocus(n => n + 1); }} />
+              ? open.version === undefined ? <KnowledgeEditor ctx={ctx} target={open.target} sessionId={sessionId} onSaved={() => { setFocus(n => n + 1); }} /> : <KnowledgeReference ctx={ctx} target={open.target} version={open.version} />
               : renderObject?.(open.target, { back: close, source: (anchors, title) => { setOpen({ kind: 'source', title, anchors }); } }) ?? <p className="sf-note" role="status">这份记录暂时打不开。</p>}
       </Pane>
       </div>;
@@ -388,8 +412,9 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
 }
 
 /** One pane: a back to the map, the node's own name, and the body it opened. */
-function Pane({ open, onBack, children }: { readonly open: PaneOpen; readonly onBack: () => void; readonly children: ReactNode }): React.JSX.Element {
-  const hint = open.kind === 'source' && open.anchors[0]?.locator !== undefined ? positionLabel(open.anchors[0].locator) : undefined;
+function Pane({ open, onBack, children, sourceIndex = 0 }: { readonly open: PaneOpen; readonly onBack: () => void; readonly children: ReactNode; readonly sourceIndex?: number | undefined }): React.JSX.Element {
+  const locator = open.kind === 'source' ? open.anchors[sourceIndex]?.locator : undefined;
+  const hint = locator === undefined ? undefined : positionLabel(locator);
   return <section className="sf-lesson-pane" data-testid="lesson-materials-pane" data-pane={open.kind}>
     <header className="sf-lesson-pane-head">
       <span className="sf-lesson-pane-title">{open.title}</span>
@@ -451,4 +476,10 @@ function anchorOf(source: MaterialContext): MaterialContext {
 /** A saved anchor and a material context are the same reference minus its quote. */
 function asContext(anchor: SourceAnchor): MaterialContext {
   return { materialId: anchor.materialId, versionId: anchor.versionId, locator: anchor.locator };
+}
+
+function KnowledgeReference({ctx,target,version}:{ctx:Context;target:string;version:number}):React.JSX.Element {
+  const [value,setValue]=useState<KnowledgeView>(),[failed,setFailed]=useState(false);
+  useEffect(()=>{let live=true;setValue(undefined);setFailed(false);void ctx.remote.studyforgeLearning.method({target,version}).then(reply=>{if(live){if(reply.ok)setValue(reply.value);else setFailed(true);}},()=>{if(live)setFailed(true);});return()=>{live=false;};},[ctx,target,version]);
+  return <article className="sf-reference-note" data-testid="knowledge-reference" data-version={version}>{value?<><h2>{value.content.title}</h2><MarkdownBody text={value.content.body}/></>:<p role="status">{failed?'这份知识笔记暂时无法打开。':'正在打开知识笔记…'}</p>}</article>;
 }

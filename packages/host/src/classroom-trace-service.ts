@@ -12,6 +12,7 @@ import { toolSchema } from './tools/tool-schema.ts';
 import { teacherContext } from './tools/learning-context.ts';
 import { canonicalPath } from '@studyforge/domain/access';
 import { taskLabels } from './teaching/task-skills.ts';
+import { entityReferenceText } from '@studyforge/contracts/entity-reference';
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeTrace: StudyForgeTrace; studyforgeThoughts: RecordStore<typeof ThoughtGraphSchema>; } }
 const idOf = (session: string): string => createHash('sha256').update(session).digest('hex');
 export function ownEvents(events: readonly SessionEvent[]): readonly SessionEvent[] {
@@ -55,7 +56,7 @@ export class StudyForgeTrace extends TypertRemoteService {
           if (system && !text.includes('单据')) continue;
           const sources = decoded.fragments.flatMap(fragment => fragment.context.selection?.sources ?? (fragment.context.currentMaterial?.kind === 'source' ? [fragment.context.currentMaterial.source] : []));
           const targets = decoded.fragments.flatMap(fragment => fragment.context.currentMaterial?.kind === 'card' ? [{ ref: fragment.context.currentMaterial.cardRef, ...(fragment.context.currentMaterial.cardVersion ? { version: fragment.context.currentMaterial.cardVersion } : {}), title: fragment.titles[0]?.title ?? '卡片' }] : []);
-          nodes.push({ id: 'event:' + event.seq, title: system ? '保存结果' : text.replace(/[#*`\n]/g, ' ').slice(0, 72), body: text.slice(0, 20000), kind: system ? 'result' : user ? 'question' : 'answer', sequence: event.seq, turn, sources, targets });
+          nodes.push({ id: 'event:' + event.seq, title: system ? '保存结果' : entityReferenceText(text).replace(/[#*`\n]/g, ' ').slice(0, 72), body: text.slice(0, 20000), kind: system ? 'result' : user ? 'question' : 'answer', sequence: event.seq, turn, sources, targets });
           if (user && !system) questionBatch.push(nodes.at(-1)!);
         }
         if (event.type === 'tool/result' && !event.data.message.content.some(block => block.isError)) {

@@ -5,9 +5,16 @@ import type { RecordStore } from '@studyforge/domain/storage';
 import { studentContext } from './learning-service.ts';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { LibraryEntityReferenceSchema, type LibraryEntityReference, type ResolvedEntityReference } from '@studyforge/contracts/entity-reference';
+import { resolveEntityReference } from './entity-reference-service.ts';
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeLibrary: StudyForgeLibrary; studyforgeRelations: RecordStore<typeof LibraryRelationSchema>; } }
 export class StudyForgeLibrary extends TypertRemoteService {
   constructor(ctx: Context) { super(ctx, 'studyforgeLibrary'); }
+  @Remote('resolveReference')
+  async resolveReference(input: { sessionId: string; reference: LibraryEntityReference }): Promise<ResolvedEntityReference> {
+    const parsed = z.object({ sessionId: z.string().min(1), reference: LibraryEntityReferenceSchema }).strict().parse(input);
+    return resolveEntityReference(this.ctx, parsed.sessionId, parsed.reference);
+  }
   @Remote('relations')
   async relations(): Promise<LibraryRelation[]> { return this.ctx.studyforgeRelations.list(await studentContext(this.ctx)).map(row => ({ ref: row.ref, version: row.version, ...row.data })); }
   @Remote('relate')

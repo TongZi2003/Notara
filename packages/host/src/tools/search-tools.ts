@@ -1,3 +1,4 @@
+import { entityReferenceContent } from './entity-reference-output.ts';
 import type { Context } from '@deepseek-ai/cordis';
 import { ModelLearningSearchInputSchema, LearningSearchResultSchema, type LearningSearchInput, type LearningSearchResult } from '@studyforge/contracts/learning-search';
 import { LearningSearch, type LearningSearchSources } from '@studyforge/domain/learning-search';
@@ -24,7 +25,7 @@ export function registerSearchTools(host: Context): void {
   host.effect(() => host.tools.register({
     name: 'search_learning', description: '查内容：本人资料全文、普通卡正反面和私人知识，省略query或传空字符串可枚举。查今天到期的卡/标签/章节用list_cards；学情（学生的能力、习惯、偏好）用search_memory。命中后按类型read_material/read_card/read_method精读；搜索不绑定编辑版本、不表示学生已学过。扫描件无文字层不会虚构OCR；外网用原生web_search/web_fetch。',
     parameters: toolSchema(ModelLearningSearchInputSchema),
-    output: { schema: toolSchema(LearningSearchResultSchema), render: (_args, value) => [{ type: 'text', text: JSON.stringify(LearningSearchResultSchema.parse(value)) }] },
+    output: { schema: toolSchema(LearningSearchResultSchema), render: (_args, value) => [{ type: 'text', text: JSON.stringify(LearningSearchResultSchema.parse(value)) }, ...entityReferenceContent(value)] },
     async execute(args, execution) {
       if (!execution.agent) throw new Error('learning_session_required');
       const binding = await host.studyforgeAccess.forSession(execution.agent.session.id);

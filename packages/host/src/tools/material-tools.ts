@@ -8,6 +8,7 @@ import { MaterialReadSchema, ReadMaterialInputSchema } from '@studyforge/contrac
 import { readMaterial } from '@studyforge/domain/material-read';
 import { toolSchema } from './tool-schema.ts';
 import { sourceUseMeta } from './source-use-tools.ts';
+import { entityReferenceContent } from './entity-reference-output.ts';
 
 // This tool's output keeps an immutable native attachment reference, never a
 // base64 copy of the rendered image in its textual result.
@@ -25,7 +26,7 @@ function render(_args: unknown, value: unknown): ContentBlock[] {
     content.push({ type: 'image', attachment: { ...rest, attachmentId: AttachmentId(attachmentId),
       ...(name !== undefined ? { name } : {}), ...(originalDimensions !== undefined ? { originalDimensions } : {}) } });
   }
-  return content;
+  return [...content, ...entityReferenceContent(parsed.reading)];
 }
 
 /** Read tools use the actual native calling Session and attachment capability. */
@@ -34,7 +35,7 @@ export function registerMaterialTools(ctx: Context): void {
   const listOutput = z.object({ materials: z.array(z.object({ materialId: z.string(), versionId: z.string(), title: z.string(), mediaType: z.string() }).strict()), hasMore: z.boolean(), nextOffset: z.number().int().nonnegative().optional() }).strict();
   ctx.effect(() => ctx.tools.register({
     name: 'list_materials', description: '查找本人已经导入的资料，取得可用于read_material的真实固定版本引用。导入和浏览不表示已经学习。',
-    parameters: toolSchema(listInput), output: { schema: toolSchema(listOutput), render: (_args, value) => [{ type: 'text', text: JSON.stringify(listOutput.parse(value)) }] },
+    parameters: toolSchema(listInput), output: { schema: toolSchema(listOutput), render: (_args, value) => [{ type: 'text', text: JSON.stringify(listOutput.parse(value)) }, ...entityReferenceContent(value)] },
     async execute(args, execution) {
       const input = listInput.parse(args);
       const binding = execution.agent && await ctx.studyforgeAccess.forSession(execution.agent.session.id);

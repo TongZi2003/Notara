@@ -114,7 +114,7 @@ export function listCardSummaries(rows: readonly Saved<CardRecord>[], input: Car
   const query = CardListInputSchema.parse(input), selected = selectCardRows(rows, query, today, sets);
   const end = query.offset + query.limit;
   return CardListResultSchema.parse({ date: today,
-    cards: selected.slice(query.offset, end).map(({ ref, data }) => ({ ref, title: data.content.title,
+    cards: selected.slice(query.offset, end).map(({ ref, version, data }) => ({ ref, version, title: data.content.title,
       tags: data.content.tags, chapter: data.content.chapter ?? null, nextDue: data.review?.nextDue ?? null,
       state: !data.review ? 'unlearned' : data.review.nextDue <= today ? 'due' : 'upcoming' })),
     nextOffset: end < selected.length ? end : null,

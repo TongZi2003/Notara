@@ -8,6 +8,8 @@ import { decodeSourceFragments, encodeSourceFragment, type SourceFragment } from
 import { openLessonSource } from './native-preview-adapter.ts';
 import { cardAddress } from './CardResource.tsx';
 import { requestLessonPane } from './lesson-pane-request.ts';
+import { openEntityReference } from './entity-reference.ts';
+import { entityReferenceText } from '@studyforge/contracts/entity-reference';
 
 type Block = { readonly type: string; readonly text?: string };
 interface PendingMessageProps {
@@ -22,7 +24,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 function cleanContent<T extends Block>(blocks: readonly T[]): T[] {
   return blocks.map(block => block.type === 'text' && block.text !== undefined
-    ? { ...block, text: decodeSourceFragments(block.text).text } : block);
+    ? { ...block, text: entityReferenceText(decodeSourceFragments(block.text).text) } : block);
 }
 function fragmentsOf(blocks: readonly Block[]): SourceFragment[] {
   return blocks.flatMap(block => block.type === 'text' && block.text !== undefined ? decodeSourceFragments(block.text).fragments : []);
@@ -35,14 +37,14 @@ export function displaySourceSnapshot(snapshot: SessionSnapshot): SessionSnapsho
   const result: SessionSnapshot = {
     ...snapshot,
     queue: snapshot.queue.map(row => ({ ...row, content: cleanContent(row.content),
-      text: row.text === null ? null : decodeSourceFragments(row.text).text,
+      text: row.text === null ? null : entityReferenceText(decodeSourceFragments(row.text).text),
       // The native preview can truncate inside a fence. Decode the complete
       // content first, then shorten the visible text.
       preview: fragmentsOf(row.content).length > 0
         ? cleanContent(row.content).flatMap(block => block.type === 'text' ? [block.text] : []).join('\n').trim().slice(0, 240) || '已引用资料'
-        : row.preview,
+        : entityReferenceText(row.preview),
     })),
-    pendingSubmissions: snapshot.pendingSubmissions.map(row => ({ ...row, text: decodeSourceFragments(row.text).text })),
+    pendingSubmissions: snapshot.pendingSubmissions.map(row => ({ ...row, text: entityReferenceText(decodeSourceFragments(row.text).text) })),
   };
   snapshots.set(snapshot, result);
   return result;
@@ -55,6 +57,7 @@ function SourceLinks({ ctx, sessionId, fragments }: { ctx: Context; sessionId: s
   const [notice, setNotice] = useState('');
   if (fragments.length === 0) return null;
   return <div data-testid="message-sources">{fragments.flatMap((fragment, n) => {
+    if (fragment.entities?.length) return fragment.entities.map((entity,i)=><button key={n+':entity:'+i} type="button" onClick={()=>{void openEntityReference(ctx,sessionId,entity.reference);}}>{entity.title}</button>);
     const current = fragment.context.currentMaterial;
     if (current?.kind === 'card' && fragment.context.selection === undefined) {
       const version = fragment.objects.find(item => item.ref === current.cardRef)?.version;
@@ -63,7 +66,7 @@ function SourceLinks({ ctx, sessionId, fragments }: { ctx: Context; sessionId: s
         // In a lesson the right column is the lesson's own map: its pane opens
         // the pinned card revision, and no second rail is drawn beside it.
         if (inLesson(ctx, sessionId)) {
-          requestLessonPane(sessionId, { kind: 'card', title: fragment.titles[0]?.title ?? '卡片', target: current.cardRef, version });
+          void openEntityReference(ctx, sessionId, { kind: 'card', ref: current.cardRef, version });
           return;
         }
         ctx.sidebarRight.openResource(cardAddress(current.cardRef, version));
@@ -74,7 +77,7 @@ function SourceLinks({ ctx, sessionId, fragments }: { ctx: Context; sessionId: s
       const title = fragment.titles.find(item => item.ref === source.materialId)?.title ?? fragment.titles[0]?.title ?? '查看选段';
       return <button key={n + ':' + i} type="button" onClick={() => {
       if (inLesson(ctx, sessionId) && String(ctx.sessions.list.getSnapshot().current) === sessionId) {
-        requestLessonPane(sessionId, { kind: 'source', title, anchors: [source] });
+        void openEntityReference(ctx, sessionId, { kind: 'source', source: { materialId: source.materialId, versionId: source.versionId, ...(source.locator ? { locator: source.locator } : {}) } });
         return;
       }
       void openLessonSource({

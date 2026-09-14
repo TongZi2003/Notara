@@ -46,6 +46,8 @@ function Workspace({ ctx, sessionId, blank, running, title, nativeConversation, 
   const surface = useRef<HTMLDivElement>(null), [size, setSize] = useState({ width: 1000, height: 700 });
   const [dragging, setDragging] = useState<WorkspaceView>(), [over, setOver] = useState(''), [settings, setSettings] = useState(false);
   const [menu, setMenu] = useState<WorkspaceView>(), lastRects = useRef<Partial<Record<WorkspaceView, Rect>>>({});
+  const [referenceNotice, setReferenceNotice] = useState('');
+  useEffect(() => { const show = (event: Event): void => setReferenceNotice(String((event as CustomEvent).detail ?? '')); window.addEventListener('studyforge:reference-notice', show); return () => window.removeEventListener('studyforge:reference-notice', show); }, []);
   const readCourse = useCallback((input: { sessionId: string }) => ctx.remote.studyforgeCourses.read(input), [ctx]);
   useLayoutEffect(() => {
     const node = surface.current; if (!node) return;
@@ -77,6 +79,7 @@ function Workspace({ ctx, sessionId, blank, running, title, nativeConversation, 
   const endDrag = (): void => { setDragging(undefined); setOver(''); };
   function preset(event: React.MouseEvent<HTMLButtonElement>, tree: SplitTree, selected: WorkspaceView = 'chat'): void { arrange(tree, selected); event.currentTarget.closest('details')?.removeAttribute('open'); }
   return <main className="sf-learning-workspace" data-testid="learning-workspace" data-narrow={narrow}>
+    {referenceNotice && <p className="sf-reference-notice" role="status" onClick={()=>setReferenceNotice('')}>{referenceNotice}</p>}
     <header className="sf-workspace-bar"><nav aria-label="课堂视图">{views.filter(view=>extensions.length<=4||!view.startsWith('plugin-')||open.includes(view)).map(view => <button key={view} type="button" draggable={!narrow} onDragStart={event => startDrag(event, view)} onDragEnd={endDrag}
       data-testid={`workspace-open-${view}`} aria-pressed={open.includes(view)} data-current={active === view} onClick={() => revealWorkspaceView(sessionId, view)}><ViewIcon view={view} /><span>{LABELS[view]}</span></button>)}</nav>
       {extensions.length>4&&<details className="sf-workspace-layout-menu sf-workspace-catalog"><summary aria-label="选择插件工作台">＋ 工作台</summary><div>{extensions.map(item=><button key={item.id} onClick={event=>{revealWorkspaceView(sessionId,item.id as WorkspaceView);event.currentTarget.closest('details')?.removeAttribute('open');}}>{item.title}{open.includes(item.id as WorkspaceView)?' ✓':''}</button>)}</div></details>}

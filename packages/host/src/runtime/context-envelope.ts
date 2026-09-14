@@ -2,6 +2,7 @@ import type { CardContent, HostContext, SourceAnchor } from '@studyforge/contrac
 import type { Context } from '@deepseek-ai/cordis';
 import { SourceContextSchema, encodeSourceFragment, type SourceContext, type SourceFragment, type FrozenSource } from '@studyforge/contracts/source-context';
 import { readMaterial, resolveAnchor } from '@studyforge/domain/material-read';
+import { entityLink, type LibraryEntityReference } from '@studyforge/contracts/entity-reference';
 export interface ContextCardReader {
   read(ctx: HostContext, ref: string, version?: number): Promise<{ ref: string; version: number; content: CardContent }>;
 }
@@ -54,13 +55,27 @@ export async function freezeSourceContext(host: Context, sessionId: string, inpu
     // A card's own sources remain readable by its normal source links; they are
     // not automatically all sent as if the student selected them this time.
   } else throw new Error('source_context_empty');
+  const current = context.currentMaterial;
+  const targets:LibraryEntityReference[] = context.selection ? context.selection.sources.map(source=>({kind:'source',source:{materialId:source.materialId,versionId:source.versionId,locator:source.locator}}))
+    : current?.kind==='source' ? [{kind:'source',source:current.source}]
+    : current?.kind==='card' ? [{kind:'card',ref:current.cardRef,version:fragment.objects.find(row=>row.ref===current.cardRef)!.version as number}] : [];
+  fragment.entities = targets.map(reference => {
+    const ref = reference.kind === 'source' ? 'material:' + reference.source.materialId : reference.kind === 'card' ? reference.ref : '';
+    const title = fragment.titles.find(item => item.ref === ref)?.title ?? '资料';
+    try { return { reference, title, link: entityLink(title, reference) }; }
+    catch { return { reference, title }; } // A long link must not discard a valid selection.
+  });
   return { fragment, images, modelText: encodeSourceFragment(fragment) };
 }
 
 /** Revalidate object identities against their actual fixed versions when evidence is queried. */
 export async function sourceEvidenceObjects(host: Context, ctx: HostContext, fragments: readonly SourceFragment[]): Promise<{ ref: string; version: string | number }[]> {
   const objects: { ref: string; version: string | number }[] = [];
-  for (const { context, objects: pins } of fragments) {
+  for (const { context, objects: pins, entities } of fragments) {
+    for (const entity of entities??[]) if(entity.reference.kind==='knowledge') {
+      const note=host.studyforgeKnowledgeService.read(ctx,entity.reference.ref,entity.reference.version);
+      if(!objects.some(item=>item.ref===note.ref&&item.version===note.version))objects.push({ref:note.ref,version:note.version});
+    }
     const references = context.selection?.sources ?? (context.currentMaterial?.kind === 'source' ? [context.currentMaterial.source] : []);
     for (const source of references) {
       const resolved = await host.studyforgeMaterialService.resolve(ctx, { materialId: source.materialId, versionId: source.versionId });

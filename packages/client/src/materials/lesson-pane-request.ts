@@ -9,12 +9,14 @@
  * a request made before the tab mounts is held, not dropped.
  */
 import type { MaterialContext } from '@studyforge/contracts/materials';
+import type { ResolvedEntityReference } from '@studyforge/contracts/entity-reference';
 import { revealWorkspaceView } from '../classroom/workspace-layout.ts';
 
 /** What the classroom asked the map's pane to show. */
-export type LessonPaneRequest =
+export type LessonPaneRequest = (
   | { readonly kind: 'source'; readonly title: string; readonly anchors: readonly MaterialContext[] }
-  | { readonly kind: 'card' | 'knowledge'; readonly title: string; readonly target: string; readonly version?: number | undefined };
+  | { readonly kind: 'card' | 'knowledge'; readonly title: string; readonly target: string; readonly version?: number | undefined }
+) & { readonly entity?: ResolvedEntityReference };
 
 const pending = new Map<string, LessonPaneRequest>();
 const listeners = new Map<string, (request: LessonPaneRequest) => void>();

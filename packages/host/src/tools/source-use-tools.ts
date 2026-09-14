@@ -1,3 +1,4 @@
+import { entityReferenceContent } from './entity-reference-output.ts';
 import type { Context } from '@deepseek-ai/cordis';
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { SessionId } from '@deepseek-ai/dsh-session';
@@ -34,7 +35,7 @@ export function registerSourceUseTools(host: Context): void {
   host.effect(() => host.tools.register({ name: 'read_content',
     description: '精读search_learning命中的card或knowledge正文、固定版本、出处和联系。includeActivity=true时可按需查看当前卡片的学习/复习事实及课堂使用，不返回整份学情或其他卡记录；browsing=not_recorded表示单纯浏览未记账，不能说从未访问。可沿links精读。读取不会创建卡、记档或绑定修改版本；修改或评定仍用read_card/read_method。',
     parameters: toolSchema(readInput), output: { schema: toolSchema(ContentReadSchema),
-      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }],
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }, ...entityReferenceContent(value)],
       presentationMeta: (_args, value) => {
         const item = ContentReadSchema.parse(value);
         return sourceUseMeta({ kind: 'studyforge-source-use', use: 'read', target: item.ref, version: item.version, sources: item.kind === 'card' ? item.content.sources : [] });
@@ -67,7 +68,7 @@ export function registerSourceUseTools(host: Context): void {
     .refine(value => value.sources.length > 0 || !!value.target, '选择实际采用的原文片段或卡片');
   host.effect(() => host.tools.register({ name: 'cite_materials',
     description: '把本课真正采用的片段或既有卡片挂回课堂。先由你自己read_material/preview_region或read_content核对，sources只选实际读过范围，target选读过的卡/知识。scout候选须你复读后才能采用；Host固定真实版本。采用不等于讲完、学会或复习记档，也不会复制卡片。',
-    parameters: toolSchema(citeInput), output: { schema: toolSchema(SourceUseSchema), render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }],
+    parameters: toolSchema(citeInput), output: { schema: toolSchema(SourceUseSchema), render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }, ...entityReferenceContent(value)],
       presentationMeta: (_args, value) => sourceUseMeta(value) },
     async execute(args, execution) {
       const input = citeInput.parse(args), ctx = await teacherContext(host, execution);

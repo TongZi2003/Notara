@@ -2,9 +2,10 @@ import type { CardView } from '@studyforge/contracts/cards';
 import type { LessonPaneRequest } from './lesson-pane-request.ts';
 import type { LessonMindProjection } from './lesson-materials-mindmap.ts';
 import { visibleMindNodes, type MindNode } from './mindmap-model.ts';
+import { entityHref } from '@studyforge/contracts/entity-reference';
 
 export type DeckContent = LessonPaneRequest | { readonly kind: 'object'; readonly title: string; readonly target: string };
-export interface DeckSheet { readonly id: string; readonly content: DeckContent; readonly nodeKey?: string | undefined }
+export interface DeckSheet { readonly id: string; readonly content: DeckContent; readonly nodeKey?: string | undefined; readonly sourceIndex?: number; readonly focusTrail?: string }
 export interface DeckState {
   readonly scope?: 'all' | 'lesson';
   readonly sheets: readonly DeckSheet[];
@@ -17,6 +18,7 @@ export interface DeckState {
 export const lessonDecks = new Map<string, DeckState>();
 export const emptyDeck = (): DeckState => ({ sheets: [], active: undefined, expanded: [], related: [], selected: undefined });
 export function sheetId(content: DeckContent): string {
+  if ('entity' in content && content.entity) return 'entity:' + entityHref(content.entity.reference);
   return content.kind === 'source' ? `source:${JSON.stringify(content.anchors)}`
     : `${content.kind}:${content.target}@${'version' in content ? String(content.version ?? 'current') : 'current'}`;
 }

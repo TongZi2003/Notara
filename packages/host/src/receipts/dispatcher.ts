@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import type { HostContext } from '@studyforge/contracts';
 import type { ReceiptOutbox, OutboxEntry } from '@studyforge/domain/receipt-outbox';
 import type { ProposalService } from '@studyforge/domain/proposals';
+import { entityReferenceContent } from '../tools/entity-reference-output.ts';
 
 /** Persisted native inbox admission is the delivery boundary, not model consumption. */
 export class ReceiptDispatcher {
@@ -57,7 +58,7 @@ export class ReceiptDispatcher {
       const summary = entries.length === 1 ? `已收好《${entry.receipt.title}》。`
         : `本次已一起保存 ${entries.length} 项：${entries.map(item => `《${item.receipt.title}》`).join('、')}。`;
       const message: UserMessage = { id, role: 'user', source: { kind: 'plugin', plugin: 'studyforge', form: 'notice', summary: summary.slice(0, 120) },
-        content: [{ type: 'text', text: `【单据·结果】${summary}\n这是已经完成的系统回执，不是学生原话；不要重复执行本次写入，继续学生正在进行的任务。保存只确认本次结果，不授权更换任务或开始讲题、测验；原任务已完成就简短说明并等待下一步。` }] };
+        content: [{ type: 'text', text: `【单据·结果】${summary}\n这是已经完成的系统回执，不是学生原话；不要重复执行本次写入，继续学生正在进行的任务。保存只确认本次结果，不授权更换任务或开始讲题、测验；原任务已完成就简短说明并等待下一步。` }, ...entityReferenceContent(entries.map(item=>({ref:item.receipt.target,version:item.receipt.revision,title:item.receipt.title})))] };
       resolved.agent.followup(message);
     }
     // If this flush fails, the receipt remains pending. Retry checks the same

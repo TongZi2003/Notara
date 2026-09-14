@@ -106,11 +106,12 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
     return () => { viewport.removeEventListener('wheel', wheel); };
   }, [mode, visible.length > 0, changeZoom]);
   const [available, setAvailable] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
   const [heights, setHeights] = useState<ReadonlyMap<string, number>>(() => new Map());
   useEffect(() => {
     const element = wrap.current;
     if (element === null) return undefined;
-    const measure = (): void => { setAvailable(element.clientWidth); };
+    const measure = (): void => { setAvailable(element.clientWidth); setViewportHeight(element.clientHeight); };
     measure();
     if (typeof ResizeObserver === 'undefined') return undefined;
     const observer = new ResizeObserver(measure);
@@ -142,7 +143,8 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
     if (!node) return;
     const bounds = node.getBoundingClientRect();
     element.scrollLeft += bounds.left + bounds.width / 2 - element.getBoundingClientRect().left - element.clientWidth / 2;
-  }, [mode, signature, props.selected]);
+    element.scrollTop += bounds.top + bounds.height / 2 - element.getBoundingClientRect().top - element.clientHeight / 2;
+  }, [mode, signature, props.selected, available, viewportHeight, heights]);
 
   if (visible.length === 0) return <p className="sf-note" role="status">{props.empty ?? '这里还没有可以展开的结构。'}</p>;
 

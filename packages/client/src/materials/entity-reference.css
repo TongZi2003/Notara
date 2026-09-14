@@ -1,0 +1,9 @@
+a[data-studyforge-reference]{color:var(--nb-pen)!important;font-family:inherit;text-decoration-line:underline;text-decoration-style:solid;text-underline-offset:3px;text-decoration-thickness:1px;cursor:pointer;overflow-wrap:anywhere}
+a[data-studyforge-reference]:hover{text-decoration-style:solid}
+a[data-studyforge-reference]:focus-visible{outline:2px solid var(--nb-pen);outline-offset:3px;border-radius:3px}
+.sf-reference-notice{position:absolute;bottom:10px;left:16px;z-index:70;max-width:calc(100% - 32px);box-sizing:border-box;margin:0;padding:8px 12px;border:1px solid var(--nb-rule);border-radius:var(--sf-ui-radius);background:var(--nb-hi);color:var(--nb-pencil);font:var(--sf-text-meta)/1.5 var(--sf-ui-font)}
+.sf-reference-note{padding:18px;overflow:auto}.sf-reference-note h2{font:var(--sf-text-section)/1.5 var(--sf-ui-font)}
+.sf-workspace-pane .sf-deck-surface[data-reference-active="true"]{display:grid;grid-template-rows:minmax(0, 2fr) minmax(0, 3fr);gap:8px;overflow:hidden;scroll-snap-type:none}
+.sf-workspace-pane .sf-deck-surface[data-reference-active="true"]>.sf-deck-map{width:100%;height:100%;min-height:0}
+.sf-workspace-pane .sf-deck-surface[data-reference-active="true"]>.sf-deck-sheet{min-width:0;width:100%;height:100%;min-height:0;box-sizing:border-box;border-left:0;border-top:1px solid var(--nb-rule);overflow:auto}
+.sf-workspace-pane .sf-deck-surface[data-reference-active="true"]>.sf-deck-sheet:not([data-active="true"]){display:none}

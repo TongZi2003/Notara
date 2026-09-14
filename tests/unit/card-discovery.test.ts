@@ -10,11 +10,11 @@ const row = (ref: string, nextDue?: string, chapter = '数学/函数', tags = ['
 const rows = [row('card:fresh'), row('card:today', '2026-09-12'), row('card:late', '2026-09-11'),
   row('card:future', '2026-09-13'), row('card:other', undefined, '数学/函数值', ['代数'])];
 
-test('due lists actual learned cards, oldest first, without activating unseen cards or binding a version', () => {
+test('due lists actual learned cards with navigation revisions, without activating unseen cards', () => {
   const before = structuredClone(rows);
   const result = listCardSummaries(rows, { state: 'due' }, '2026-09-12');
   expect(result.cards.map(card => card.ref)).toEqual(['card:late', 'card:today']);
-  expect(result.cards.every(card => card.state === 'due' && !('version' in card))).toBe(true);
+  expect(result.cards.every(card => card.state === 'due' && card.version === rows.find(row=>row.ref===card.ref)?.version)).toBe(true);
   expect(listCardSummaries(rows, { state: 'unlearned' }, '2026-09-12').cards).toHaveLength(2);
   expect(rows).toEqual(before);
 });

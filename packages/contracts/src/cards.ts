@@ -90,7 +90,7 @@ export type CardListInput = z.input<typeof CardListInputSchema>;
 export const CardListResultSchema = z.object({
   date: DaySchema,
   cards: z.array(z.object({
-    ref: EntityRefSchema, title: z.string(), tags: z.array(z.string()), chapter: z.string().nullable(),
+    ref: EntityRefSchema, version: z.number().int().positive(), title: z.string(), tags: z.array(z.string()), chapter: z.string().nullable(),
     state: z.enum(['due', 'upcoming', 'unlearned']), nextDue: DaySchema.nullable(),
   }).strict()),
   nextOffset: z.number().int().nonnegative().nullable(),

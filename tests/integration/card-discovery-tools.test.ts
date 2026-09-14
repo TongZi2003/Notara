@@ -33,7 +33,9 @@ test('native discovery is read-only and batch reads bind each card version, pres
     const record = page.records.filter(record => record.type === 'event' && record.event.type === 'tool/result').at(-1);
     if (!record || record.type !== 'event') throw new Error('native tool result missing: ' + name);
     const result = (record.event.data as { message: { content: { isError?: boolean; content: { type: string; text?: string }[] }[] } }).message.content[0]!;
-    return { failed: result.isError === true, text: result.content.flatMap(block => block.text ? [block.text] : []).join('\n') };
+    // Canonical JSON is the first native block; subsequent text supplies
+    // navigable references without changing the stored output contract.
+    return { failed: result.isError === true, text: result.content.find(block=>block.type==='text')?.text ?? '' };
   }
 
   const first = CardListResultSchema.parse(JSON.parse((await call('list_cards', { state: 'unlearned', tags: ['函数'], limit: 1 })).text));
