@@ -3,9 +3,11 @@ import { useEffect, useState } from 'react';
 import type { PluginCandidate, PluginSource, PluginView } from '@studyforge/contracts/plugins';
 import './plugins.css';
 import { openCreation } from '../creation/creation-navigation.ts';
+import { WorkbenchIcon } from './WorkbenchIcon.tsx';
 
 export const notifyPlugins = (): void => { window.dispatchEvent(new Event('studyforge:learning-changed')); };
-const STATUS = { enabled: '已启用', installed: '已安装 · 未启用', failed: '加载失败', 'restart-required': '需要重启' };
+const STATUS = { enabled: '已启用', installed: '未启用', failed: '加载失败', 'restart-required': '需要重启' };
+const iconTitle = (plugin: PluginView): string => plugin.manifest.notara.workbenches[0]?.title ?? plugin.manifest.notara.worldbooks[0]?.title ?? plugin.title;
 const names = (plugin: PluginCandidate | PluginView): { kind: string; title: string }[] => {
   const value = plugin.manifest.notara;
   return [...value.skills.map(row => ({ kind: '技能', title: row.title })), ...value.workbenches.map(row => ({ kind: '工作台', title: row.title })), ...value.worldbooks.map(row => ({ kind: '世界书', title: row.title })), ...value.teaching.map(row => ({ kind: '教学模式', title: row.title })), ...value.subjects.map(row => ({ kind: '科目教法', title: row.title }))];
@@ -19,32 +21,39 @@ export function PluginManagerPage({ ctx }: { ctx: Context }): React.JSX.Element 
   const [installing, setInstalling] = useState(false), [updating, setUpdating] = useState<string>(), [candidate, setCandidate] = useState<PluginCandidate>();
   const [sourceKind, setSourceKind] = useState<'archive' | 'directory'>('archive'), [path, setPath] = useState(''), [file, setFile] = useState<File>();
   const [busy, setBusy] = useState(false), [notice, setNotice] = useState(''), [trust, setTrust] = useState(false), [removing, setRemoving] = useState(false);
+  const [query, setQuery] = useState(''), [filter, setFilter] = useState('all');
   const refresh = async (): Promise<void> => { const result = await ctx.remote.studyforgePlugins.list(); if (!result.ok) throw new Error('插件列表暂时无法读取，请重试。'); setRows(result.value); setLoading(false); };
   useEffect(() => { let live = true; const read = (): void => { if (live) void refresh().catch(() => { if (live) { setNotice('插件列表暂时无法读取，请重试。'); setLoading(false); } }); }; read(); window.addEventListener('focus', read); window.addEventListener('studyforge:learning-changed', read); return () => { live = false; window.removeEventListener('focus', read); window.removeEventListener('studyforge:learning-changed', read); }; }, [ctx]);
   const plugin = rows.find(row => row.ref === selected);
+  const needle = query.trim().normalize('NFKC').toLocaleLowerCase();
+  const visible = rows.filter(row => (filter === 'all' || filter === row.state || filter === 'attention' && ['failed','restart-required'].includes(row.state))
+    && [row.title, row.description, row.name, ...names(row).map(item => item.title)].join(' ').normalize('NFKC').toLocaleLowerCase().includes(needle));
   const action = async (fn: () => Promise<void>): Promise<void> => { setBusy(true); setNotice(''); try { await fn(); await refresh(); notifyPlugins(); } catch (error) { setNotice(error instanceof Error ? error.message : '操作未完成，请重试。'); } finally { setBusy(false); } };
   const openInstall = (ref?: string): void => { setUpdating(ref); setInstalling(true); setCandidate(undefined); setTrust(false); setFile(undefined); setPath(''); setNotice(''); };
-  return <main className="sf-plugins-page" data-testid="plugin-manager">
-    <header><h1>插件</h1><button className="sf-action" onClick={() => openInstall()}>安装插件</button></header>
+  return <main className="sf-plugins-page" data-testid="plugin-manager" data-detail={!!plugin}>
+    <header><h1>插件 <small>{rows.length} 个</small></h1><button className="sf-action" onClick={() => openInstall()}>安装插件</button></header>
+    <div className="sf-plugin-filters"><label className="sf-plugin-search"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="m12 12 5 5"/></svg><input type="search" aria-label="搜索插件" placeholder="搜索名称或用途…" value={query} onChange={event => { setQuery(event.target.value); setSelected(undefined); setRemoving(false); }} /></label><select aria-label="按插件状态筛选" value={filter} onChange={event => { setFilter(event.target.value); setSelected(undefined); setRemoving(false); }}><option value="all">全部状态</option><option value="enabled">已启用</option><option value="installed">未启用</option><option value="attention">需要处理</option></select></div>
     {notice && <p role="status" className="sf-plugin-notice">{notice}<button className="sf-quiet" disabled={busy} onClick={() => { void action(async () => {}); }}>刷新</button></p>}
     <div className="sf-plugins-body" data-detail={!!plugin}>
       <section className="sf-plugin-list" aria-label="已安装插件">
-        {loading ? <p>正在读取插件…</p> : !rows.length ? <div className="sf-plugin-empty"><PluginIcon /><h2>尚未安装插件</h2><p>安装技能或工作台，扩展你的笔记本。</p></div> : rows.map(row => <button key={row.ref} className="sf-plugin-row" aria-pressed={selected === row.ref} onClick={() => { setSelected(row.ref); setRemoving(false); }}>
-          <PluginIcon /><span><strong>{row.title}</strong><small>{row.description || names(row).map(item => item.title).join('、')}</small><span className="sf-plugin-state" data-state={row.state}>{STATUS[row.state]}</span></span><small>v{row.version}</small><span aria-hidden="true">›</span>
+        {loading ? <p>正在读取插件…</p> : !rows.length ? <div className="sf-plugin-empty"><PluginIcon /><h2>尚未安装插件</h2><p>安装技能或工作台，扩展你的笔记本。</p></div> : !visible.length ? <div className="sf-plugin-empty"><p>没有匹配的插件</p><button className="sf-quiet" onClick={() => { setQuery(''); setFilter('all'); }}>清除筛选</button></div> : visible.map(row => <button key={row.ref} className="sf-plugin-row" aria-label={row.title} aria-pressed={selected === row.ref} title={row.description} onClick={() => { setSelected(row.ref); setRemoving(false); }}>
+          <WorkbenchIcon title={iconTitle(row)} /><span><strong>{row.title}</strong><small>{row.description || names(row).map(item => item.title).join('、')}</small></span><span className="sf-plugin-state" data-state={row.state}>{STATUS[row.state]}</span><span aria-hidden="true">›</span>
         </button>)}
       </section>
       {plugin && <aside className="sf-plugin-detail" aria-label="插件详情">
-        <header><button className="sf-quiet" onClick={() => setSelected(undefined)}>返回列表</button><span>{STATUS[plugin.state]}</span></header>
-        <PluginIcon /><h2>{plugin.title}</h2><p>{plugin.description}</p><small>版本 {plugin.version}</small>
-        <h3>新增能力</h3><ul>{names(plugin).map(item => <li key={item.kind + item.title}><span>{item.title}</span><small>{item.kind}</small></li>)}</ul>
-        <h3>权限</h3><p>{plugin.native ? '运行本机代码。仅启用你信任的来源。' : '技能按需读取；工作台在隔离环境中运行。'}{plugin.manifest.notara.workbenches.some(row => row.permissions.includes('save-note')) ? '保存笔记前会展示内容并由你确认。' : ''}</p>
-        {plugin.issue && <p role="status">{plugin.issue}</p>}
-        {plugin.state === 'restart-required' && <p>已有课堂继续使用当前版本，重启应用后完成变更。</p>}
+        <header className="sf-plugin-detail-head"><div className="sf-plugin-detail-top"><button className="sf-quiet" onClick={() => setSelected(undefined)}>返回列表</button><small>版本 {plugin.version}</small></div>
+        <div className="sf-plugin-detail-title"><WorkbenchIcon title={iconTitle(plugin)} /><div><h2>{plugin.title}</h2><span className="sf-plugin-state" data-state={plugin.state}>{STATUS[plugin.state]}</span></div></div>
         <div className="sf-plugin-actions"><button className="sf-action" disabled={busy || plugin.state === 'restart-required'} onClick={() => { void action(async () => {
           const result = await ctx.remote.studyforgePlugins.setEnabled({ ref: plugin.ref, expectedVersion: plugin.revision, enabled: plugin.state === 'failed' || !plugin.enabled });
           if (!result.ok) throw new Error('插件状态已变化，刷新后重试。');
         }); }}>{plugin.state === 'failed' ? '重新启用' : plugin.enabled ? '停用' : '启用'}</button><button className="sf-quiet" disabled={busy} onClick={() => plugin.creationRef ? openCreation(ctx, plugin.creationRef) : openInstall(plugin.ref)}>{plugin.creationRef ? '编辑作品' : '更新'}</button><button className="sf-quiet" disabled={busy} onClick={() => setRemoving(true)}>卸载</button></div>
         {removing && <section className="sf-plugin-remove" aria-label="确认卸载"><p>卸载“{plugin.title}”？已保存的笔记和学习记录会保留。</p><div className="sf-plugin-actions"><button className="sf-action" disabled={busy} onClick={() => { void action(async () => { const result = await ctx.remote.studyforgePlugins.uninstallPackage({ ref: plugin.ref, expectedVersion: plugin.revision }); if (!result.ok) throw new Error('暂时无法卸载，请刷新后重试。'); setRemoving(false); if (result.value.state !== 'restart-required') setSelected(undefined); }); }}>确认卸载</button><button className="sf-quiet" disabled={busy} onClick={() => setRemoving(false)}>取消</button></div></section>}
+        </header>
+        <div className="sf-plugin-detail-scroll" key={plugin.ref}><p>{plugin.description}</p>
+        {plugin.issue && <p role="status">{plugin.issue}</p>}
+        {plugin.state === 'restart-required' && <p>已有课堂继续使用当前版本，重启应用后完成变更。</p>}
+        <h3>提供的功能</h3><ul>{names(plugin).map(item => <li key={item.kind + item.title}><span>{item.title}</span><small>{item.kind}</small></li>)}</ul>
+        <h3>权限与保存</h3><p>{plugin.native ? '运行本机代码。仅启用你信任的来源。' : '技能按需读取；工作台在隔离环境中运行。'}{plugin.manifest.notara.workbenches.some(row => row.permissions.includes('save-note')) ? '保存笔记前会展示内容并由你确认。' : ''}</p></div>
       </aside>}
     </div>
     {installing && <div className="sf-plugin-modal-backdrop"><section className="sf-plugin-modal" role="dialog" aria-modal="true" aria-label={updating ? '更新插件' : '安装插件'}>
