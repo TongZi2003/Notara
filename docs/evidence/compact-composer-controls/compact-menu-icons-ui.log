@@ -1,0 +1,12 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/skill-draft.spec.ts
+
+
+Running 1 test using 1 worker
+
+(node:8517) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/skill-draft.spec.ts:5:1 › plus selects a native skill reference without sending and the native turn loads it only on submit (10.0s)
+
+  1 passed (10.5s)

@@ -37,7 +37,8 @@ export function SubjectPicker({ ctx, sessionId, useSessions }: PropsRuntime<'con
     } catch { setNotice('这次没能保存，请重试。'); }
     finally { setBusy(false); }
   }
-  return <ControlPopover className="sf-subject-picker" testId="subject-picker" title="选择本课涉及科目" label={<span className="sf-control-label">{subjects?.effective.length ? subjects.effective.join('、') : '涉及科目'}</span>}>
+  return <ControlPopover className="sf-subject-picker" testId="subject-picker" title="选择本课涉及科目" chevron={false}
+    label={<><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="M10 5C7 3 4 3 2 4v12c3-1 5-1 8 1 3-2 5-2 8-1V4c-2-1-5-1-8 1Zm0 0v12" /></svg><span>Subject</span></>}>
     <div className="sf-subject-menu">
       <button type="button" disabled={busy || !course} onClick={() => { void save(null); }}>继承学习集{subjects?.inherited ? ' ✓' : ''}</button>
       {subjects?.choices.map(subject => <label key={subject}><input type="checkbox" disabled={busy} checked={subjects.effective.includes(subject)} onChange={event => {

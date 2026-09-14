@@ -64,8 +64,8 @@ function MoreActions({ ctx, sessionId, useSessions }: PropsRuntime<'conversation
         if (!insertTaskSkill(ctx, sessionId, skill)) { setNotice('请等当前输入准备完成，再选择技能。'); return; }
         setNotice(''); if (menu.current) menu.current.open = false;
         document.querySelector<HTMLElement>('[data-composer-input]')?.focus();
-      }}>{skill.title}</button>)}
-      <button type="button" onClick={() => insert('请通过一道题或一个问题，检查我对当前内容的理解。')}>检查我的理解</button>
+      }}><LearningActionIcon kind={skill.id} /><span>{skill.title}</span></button>)}
+      <button type="button" onClick={() => insert('请通过一道题或一个问题，检查我对当前内容的理解。')}><LearningActionIcon kind="check" /><span>检查我的理解</span></button>
       <hr />
       <button type="button" onClick={() => {
         if (ctx.sessions.list.getSnapshot().current !== sessionId) return;
@@ -73,8 +73,24 @@ function MoreActions({ ctx, sessionId, useSessions }: PropsRuntime<'conversation
         if (!picker || picker.disabled) { setNotice('请等当前资料上传完成后再添加。'); return; }
         if (menu.current) menu.current.open = false;
         picker.click();
-      }}>上传新资料到资料库</button>
+      }}><LearningActionIcon kind="upload" /><span>上传新资料到资料库</span></button>
       {notice && <p role="status">{notice}</p>}
     </div>
   </details>;
+}
+
+/** One restrained line-icon family; installed skills get a plugin symbol. */
+function LearningActionIcon({ kind }: { kind: string }): React.JSX.Element {
+  const drawings: Record<string, React.ReactNode> = {
+    'studyforge-semantic-search': <><circle cx="8.5" cy="8.5" r="5.5" /><path d="m12.5 12.5 4 4" /></>,
+    'studyforge-essay-review': <><path d="m5 12 8-8 3 3-8 8-4 1zM11 6l3 3M3 18h14" /></>,
+    'studyforge-quiz': <><rect x="3" y="2" width="14" height="16" rx="2" /><path d="m6 7 1 1 2-2M11 7h3M6 12h2M11 12h3" /></>,
+    'studyforge-markdown-handout': <><path d="M11 2H4v16h12V7zM11 2v5h5M7 11h6M7 14h6" /></>,
+    'studyforge-html-demo': <><rect x="2" y="3" width="16" height="12" rx="2" /><path d="m8 6 5 3-5 3zM7 18h6M10 15v3" /></>,
+    check: <><circle cx="10" cy="10" r="7.5" /><path d="m6 10 3 3 5-6" /></>,
+    upload: <><path d="M3 12v5h14v-5M10 13V3M6 7l4-4 4 4" /></>,
+  };
+  return <svg className="sf-menu-icon" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {drawings[kind] ?? <path d="M7 3H3v5h2a2 2 0 1 1 0 4H3v5h5v-2a2 2 0 1 1 4 0v2h5v-5h-2a2 2 0 1 1 0-4h2V3h-5v2a2 2 0 1 1-4 0V3z" />}
+  </svg>;
 }

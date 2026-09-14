@@ -9,6 +9,11 @@ test('plus selects a native skill reference without sending and the native turn 
   const input = page.locator('[data-composer-input]');
   await page.locator('[data-composer-seat] input[type="file"][hidden]').setInputFiles({ name: '查找要求.txt', mimeType: 'text/plain', buffer: Buffer.from('保留这份附件') });
   await page.locator('.sf-composer-more summary').click();
+  for (const action of ['按语义查找', '作文批改', '出一组题', '整理成讲义', '互动演示', '检查我的理解', '上传新资料到资料库']) {
+    const button = page.locator('.sf-composer-menu').getByRole('button', { name: action, exact: true });
+    await expect(button.locator('svg[aria-hidden="true"]')).toBeVisible();
+  }
+  await page.screenshot({ path: info.outputPath('learning-action-icons.png'), fullPage: true });
   await page.getByRole('button', { name: '按语义查找', exact: true }).click();
   await expect(input).toContainText('找一下能解释配角的材料');
   await expect(page.locator('[data-composer-chip="studyforge-task"]')).toContainText('按语义查找');

@@ -21,6 +21,18 @@ body[data-sf-notebook=on] .sf-learning-mode select{padding-right:20px!important;
 .sf-control-popover{position:relative;min-width:0;max-width:160px;font:13px/20px var(--sf-ui-font,system-ui)}.sf-control-trigger{display:flex;align-items:center;gap:5px;white-space:nowrap;max-width:160px}.sf-control-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sf-control-trigger>span:last-child{flex:none}
 .sf-control-menu{position:fixed;z-index:1200;box-sizing:border-box;width:min(280px,calc(100vw - 20px));overflow:auto;overscroll-behavior:contain;padding:8px;background:var(--nb-hi,#fffdf7);border:1px solid var(--nb-rule,#e0e2d7);border-radius:12px;box-shadow:0 8px 28px #353a3618;color:var(--nb-ink,#353a36);font:400 13px/20px var(--sf-ui-font,system-ui)}
 .sf-control-menu :is(button,label,input,select,span){font:inherit;color:inherit}.sf-control-menu button{border:0;background:none;border-radius:7px;padding:7px 9px;cursor:pointer;text-align:left}.sf-control-menu button:hover:not(:disabled){background:color-mix(in srgb,var(--nb-pen) 6%,transparent)}.sf-control-menu button:disabled{opacity:.55;cursor:default}
+.sf-control-trigger>svg{flex:none;opacity:.8}.sf-agent-options{display:grid;gap:3px}.sf-agent-options>button{display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:38px;width:100%}.sf-agent-options>button[aria-pressed=true]{background:color-mix(in srgb,var(--nb-pen) 7%,transparent);color:var(--nb-pen)}
+body[data-sf-notebook=on] .sf-composer-menu{width:220px;max-width:calc(100vw - 32px);box-sizing:border-box;border-radius:12px;padding:6px}
+body[data-sf-notebook=on] .sf-composer-menu button{display:flex;align-items:center;gap:10px;border-radius:7px;padding:9px 10px;font:400 13px/20px var(--sf-ui-font)!important;color:var(--nb-ink);text-align:left}
+.sf-composer-menu .sf-menu-icon{flex:none;color:var(--nb-pencil);opacity:.85}.sf-composer-menu button:hover .sf-menu-icon{color:var(--nb-pen);opacity:1}.sf-composer-menu button>span{min-width:0;overflow-wrap:anywhere;font:inherit}
+/* Keep the compact actions on one line; the native model label can elide
+   before the role/subject triggers or Send lose their space. */
+body[data-sf-workspace] [data-composer-card] [class*="_row"]{flex-wrap:nowrap;gap:6px}
+body[data-sf-workspace] [data-composer-card] [class*="_trailing"]{flex:1 1 auto;min-width:0;gap:6px;justify-content:flex-end}
+body[data-sf-workspace] [data-composer-card] [class*="_tools"]{flex:none;gap:4px}
+body[data-sf-workspace] [data-slot="conversation.input.right"]{flex:none;gap:2px!important}
+body[data-sf-workspace] [data-slot="conversation.input.model"]{min-width:0;flex:0 1 auto}
+body[data-sf-workspace] :is(.sf-learning-mode,.sf-subject-picker){flex:none}
 .sf-control-menu .sf-subject-menu{position:static;inset:auto;width:auto;max-width:none;max-height:none;padding:0;background:none;border:0;border-radius:0;box-shadow:none}.sf-control-menu .sf-subject-menu label{overflow-wrap:anywhere}.sf-control-menu .sf-subject-menu form{gap:5px}.sf-control-menu .sf-subject-menu form input{width:100%;flex:1;min-width:0}.sf-control-menu .sf-subject-menu form button{flex:none}
 .sf-branch-list{list-style:none;padding:0;margin:0}.sf-branch-list button{width:100%;white-space:normal;overflow-wrap:anywhere}.sf-branch-list button[aria-current=page]{color:var(--nb-pen);opacity:1;background:color-mix(in srgb,var(--nb-pen) 6%,transparent)}
 body[data-sf-notebook=on] [role=menu],body[data-sf-notebook=on] [role=listbox]{font:400 13px/20px var(--sf-ui-font)!important;border-radius:12px!important}

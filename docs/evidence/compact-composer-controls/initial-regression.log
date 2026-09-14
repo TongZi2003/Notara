@@ -1,0 +1,80 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/creator-workspace.spec.ts tests/e2e/artifact-preview.spec.ts tests/e2e/conversation-home.spec.ts
+
+
+Running 3 tests using 1 worker
+
+(node:5729) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/artifact-preview.spec.ts:2:1 › HTML artifact runs in sandbox and installs a versioned classroom skill (10.1s)
+  ✘  2 tests/e2e/conversation-home.spec.ts:6:1 › learning modes stay inside the native composer and real recommendations hide only after acceptance (9.3s)
+(node:5806) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  3 tests/e2e/creator-workspace.spec.ts:3:1 › creator identity opens a bound native conversation and the same editable artifact (9.7s)
+
+
+  1) tests/e2e/conversation-home.spec.ts:6:1 › learning modes stay inside the native composer and real recommendations hide only after acceptance
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator: getByTestId('agent-role')
+    Expected: "teacher"
+    Error: Not an input element
+
+    Call log:
+      - Expect "toHaveValue" getByTestId('agent-role') with timeout 15000ms
+      - waiting for getByTestId('agent-role')
+
+
+      10 |   const input = page.locator('[data-composer-input]'), mode = page.getByTestId('agent-role');
+      11 |   await expect(input).toHaveAttribute('aria-label', '写下你想学习的内容…');
+    > 12 |   await expect(mode).toBeVisible(); await expect(mode).toHaveValue('teacher');
+         |                                                        ^
+      13 |   await expect(page.getByTestId('learning-entry')).toHaveCount(0);
+      14 |   await expect(page.getByRole('button', { name: /Access mode|工作区内修改/ })).toHaveCount(0);
+      15 |   await expect(page.locator('[data-composer-seat] [class*="_tools"] button[class*="_add"]:visible')).toHaveCount(0);
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/conversation-home.spec.ts:12:56
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:5784) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL in...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/conversation-home-learning-728bd--hide-only-after-acceptance/error-context.md
+
+  2) tests/e2e/creator-workspace.spec.ts:3:1 › creator identity opens a bound native conversation and the same editable artifact
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator: getByTestId('agent-role')
+    Expected: "creator"
+    Error: Not an input element
+
+    Call log:
+      - Expect "toHaveValue" getByTestId('agent-role') with timeout 15000ms
+      - waiting for getByTestId('agent-role')
+
+
+      12 |   await page.getByRole('button', { name: '开始共建', exact: true }).click();
+      13 |   await expect(page.locator('[data-composer-input]')).toBeVisible();
+    > 14 |   await expect(page.getByTestId('agent-role')).toHaveValue('creator');
+         |                                                ^
+      15 |   // The native blank session header appears once its first real turn starts.
+      16 |   await typeInput(page, '先讨论如何讲清受力分析');
+      17 |   await page.getByRole('button', { name: 'Send message', exact: true }).click();
+        at /Users/yangrundong/Oh-My-Student-dsh-migration/dsh/tests/e2e/creator-workspace.spec.ts:14:48
+
+    attachment #1: native-host-log (text/plain) ────────────────────────────────────────────────────
+    (node:5813) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL in...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/creator-workspace-creator--bbd4c--the-same-editable-artifact/error-context.md
+
+  2 failed
+    tests/e2e/conversation-home.spec.ts:6:1 › learning modes stay inside the native composer and real recommendations hide only after acceptance
+    tests/e2e/creator-workspace.spec.ts:3:1 › creator identity opens a bound native conversation and the same editable artifact
+  1 passed (29.7s)

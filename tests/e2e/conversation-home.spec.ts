@@ -9,7 +9,7 @@ test('learning modes stay inside the native composer and real recommendations hi
   await enterClassroom(page, classroom.authUrl);
   const input = page.locator('[data-composer-input]'), mode = page.getByTestId('agent-role');
   await expect(input).toHaveAttribute('aria-label', '写下你想学习的内容…');
-  await expect(mode).toBeVisible(); await expect(mode).toHaveValue('teacher');
+  await expect(mode).toBeVisible(); await expect(mode).toHaveAttribute('value', 'teacher');
   await expect(page.getByTestId('learning-entry')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Access mode|工作区内修改/ })).toHaveCount(0);
   await expect(page.locator('[data-composer-seat] [class*="_tools"] button[class*="_add"]:visible')).toHaveCount(0);
@@ -26,7 +26,7 @@ test('learning modes stay inside the native composer and real recommendations hi
   await page.reload();
   await expect(page.getByTestId('learning-entry')).toContainText('三角函数基础');
   await typeInput(page, '我想学习三角函数');
-  await expect(mode).toHaveValue('teacher');
+  await expect(mode).toHaveAttribute('value', 'teacher');
   await expect(input).toContainText('我想学习三角函数');
   const b = (await input.boundingBox())!, m = (await mode.boundingBox())!;
   expect(m.y).toBeGreaterThan(b.y); expect(m.y - b.y).toBeLessThan(120);

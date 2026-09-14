@@ -1,0 +1,16 @@
+
+> studyforge-dsh@0.0.0 test:e2e
+> playwright test tests/e2e/creator-workspace.spec.ts tests/e2e/artifact-preview.spec.ts tests/e2e/conversation-home.spec.ts tests/e2e/workspace-docking.spec.ts --grep creator identity|HTML artifact|learning modes|compact Agent|student controls
+
+
+Running 5 tests using 1 worker
+
+(node:5995) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/artifact-preview.spec.ts:2:1 › HTML artifact runs in sandbox and installs a versioned classroom skill (10.3s)
+  ✓  2 tests/e2e/conversation-home.spec.ts:6:1 › learning modes stay inside the native composer and real recommendations hide only after acceptance (10.6s)
+  ✓  3 tests/e2e/creator-workspace.spec.ts:3:1 › creator identity opens a bound native conversation and the same editable artifact (10.4s)
+  ✓  4 tests/e2e/workspace-docking.spec.ts:76:1 › student controls share typography and rounded shapes; subject menus fit narrow panes without coding launchers (10.5s)
+  ✓  5 tests/e2e/workspace-docking.spec.ts:109:1 › compact Agent and Subject menus keep the split composer toolbar on one line at 1117px (10.1s)
+
+  5 passed (52.5s)

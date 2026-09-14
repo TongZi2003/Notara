@@ -97,10 +97,33 @@ test('student controls share typography and rounded shapes; subject menus fit na
     await expect(menu).toBeVisible();
     const box = (await menu.boundingBox())!; expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(width); expect(box.y + box.height).toBeLessThanOrEqual(850);
     await page.getByRole('textbox', { name: '添加涉及科目', exact: true }).fill('高考数学中的三角函数与恒等变换');
-    await menu.getByRole('button', { name: '添加', exact: true }).click(); await expect(subject).toContainText('高考数学中的三角函数与恒等变换');
+    await menu.getByRole('button', { name: '添加', exact: true }).click(); await expect(menu.getByRole('checkbox', { name: '高考数学中的三角函数与恒等变换', exact: true })).toBeChecked();
+    await expect(subject).toHaveText('Subject');
     await page.keyboard.press('Escape'); await expect(menu).toHaveCount(0);
     expect(await subject.evaluate(el => el.getBoundingClientRect().width)).toBeLessThan(170);
     await page.screenshot({ path: info.outputPath(`consistent-controls-${width}.png`), fullPage: true });
   }
   expect(errors).toEqual([]);
+});
+
+test('compact Agent and Subject menus keep the split composer toolbar on one line at 1117px', async ({ page, classroom }, info) => {
+  await page.setViewportSize({ width: 1117, height: 747 }); await enterClassroom(page, classroom.authUrl);
+  await page.getByTestId('workspace-open-materials').click();
+  await typeInput(page, '保留当前草稿');
+  const agent = page.getByTestId('agent-role'), subject = page.getByTestId('subject-picker').getByRole('button');
+  await expect(agent).toHaveText('Agent'); await expect(subject).toHaveText('Subject');
+  await expect(agent.locator('svg')).toBeVisible(); await expect(subject.locator('svg')).toBeVisible();
+  const buttons = [page.locator('.sf-composer-more>summary'), agent, subject, page.locator('[data-slot="conversation.input.model"] button').first()];
+  const boxes = await Promise.all(buttons.map(button => button.boundingBox()));
+  expect(Math.max(...boxes.map(box => box!.y)) - Math.min(...boxes.map(box => box!.y))).toBeLessThan(5);
+  await agent.click(); const menu = page.getByRole('dialog', { name: '智能体身份', exact: true });
+  await expect(menu).toBeVisible(); expect(parseFloat(await menu.evaluate(el => getComputedStyle(el).borderTopLeftRadius))).toBeGreaterThanOrEqual(12);
+  await expect(menu.getByRole('button', { name: '教学者', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.screenshot({ path: info.outputPath('compact-agent-menu.png'), fullPage: true });
+  await menu.getByRole('button', { name: '教学者', exact: true }).click(); await expect(menu).toHaveCount(0);
+  await expect(page.locator('[data-composer-input]')).toContainText('保留当前草稿');
+  await subject.click(); await expect(page.getByRole('dialog', { name: '选择本课涉及科目', exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('compact-subject-menu.png'), fullPage: true });
+  await page.keyboard.press('Escape');
+  const card = page.locator('[data-composer-card]'); expect(await card.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
 });
