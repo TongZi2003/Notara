@@ -1,0 +1,68 @@
+[
+  {
+    "file": "composer-icon-controls.spec.ts",
+    "title": "narrow composer uses separate reachable icons and restores labels when widened in both themes",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 11934
+      }
+    ]
+  },
+  {
+    "file": "workspace-docking.spec.ts",
+    "title": "three peer views preserve the native draft through docking, resizing, hiding and narrow switching",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 10679
+      }
+    ]
+  },
+  {
+    "file": "workspace-docking.spec.ts",
+    "title": "two themes remember the notebook paper choice independently",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 10079
+      }
+    ]
+  },
+  {
+    "file": "workspace-docking.spec.ts",
+    "title": "layout menu supports every pair and the native conversation returns when the workspace plugin unloads",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 11896
+      }
+    ]
+  },
+  {
+    "file": "workspace-docking.spec.ts",
+    "title": "student controls share typography and rounded shapes; subject menus fit narrow panes without coding launchers",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 10595
+      }
+    ]
+  },
+  {
+    "file": "workspace-docking.spec.ts",
+    "title": "compact Agent and Subject menus keep the split composer toolbar on one line at 1117px",
+    "status": "expected",
+    "runs": [
+      {
+        "status": "passed",
+        "durationMs": 9439
+      }
+    ]
+  }
+]

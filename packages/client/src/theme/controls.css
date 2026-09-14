@@ -28,7 +28,13 @@ body[data-sf-workspace] [data-composer-card] [class*="_row"]{flex-wrap:nowrap;ga
 body[data-sf-workspace] [data-composer-card] [class*="_trailing"]{flex:1 1 auto;min-width:0;gap:6px;justify-content:flex-end}
 body[data-sf-workspace] [data-composer-card] [class*="_tools"]{flex:none;gap:4px}
 body[data-sf-workspace] [data-slot="conversation.input.right"]{flex:none;gap:2px!important}
-body[data-sf-workspace] [data-slot="conversation.input.model"]{min-width:0;flex:0 1 auto}
+/* Native slots use display:contents: constrain the real model wrapper and its
+   trigger. Never shrink the Send button to accommodate the model label. */
+body[data-sf-workspace] [data-slot="conversation.input.model"]>*{min-width:72px;max-width:240px;flex:0 1 auto}
+body[data-sf-workspace] [data-slot="conversation.input.model"] button{min-width:32px;max-width:100%}
+body[data-sf-workspace] [data-slot="conversation.input.model"] button>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-sf-workspace] [data-composer-card] [class*="_trailing"]>button{flex:none}
+body[data-sf-workspace] [data-composer-card]{container:sf-composer / inline-size}
 body[data-sf-workspace] :is(.sf-learning-mode,.sf-subject-picker){flex:none}
 .sf-control-menu .sf-subject-menu{position:static;inset:auto;width:auto;max-width:none;max-height:none;padding:0;background:none;border:0;border-radius:0;box-shadow:none}.sf-control-menu .sf-subject-menu label{overflow-wrap:anywhere}.sf-control-menu .sf-subject-menu form{gap:5px}.sf-control-menu .sf-subject-menu form input{width:100%;flex:1;min-width:0}.sf-control-menu .sf-subject-menu form button{flex:none}
 /* One batch is a checklist; card faces unfold only when the student opens them. */
@@ -49,4 +55,12 @@ body[data-sf-notebook=on] :is([role=menu],[role=listbox]) :is(button,span,label,
 /* Coding launchers remain in development/creator services, absent from the
    student frame. The useful role/subject selectors live in the composer. */
 body[data-sf-workspace] [class*="_headerUtilities"],body[data-sf-workspace] [class*="_headerCorner"],body[data-sf-workspace] [class*="_heroWorkspaceRow"],body[data-sf-workspace] [class*="_workspaceRow"],body[data-sf-workspace] [data-slot="conversation.hero.workspace"],body[data-sf-workspace] [data-slot="conversation.hero.agentPreset"]{display:none!important}
-@container workspace-pane (max-width:480px){body[data-sf-notebook=on] .sf-control-popover{max-width:108px}body[data-sf-notebook=on] .sf-control-trigger{max-width:108px}body[data-sf-notebook=on] :is(.sf-learning-mode select,.sf-control-trigger){padding-inline:6px!important}}
+@container sf-composer (max-width:440px){
+  body[data-sf-workspace] .sf-control-popover{flex:0 0 32px;width:32px;max-width:32px}
+  body[data-sf-workspace] [data-slot="conversation.input.model"]>*{flex:0 0 32px;width:32px;min-width:32px;max-width:32px}
+  body[data-sf-notebook=on] :is(.sf-control-trigger,[data-slot="conversation.input.model"] button){display:flex;align-items:center;justify-content:center;flex:0 0 32px;width:32px;min-width:32px;max-width:32px;height:32px;padding:0!important;gap:0}
+  body[data-sf-workspace] .sf-control-trigger>span,
+  body[data-sf-workspace] [data-slot="conversation.input.model"] button>span,
+  body[data-sf-workspace] [data-slot="conversation.input.model"] button>svg~svg{display:none}
+  body[data-sf-workspace] [data-composer-card] [class*="_trailing"]{align-items:center;gap:6px}
+}
