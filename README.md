@@ -12,10 +12,10 @@
 
 ```bash
 npm ci --no-audit --no-fund
+npm run build
 npm run check:contracts
 npm run typecheck
 npm run typecheck:tests
-npm run build
 npm run test:unit -- <文件>
 npm run test:integration -- <文件>
 npm run test:e2e -- <文件>
