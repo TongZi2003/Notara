@@ -1,5 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { Agent } from '@deepseek-ai/dsh-agent';
+import type { AgentOptions } from '@deepseek-ai/dsh-agent';
 import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session';
 import { MessageId, type UserMessage } from '@deepseek-ai/dsh-llm';
 import { createHash, randomUUID } from 'node:crypto';
@@ -8,7 +9,7 @@ import type { RecordStore } from '@studyforge/domain/storage';
 import { WorldbookDocumentSchema, type WorldbookDocument, type WorldbookView } from '@studyforge/contracts/plugins';
 import { ClassmateTaskInputSchema, type ClassmateTaskInput, type ClassroomTaskRecordSchema, type ClassroomTaskRecord,
   type ClassroomSessionRecordSchema, type ClassroomCueRecordSchema, type ClassroomChoice, type ClassroomTaskView,
-  type ClassroomRuntimeView } from '@studyforge/contracts/classroom';
+  type ClassroomRuntimeView, type ClassmateRoute } from '@studyforge/contracts/classroom';
 import { automaticRule, classroomEvents, classroomRounds, mentionedClassmates } from './classroom-policy.ts';
 import { worldbookInput } from './worldbook-context.ts';
 import { selectWorldbookEntries } from './worldbook-selection.ts';
@@ -19,6 +20,13 @@ import type { ThoughtNode } from '@studyforge/contracts/classroom-trace';
 export const CLASSROOM_SPEAKER = 'notara-classroom-speaker';
 const keyOf = (text: string): string => createHash('sha256').update(text).digest('hex');
 type TaskRow = { ref: string; version: number; data: ClassroomTaskRecord };
+function routeOptions(route: ClassmateRoute | undefined): AgentOptions | undefined {
+  if (!route) return undefined;
+  const options: AgentOptions = { provider: route.provider, model: route.model };
+  if (route.reasoningEffort !== undefined) options.reasoningEffort = route.reasoningEffort as NonNullable<AgentOptions['reasoningEffort']>;
+  if (route.maxTokens !== undefined) options.maxTokens = route.maxTokens;
+  return options;
+}
 declare module '@deepseek-ai/cordis' { interface Context { notaraClassroom: ClassroomRuntime } }
 
 /** Native sessions own child history and execution; these records bind teacher tasks to them. */
@@ -101,6 +109,8 @@ export class ClassroomRuntime {
     const data = ClassmateTaskInputSchema.parse(input), view = await this.definition(context.sessionId!, data.id, true);
     const role = view.document.classroom.roles.find(role => role.id === data.roleId && role.enabled);
     if (!role) throw new Error('classroom_role_unavailable');
+    const effectiveRoute = data.route === 'escalated' ? role.route?.escalation : role.route?.default;
+    if (data.route === 'escalated' && !effectiveRoute) throw new Error('classroom_escalation_unavailable');
     const key = keyOf(context.operationId), prior = this.tasks.list(context).find(row => row.ref === 'classroomtask:' + key);
     if (prior) return { ref: prior.ref, name: prior.data.role.name, state: (await this.taskView(prior)).status };
     const currentInput = worldbookInput(parent.session.snapshotEvents()), named = currentInput ? mentionedClassmates(currentInput.text, view.document.classroom) : [];
@@ -116,11 +126,12 @@ export class ClassroomRuntime {
     const content = await this.host.studyforgePluginsManager.openWorkbench(context.sessionId!, data.id);
     const childId = SessionId('classmate-' + key);
     const row = await this.tasks.create(context, key, { sessionId: context.sessionId!, id: data.id, digest: content.digest,
-      role, task: data.task, materials: data.materials, destination: data.destination, childId, parentTurn, fromSequence: -1, ...(cue ? { cueRef: cue.ref } : {}) });
+      role, task: data.task, materials: data.materials, destination: data.destination, route: data.route, ...(effectiveRoute ? { effectiveRoute } : {}), childId, parentTurn, fromSequence: -1, ...(cue ? { cueRef: cue.ref } : {}) });
     try {
       await this.host.subagents.startContinuable({ provider: 'spawn', label: role.name, childId,
         request: { parent, toolFilter: { allow: [] }, maxDepth: 1, persona: role.instructions,
-          prompt: [{ type: 'text', text: this.taskText(row.data, view.document.classroom.carrySummary) }] }, signal: AbortSignal.timeout(30000) });
+          prompt: [{ type: 'text', text: this.taskText(row.data, view.document.classroom.carrySummary) }],
+          ...(effectiveRoute ? { agentOptions: routeOptions(effectiveRoute)! } : {}) }, signal: AbortSignal.timeout(30000) });
       if (cue) await this.cues.updateCurrent({ ...context, operationId: context.operationId + ':cue' }, cue.ref, {}, data => ({ ...data, state: 'handled' }));
       return { ref: row.ref, state: 'running', name: role.name };
     } catch {

@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import { z } from 'zod';
-import { type ClassroomChoice, type ClassroomRuntimeView, ClassmateTaskInputSchema } from '@studyforge/contracts/classroom';
+import { type ClassroomChoice, type ClassroomRuntimeView, type ClassroomModelRoute, ClassmateTaskInputSchema } from '@studyforge/contracts/classroom';
 import { WorldbookEntrySchema } from '@studyforge/contracts/plugins';
 import { studentContext } from './learning-service.ts';
 import { teacherContext } from './tools/learning-context.ts';
@@ -25,6 +25,25 @@ export class ClassroomRemote extends TypertRemoteService {
   @Remote('choices')
   async choices(input: { sessionId: string }): Promise<ClassroomChoice[]> {
     await studentContext(this.ctx, input.sessionId); return this.ctx.notaraClassroom.choices(input.sessionId);
+  }
+  @Remote('modelRoutes')
+  async modelRoutes(): Promise<ClassroomModelRoute[]> {
+    await studentContext(this.ctx);
+    const routes: ClassroomModelRoute[] = [];
+    for (const provider of this.ctx.llm.listProviders()) {
+      let models;
+      try { models = await this.ctx.llm.listModels(provider.id); } catch { continue; }
+      for (const model of models) {
+        let reasoningEfforts: { id: string; name: string }[] = [];
+        try {
+          const resolved = await this.ctx.llm.resolveModelInfo(provider.id, model.id);
+          reasoningEfforts = resolved.reasoning?.efforts.map(effort => ({ id: String(effort.id), name: effort.name })) ?? [];
+        } catch { /* The model remains selectable; exact validation belongs to DSH at spawn. */ }
+        routes.push({ provider: provider.id, providerName: provider.name, model: model.id, modelName: model.name,
+          reasoningEfforts });
+      }
+    }
+    return routes;
   }
   @Remote('read')
   async read(input: { sessionId: string; id: string }): Promise<ClassroomRuntimeView> {
@@ -52,7 +71,7 @@ export function registerClassroomTools(host: Context): void {
       return { json: JSON.stringify({ ...await host.notaraClassroom.definition(context.sessionId!, data.id), ...await host.notaraClassroom.view(context.sessionId!, data.id, true) }) };
     },
   }));
-  host.effect(() => host.tools.register({ name: 'ask_classmate', description: '由老师向本课已启用的同学派发独立任务。先自己读取并选择材料；同学无工具、不继承父会话。返回真实任务引用后等待原生完成通知，不重复派发。公开任务只提供可公开材料；含解答/标准的备课选teacher。', parameters: toolSchema(ClassmateTaskInputSchema), output,
+  host.effect(() => host.tools.register({ name: 'ask_classmate', description: '由老师向本课已启用的同学派发独立任务。先自己读取并选择材料；同学无工具、不继承父会话。返回真实任务引用后等待原生完成通知，不重复派发。公开任务只提供可公开材料；含解答/标准的备课选teacher。遇到难题可将route设为escalated，使用该同学预先配置的升级模型，只影响本次任务。', parameters: toolSchema(ClassmateTaskInputSchema), output,
     async execute(args, execution) {
       const context = await teacherContext(host, execution);
       return { json: JSON.stringify(await host.notaraClassroom.request(context, execution.agent!, ClassmateTaskInputSchema.parse(args))) };

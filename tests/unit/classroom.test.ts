@@ -11,6 +11,9 @@ test('roles have distinct stable references and rules cannot name missing classm
   expect(ClassroomDefinitionSchema.safeParse({ ...seed, roles: [...seed.roles, seed.roles[0]] }).success).toBe(false);
   expect(ClassroomDefinitionSchema.safeParse({ ...seed, roles: seed.roles.slice(1) }).success).toBe(false);
   expect(ClassmateTaskInputSchema.safeParse({ id: 'room', roleId: 'critic', task: '核对推论', materials: [], destination: 'conversation' }).success).toBe(false);
+  const task = ClassmateTaskInputSchema.parse({ id: 'room', roleId: 'critic', task: '核对推论', materials: [{ title: '原话', text: '内容' }], destination: 'conversation' });
+  expect(task.route).toBe('default');
+  expect(ClassroomDefinitionSchema.safeParse({ ...seed, roles: [{ ...seed.roles[0], route: { default: { provider: 'studyforge-test', model: 'study-model-a' }, escalation: { provider: 'studyforge-test', model: 'study-model-b', maxTokens: 8000 } } }, ...seed.roles.slice(1)] }).success).toBe(true);
 });
 test('only completed genuine teaching turns count, including after a fork boundary', () => {
   const events: unknown[] = [], push = (type: string, data: unknown) => events.push({ type, data, seq: events.length, time: events.length });

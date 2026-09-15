@@ -12,7 +12,7 @@ const fixture = JSON.parse(await readFile(resolve('tests/fixtures/classroom-seed
 let runtime: IsolatedRuntime | undefined;
 afterEach(async () => { await runtime?.stop(); });
 const value = <T>(reply: RemoteResult<T>): T => { if (!reply.ok) throw new Error(JSON.stringify(reply.error)); return reply.value; };
-type ModelRequest = { sessionId: string; purpose?: string; messages: { id?: string; role: string; source: { kind: string; plugin?: string; avatar?: string }; content: { type: string; text?: string; content?: { text?: string }[] }[] }[]; toolNames: string[] };
+type ModelRequest = { sessionId: string; purpose?: string; provider?: string; model?: string; reasoningEffort?: string; messages: { id?: string; role: string; source: { kind: string; plugin?: string; avatar?: string }; content: { type: string; text?: string; content?: { text?: string }[] }[] }[]; toolNames: string[] };
 const logs = async (): Promise<ModelRequest[]> => (await readFile(join(runtime!.root, 'model-requests.jsonl'), 'utf8').catch(() => '')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
 const requestText = (row: ModelRequest): string => JSON.stringify(row.messages);
 
@@ -21,11 +21,14 @@ test('teacher-spawned classmates are isolated, public replies return once, priva
   const candidate = value(await client.rpc<PluginCandidate>('studyforgePlugins/prepare', { input: { kind: 'directory', path: resolve('examples/plugins/worldbook') } }));
   const installed = value(await client.rpc<PluginView>('studyforgePlugins/installPackage', { input: { candidateId: candidate.candidateId, expectedVersion: 0, trustNative: false } }));
   const session = value(await client.rpc<{ sessionId: string }>('studyforgeCreation/openTeacher', {})), id = 'plugin-' + installed.ref.slice(7) + '-worldbook', target = { ...session, id };
+  const routes = value(await client.rpc<{ provider: string; model: string }[]>('notaraClassroomView/modelRoutes', {}));
+  expect(routes.some(route => route.provider === 'studyforge-test' && route.model === 'study-model-a')).toBe(true);
   value(await client.rpc('studyforgeCourses/update', { input: { ...session, expectedVersion: 0, operationId: 'private-teacher-context', patch: { temporaryInstructions: 'PARENT_PRIVATE_PROMPT：这段教师私有准备不交给同学。' } } }));
   expect(value(await client.rpc<WorkbenchContent>('studyforgePlugins/openWorkbench', { input: target })).kind).toBe('classroom');
   let world = value(await client.rpc<WorldbookView>('studyforgePlugins/readWorldbook', { input: target }));
   const avatar = value(await client.rpc<any>('notaraClassroomView/uploadAvatar', { input: { base64: (await sharp({ create: { width: 64, height: 64, channels: 3, background: '#a6bbcd' } }).png().toBuffer()).toString('base64') } }));
   world.document.classroom = structuredClone(fixture.classroom);
+  world.document.classroom!.roles[0]!.route = { default: { provider: 'studyforge-test', model: 'study-model-a' }, escalation: { provider: 'studyforge-test', model: 'study-model-b' } };
   world.document.classroom!.roles[0]!.avatar = avatar.ref;
   world.document.classroom!.rules = world.document.classroom!.rules.map(rule => ({ ...rule, enabled: rule.trigger.kind === 'manual' }));
   world = value(await client.rpc<WorldbookView>('studyforgePlugins/saveWorldbook', { input: { ...target, expectedVersion: world.revision, operationId: 'prepare', document: world.document } }));
@@ -44,13 +47,14 @@ test('teacher-spawned classmates are isolated, public replies return once, priva
   const call = (name: string, args: unknown) => send('[tools]' + JSON.stringify([{ name: 'load_tools', arguments: { names: [name] } }, { name, arguments: args }]));
   const read = () => client.rpc<ClassroomRuntimeView>('notaraClassroomView/read', { input: target }).then(value);
   await send('PARENT_ONLY_SECRET：这段旧课堂内容不交给同学。');
-  await call('ask_classmate', { id, roleId: 'critic', task: '检查给定推论。', materials: [{ title: '被评议原话', text: 'PUBLIC_MATERIAL：所有正方形是矩形，所以所有矩形都是正方形。' }], destination: 'conversation' });
+  await call('ask_classmate', { id, roleId: 'critic', task: '检查给定推论。', materials: [{ title: '被评议原话', text: 'PUBLIC_MATERIAL：所有正方形是矩形，所以所有矩形都是正方形。' }], destination: 'conversation', route: 'escalated' });
   await expect.poll(async () => (await read()).tasks[0]?.status, { timeout: 30000 }).toBe('completed');
   await expect.poll(async () => (await read()).tasks[0]?.replySequence, { timeout: 30000 }).toBeDefined();
   const publicTask = (await read()).tasks[0]!;
   expect(publicTask.materials[0]!.text).toContain('PUBLIC_MATERIAL');
   const childRequests = (await logs()).filter(row => row.sessionId.startsWith('classmate-'));
   expect(childRequests.length).toBeGreaterThan(0); const childId = childRequests[0]!.sessionId;
+  expect(childRequests.some(row => row.provider === 'studyforge-test' && row.model === 'study-model-b')).toBe(true);
   for (const row of childRequests) { expect(row.toolNames).toEqual([]); expect(requestText(row)).not.toContain('PARENT_ONLY_SECRET'); expect(requestText(row)).not.toContain('PARENT_PRIVATE_PROMPT'); }
   expect(childRequests.some(row => requestText(row).includes('PUBLIC_MATERIAL'))).toBe(true);
   await call('ask_classmate', { id, roleId: 'assistant', task: '依据标准核对', materials: [{ title: '参考标准', text: 'PRIVATE_ANSWER：参考解只交老师。' }], destination: 'teacher' });

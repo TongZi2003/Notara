@@ -4,9 +4,23 @@ const Key = z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/);
 export const ClassroomAvatarRefSchema = z.string().regex(/^avatar:[a-f0-9]{64}$/);
 export interface ClassroomAvatarImage { ref: string; mediaType: 'image/webp'; base64: string }
 export function classmateMention(name: string, classroom: string): string { return '@' + name + '（' + classroom + '）'; }
+/** Exact DSH child route saved with a classroom role. Omit to inherit the teacher route. */
+export const ClassmateRouteSchema = z.object({
+  provider: z.string().trim().min(1).max(120), model: z.string().trim().min(1).max(240),
+  reasoningEffort: z.string().trim().min(1).max(80).optional(),
+  maxTokens: z.number().int().positive().max(200000).optional(),
+}).strict();
+export type ClassmateRoute = z.infer<typeof ClassmateRouteSchema>;
+export const ClassmateRouteSetSchema = z.object({ default: ClassmateRouteSchema.optional(), escalation: ClassmateRouteSchema.optional() }).strict();
+export type ClassmateRouteSet = z.infer<typeof ClassmateRouteSetSchema>;
+export interface ClassroomModelRoute {
+  provider: string; providerName: string; model: string; modelName: string;
+  reasoningEfforts: { id: string; name: string }[];
+}
 export const ClassmateSchema = z.object({
   id: Key, name: z.string().trim().min(1).max(32), purpose: z.string().trim().min(1).max(160),
   instructions: z.string().trim().min(1).max(4000), enabled: z.boolean(),
+  route: ClassmateRouteSetSchema.optional().describe('默认路由与老师临时升级路由；省略表示跟随老师。'),
   avatar: ClassroomAvatarRefSchema.optional().describe('通过本地头像上传得到的引用；改写角色时保留，不自行编造或写图片数据。'),
 }).strict();
 export type Classmate = z.infer<typeof ClassmateSchema>;
@@ -55,11 +69,13 @@ export const ClassmateTaskInputSchema = z.object({
   task: z.string().trim().min(1).max(4000).describe('这位同学需要独立完成的具体任务。'),
   materials: z.array(ClassmateMaterialSchema).min(1).max(12).describe('完成本次任务所需的材料。子智能体无法自行检索，也不会收到父会话。'),
   destination: z.enum(['conversation', 'teacher']).describe('conversation公开署名回应，只交可公开材料；teacher用于含解答或标准的内部备课。'),
+  route: z.enum(['default', 'escalated']).default('default').describe('默认路由；遇到难题时老师可选escalated临时升级，不改写教室配置。'),
 }).strict().refine(value => JSON.stringify(value.materials).length <= 60000, 'classroom_materials_too_large');
 export type ClassmateTaskInput = z.infer<typeof ClassmateTaskInputSchema>;
 export const ClassroomTaskRecordSchema = z.object({
   sessionId: z.string(), id: z.string(), digest: z.string(), role: ClassmateSchema,
   task: z.string(), materials: z.array(ClassmateMaterialSchema), destination: z.enum(['conversation', 'teacher']),
+  route: z.enum(['default', 'escalated']).default('default'), effectiveRoute: ClassmateRouteSchema.optional(),
   childId: z.string(), parentTurn: z.number().int().nonnegative(), fromSequence: z.number().int(),
   toSequence: z.number().int().optional(), previousTask: z.string().optional(),
   cueRef: z.string().optional(),
