@@ -12,7 +12,7 @@ export function createMathBoards(current:()=>MathScene,hooks:Hooks){
   JXG.Options.jc.compile=false;
   const common={resize:{enabled:false},showCopyright:false,showNavigation:false,showInfobox:false,keepaspectratio:true,pan:{enabled:true},zoom:{enabled:true,wheel:true}};
   const axes={strokeColor:colors.gray,ticks:{strokeColor:colors.gray,label:{fontSize:11,strokeColor:colors.gray}}};
-  const plane=JXG.JSXGraph.initBoard('math-board',{...common,boundingbox:scene.viewport,axis:true,grid:true,defaultAxes:{x:axes,y:axes}});
+  const plane=JXG.JSXGraph.initBoard('math-board',{...common,boundingbox:scene.viewport,axis:true,grid:true,defaultAxes:{x:axes,y:axes},pan:{enabled:true,needShift:false,needTwoFingers:false}});
   const space=JXG.JSXGraph.initBoard('space-board',{...common,boundingbox:[-7,7,7,-7],axis:false,grid:false,pan:{enabled:false},zoom:{enabled:false}});
   const view=space.create('view3d',[[-5,-5],[10,10],scene.space.bounds],{projection:'parallel',axesPosition:'center',depthOrder:true,
     az:{slider:{visible:false}},el:{slider:{visible:false}},bank:{slider:{visible:false}},

@@ -73,7 +73,7 @@ function deleteObjects(names:Iterable<string>):void{
 function clearSelection():void{selectedNames.clear();syncSelection();renderInspector();}
 function selectionMode(enabled:boolean):void{
   boxMode=enabled;graph.classList.toggle('box-selecting',enabled);boxToggle.setAttribute('aria-pressed',String(enabled));selectionHint.hidden=!enabled;
-  $('space-hint').hidden=enabled||scene?.view!=='3d';
+  $('space-hint').hidden=enabled;
 }
 boxToggle.onclick=()=>{selectionMode(!boxMode);graph.focus({preventScroll:true});};
 $('delete-selection').onclick=()=>deleteObjects(selectedNames);
@@ -110,7 +110,7 @@ document.addEventListener('keydown',event=>{
   if(event.key==='Escape'){endSelection(undefined,true);clearSelection();selectionMode(false);}
   else if((event.key==='Delete'||event.key==='Backspace')&&selectedNames.size){event.preventDefault();deleteObjects(selectedNames);}
 });
-function viewUI():void{root.dataset.view=scene.view;for(const value of ['2d','3d'])$('view-'+value).setAttribute('aria-pressed',String(scene.view===value));$('space-hint').hidden=boxMode||scene.view!=='3d';$('empty-canvas').hidden=scene.objects.some(o=>mathDimension(o)===(scene.view==='3d'?3:2));}
+function viewUI():void{root.dataset.view=scene.view;for(const value of ['2d','3d'])$('view-'+value).setAttribute('aria-pressed',String(scene.view===value));$('space-hint').hidden=boxMode;$('space-hint').textContent=scene.view==='2d'?'拖动空白处平移 · 拖点调整':'拖动空白处旋转 · 拖点移动 · Shift 调整高度';$('empty-canvas').hidden=scene.objects.some(o=>mathDimension(o)===(scene.view==='3d'?3:2));}
 function render():void{
   if(!scene)return;observationStarted=false;boards?.destroy();
   boards=createMathBoards(()=>scene,{select:(name,additive)=>{selectObject(name,additive);},point:(name,coordinates)=>{
