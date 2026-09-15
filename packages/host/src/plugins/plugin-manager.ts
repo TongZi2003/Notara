@@ -75,11 +75,15 @@ export class PluginManager {
       }
       const data = { name: version.manifest.name, installed: true, enabled: true, activeDigest: version.digest,
         versions: current?.data.versions.some(old => old.digest === version.digest) ? current.data.versions : [...(current?.data.versions ?? []), version], ...(pending ? { pending: 'enable' as const } : {}) };
+      let saved: Row;
       try {
         const mutation = { ...context, operationId: 'install:' + input.candidateId + ':' + (current?.version ?? 0), expectedVersion: current?.version ?? 0 };
-        const saved = current ? await this.records.update(mutation, ref, data, () => data) : await this.records.create(mutation, packageId(version.manifest.name), data);
-        this.changed(); return this.view(saved);
+        saved = current ? await this.records.update(mutation, ref, data, () => data) : await this.records.create(mutation, packageId(version.manifest.name), data);
       } catch (error) { await this.loaded.get(ref)?.dispose(); this.loaded.delete(ref); if (previous) await this.recover(ref, previous.version); throw error; }
+      // The original built-in worldbook was replaced by the classroom UI.
+      // Move its legacy bindings only while no lesson is executing.
+      if (version.manifest.name === '@notara/worldbook' && !await this.running()) await this.migrateLegacyWorldbookPins();
+      this.changed(); return this.view(saved);
     });
   }
   private async activate(ref: string, version: PluginVersion): Promise<void> {
@@ -115,6 +119,23 @@ export class PluginManager {
       }
       if (!row.data.installed || !row.data.enabled) continue;
       try { await this.activate(row.ref, this.version(row)); } catch { this.failures.set(row.ref, '插件未能恢复，请检查文件后重新启用，或卸载插件。'); }
+    }
+    await this.migrateLegacyWorldbookPins();
+  }
+  /** One-way migration of the retired built-in view. Already-classroom and
+   * third-party pins keep their version; user documents and native logs are untouched. */
+  private async migrateLegacyWorldbookPins(): Promise<void> {
+    const active = this.active().find(item => item.version.manifest.name === '@notara/worldbook');
+    const contribution = active?.version.manifest.notara.worldbooks.find(item => item.id === 'worldbook');
+    if (!active || !contribution || !JSON.parse(this.body(active.ref, active.version.digest, contribution.entry)).classroom) return;
+    const context = this.context();
+    for (const pin of this.pins.list(context)) {
+      const old = pin.data;
+      if (old.pluginRef !== active.ref || old.contributionId !== contribution.id || old.digest === active.version.digest) continue;
+      const version = this.get(old.pluginRef, old.digest), previous = version.manifest.notara.worldbooks.find(item => item.id === old.contributionId);
+      if (!previous || JSON.parse(this.body(old.pluginRef, old.digest, previous.entry)).classroom) continue;
+      await this.pins.update({ ...context, sessionId: old.sessionId, operationId: 'classroom-migration:' + pin.ref + ':' + active.version.digest, expectedVersion: pin.version }, pin.ref,
+        { digest: active.version.digest }, current => ({ ...current, digest: active.version.digest }));
     }
   }
   async dispose(): Promise<void> { await this.tail; this.closed = true; for (const item of this.loaded.values()) await item.dispose(); this.loaded.clear(); this.listeners.clear(); }
