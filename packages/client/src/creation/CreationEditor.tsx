@@ -1,12 +1,15 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { ArtifactView, ArtifactCheck } from '@studyforge/contracts/creation';
 import { useEffect, useState } from 'react';
+import type { WorldbookDocument } from '@studyforge/contracts/plugins';
+import { ClassroomDocumentSchema } from '@studyforge/contracts/creation';
+import { ClassroomWorkbench } from '../plugins/ClassroomWorkbench.tsx';
 import { MarkdownBody } from '../cards/MarkdownBody.tsx';
 
 const drafts = new Map<string, { body: string; digest: string }>();
 
 export function CreationEditor({ ctx, target, onConversation }: { ctx: Context; target: string; onConversation(view: ArtifactView): Promise<void> }): React.JSX.Element {
-  const [view, setView] = useState<ArtifactView>(), [path, setPath] = useState<'manifest.json' | 'content.md' | 'index.html'>('content.md');
+  const [view, setView] = useState<ArtifactView>(), [path, setPath] = useState<'manifest.json' | 'content.md' | 'index.html' | 'worldbook.json'>('content.md');
   const [body, setBody] = useState(''), [base, setBase] = useState(''), [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [notice, setNotice] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [check, setCheck] = useState<ArtifactCheck>();
@@ -23,15 +26,24 @@ export function CreationEditor({ ctx, target, onConversation }: { ctx: Context; 
   if (!view) return <p role="status">{notice || '正在打开作品…'}</p>;
   const content = view.files.find(file => file.path === view.manifest?.entry)?.body ?? '';
   const latest = view.files.find(file => file.path === path);
+  const change = (value: string): void => { setBody(value); setDirty(true); drafts.set(target + ':' + path, { body: value, digest: base }); };
+  const save = async (): Promise<void> => {
+    if (busy || !dirty) return;
+    if (path === 'worldbook.json') { try { ClassroomDocumentSchema.parse(JSON.parse(body)); } catch { setNotice('请补全条目内容和成员职责，确认成员名称不重复、规则引用的同学存在。'); return; } }
+    setBusy(true); setNotice('');
+    try { const result = await ctx.remote.studyforgeCreation.save({ ref: target, path, expectedDigest: base, content: body });
+      if (!result.ok) { setNotice('内容已变化或格式不完整。草稿保留，请重新读取后对照。'); return; }
+      drafts.delete(target + ':' + path); setView(result.value); setDirty(false); setNotice('已保存');
+    } catch { setNotice('暂时没收到保存结果，草稿保留。'); } finally { setBusy(false); }
+  };
+  let classroom: WorldbookDocument | undefined;
+  if (path === 'worldbook.json') { try { const value = JSON.parse(body); if (Array.isArray(value.entries) && Array.isArray(value.classroom?.roles) && Array.isArray(value.classroom?.rules)) classroom = value; } catch { /* Broken file remains editable as text. */ } }
   const conflict = dirty && !!latest && base !== latest.digest;
   return <section className="sf-creation-editor" data-testid="creation-editor">
     <header><h2>{view.manifest?.title ?? '编辑作品设置'}</h2><button className="sf-quiet" onClick={() => { void onConversation(view).catch(() => setNotice('暂时没能回到创作对话。')); }}>回到创作对话</button></header>
-    <nav><button className="sf-quiet" onClick={() => setPath(view.manifest?.entry ?? 'content.md')}>正文</button><button className="sf-quiet" onClick={() => setPath('manifest.json')}>作品设置</button>
-      <button className="sf-quiet" onClick={() => setRefresh(n => n + 1)}>重新读取</button>
-      <button className="sf-action" disabled={busy || !dirty} onClick={() => { setBusy(true); setNotice(''); void ctx.remote.studyforgeCreation.save({ ref: target, path, expectedDigest: base, content: body }).then(result => {
-        if (!result.ok) { setNotice('文件已变化或暂时不能保存。你的文字保留，重新读取后可对照合并。'); return; }
-        drafts.delete(target + ':' + path); setView(result.value); setDirty(false); setNotice('已保存');
-      }).catch(() => setNotice('暂时没收到保存结果，可以重试；你的文字保留。')).finally(() => setBusy(false)); }}>保存修改</button>
+    <nav><button disabled={busy} className="sf-quiet" onClick={() => setPath(view.manifest?.entry ?? 'content.md')}>正文</button><button className="sf-quiet" onClick={() => setPath('manifest.json')}>作品设置</button>
+      <button disabled={busy} className="sf-quiet" onClick={() => setRefresh(n => n + 1)}>重新读取</button>
+      <button className="sf-action" disabled={busy || !dirty} onClick={() => { void save(); }}>保存修改</button>
     </nav>
     {conflict && <details open><summary>对照最新内容</summary><pre>{latest.body}</pre><button className="sf-action" onClick={() => { setBase(latest.digest); drafts.set(target + ':' + path, { body, digest: latest.digest }); }}>以最新版为底稿，保留我的编辑</button></details>}
     {notice && <p role="status">{notice}</p>}
@@ -44,12 +56,12 @@ export function CreationEditor({ ctx, target, onConversation }: { ctx: Context; 
     }}>{view.target ? '应用到原文' : view.manifest?.kind === 'markdown' ? '保存到资料库' : '安装此版本'}</button>
     {check?.installation?.enabled && <button className="sf-quiet" disabled={busy} onClick={() => { const current = check.installation!; setBusy(true); void ctx.remote.studyforgeCreation.setEnabled({ ref: target, expectedVersion: current.revision, operationId: crypto.randomUUID(), enabled: false }).then(result => { if (result.ok) { setCheck({ ...check, installation: result.value }); setNotice('已停用'); window.dispatchEvent(new Event('studyforge:learning-changed')); } else setNotice('设置已变化，请重新读取。'); }).catch(() => setNotice('暂时没能停用。')).finally(() => setBusy(false)); }}>停用</button>}</div>
     {view.manifestError && <p role="status">作品设置尚未完整，可以在“作品设置”中修改。</p>}
-    <div className="sf-creation-columns"><textarea aria-label="作品正文" data-testid="artifact-editor" value={body} spellCheck={false} onChange={event => {
+    {classroom ? <div className="sf-classroom-design"><ClassroomWorkbench ctx={ctx} sessionId={view.sessionId} id={target} authoring={{ value: classroom, dirty, busy, onChange: value => change(JSON.stringify(value, null, 2)), onSave: save }} /></div> : <div className="sf-creation-columns"><textarea disabled={busy} aria-label="作品正文" data-testid="artifact-editor" value={body} spellCheck={false} onChange={event => {
       const value = event.target.value; setBody(value); setDirty(true); drafts.set(target + ':' + path, { body: value, digest: base });
     }} />
       <div className="sf-artifact-preview" data-testid="artifact-preview">
         {view.manifest?.kind === 'html' ? <iframe title="互动演示预览" sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={'<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data: blob:; font-src data:; connect-src \'none\'; form-action \'none\'; base-uri \'none\'">' + content} /> : <MarkdownBody text={content} />}
       </div>
-    </div>
+    </div>}
   </section>;
 }

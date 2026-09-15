@@ -14,11 +14,27 @@ import { teacherContext } from './tools/learning-context.ts';
 import { ArtifactViewSchema } from '@studyforge/contracts/creation';
 import type { ArtifactCheck, ArtifactInstallation } from '@studyforge/contracts/creation';
 import { artifactCheck, installArtifact, setArtifactEnabled } from './creation/artifact-service.ts';
+import { artifactEntry, ClassroomDocumentSchema } from '@studyforge/contracts/creation';
+import { installClassroomAuthoring } from './creation/classroom-authoring.ts';
+import { ClassroomTemplatesSchema } from '@studyforge/contracts/plugins';
 
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeCreation: StudyForgeCreation; studyforgeCreationRecords: RecordStore<typeof CreationRecordSchema>; } }
 
 export class StudyForgeCreation extends TypertRemoteService {
   constructor(ctx: Context) { super(ctx, 'studyforgeCreation'); }
+  @Remote('openCreator')
+  async openCreator(input: { ref: string }): Promise<{ sessionId: string }> {
+    const row = this.ctx.studyforgeCreationRecords.read(await studentContext(this.ctx), input.ref);
+    const resolved = await this.ctx.sessionController.resolveAgent(SessionId(row.data.sessionId));
+    if ('error' in resolved) throw new Error('creator_session_unavailable');
+    const preset = this.ctx.sessionProjections.snapshot(resolved.agent.session, ['agentPreset']).values.agentPreset ?? resolved.agent.session.header.agentPreset;
+    if (preset !== 'studyforge-creation') await this.ctx.agentPresets.select(resolved.agent, 'studyforge-creation');
+    return { sessionId: row.data.sessionId };
+  }
+  @Remote('classroomTemplates')
+  async classroomTemplates(): Promise<{ title: string; description: string; content: string }[]> {
+    return this.ctx.studyforgePluginsManager.active().flatMap(({ ref, version }) => version.manifest.notara.worldbooks.flatMap(item => item.templates ? ClassroomTemplatesSchema.parse(JSON.parse(this.ctx.studyforgePluginsManager.body(ref, version.digest, item.templates))).map(preset => ({ title: preset.title, description: preset.description, content: JSON.stringify(preset.document, null, 2) })) : []));
+  }
   @Remote('openTeacher')
   async openTeacher(): Promise<{ sessionId: string }> {
     const result = await this.ctx.sessionController.create({ workspaceId: this.ctx.studyforgeAccess.workspaceId as WorkspaceId, agentPreset: 'studyforge-learning' });
@@ -44,6 +60,8 @@ export class StudyForgeCreation extends TypertRemoteService {
   }
   /** Internal writer preserves the actual requesting actor; not a public Remote. */
   async createFor(context: HostContext, data: ArtifactCreate): Promise<ArtifactView> {
+    if (data.kind === 'classroom' && data.target) throw new Error('classroom_is_not_a_material');
+    if (data.kind === 'classroom' && data.content !== undefined) ClassroomDocumentSchema.parse(JSON.parse(data.content));
     const id = createHash('sha256').update(context.workspaceId + ':' + data.operationId).digest('hex').slice(0, 24);
     const sessionId = SessionId(plannedSessionId(context.workspaceId, 'creator:' + data.operationId));
     const paths: string[] = [];
@@ -55,7 +73,7 @@ export class StudyForgeCreation extends TypertRemoteService {
       if (!existing && original.revision !== data.target.version) throw new Error('creation_target_conflict');
     }
     const record: CreationRecord = { name: 'work-' + id, sessionId, seedDigest: fileDigest(data.content ?? ''),
-      initial: { title: data.title, kind: data.kind, description: data.description ?? '', subjects: data.subjects ?? [], entry: data.kind === 'html' ? 'index.html' : 'content.md' },
+      initial: { title: data.title, kind: data.kind, description: data.description ?? '', subjects: data.subjects ?? [], entry: artifactEntry(data.kind) },
       references: data.references, ...(data.target ? { target: data.target } : {}), ...(data.originSessionId ? { originSessionId: data.originSessionId } : {}) };
     const saved = await this.ctx.studyforgeCreationRecords.create({ ...context, operationId: data.operationId }, id, record);
     initializeProject(this.ctx, record, data.content);
@@ -69,13 +87,14 @@ export class StudyForgeCreation extends TypertRemoteService {
     return readProject(this.ctx, saved);
   }
   @Remote('save')
-  async save(input: { ref: string; path: 'manifest.json' | 'content.md' | 'index.html'; expectedDigest: string; content: string }): Promise<ArtifactView> {
+  async save(input: { ref: string; path: 'manifest.json' | 'content.md' | 'index.html' | 'worldbook.json'; expectedDigest: string; content: string }): Promise<ArtifactView> {
     const data = ArtifactSaveSchema.parse(input);
     return saveProjectFile(this.ctx, await studentContext(this.ctx), data.ref, data.path, data.expectedDigest, data.content);
   }
 }
 
 export function installCreationContext(host: Context): void {
+  installClassroomAuthoring(host);
   host.on('system-prompt/assemble', async (_assembly, context, next) => {
     const result = await next(), agent = context.agent;
     if (!agent || agent.session.header.origin === 'subagent') return result;
@@ -84,9 +103,9 @@ export function installCreationContext(host: Context): void {
     const binding = await host.studyforgeAccess.forSession(agent.session.id);
     if (binding.purpose !== 'creation') return result;
     return { ...result, sections: [...result.sections, { name: 'studyforge:creator', text: [
-      '你是创作者，与用户共同制作学科教法、教学模式、任务技能或自包含HTML演示。先澄清作品目标，必要时头脑风暴，再通过原生文件工具共同编辑。',
-      `本次作品目录：${binding.projectRoot}。先读 manifest.json；可编辑入口是 content.md 或 index.html，其他作品和学习数据不在写入范围。`,
-      'manifest字段：title、kind(subject/teaching/skill/html/markdown)、description、subjects数组、entry(content.md或index.html)。HTML的entry必须是index.html，其余为content.md。不得删除已有正文以规避要求。',
+      '你是创作者，与用户共同制作学科教法、教学模式、任务技能、自包含HTML演示或教室。先理解作品目标，必要时头脑风暴，再共同编辑。',
+      `本次作品目录：${binding.projectRoot}。先读 manifest.json；可编辑入口是 content.md、index.html或worldbook.json，其他作品和学习数据不在写入范围。`,
+      'manifest字段：title、kind(subject/teaching/skill/html/markdown/classroom)、description、subjects数组、entry。HTML用index.html；教室用worldbook.json；其余用content.md。教室通过read_classroom_draft和save_classroom_draft编辑，成员、世界书、规则都在同一份草稿中。不得删除已有正文以规避要求。',
       '教法写具体教学步骤、观察依据、反馈方式、例外和结束条件；任务技能写目标、材料范围、真实工具和完成结果。HTML必须完整自包含，不访问网络或宿主数据。',
       `已授权参考原文路径：${JSON.stringify(binding.references)}。仅按需读取，与学生学情无关。`,
       '用户在编辑器修改的正是这些文件。每次修改先读当前文件，不覆盖用户新改动。完成后让用户在作品面板预览/安装；没有安装回执不声称已可用，不直接写学习事实或修改正在使用的旧版本。',

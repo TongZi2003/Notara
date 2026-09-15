@@ -27,6 +27,13 @@ export function apply(ctx: Context, config: { logPath: string }): void {
       const studentText = decodeSourceFragments(text).text.trim();
       let scripted = studentText.startsWith('[tools]') ? JSON.parse(studentText.slice(7)) as { name: string; arguments: unknown }[]
         : studentText.startsWith('[tool]') ? [JSON.parse(studentText.slice(6)) as { name: string; arguments: unknown }] : [];
+      // UI privacy checks script teacher output outside the student's visible text.
+      // These files exist only in the explicit isolated test-model runtime.
+      if (!scripted.length) {
+        const replies = await readFile(join(dirname(config.logPath), 'teacher-replies.json'), 'utf8')
+          .then(raw => JSON.parse(raw) as Record<string, { name: string; arguments: unknown }[]>).catch(() => ({} as Record<string, { name: string; arguments: unknown }[]>));
+        scripted = replies[studentText] ?? [];
+      }
       // The test declares the model's replies separately from the real node
       // action. This verifies UI/Host wiring, never semantic model behavior.
       const task = decodeSourceFragments(text).fragments.findLast(fragment => fragment.bookTask)?.bookTask;

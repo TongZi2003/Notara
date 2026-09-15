@@ -23,6 +23,7 @@ const groups: readonly [string, readonly string[]][] = [
   ['委派与协作', ['delegate_search', 'delegate_assistant', 'delegate_peer', 'delegate_problem', 'subagent', 'send_message', 'interrupt_agent']],
   ['内容共建', ['draft_artifact', 'mark_thought', 'read_workbench', 'update_workbench']],
   ['数学探究', ['read_math_scene','edit_math_scene','calculate_math','restore_math_scene']],
+  ['教室参与', ['read_classroom','ask_classmate','continue_classmate','update_classroom_context']],
   ['其他阅读能力', ['read', 'read_image', 'glob', 'grep', 'web_search', 'web_fetch', 'skill']],
 ];
 

@@ -77,6 +77,10 @@ import { LearningWorkbenches, registerWorkbenchTools } from './plugins/learning-
 import { PluginLearningRemote } from './plugin-learning-service.ts';
 import { PluginManager } from './plugins/plugin-manager.ts';
 import { StudyForgePlugins } from './plugins-service.ts';
+import { ClassroomTaskRecordSchema, ClassroomSessionRecordSchema, ClassroomCueRecordSchema } from '@studyforge/contracts/classroom';
+import { ClassroomRuntime } from './plugins/classroom-runtime.ts';
+import { ClassroomRemote, registerClassroomTools } from './classroom-service.ts';
+export { ClassroomRemote } from './classroom-service.ts';
 export { StudyForgePlugins } from './plugins-service.ts';
 export { StudyForgeCreation } from './creation-service.ts';
 export { StudyForgeHandoffs } from './handoff-service.ts';
@@ -121,6 +125,9 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ctx.plugin(PluginLearningRemote); registerWorkbenchTools(ctx);
     const seminar = new Seminar(ctx, await owner.collection('seminar', SeminarRecordSchema));
     ctx.effect(() => ctx.reflect.provide('notaraSeminar', seminar));
+    const classroom = new ClassroomRuntime(ctx, await owner.collection('classroomtask', ClassroomTaskRecordSchema), await owner.collection('classroomsession', ClassroomSessionRecordSchema), await owner.collection('classroomcue', ClassroomCueRecordSchema));
+    ctx.effect(() => ctx.reflect.provide('notaraClassroom', classroom));
+    ctx.plugin(ClassroomRemote); registerClassroomTools(ctx);
     ctx.effect(() => () => plugins.dispose());
     ctx.plugin(StudyForgePlugins);
 
@@ -251,6 +258,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     try { await dispatcher.flush({ workspaceId: workspace.id, purpose: 'learning', actor: 'system' }); }
     catch { /* Stored pending receipts remain available for explicit retry. */ }
     await plugins.restore();
+    await classroom.restore();
     ctx.plugin(StudyForgeProbe);
   } catch (error) { await owner.close(); throw error; }
 }

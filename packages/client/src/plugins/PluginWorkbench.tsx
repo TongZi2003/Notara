@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { WorkbenchNoteSchema, WorkbenchDraftValueSchema, type WorkbenchChoice, type WorkbenchContent } from '@studyforge/contracts/plugins';
 import { notifyPlugins } from './PluginManager.tsx';
 import { WorldbookWorkbench } from './WorldbookWorkbench.tsx';
+import { ClassroomWorkbench } from './ClassroomWorkbench.tsx';
 import { draftSDK } from './workbench-sdk.ts';
 import { learningAction } from './learning-bridge.ts';
 import { PluginSourcePicker } from './PluginSourcePicker.tsx';
@@ -83,6 +84,7 @@ export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionI
     return () => { live = false; picker.current?.reject();picker.current=undefined;window.removeEventListener('message', onMessage); observer.disconnect(); };
   }, [content, nonce, ctx, sessionId, id]);
   if (content?.kind === 'worldbook') return <WorldbookWorkbench ctx={ctx} sessionId={sessionId} id={id} />;
+  if (content?.kind === 'classroom') return <ClassroomWorkbench ctx={ctx} sessionId={sessionId} id={id} />;
   return <section className="sf-plugin-workbench">
     {picking&&content&&<PluginSourcePicker ctx={ctx} sessionId={sessionId} content={content} done={link=>{const current=picker.current;picker.current=undefined;setPicking(false);if(link)current?.resolve(link);else current?.reject();}}/>}
     {content ? <iframe ref={frame} title={content.title} sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={srcDoc} /> : <p role="status">{notice || '正在打开工作台…'}</p>}

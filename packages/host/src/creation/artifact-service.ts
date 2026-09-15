@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type { Context } from '@deepseek-ai/cordis';
 import type { HostContext } from '@studyforge/contracts';
 import type { InstalledArtifactSchema, ArtifactInstallation, ArtifactCheck, ArtifactView, ArtifactManifest } from '@studyforge/contracts/creation';
+import { ClassroomDocumentSchema } from '@studyforge/contracts/creation';
 import type { RecordStore, PreparedRecordChange } from '@studyforge/domain/storage';
 import { z } from 'zod';
 import { canonicalPath } from '@studyforge/domain/access';
@@ -32,13 +33,16 @@ export function artifactCheck(host: Context, ref: string): ArtifactCheck {
   const context = workspaceContext(host), view = readProject(host, host.studyforgeCreationRecords.read(context, ref));
   const issues: string[] = [];
   const project = host.studyforgeCreationRecords.read(context, ref);
-  if (readdirSync(projectRoot(host, project.data.name)).some(path => !['manifest.json', 'content.md', 'index.html'].includes(path))) issues.push('请把依赖合并进正文，作品只支持自包含文件。');
+  if (readdirSync(projectRoot(host, project.data.name)).some(path => !['manifest.json', 'content.md', 'index.html', 'worldbook.json'].includes(path))) issues.push('请把依赖合并进正文，作品只支持自包含文件。');
   if (!view.manifest) issues.push('作品设置尚未完整。');
   else {
     const body = view.files.find(file => file.path === view.manifest!.entry)?.body;
     if (!body?.trim()) issues.push('请补上作品正文。');
     if (view.manifest.kind === 'subject' && !view.manifest.subjects.length) issues.push('请填写这份教法适用的科目。');
     if (view.manifest.kind === 'html' && !/<(?:html|body|main|div|section|canvas|svg)\b/i.test(body ?? '')) issues.push('请提供完整的 HTML 演示内容。');
+    if (view.manifest.kind === 'classroom') {
+      try { ClassroomDocumentSchema.parse(JSON.parse(body ?? '')); } catch { issues.push('请检查教室成员、世界书和规则，补全必填内容与成员引用。'); }
+    }
   }
   const current = installation(host, ref);
   return { digest: view.digest, issues, ...(current ? { installation: current } : {}) };
@@ -102,7 +106,7 @@ export function artifactSkillName(projectRef: string, digest: string): string {
 export function activeArtifacts(host: Context): { ref: string; digest: string; manifest: ArtifactManifest; installedAt: string }[] {
   const bundled = host.studyforgePluginsManager.active().flatMap(({ ref, version }) => {
     if (version.creation) return [{ ref: version.creation.ref, digest: version.creation.digest, manifest: creationManifest(version), installedAt: version.installedAt }];
-    const entries = [ ...version.manifest.notara.skills.map(item => ({ ...item, kind: 'skill' as const, subjects: [] as string[] })),
+    const entries = [ ...version.manifest.notara.skills.filter(item => item.scope !== 'creation').map(item => ({ ...item, kind: 'skill' as const, subjects: [] as string[] })),
       ...version.manifest.notara.teaching.map(item => ({ ...item, kind: 'teaching' as const, subjects: [] as string[] })),
       ...version.manifest.notara.subjects.map(item => ({ ...item, kind: 'subject' as const })) ];
     return entries.map(item => ({ ref: ref + '#' + item.id, digest: version.digest, manifest: { title: item.title, description: item.description, kind: item.kind, subjects: item.subjects, entry: 'content.md' as const }, installedAt: version.installedAt }));
@@ -118,7 +122,7 @@ export function installedBody(host: Context, ref: string, digest: string): { man
     const options = version.manifest.notara;
     const item = options.skills.find(item => item.id === id) ?? options.teaching.find(item => item.id === id) ?? options.subjects.find(item => item.id === id);
     if (!item) throw new Error('plugin_contribution_missing');
-    const kind = options.skills.includes(item) ? 'skill' : options.teaching.includes(item) ? 'teaching' : 'subject';
+    const kind = options.skills.some(skill => skill.id === item.id) ? 'skill' : options.teaching.includes(item) ? 'teaching' : 'subject';
     return { manifest: { kind, title: item.title, description: item.description, subjects: 'subjects' in item ? item.subjects as string[] : [], entry: 'content.md' }, body: host.studyforgePluginsManager.body(pluginRef!, digest, item.entry) };
   }
   const packaged = creationPlugin(host, ref);

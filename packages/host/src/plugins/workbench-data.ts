@@ -16,7 +16,7 @@ export class WorkbenchData {
   private context(sessionId: string) { return { ...this.ctx.studyforgePluginsManager.context(), sessionId }; }
   private async book(sessionId: string, id: string) {
     const content = await this.ctx.studyforgePluginsManager.openWorkbench(sessionId, id);
-    if (content.kind !== 'worldbook') throw new Error('plugin_worldbook_required');
+    if (content.kind !== 'worldbook' && content.kind !== 'classroom') throw new Error('plugin_worldbook_required');
     return content;
   }
   async readWorldbook(sessionId: string, id: string): Promise<WorldbookView> {
@@ -25,7 +25,10 @@ export class WorkbenchData {
     const use = this.uses.list(context).find(row => row.data.id === id && row.data.sessionId === sessionId);
     const version = this.ctx.studyforgePluginsManager.get(content.pluginRef, content.digest);
     const source = version.manifest.notara.worldbooks.find(item => item.id === content.contributionId)!;
-    const document = row?.data.document ?? WorldbookDocumentSchema.parse(JSON.parse(this.ctx.studyforgePluginsManager.body(content.pluginRef, content.digest, source.entry)));
+    const seed = WorldbookDocumentSchema.parse(JSON.parse(this.ctx.studyforgePluginsManager.body(content.pluginRef, content.digest, source.entry)));
+    // Existing user background edits survive an upgrade that adds a classroom.
+    // Package defaults fill only the previously absent optional capability.
+    const document = row ? { ...row.data.document, ...(row.data.document.classroom ? {} : seed.classroom ? { classroom: seed.classroom } : {}) } : seed;
     return { document, revision: row?.version ?? 0, enabled: use?.data.enabled ?? false, useRevision: use?.version ?? 0 };
   }
   async saveWorldbook(input: { sessionId: string; id: string; expectedVersion: number; operationId: string; document: WorldbookDocument }): Promise<WorldbookView> {
@@ -54,6 +57,7 @@ export class WorkbenchData {
     const books: { title: string; entries: WorldbookDocument['entries'] }[] = [];
     for (const use of active) {
       const view = await this.readWorldbook(sessionId, use.data.id);
+      if (view.document.classroom) continue;
       const content = await this.book(sessionId, use.data.id);
       books.push({ title: content.title, entries: view.document.entries });
     }

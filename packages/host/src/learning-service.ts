@@ -62,12 +62,14 @@ export class StudyForgeLearning extends TypertRemoteService {
   @Remote('createCard')
   async createCard(input: { operationId: string; sessionId?: string; content: CardContent }): Promise<CardView> {
     const parsed = WriteSchema.extend({ content: CardContentSchema }).parse(input);
-    return this.ctx.studyforgeCardService.create({ ...await studentContext(this.ctx, parsed.sessionId), operationId: parsed.operationId }, parsed.content);
+    const result = await this.ctx.studyforgeCardService.create({ ...await studentContext(this.ctx, parsed.sessionId), operationId: parsed.operationId }, parsed.content);
+    this.ctx.notaraClassroom?.noteSaved(parsed.sessionId); return result;
   }
   @Remote('editCard')
   async editCard(input: { operationId: string; sessionId?: string; target: string; expectedVersion: number; patch: CardPatch }): Promise<CardView> {
     const parsed = WriteSchema.extend({ target: EntityRefSchema, expectedVersion: z.number().int().positive(), patch: CardPatchSchema }).parse(input);
-    return this.ctx.studyforgeCardService.edit({ ...await studentContext(this.ctx, parsed.sessionId), operationId: parsed.operationId, expectedVersion: parsed.expectedVersion }, parsed.target, parsed.patch);
+    const result = await this.ctx.studyforgeCardService.edit({ ...await studentContext(this.ctx, parsed.sessionId), operationId: parsed.operationId, expectedVersion: parsed.expectedVersion }, parsed.target, parsed.patch);
+    this.ctx.notaraClassroom?.noteSaved(parsed.sessionId); return result;
   }
   @Remote('previewCard')
   async previewCard(input: { target: string; expectedVersion: number; patch: CardPatch }): Promise<CardContent> {
@@ -77,12 +79,14 @@ export class StudyForgeLearning extends TypertRemoteService {
   @Remote('noteMethod')
   async noteMethod(input: { operationId: string; sessionId?: string; content: KnowledgeNote }): Promise<KnowledgeView> {
     const parsed = WriteSchema.extend({ content: KnowledgeNoteSchema }).parse(input);
-    return this.ctx.studyforgeKnowledgeService.note({ ...await studentContext(this.ctx, parsed.sessionId), operationId: parsed.operationId }, parsed.content);
+    const result = await this.ctx.studyforgeKnowledgeService.note({ ...await studentContext(this.ctx, parsed.sessionId), operationId: parsed.operationId }, parsed.content);
+    this.ctx.notaraClassroom?.noteSaved(parsed.sessionId); return result;
   }
   @Remote('reviseMethod')
   async reviseMethod(input: { operationId: string; sessionId?: string; target: string; expectedVersion: number; patch: KnowledgePatch }): Promise<KnowledgeView> {
     const parsed = WriteSchema.extend({ target: EntityRefSchema, expectedVersion: z.number().int().positive(), patch: KnowledgePatchSchema }).parse(input);
-    return this.ctx.studyforgeKnowledgeService.revise({ ...await studentContext(this.ctx, parsed.sessionId), operationId: parsed.operationId, expectedVersion: parsed.expectedVersion }, parsed.target, parsed.patch);
+    const result = await this.ctx.studyforgeKnowledgeService.revise({ ...await studentContext(this.ctx, parsed.sessionId), operationId: parsed.operationId, expectedVersion: parsed.expectedVersion }, parsed.target, parsed.patch);
+    this.ctx.notaraClassroom?.noteSaved(parsed.sessionId); return result;
   }
   @Remote('deleteMethod')
   async deleteMethod(input: { operationId: string; target: string; expectedVersion: number }): Promise<{ deleted: true }> {

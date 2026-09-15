@@ -2,6 +2,8 @@ import type { ContextMessageNode } from '@deepseek-ai/dsh-client-ui-conversation
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import { useState } from 'react';
 import { useDebugEnabled } from './debug-mode.ts';
+import { MarkdownBody } from '../cards/MarkdownBody.tsx';
+import { z } from 'zod';
 
 /**
  * Student-facing stand-ins for the two native transcript rows that carry
@@ -32,6 +34,8 @@ export function SystemPromptNote({ node }: PropsRuntime<'conversation.chat.node'
 /** One non-user context row, presented without its producer identity. */
 export function ContextNote({ node }: PropsRuntime<'conversation.chat.node', 'context'>): React.JSX.Element | null {
   const [open, setOpen] = useState(false);
+  const speaker = z.object({ kind: z.literal('plugin'), plugin: z.literal('notara-classroom-speaker'), form: z.literal('notice'), summary: z.string() }).safeParse(node.data.source);
+  if (speaker.success) return <article className="sf-classmate-reply" data-testid="classmate-reply" data-classmate-sequence={node.data.seq}><header><span>{speaker.data.summary.slice(0, 1)}</span><span>{speaker.data.summary}</span></header><MarkdownBody text={contentText(node.data)} /></article>;
   if (node.data.provenance.role === 'recall') {
     const label = node.data.provenance.label;
     const text = contentText(node.data);

@@ -1,0 +1,98 @@
+[
+  {
+    "title": "日常自习",
+    "description": "同桌帮你梳理解释，按需点名。",
+    "document": {
+      "entries": [],
+      "classroom": {
+        "title": "日常自习",
+        "roles": [
+          {
+            "id": "peer",
+            "name": "同桌",
+            "purpose": "从同伴视角理解解释",
+            "instructions": "沿学生自己的解释逐步思考，指出连接不上或不够清楚的一处。没有拿到的材料不得猜测；不以参考答案代替理解，不给学生做全局能力判断。",
+            "enabled": true
+          }
+        ],
+        "rules": [],
+        "carrySummary": false
+      }
+    }
+  },
+  {
+    "title": "推理讨论",
+    "description": "让杠精同学独立检查前提和边界。",
+    "document": {
+      "entries": [],
+      "classroom": {
+        "title": "推理讨论",
+        "roles": [
+          {
+            "id": "critic",
+            "name": "杠精同学",
+            "purpose": "检查前提、推理和边界",
+            "instructions": "独立检查老师交付的被评议原话、问题与条件。每次只指出一处值得讨论的问题，给出依据；不为反对而反对，也不替老师背书。材料不足就说明缺口，不编造来源。",
+            "enabled": true
+          },
+          {
+            "id": "peer",
+            "name": "同桌",
+            "purpose": "从同伴视角理解解释",
+            "instructions": "沿学生自己的解释逐步思考，指出连接不上或不够清楚的一处。没有拿到的材料不得猜测；不以参考答案代替理解，不给学生做全局能力判断。",
+            "enabled": true
+          }
+        ],
+        "rules": [],
+        "carrySummary": false
+      }
+    }
+  },
+  {
+    "title": "变式训练",
+    "description": "老师组织变式与核对，完整解答先交回老师。",
+    "document": {
+      "entries": [],
+      "classroom": {
+        "title": "变式训练",
+        "roles": [
+          {
+            "id": "variant",
+            "name": "变式同学",
+            "purpose": "围绕学习目标准备变式",
+            "instructions": "只根据老师提供的例题、目标和限制条件准备一道变式。明确变了什么、检验什么；题干和完整解答分开。备课草稿先交老师，不能擅自公开答案。",
+            "enabled": true
+          },
+          {
+            "id": "assistant",
+            "name": "助教",
+            "purpose": "依据给定标准核对作答",
+            "instructions": "仅根据老师交付的作答和已有参考标准核对。缺少标准时说明缺口，不自行命题并把自己的解当标准，不根据学生印象调整评价。完整核对先交老师。",
+            "enabled": true
+          }
+        ],
+        "rules": [
+          {
+            "id": "stage_variant",
+            "title": "阶段结束后准备变式",
+            "enabled": true,
+            "trigger": {
+              "kind": "stage"
+            },
+            "action": {
+              "kind": "classmate",
+              "roleId": "variant",
+              "task": "根据已沉淀阶段的目标、例题和方法准备一道变式，题干与解答分开，完整草稿先交老师。",
+              "materials": [
+                "summary",
+                "conditions"
+              ],
+              "destination": "teacher"
+            }
+          }
+        ],
+        "carrySummary": false
+      }
+    }
+  }
+]

@@ -85,6 +85,7 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
     'read_card', 'read_cards', 'list_cards', 'query_evidence', 'read_memory', 'search_memory', 'note_memory', 'revise_memory',
     'register_cards', 'update_card', 'note_method', 'revise_method', 'record_review', 'read_math_scene','edit_math_scene','calculate_math','restore_math_scene',
     'propose_card', 'propose_review', 'propose_set', 'propose_plan', 'propose_route', 'propose_skeleton', 'propose_handoff', 'read_lesson', 'propose_lesson_settings',
+    'read_classroom', 'ask_classmate', 'continue_classmate', 'update_classroom_context',
     'read', 'write', 'edit', 'glob', 'grep', 'read_image', 'run_code']);
   const helper = (agent: Agent | undefined): boolean => !!agent && agent.session.header.origin === 'subagent'
     && (host.sessionProjections.snapshot(agent.session, ['agentPreset']).values.agentPreset ?? agent.session.header.agentPreset) === 'studyforge-learning';
@@ -130,6 +131,8 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
       // Native snapshots mark the current user-role reference context. Their
       // history remains auditable; no extra student-authored message is created.
       if (background) result.contexts.push({ name: 'notara:worldbook', text: background });
+      const classroom = await host.notaraClassroom?.prompt(context.agent);
+      if (classroom) result.contexts.push({ name: 'notara:classroom', text: classroom });
     }
     // A saved-result notice resumes the same teacher with the same tools.
     // Confirmation/idempotency belong to the writers, not a blanket tool ban

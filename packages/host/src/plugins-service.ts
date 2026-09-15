@@ -48,7 +48,10 @@ export class StudyForgePlugins extends TypertRemoteService {
   @Remote('useWorldbook')
   async useWorldbook(input: { sessionId: string; id: string; expectedVersion: number; enabled: boolean }): Promise<WorldbookView> {
     const data = WorkbenchTarget.extend({ expectedVersion: Revision, enabled: z.boolean() }).parse(input);
-    await studentContext(this.ctx, data.sessionId); return this.ctx.studyforgeWorkbenchData.useWorldbook(data);
+    await studentContext(this.ctx, data.sessionId);
+    const result = await this.ctx.studyforgeWorkbenchData.useWorldbook(data);
+    if (result.document.classroom) await this.ctx.notaraClassroom.setUse(data.sessionId, data.id, data.enabled);
+    return result;
   }
   @Remote('previewWorldbook')
   async previewWorldbook(input: { sessionId: string; id: string; query: string }): Promise<WorldbookSelection> {
@@ -74,6 +77,8 @@ export class StudyForgePlugins extends TypertRemoteService {
     const document = workbench.documentKind ? await this.ctx.studyforgeLearningWorkbenches.read(context, data.id) : undefined;
     if (workbench.documentKind === 'math' && data.note.documentRevision === undefined || data.note.documentRevision !== undefined && data.note.documentRevision !== document?.revision) throw new Error('workbench_note_stale');
     const links = document ? documentLinks(document.document) : [];
-    return this.ctx.studyforgeCardService.create({ ...context, operationId: 'plugin-note:' + data.sessionId + ':' + data.id + ':' + data.operationId }, { title: data.note.title, presentation: 'note', front: data.note.body, sources: links.flatMap(link => link.kind === 'source' ? [link.source] : []), links: links.flatMap(link => link.kind === 'card' ? [link.ref] : []) });
+    const result = await this.ctx.studyforgeCardService.create({ ...context, operationId: 'plugin-note:' + data.sessionId + ':' + data.id + ':' + data.operationId }, { title: data.note.title, presentation: 'note', front: data.note.body, sources: links.flatMap(link => link.kind === 'source' ? [link.source] : []), links: links.flatMap(link => link.kind === 'card' ? [link.ref] : []) });
+    this.ctx.notaraClassroom?.noteSaved(data.sessionId);
+    return result;
   }
 }

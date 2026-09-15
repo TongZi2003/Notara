@@ -1,13 +1,34 @@
 {
   "name": "@notara/worldbook",
-  "version": "1.0.0",
-  "description": "可编辑的课堂背景与城邦议事厅情境。",
-  "files": ["worldbook.json", "scenario.md", "README.md"],
+  "version": "1.1.1",
+  "description": "教师组织的同学参与、课堂背景与触发规则。",
+  "files": [
+    "worldbook.json",
+    "creator.md",
+    "README.md",
+    "templates.json"
+  ],
   "notara": {
     "apiVersion": 1,
-    "title": "世界书 · 城邦议事厅",
-    "description": "维护背景、术语和人物设定，按关键词带入课堂。",
-    "worldbooks": [{"id":"worldbook","title":"世界书","description":"编辑背景条目，为本课选择要带入的内容。","entry":"worldbook.json"}],
-    "skills": [{"id":"scenario","title":"进入情境学习","description":"在虚构城邦中讨论资源、证据与公共决策。","entry":"scenario.md"}]
+    "title": "教室",
+    "description": "管理课堂同学、世界书和参与规则，由老师统一组织任务。",
+    "worldbooks": [
+      {
+        "id": "worldbook",
+        "title": "教室",
+        "description": "点名邀请同学，在世界书中配置背景与教学规则。",
+        "entry": "worldbook.json",
+        "templates": "templates.json"
+      }
+    ],
+    "skills": [
+      {
+        "id": "classroom-authoring",
+        "title": "创作教室",
+        "description": "共同设计成员、世界书与参与规则，保存为可安装的教室。",
+        "entry": "creator.md",
+        "scope": "creation"
+      }
+    ]
   }
 }

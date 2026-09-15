@@ -15,7 +15,11 @@ test('worldbook background is opt-in, editable, bounded and survives plugin remo
     const candidate = value(await client.rpc<PluginCandidate>('studyforgePlugins/prepare', { input: { kind: 'directory', path } }));
     return value(await client.rpc<PluginView>('studyforgePlugins/installPackage', { input: { candidateId: candidate.candidateId, expectedVersion, trustNative: false } }));
   };
-  let plugin = await install(resolve('examples/plugins/worldbook'));
+  const fixturePackage = join(runtime.root, 'worldbook-fixture'); await cp(resolve('examples/plugins/worldbook'), fixturePackage, { recursive: true });
+  const seed = JSON.parse(await readFile(resolve('tests/fixtures/classroom-seed.json'), 'utf8'));
+  await writeFile(join(fixturePackage, 'worldbook.json'), JSON.stringify({ entries: seed.entries.slice(1) }));
+  const seedManifest = JSON.parse(await readFile(join(fixturePackage, 'package.json'), 'utf8')); seedManifest.version = '1.0.0'; await writeFile(join(fixturePackage, 'package.json'), JSON.stringify(seedManifest));
+  let plugin = await install(fixturePackage);
   const lab = await install(resolve('examples/plugins/function-lab'));
   const argument = await install(resolve('examples/plugins/argument-studio'));
   expect([plugin, lab, argument].every(row => row.state === 'enabled')).toBe(true);
@@ -59,7 +63,7 @@ test('worldbook background is opt-in, editable, bounded and survives plugin remo
   expect((await client.rpc('studyforgePlugins/saveDraft', { input: { ...draft, digest: plugin.digest } })).ok).toBe(false);
   expect((await client.rpc('studyforgePlugins/readDraft', { input: { ...target, digest: plugin.digest } })).ok).toBe(false);
   expect((await client.rpc('studyforgePlugins/saveDraft', { input: { ...draft, json: '"' + 'a'.repeat(64_001) + '"' } })).ok).toBe(false);
-  const source = join(runtime.root, 'updated-world'); await cp(resolve('examples/plugins/worldbook'), source, { recursive: true });
+  const source = join(runtime.root, 'updated-world'); await cp(fixturePackage, source, { recursive: true });
   const manifest = JSON.parse(await readFile(join(source, 'package.json'), 'utf8')); manifest.version = '1.1.0'; manifest.notara.worldbooks[0].id = 'worldbook-v2'; await writeFile(join(source, 'package.json'), JSON.stringify(manifest));
   await writeFile(join(source, 'worldbook.json'), JSON.stringify({ entries: [] })); plugin = await install(source, plugin.revision);
   expect(value(await client.rpc<WorldbookView>('studyforgePlugins/readWorldbook', { input: target })).document).toEqual(changed);

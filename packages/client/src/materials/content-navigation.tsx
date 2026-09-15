@@ -32,6 +32,7 @@ export function registerContentNavigation(ctx: Context): void {
           if (location.sequence !== undefined) await ctx.sessions.binding(props.sessionId)?.session.loadThrough(location.sequence as SessionSeq);
           requestAnimationFrame(() => requestAnimationFrame(() => {
             if (!live || ctx.sessions.list.getSnapshot().current !== props.sessionId) return;
+            if (location.sequence !== undefined) document.querySelector<HTMLElement>(`[data-classmate-sequence="${location.sequence}"]`)?.scrollIntoView({ block: 'center' });
             if (location.turn !== undefined) document.querySelector<HTMLElement>(`[data-chat-turn="${location.turn}"]`)?.scrollIntoView({ block: 'center' });
             if (pending === location) { pending = undefined; notify(); }
           }));

@@ -142,7 +142,10 @@ export class PluginManager {
     let pin = this.pins.list(context).find(row => row.ref === 'pluginpin:' + key);
     if (!pin) pin = await this.pins.create({ ...context, operationId: 'pin:' + key }, key, { sessionId, pluginRef: choice.pluginRef, contributionId: choice.contributionId, digest: choice.digest });
     const version = this.get(choice.pluginRef, pin.data.digest), worldbook = version.manifest.notara.worldbooks.find(entry => entry.id === choice.contributionId);
-    if (worldbook) return { ...choice, digest: version.digest, title: worldbook.title, kind: 'worldbook', html: '', permissions: ['save-note'] };
+    if (worldbook) {
+      const seed = JSON.parse(this.body(choice.pluginRef, version.digest, worldbook.entry)) as { classroom?: unknown };
+      return { ...choice, digest: version.digest, title: worldbook.title, kind: seed.classroom ? 'classroom' : 'worldbook', html: '', permissions: ['save-note'] };
+    }
     const contribution = version.manifest.notara.workbenches.find(entry => entry.id === choice.contributionId);
     if (!contribution) throw new Error('plugin_workbench_missing');
     return { ...choice, digest: version.digest, title: contribution.title, html: this.body(choice.pluginRef, version.digest, contribution.entry), permissions: contribution.permissions, ...(contribution.document ? { documentKind: contribution.document.kind } : {}) };

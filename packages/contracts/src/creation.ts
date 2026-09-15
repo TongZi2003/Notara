@@ -1,13 +1,18 @@
 import { z } from 'zod';
 import { MaterialContextSchema } from './materials.ts';
+import { WorldbookDocumentSchema } from './plugins.ts';
+import { ClassroomDefinitionSchema } from './classroom.ts';
 
-export const ArtifactKindSchema = z.enum(['subject', 'teaching', 'skill', 'html', 'markdown']);
+export const ClassroomDocumentSchema = WorldbookDocumentSchema.safeExtend({ classroom: ClassroomDefinitionSchema });
+export const artifactEntry = (kind: string): 'content.md' | 'index.html' | 'worldbook.json' => kind === 'html' ? 'index.html' : kind === 'classroom' ? 'worldbook.json' : 'content.md';
+
+export const ArtifactKindSchema = z.enum(['subject', 'teaching', 'skill', 'html', 'markdown', 'classroom']);
 export type ArtifactKind = z.infer<typeof ArtifactKindSchema>;
 export const ArtifactManifestSchema = z.object({
   title: z.string().trim().min(1).max(160), kind: ArtifactKindSchema,
   description: z.string().max(2000).default(''), subjects: z.array(z.string().trim().min(1).max(80)).max(12).default([]),
-  entry: z.enum(['content.md', 'index.html']),
-}).strict().refine(value => value.entry === (value.kind === 'html' ? 'index.html' : 'content.md'), 'entry must match artifact kind');
+  entry: z.enum(['content.md', 'index.html', 'worldbook.json']),
+}).strict().refine(value => value.entry === artifactEntry(value.kind), 'entry must match artifact kind');
 export type ArtifactManifest = z.infer<typeof ArtifactManifestSchema>;
 export const ArtifactTargetSchema = z.object({ ref: z.string().min(1), version: z.number().int().positive() }).strict();
 export const CreationRecordSchema = z.object({
@@ -32,7 +37,7 @@ export const ArtifactCreateSchema = z.object({
   target: ArtifactTargetSchema.optional(), originSessionId: z.string().optional(),
 }).strict();
 export type ArtifactCreate = z.infer<typeof ArtifactCreateSchema>;
-export const ArtifactSaveSchema = z.object({ ref: z.string().min(1), path: z.enum(['manifest.json', 'content.md', 'index.html']), expectedDigest: z.string().min(1), content: z.string().max(1_000_000) }).strict();
+export const ArtifactSaveSchema = z.object({ ref: z.string().min(1), path: z.enum(['manifest.json', 'content.md', 'index.html', 'worldbook.json']), expectedDigest: z.string().min(1), content: z.string().max(1_000_000) }).strict();
 
 export const InstalledArtifactSchema = z.object({
   projectRef: z.string(), activeDigest: z.string(), enabled: z.boolean(), removed: z.boolean().optional(),

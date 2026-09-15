@@ -14,6 +14,7 @@ export class StudentFileSystem extends LocalFileSystem {
   private check(target: FsTarget, write = false): ExecutionBinding {
     const record = this.bindings.get(target); if (!record || !this.access.isCurrent(record.binding)) return this.deny();
     const path = canonicalPath(super.processPath(target), record.binding.cwd);
+    if (write && record.binding.purpose === 'creation' && path === resolve(record.binding.projectRoot, 'worldbook.json')) throw new FsError('教室草稿请通过 read_classroom_draft / save_classroom_draft 编辑，以保留格式校验和面板修改。', 'FS_PERMISSION_DENIED');
     if (!record.root || write) { if (!this.access.permits(record.binding, path, write)) return this.deny(); }
     return record.binding;
   }

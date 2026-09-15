@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 const pluginIcons: Record<string, string> = {
-  '世界书': 'world', '函数实验台': 'function', '论证工作台': 'argument',
+  '世界书': 'world', '教室': 'seminar', '函数实验台': 'function', '论证工作台': 'argument',
   '老师黑板': 'board', '错解诊所': 'clinic', '几何作图台': 'geometry',
   '史料侦探局': 'evidence', '时空地图': 'atlas', '多智能体研讨室': 'seminar', '情境模拟器': 'simulation',
 };

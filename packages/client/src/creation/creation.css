@@ -2,6 +2,8 @@
 .sf-creation header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:22px}
 .sf-creation h1,.sf-creation h2{font:400 var(--sf-text-page)/1.4 var(--nb-hand,serif);color:var(--nb-pen,#26437c);margin:0 auto 0 0}
 .sf-creation h2{font-size:var(--sf-text-section)}
+.sf-classroom-design{height:min(680px,76vh);min-height:480px;border:1px solid var(--nb-rule);border-radius:var(--sf-ui-radius,10px);overflow:hidden}
+.sf-classroom-design header{margin:0;flex-wrap:nowrap}.sf-classroom-design h2{font:inherit}
 .sf-creation-new{display:flex;flex-wrap:wrap;gap:12px;padding-bottom:24px;border-bottom:1px solid var(--nb-rule,#d9d2bd)}
 .sf-creation-new input,.sf-creation-new select{font:14px/1.5 var(--nb-print,serif);border:1px solid var(--nb-rule,#ddd);background:var(--nb-hi,#fffdf6);color:inherit;padding:9px 12px;max-width:100%;box-sizing:border-box;min-width:0}
 .sf-creation-new input:first-child{flex:1 1 230px}

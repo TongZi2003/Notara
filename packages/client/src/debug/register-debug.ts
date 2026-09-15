@@ -80,10 +80,12 @@ export function registerDebugSurfaces(ctx: Context): void {
   // preference to Trajectory. Neither debug view supplies learning facts.
   ctx.effect(() => {
     let dispose: (() => void) | undefined;
+    let disposeLineage: (() => void) | undefined;
     const sync = (): void => {
       document.documentElement.dataset.studyforgeDebug = String(debugEnabled());
       window.dispatchEvent(new Event('studyforge:debug-views'));
       if (debugEnabled()) {
+        disposeLineage?.(); disposeLineage = undefined;
         dispose ??= ctx.slots.inject('conversation.view', () => ctx.slots.register({
           name: 'conversation.view', id: RAW_VIEW_ID, order: 30, label: () => 'Raw',
           inject: (sessionId): RawDebugInjected => ({
@@ -95,10 +97,15 @@ export function registerDebugSurfaces(ctx: Context): void {
       } else {
         dispose?.();
         dispose = undefined;
+        // Native child navigation exposes the complete preparation conversation.
+        // Classroom participants are viewed through the public classroom projection.
+        disposeLineage ??= ctx.slots.inject('conversation.session.header.lineage', () => ctx.slots.register({
+          name: 'conversation.session.header.lineage', priority: -20,
+        }, () => null));
       }
     };
     const unsubscribe = subscribeDebug(sync);
     sync();
-    return () => { unsubscribe(); dispose?.(); };
+    return () => { unsubscribe(); dispose?.(); disposeLineage?.(); };
   }, 'studyforge: raw debug view');
 }

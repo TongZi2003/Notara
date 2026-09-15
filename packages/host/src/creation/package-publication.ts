@@ -1,5 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { ArtifactView, ArtifactInstallation, ArtifactManifest } from '@studyforge/contracts/creation';
+import { artifactEntry } from '@studyforge/contracts/creation';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { PluginVersion } from '@studyforge/contracts/plugins';
@@ -14,7 +15,7 @@ export function creationInstallation(host: Context, ref: string): ArtifactInstal
 }
 export function creationManifest(version: PluginVersion): ArtifactManifest {
   const kind = version.creation!.kind, manifest = version.manifest.notara;
-  return { title: manifest.title, description: manifest.description, kind, subjects: manifest.subjects.flatMap(item => item.subjects), entry: kind === 'html' ? 'index.html' : 'content.md' };
+  return { title: manifest.title, description: manifest.description, kind, subjects: manifest.subjects.flatMap(item => item.subjects), entry: artifactEntry(kind) };
 }
 export async function publishCreationPackage(host: Context, view: ArtifactView, expectedVersion: number): Promise<ArtifactInstallation> {
   const manifest = view.manifest!;
@@ -28,7 +29,7 @@ export async function publishCreationPackage(host: Context, view: ArtifactView, 
   await mkdir(source, { recursive: true, mode: 0o700 });
   const entry = { id: 'main', title: manifest.title, description: manifest.description, entry: manifest.entry };
   const capabilities = { apiVersion: 1, title: manifest.title, description: manifest.description,
-    [manifest.kind === 'html' ? 'workbenches' : manifest.kind === 'subject' ? 'subjects' : manifest.kind === 'teaching' ? 'teaching' : 'skills']:
+    [manifest.kind === 'classroom' ? 'worldbooks' : manifest.kind === 'html' ? 'workbenches' : manifest.kind === 'subject' ? 'subjects' : manifest.kind === 'teaching' ? 'teaching' : 'skills']:
       [{ ...entry, ...(manifest.kind === 'html' ? { permissions: [] } : manifest.kind === 'subject' ? { subjects: manifest.subjects } : {}) }] };
   const version = known?.manifest.version ?? '1.0.' + (current?.data.versions.length ?? 0);
   await writeFile(join(source, 'package.json'), JSON.stringify({ name: '@notara/creation-' + view.ref.slice(9), version, notara: capabilities }));

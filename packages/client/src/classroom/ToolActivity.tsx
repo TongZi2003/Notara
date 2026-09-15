@@ -7,6 +7,7 @@ import { prettyToolArguments, toolDisplayCopy, type ToolDisplayState } from './t
 import './tool-activity.css';
 import { ArtifactViewSchema } from '@studyforge/contracts/creation';
 import { openCreation } from '../creation/creation-navigation.ts';
+import { useDebugEnabled } from '../debug/debug-mode.ts';
 
 type ToolNodeProps = PropsRuntime<'conversation.chat.node', 'tool-call'>;
 type ProcessProps = PropsRuntime<'conversation.chat.node', 'turn-process'>;
@@ -40,11 +41,16 @@ function ToolStep({ block, inspectCall, renderMessageImages, ctx }: {
   renderMessageImages: RenderMessageImages;
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
+  const debug = useDebugEnabled();
   const settled = 'kind' in block;
   const name = settled ? block.call?.name ?? '' : block.name;
   const raw = settled ? block.call?.argsRaw ?? '' : block.argsRaw;
   const state: ToolDisplayState = !settled ? 'running' : block.error?.code === 'interrupted' ? 'stopped' : block.isError ? 'error' : 'ok';
   const resultRaw = settled ? block.content.find(part => part.type === 'text')?.text ?? '' : '';
+  if (!debug && ['ask_classmate', 'continue_classmate', 'read_classroom', 'update_classroom_context'].includes(name)) {
+    const copy: Record<string, string> = { ask_classmate: '安排同学参与', continue_classmate: '继续同学任务', read_classroom: '查看教室安排', update_classroom_context: '更新课堂背景' };
+    return <div className="sf-tool-step" data-testid="classroom-private-tool" data-tool-state={state}><span className="sf-tool-state" aria-hidden="true">{state === 'running' ? '◌' : state === 'ok' ? '✓' : '·'}</span> {copy[name]}{state === 'running' ? '…' : state === 'error' ? '未完成' : state === 'stopped' ? '已停止' : ''}</div>;
+  }
   let artifact: { ref: string; title: string } | undefined;
   if (name === 'draft_artifact' && state === 'ok') { try { const parsed = ArtifactViewSchema.safeParse(JSON.parse(resultRaw)); if (parsed.success) artifact = { ref: parsed.data.ref, title: parsed.data.manifest?.title ?? '课堂作品' }; } catch { /* incomplete result remains in details */ } }
   const images: MessageImageSource[] = settled ? block.content.flatMap(part => part.type === 'image' && 'attachment' in part

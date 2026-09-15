@@ -15,4 +15,5 @@ declare module '*/controls.css' {}
 declare module '*/typography.css' {}
 declare module '*/library-browser.css' {}
 declare module '*/plugins.css' {}
+declare module '*/classroom.css' {}
 declare module '*/entity-reference.css' {}

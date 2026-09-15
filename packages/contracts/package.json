@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./classroom": { "types": "./lib/types/classroom.d.ts", "default": "./lib/types/classroom.js" },
     "./math-workbench": { "types": "./lib/types/math-workbench.d.ts", "default": "./lib/types/math-workbench.js" },
     "./math-scene": { "types": "./lib/types/math-scene.d.ts", "default": "./lib/types/math-scene.js" },
     "./math-expression": { "types": "./lib/types/math-expression.d.ts", "default": "./lib/types/math-expression.js" },
