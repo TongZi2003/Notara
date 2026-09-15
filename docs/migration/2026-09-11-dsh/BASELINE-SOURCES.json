@@ -1,0 +1,340 @@
+{
+  "version": 2,
+  "verifiedAt": "2026-09-11",
+  "sourceBranch": "codex/contract-repair-integration",
+  "sourceCommit": "3831987c0568b66b6b43aacaf999760757922e3c",
+  "sourceWorktree": "/Users/yangrundong/.codex/worktrees/8f7d/Oh-My-Student",
+  "meaning": "File provenance only; no product tests executed in this documentation turn.",
+  "entries": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "a7de162b3cbd644c8b83e04aba2d005a35fd3e809c7c1a964a46de616b823703",
+      "bytes": 38021
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "03c739d5d046675a2435b4be9d011da9dc55ba62c1076a3665e3457ae96dcc8f",
+      "bytes": 216480
+    },
+    {
+      "path": "bin/memory_schema.py",
+      "sha256": "2a7345ea5d1acfa0ecb67b9d71182969c1cfffe2d251fb8188b949669c9ce7da",
+      "bytes": 19459
+    },
+    {
+      "path": "bin/memory_context.py",
+      "sha256": "a98cc9edf9f7594d9786fecacfd474725f68ce93fb3e8f75bff81523b2621441",
+      "bytes": 15217
+    },
+    {
+      "path": "bin/memory_authoring.py",
+      "sha256": "ef4cd36082ec36f0a08568debd52b068515e8441529e86848733221d3e39dfae",
+      "bytes": 7131
+    },
+    {
+      "path": "bin/memory-write",
+      "sha256": "4305a7d27e0005541f463f84bdeaf72aa11c2d0c2df1bb32378c09c91b5a5ce3",
+      "bytes": 23112
+    },
+    {
+      "path": "bin/method_schema.py",
+      "sha256": "3cc8507269b16e95ad9e3ae6cc877d71a1b453092319b0f62acda4118038e46d",
+      "bytes": 13756
+    },
+    {
+      "path": "bin/method_store.py",
+      "sha256": "7a82606e594a38424e61021e6bd3386874e37ab85031a8b843211a0001df4cd9",
+      "bytes": 29127
+    },
+    {
+      "path": "bin/record_scope.py",
+      "sha256": "390f107f6a2370a125d76c33e1fed159ce1912205faad2d862ae35bb20676146",
+      "bytes": 19523
+    },
+    {
+      "path": "bin/learning_search.py",
+      "sha256": "dd2cbeab72c419da52d9491f33327c5ce2037f17739f6c18ee5b7baab418125a",
+      "bytes": 10138
+    },
+    {
+      "path": "bin/asset_schema.py",
+      "sha256": "496babd9f65eb74caf5a013977497fc8f0b19ca000e3122150e3edd5e1c43700",
+      "bytes": 27725
+    },
+    {
+      "path": "bin/asset_state.py",
+      "sha256": "c4d9b76fd0f3bc1c4b6779f5340d78044cda2926a3b5c5e7b913e5d131b2e256",
+      "bytes": 10549
+    },
+    {
+      "path": "bin/card_authoring.py",
+      "sha256": "b5cc195c0dada94ba17371f80abdd24da9d2f4a5c0abb926f006a6a3bed7298d",
+      "bytes": 11996
+    },
+    {
+      "path": "bin/card-edit",
+      "sha256": "e900fd020dc2e5d82f9d8cd01aa2b149db1a483ea05712b21e27965bcd78422b",
+      "bytes": 16165
+    },
+    {
+      "path": "bin/review",
+      "sha256": "cbad454a132f9afcfc5400337d6ebcf13da9cf9f1b51e03440a0ae4a20507bd4",
+      "bytes": 14582
+    },
+    {
+      "path": "bin/review_evidence.py",
+      "sha256": "fc0682787e413d1f4b49c7daca752917a39564df82565cc98f09e4a352d57cd1",
+      "bytes": 15372
+    },
+    {
+      "path": "bin/confirmations.py",
+      "sha256": "dd18e60ed0eecca2ffd2c37726c14c9fa194eac82460af4aafd4615bc538f033",
+      "bytes": 143331
+    },
+    {
+      "path": "bin/direct_ops.py",
+      "sha256": "e600aa29c7de52518dca09d7a2be3e78465c9f1cdabad671ab330f4609e170a2",
+      "bytes": 34054
+    },
+    {
+      "path": "bin/execution_profile.py",
+      "sha256": "20307126e7c1cd8b68b0fd68224484586cee253fcb4189d55a749ed93ffe88ba",
+      "bytes": 17016
+    },
+    {
+      "path": "bin/class_close.py",
+      "sha256": "6197dbe1af1f26518437d5b851de697d27e41e8735f634d9edcd1c70849511a5",
+      "bytes": 15640
+    },
+    {
+      "path": "bin/class_handoff.py",
+      "sha256": "921b6c3a14684a6d195af958793c3981c51dd134178fbad674f0d642e7422679",
+      "bytes": 16613
+    },
+    {
+      "path": "bin/handoff_authoring.py",
+      "sha256": "d815f55d8bebe03ae592984228a3af6bc8e3c75170efc2a4fb3511a08d75470b",
+      "bytes": 22766
+    },
+    {
+      "path": "bin/class_outputs.py",
+      "sha256": "f517b27735f03736083f5c7b2bbfdcd052c6016e78c022c95b7ca6e5b3ac182f",
+      "bytes": 9802
+    },
+    {
+      "path": "bin/organization_meta.py",
+      "sha256": "e23cd127f40a9532cfdcd37c107b4977b5de35c9f16825f24a643a4eff5cce46",
+      "bytes": 5371
+    },
+    {
+      "path": "bin/learning_structure_authoring.py",
+      "sha256": "642af657fb206895ed57d02692092587a4c91e5dcd75595b42f465ace8fa5b6d",
+      "bytes": 42714
+    },
+    {
+      "path": "bin/lesson_authoring.py",
+      "sha256": "fc350961a097060fc6131f8bb70fce47b4f5c3695f8bec84e70121772108341b",
+      "bytes": 6043
+    },
+    {
+      "path": "bin/set_store.py",
+      "sha256": "4fa5d56b99683c28927cd00155ccf44faa2bd672c610c29e643d82bf46630d08",
+      "bytes": 32699
+    },
+    {
+      "path": "bin/creation_schema.py",
+      "sha256": "0070bb6ecffdac556113a42537728eec00d540f04fb957765628c3faa82c0623",
+      "bytes": 4808
+    },
+    {
+      "path": "bin/creation_authoring.py",
+      "sha256": "eebd2d1821bbdb28e8aa23ffcfbfac3b4e5c09010a39164f47ca4999555cec45",
+      "bytes": 12902
+    },
+    {
+      "path": "bin/creation_tools.py",
+      "sha256": "a5f70bba40e46a9a26360bf18bea3d199de0f63d9598b61e98d1b6092aeaee81",
+      "bytes": 19524
+    },
+    {
+      "path": "bin/creation_preview.py",
+      "sha256": "2e50cddec083ee200dadf9f285474f96fdb4915d20188b27cf2e0ea260da18d8",
+      "bytes": 20876
+    },
+    {
+      "path": "bin/pack_registry.py",
+      "sha256": "2536fe8e3c2bdddf672e2d7ad130112891222d8bc5521e5d596c4cb7dc386fd0",
+      "bytes": 10677
+    },
+    {
+      "path": "bin/visual_schema.py",
+      "sha256": "a321eb5748885bb16ec46fa13c804b78718ed2ff9a95764d4a95efaa85236f5a",
+      "bytes": 16384
+    },
+    {
+      "path": "bin/visual_molds.py",
+      "sha256": "68e7380589148a4691a5ad1a2e1634a7e1b498ce978de9706e76ed1a13a463a2",
+      "bytes": 13042
+    },
+    {
+      "path": "bin/classroom_visuals.py",
+      "sha256": "54375beb4dba0e5f885537941cfb6fe56498a027a1e7ae34580bdaee3270b8ff",
+      "bytes": 4909
+    },
+    {
+      "path": "bin/preset_rules.py",
+      "sha256": "3c08611c45edf28bd8a32e5d7db04e0fcebae6f589310e8bbb9f60c26dc94e93",
+      "bytes": 50660
+    },
+    {
+      "path": ".pi/skills/teaching/SKILL.md",
+      "sha256": "e4de34261bc0b97d31954a0b77424c378b0318599316b5cc68bfe151a5438e88",
+      "bytes": 41783
+    },
+    {
+      "path": ".pi/skills/teaching/modes/导学.md",
+      "sha256": "57e1eaaba50a7508446e2ca270298829313a46ca46937c052c4e67a05c9658c3",
+      "bytes": 4333
+    },
+    {
+      "path": ".pi/skills/teaching/modes/规划.md",
+      "sha256": "9f8f7fece43d3864e11c5189b74babbb2aabbdf6d390cc370c8a56029a49eb99",
+      "bytes": 9639
+    },
+    {
+      "path": ".pi/skills/teaching/modes/诊断课.md",
+      "sha256": "f93192b33650ca69fdd345babd7b88880573bc7154a5e2d2e9969217c5c25fdf",
+      "bytes": 8832
+    },
+    {
+      "path": ".pi/skills/teaching/modes/头脑风暴.md",
+      "sha256": "5f784cc5867320b2278b8310a8cf3ae1838a4743b91b77035806dd5ba06cdb79",
+      "bytes": 5886
+    },
+    {
+      "path": ".pi/skills/book-prep/SKILL.md",
+      "sha256": "bdd02084cab5599d590501508aa12f0cf47113039cde2aa01c30f82f451c93a9",
+      "bytes": 7648
+    },
+    {
+      "path": ".pi/extensions/subagent/index.ts",
+      "sha256": "bffe9b72d7f4c9c9742fef56178557a0073fbe850bc188161fbaa291e2886d18",
+      "bytes": 41238
+    },
+    {
+      "path": "app/js/course.js",
+      "sha256": "c835b9465ba1ee1d8c2a011fbd2c216ffd53ea43e95927821db8b6d9cf0e758d",
+      "bytes": 49537
+    },
+    {
+      "path": "app/js/course-state.js",
+      "sha256": "758ec5c37dcd416caef4d5bb0e1cce8be2d734cae253b2cb53d4525e9eb5c289",
+      "bytes": 5476
+    },
+    {
+      "path": "app/js/classroom.js",
+      "sha256": "870a9fb93a51f2620b6b2549d6118eba6c49a8ca5fbb8a98dd0f00764815e0fd",
+      "bytes": 5786
+    },
+    {
+      "path": "app/js/class-outputs.js",
+      "sha256": "00ec293ce73094fed67d26efec5a9666ca182fc0614f541bf8ed19ea7466863a",
+      "bytes": 3113
+    },
+    {
+      "path": "app/js/sets.js",
+      "sha256": "cb74c2a9837010cf4787b7e3d70aa4256a55088c415d667de35d4909db6a4a6d",
+      "bytes": 24692
+    },
+    {
+      "path": "app/js/router.js",
+      "sha256": "e5fd63f521f5db4a83686dc33f3ed0669529d98ceaa7812d2478ccb7455ade74",
+      "bytes": 17608
+    },
+    {
+      "path": "app/js/card-editor.js",
+      "sha256": "aa20bd2ded15896e2e4703c6ca4cc0b2e4f5b7772605aff3e856eb9a53a5c0c4",
+      "bytes": 23561
+    },
+    {
+      "path": "app/js/handoff-editor.js",
+      "sha256": "b84fdb1347c7cb2a842e85d6fb6462f68745ceec393aa563dae321f057872ea4",
+      "bytes": 9131
+    },
+    {
+      "path": "app/js/visuals.js",
+      "sha256": "ee87a130e2731a6182ab75344727c90c2aef79406684d4308223bea7f9571834",
+      "bytes": 9177
+    },
+    {
+      "path": "app/js/creation-editor.js",
+      "sha256": "d492364f616621b96229674e6748198bc6aa6d4428517d6b41490294fb82c764",
+      "bytes": 13002
+    },
+    {
+      "path": "dev/tests/c01-card-editor.mjs",
+      "sha256": "e91689073838c4a5200b920afb7839343477165357c4e26f6525db621dd954de",
+      "bytes": 17779
+    },
+    {
+      "path": "dev/tests/c02-memory-editor.mjs",
+      "sha256": "effc267087b39c7686cbd7b4b00344b235576f2a6f411a8dc6c229df1456f8be",
+      "bytes": 6023
+    },
+    {
+      "path": "dev/tests/c03-organization-ui.mjs",
+      "sha256": "1e9fec4927aa89c36fa2bae1059581d5abba0526657651f6638a8041d953ee4d",
+      "bytes": 10156
+    },
+    {
+      "path": "dev/tests/c04-handoff-editor.mjs",
+      "sha256": "5ad749d80083ca133edb7f5acf3b5005e27d89bd8079a55a1d6f98363e129e66",
+      "bytes": 6326
+    },
+    {
+      "path": "dev/tests/c05-workbench-ui.mjs",
+      "sha256": "4c32c090834f9b8759337622305835f215a67b1aaa1d29ac473756b53cae1269",
+      "bytes": 9458
+    },
+    {
+      "path": "dev/tests/learning-entry-priority.mjs",
+      "sha256": "04f002c671e928e765ec19f84b8d3a20b65f72d832e775e06cb20c5702a02298",
+      "bytes": 30258
+    },
+    {
+      "path": "dev/tests/learning-records-native.sh",
+      "sha256": "fdfd4626ac8406f923f7ac4667b0059ba157bfa71160472b444dd665ba7125a1",
+      "bytes": 131
+    },
+    {
+      "path": "dev/tests/knowledge-single-body.sh",
+      "sha256": "f866c47bb6fbd71d253d25edeea37bd5c71f5f9a2562cd5f354404b19a4beaff",
+      "bytes": 171
+    },
+    {
+      "path": "dev/tests/structured-planning-r03.sh",
+      "sha256": "c4b2ff68f82df1ccfed32d9922804b43a5265cd26df24782153759d356833661",
+      "bytes": 111
+    },
+    {
+      "path": "dev/tests/class-close-native.sh",
+      "sha256": "2b3d81b9321b552cd577df12f82be7d1f5e48592538473bc1f61bffec069b9d9",
+      "bytes": 104
+    },
+    {
+      "path": "dev/tests/creation-preview-report.sh",
+      "sha256": "cada47b67eb2f9daeade1b385d61126d2e87e090abd018a23ceb0179f88138c1",
+      "bytes": 122
+    },
+    {
+      "path": "dev/tests/creation-workspace-version-contract-c05.sh",
+      "sha256": "36100860ecfe4e6115d99fd19bd7b3a67488733653149f93ca1f0c16e8c04ce2",
+      "bytes": 1178
+    },
+    {
+      "path": "dev/tests/memory-evidence-projection-c02.sh",
+      "sha256": "e3326efff8644477c4456a8e526b7024233374a086ad72a68225357ec90b922b",
+      "bytes": 373
+    }
+  ]
+}

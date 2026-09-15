@@ -1,6 +1,6 @@
 # Notara 插件接入
 
-产品设计与执行记录分别见 [设计](../../../docs/superpowers/specs/2026-09-14-notara-plugins-design.md)、[计划](../../../docs/superpowers/plans/2026-09-14-notara-plugins.md)、[验收](../../../docs/dev-log/2026-09-14-Notara-plugins-v1.md)。
+产品设计与执行记录分别见 [设计](../migration/2026-09-14-notara-plugins-design.md)、[计划](../migration/2026-09-14-notara-plugins.md)、[验收](../migration/2026-09-14-Notara-plugins-v1.md)。
 
 支持 npm 包中的 `notara.apiVersion=1`，提供 skills、workbenches、teaching、subjects、worldbooks。本地目录及 `.tgz`/`.tar.gz` 均通过插件页检查后确认安装。
 

@@ -1,5 +1,5 @@
 /**
- * P3.3 DOCX stable index (docs/superpowers/plans/2026-09-11-dsh/P3-materials.md §P3.3).
+ * P3.3 DOCX stable index (docs/migration/2026-09-11-dsh/P3-materials.md §P3.3).
  *
  * `indexDocx` turns the exact bytes of one immutable MaterialVersion into the
  * block list a source anchor points at: `{ kind:'docx'; part; blockId; start;

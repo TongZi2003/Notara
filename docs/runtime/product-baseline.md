@@ -1,17 +1,14 @@
-# 产品基线/范围记录（P1.1）
+# 产品基线/范围记录
 
-本文件只登记 P1.1 接收的**事实**与**边界**。它不证明任何产品行为；
-行为证据按各阶段自己的命令与日志登记。裁决来源：`docs/superpowers/plans/2026-09-11-dsh/`
-下的总计划 v2.3、[CONTRACTS](../../../docs/superpowers/plans/2026-09-11-dsh/CONTRACTS.md)、
-[SIMPLIFICATION](../../../docs/superpowers/plans/2026-09-11-dsh/SIMPLIFICATION.md)、
-[BASELINE](../../../docs/superpowers/plans/2026-09-11-dsh/BASELINE.md)。近目录规则见 `dsh/AGENTS.md`。
+本文件只登记产品基线、范围和版本事实。它不证明任何产品行为；行为证据按各阶段自己的命令与日志登记。
+当前裁决来源是 [`docs/migration/`](../migration/README.md) 下的总计划、共同契约、精简裁决和基线文件。
 
 ## 1. 两个仓的职责
 
 | 角色 | 位置 | commit | 用途 |
 |---|---|---|---|
-| **B 产品基线** | `/Users/yangrundong/.codex/worktrees/8f7d/Oh-My-Student` | `3831987c0568b66b6b43aacaf999760757922e3c`（`codex/contract-repair-integration`，2026-09-11 16:38:05 +0800） | 旧产品**行为**事实源：只读，用 `git show <commit>:<path>` 取证 |
-| **R 迁移产物** | `/Users/yangrundong/Oh-My-Student-dsh-migration/dsh` | 分支 `codex/dsh-native-migration` | 本迁移的唯一写入范围；已接 P0 |
+| **B 产品基线** | 外部历史提交 | `3831987c0568b66b6b43aacaf999760757922e3c`（`codex/contract-repair-integration`，2026-09-11） | 旧产品**行为**事实源；需要复核时按提交和路径取证 |
+| **DSH 独立仓库** | 当前仓库根目录 | 当前 Git 提交 | 本仓库的唯一写入范围 |
 
 B 只读，不写、不 checkout、不跑测试；BASELINE 记录的唯一脏项是无关的已删除 swap 文件，不纳入基线。
 本仓旧 `bin/ app/ .pi/` **不是**新系统的产品合同源。
@@ -21,7 +18,7 @@ B 只读，不写、不 checkout、不跑测试；BASELINE 记录的唯一脏项
 | 项 | 值 | 来源 |
 |---|---|---|
 | DSH | `0.1.5-rc.2`，tag commit `fb2c4b9e698e30edb738bca4cf0618587db7d203` | `docs/runtime/upstream-lock.json`；P0 G0 |
-| Node / npm | `>=24` / 本机 `v24.13.0`、`11.6.2` | `dsh/package.json` `engines`、`.nvmrc` |
+| Node / npm | `>=24` / 本机验证使用 Node `v24.13.0` | `package.json` `engines`、`.nvmrc` |
 | TypeScript | `6.0.3` | 由 rc.2 生成器的 `^6.0.3` 定点决定；不用 TS 5 |
 | cordis | `4.0.2` 家族 | `package-lock.json` |
 | React / Playwright | `18.3.1` / `1.63.0`（Chromium 153） | P0 G0 运行环境 |

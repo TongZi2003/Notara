@@ -1,5 +1,5 @@
 /**
- * P3.3 DOCX text normalization (docs/superpowers/plans/2026-09-11-dsh/P3-materials.md §P3.3).
+ * P3.3 DOCX text normalization (docs/migration/2026-09-11-dsh/P3-materials.md §P3.3).
  *
  * One paragraph becomes one string. `w:t` supplies the characters; `w:tab` and
  * `w:br`/`w:cr` keep their layout characters ('\t', '\n') because the rendered

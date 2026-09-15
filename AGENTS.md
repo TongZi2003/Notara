@@ -1,49 +1,34 @@
-# R/dsh 近目录规则（DSH 原生迁移）
+# DSH 仓库开发规则
 
-本目录是 DSH 原生迁移产物根（**R/dsh**）。仓库根 `AGENTS.md` / `CLAUDE.md` 继续适用；
-**离本目录更近的规则以本文为准**，与旧计划或旧仓实现冲突时，以用户在本次迁移中的精简裁决优先。
+本仓库是可独立运行的 DSH 原生 StudyForge 插件与课堂运行时。所有相对路径从本仓库根目录计算；本仓库不依赖母仓库的 `AGENTS.md`、`CLAUDE.md` 或旧 Pi 运行时才能构建和测试。
 
-## 当前事实源（P1.1 锁定）
+## 当前事实源
 
-- 产品行为基线：**B** = `/Users/yangrundong/.codex/worktrees/8f7d/Oh-My-Student` @
-  `3831987c0568b66b6b43aacaf999760757922e3c`（`codex/contract-repair-integration`）。
-  **B 只读**：只允许 `git -C <B> show/cat-file` 取证，不写、不 checkout、不跑测试。
-- 本仓库旧 `bin/ app/ .pi/` **不是**新系统的产品合同源；不要照抄，也不要为了兼容旧格式复活它们。
-- 原生接缝与版本锁定见 `docs/runtime/upstream-lock.json` 与 `docs/runtime/bootstrap.md`；不要凭记忆升级 DSH。
-- DSH `0.1.5-rc.2`（tag commit `fb2c4b9e698e30edb738bca4cf0618587db7d203`）、Node `>=24`（本机 `v24.13.0`）、
-  TS `6.0.3`、cordis `4.0.2`。**锁文件是唯一裁判**，不允许混 rc。
-- P0 已接受 commit `a45d9f5749062229f5f96ff3efa3dd989931d9f1`，G0 PASS 审查 `13b5c2e`。
-  **保留 P0 版本/构建补丁**：`scripts/patch-sdk.ts` 的生成器构建期修正连同 `package-lock.json` 一起保留；
-  升级 SDK 时必须重新核验该补丁，不能静默沿用。
+- DSH 依赖版本以 `package-lock.json` 和 `docs/runtime/upstream-lock.json` 为准，所有 `@deepseek-ai/dsh-*` 必须保持同一 `0.1.5-rc.2` 系列。
+- Node 下限为 `>=24.0.0`；本机验证使用 Node `v24.13.0`。
+- 旧 StudyForge 产品基线只作为 `docs/migration/` 中记录的历史行为来源，不是运行时依赖；不要读取本机绝对路径来替代仓库内证据。
+- `docs/migration/` 保存当前迁移合同、Notara 规格和验收边界；`docs/runtime/`、`docs/ui/` 与 `docs/evidence/` 保存实现、运行和验证记录。
 
-## 新用户裁决优先（不得回退）
+## 代码边界
 
-以下旧计划/旧仓要求**已失效**，不要以“保持一致性”为名恢复：
+- `packages/contracts`：运行时 schema、DTO 和共享类型。
+- `packages/domain`：学习领域规则、记录与投影，不依赖客户端。
+- `packages/host`：原生 DSH Host、工具、权限和持久化接线。
+- `packages/client`：原生 DSH 页面、Slots 和学生可见投影。
+- `tests/unit`：纯逻辑；`tests/integration`：真实临时文件/进程接缝；`tests/e2e`：真实浏览器；`tests/live`：真实模型或外部服务。
+- `examples`：可独立构建的示例插件和插件源。
 
-- 不恢复「两个对象才能保存学情 / `verifiedAbility`」门槛；一次真实观察可以带情境保存。
-- 不恢复 `reason` 必填、`minor` 例外、全树编辑版本、全输入证据表、global 审批、固定重试/裁图次数。
-- 身份、来源、确认、复习**实际结果**仍必须正确：模型不填 ID/路径/时间戳/派生结论；
-  回复失败不装成功；复习只由记档推进。
+职责边界不要求每项都拆成独立服务或类；优先复用 DSH 原生生命周期和已有模块，只有实际领域差额才新增代码。
 
-## 文件与目录
+## 执行规则
 
-- 唯一产物是 **R/dsh**；所有相对路径默认从本目录算。
-- 已知包边界：`packages/contracts`（schema/DTO）、`packages/domain`（领域逻辑与存储）、
-  `packages/host`（原生 Host 接线）、`packages/client`（原生前端接线）。
-  包边界是职责声明，**空包不自动等于要建服务**；同职责可并入已有文件。
-- 测试按层放：`tests/unit`（纯逻辑，`vitest.unit.config.ts`）、
-  `tests/integration`（真实进程/端口/文件系统接缝，`vitest.integration.config.ts`）、
-  `tests/e2e`（Playwright 原生浏览器，`playwright.config.ts`）；后续 `tests/live` 只放真实模型/外部服务。
-- 两条 Vitest 配置一律 `passWithNoTests: false`：**零匹配就是失败**，不许用兜底把空测试假装成 PASS。
-  P1.1 阶段 `tests/unit`、`tests/integration` 尚无真实用例，跑 `npm run test:unit` / `test:integration`
-  预期各自退出 1（`No test files found, exiting with code 1`）——这是未使用例的正确红灯，不是缺陷。
-- 临时运行态一律进 `.runtime/`（已 gitignore）。
+- 只用本仓库 lockfile 中的脚本和依赖，不使用会隐式拉取版本的全局 CLI 或 `npx`。
+- 所有运行和 E2E 使用 `scripts/dev-isolated.ts` 的临时 `DSH_HOME`、临时课堂目录和随机端口；不启动、停止或修改其他 checkout、共享端口和真实用户目录。
+- `.runtime/`、`node_modules/`、`dist/`、`lib/`、测试结果和凭据是本机产物，不提交。
+- 不读取或提交 API key、认证 token、真实用户学习数据或完整私密课堂记录。
+- 学生可见内容不得泄露内部 agent 名、工具协议、路径、session/run ID、隐藏答案或教师专属判断。
+- 模型不能填写可由 Host 确定的 ID、路径、时间戳和派生状态；失败必须如实返回，不能用成功文案覆盖失败。
 
-## 执行红线
+## 验证口径
 
-- 不用 `npx` 或全局 CLI 隐式拉版本；只用本目录锁定的脚本与依赖。
-- 不启动/不 kill 共享服务（研究仓 4877、旧 DSH checkout、其他 worktree 的任何端口）。
-  需要真实运行时一律用 `scripts/dev-isolated.ts` 的临时 `DSH_HOME` + `--port 0`。
-- 不读取真实用户凭据，不把认证 token 写进日志、补丁或提交。
-- Git worktree 根带开发指令与旧学习文件：**不要把 worktree 目录当课堂工作目录**。
-- 不提交：本迁移由主 Agent 统一维护台账与提交。
+文档检查、合同检查、类型检查、构建、确定性单测/集成/E2E、真实模型和真实学生体验分别记账。没有运行的层级写 `未运行`，外部凭据或服务不可用写 `BLOCKED`，不把静态检查或测试模型结果写成真实教学质量通过。

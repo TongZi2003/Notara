@@ -1,5 +1,5 @@
 /**
- * P3.1 material-surface helpers (docs/superpowers/plans/2026-09-11-dsh/P3-materials.md).
+ * P3.1 material-surface helpers (docs/migration/2026-09-11-dsh/P3-materials.md).
  *
  * Pure functions only: what a picked file's declared type is, how its bytes
  * travel to the Host as base64, and how a refused import becomes a sentence the

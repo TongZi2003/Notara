@@ -26,7 +26,7 @@
 ## 3. 启动一个隔离 web 实例
 
 ```bash
-cd /Users/yangrundong/Oh-My-Student-dsh-migration/dsh
+cd <DSH仓库根目录>
 # 先激活 Node 24 LTS；使用 nvm 时运行 nvm use（读取本目录 .nvmrc）。
 node --version
 npm ci --no-audit --no-fund
@@ -71,7 +71,7 @@ P0.2/P0.3 的 fixture 必须：
 ## 6. 构建前置
 
 - Node：仓库 `engines.node` 下限 `>=24.0.0`；P0.1 在 `v24.13.0` / npm `11.6.2` 下核验。
-- 依赖树里的 `@deepseek-ai/dsh-*` 必须整体落在同一个 rc；混 rc 视为缺陷，以 `dsh/package-lock.json` 为准。
+- 依赖树里的 `@deepseek-ai/dsh-*` 必须整体落在同一个 rc；混 rc 视为缺陷，以 `package-lock.json` 为准。
 - TypeScript 与 `@deepseek-ai/dsh-typert-generator` 的 `^6.0.3` 声明匹配（见 `upstream-lock.json`）；**不要用 TS 5**。
 - 本项目 `tsconfig.base.json` 只定义 strict 基座：`strict`、`noUncheckedIndexedAccess`、`exactOptionalPropertyTypes`、
   `verbatimModuleSyntax`、`erasableSyntaxOnly`、`customConditions: ["@deepseek-ai/dsh-source"]`，且 **不启用 `skipLibCheck`**。
