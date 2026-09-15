@@ -36,3 +36,40 @@ test('thought nodes bind actual messages, edits survive restart, cycles fail and
   await expect.poll(async () => (await read()).nodes.some(n => n.body.includes('接着研究系统边界'))).toBe(true);
   expect((await read()).nodes.some(n => n.id === original.id)).toBe(true);
 }, 45_000);
+
+test('explicit stage advancement creates half-open frames and keeps route data separate', async () => {
+  runtime = await startIsolated({ testModel: true });
+  let client = await connectRuntime(runtime);
+  const { sessionId } = value(await client.rpc<{ sessionId: string }>('studyforgeCreation/openTeacher', {}));
+  const prompt = (text: string) => client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text }] } });
+  const idle = async (): Promise<void> => { await expect.poll(async () => value(await client.rpc<{ items: { sessionId: string; running?: boolean }[] }>('session/list', { _request: {} })).items.find(item => item.sessionId === sessionId)?.running, { timeout: 30_000 }).toBe(false); };
+  const read = () => client.rpc<ClassroomTrace>('studyforgeTrace/read', { input: { sessionId } }).then(value);
+
+  value(await prompt('[tools]' + JSON.stringify([{ name: 'advance_conversation_stage', arguments: { title: '界定问题', summary: '先确认研究对象。', nextGoal: '写出第一个判断' } }])));
+  await idle();
+  let trace = await read();
+  expect(trace.frames).toHaveLength(1);
+  expect(trace.frames[0]).toMatchObject({ mode: 'root', status: 'active', goal: '写出第一个判断' });
+  const firstFrame = trace.frames[0]!;
+
+  value(await prompt('对象是函数的变化率'));
+  await idle();
+  trace = await read();
+  expect(trace.frames.find(frame => frame.id === firstFrame.id)?.nodes.some(node => node.body.includes('函数的变化率'))).toBe(true);
+
+  value(await prompt('[tools]' + JSON.stringify([{ name: 'advance_conversation_stage', arguments: { title: '继续验证', summary: '已经界定了变化率对象。', nextGoal: '检验一个具体例子' } }])));
+  await idle();
+  trace = await read();
+  expect(trace.frames).toHaveLength(2);
+  expect(trace.frames[0]).toMatchObject({ status: 'completed', summary: '已经界定了变化率对象。' });
+  expect(trace.activeFrameId).toBe(trace.frames[1]!.id);
+  expect(trace.frames[0]!.endSequence).toBe(trace.frames[1]!.startSequence);
+
+  value(await prompt('[tools]' + JSON.stringify([{ name: 'advance_conversation_stage', arguments: { title: '换一条思路', summary: '从当前阶段分出一个验证问题。', nextGoal: '比较另一种例子', mode: 'branch' } }])));
+  await idle();
+  trace = await read();
+  expect(trace.frames).toHaveLength(3);
+  expect(trace.frames[1]).toMatchObject({ status: 'branched' });
+  expect(trace.frames[2]).toMatchObject({ mode: 'branch', status: 'active', parentFrameId: trace.frames[1]!.id });
+  expect(trace.branches).toHaveLength(1);
+});

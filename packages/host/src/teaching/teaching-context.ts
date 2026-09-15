@@ -81,7 +81,7 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
   registerGuidedLearning(host);
   // Some native composition plugins register local tools after spawn's inherited
   // filter. These teacher-only capabilities must remain absent for every helper.
-  const helperForbidden = new Set(['read_workbench', 'update_workbench', 'draft_artifact', 'mark_thought', 'read_thoughtmap', 'summarize_stage', 'note_learning_goal', 'cite_materials', 'subagent', 'delegate_search', 'delegate_problem', 'delegate_assistant', 'delegate_peer',
+  const helperForbidden = new Set(['read_workbench', 'update_workbench', 'draft_artifact', 'create_markdown_material', 'read_markdown_material', 'update_markdown_material', 'mark_thought', 'read_thoughtmap', 'advance_conversation_stage', 'summarize_stage', 'note_learning_goal', 'cite_materials', 'subagent', 'delegate_search', 'delegate_problem', 'delegate_assistant', 'delegate_peer',
     'read_card', 'read_cards', 'list_cards', 'query_evidence', 'read_memory', 'search_memory', 'note_memory', 'revise_memory',
     'register_cards', 'update_card', 'note_method', 'revise_method', 'record_review', 'read_math_scene','edit_math_scene','calculate_math','restore_math_scene',
     'propose_card', 'propose_review', 'propose_set', 'propose_plan', 'propose_route', 'propose_skeleton', 'propose_handoff', 'read_lesson', 'propose_lesson_settings',

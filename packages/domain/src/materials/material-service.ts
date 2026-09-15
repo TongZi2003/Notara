@@ -13,6 +13,7 @@
  */
 import { createHash } from 'node:crypto';
 import { MutationContextSchema, type HostContext, type MutationContext } from '@studyforge/contracts';
+import type { MaterialContext } from '@studyforge/contracts/materials';
 import {
   ImportMaterialInputSchema, MaterialIdSchema, MaterialRefSchema, MaterialViewSchema, NewMaterialVersionInputSchema,
   type ImportMaterialInput, type MaterialRecord, type MaterialRef, type MaterialVersion, type MaterialView, type NewMaterialVersionInput,
@@ -38,8 +39,8 @@ export interface ResolvedMaterial { readonly version: MaterialVersion; readonly 
 
 export const MATERIAL_KIND = 'material';
 /** One operation may carry its bytes; the record itself never does. */
-export type ImportMaterialRequest = ImportMaterialInput & { readonly bytes: Uint8Array };
-export type NewMaterialVersionRequest = NewMaterialVersionInput & { readonly bytes: Uint8Array };
+export type ImportMaterialRequest = ImportMaterialInput & { readonly bytes: Uint8Array; readonly sources?: readonly MaterialContext[] };
+export type NewMaterialVersionRequest = NewMaterialVersionInput & { readonly bytes: Uint8Array; readonly sources?: readonly MaterialContext[] };
 
 export class MaterialService {
   private readonly records: MaterialRecordStore;
@@ -55,7 +56,7 @@ export class MaterialService {
 
   /** Import one new original; no learning set, card or lesson is created. */
   async import(ctx: MutationContext, input: ImportMaterialRequest, publish?: (change: PreparedRecordChange<MaterialRecord>, view: MaterialView) => Promise<void>): Promise<MaterialView> {
-    const { bytes, ...fields } = input;
+    const { bytes, sources, ...fields } = input;
     const parsed = ImportMaterialInputSchema.parse(fields);
     const validated = await validateMaterial({ fileName: parsed.fileName, mediaType: parsed.mediaType, bytes });
     const materialId = derive('mat_', `${ctx.workspaceId}:${ctx.operationId}:import`);
@@ -74,6 +75,7 @@ export class MaterialService {
       const version: MaterialVersion = {
         materialId, versionId, title: parsed.title, mediaType: validated.mediaType,
         digest: validated.digest, byteLength: validated.byteLength, importedAt, fileName: validated.fileName,
+        ...(sources && sources.length ? { sources: [...sources] } : {}),
       };
       const record: MaterialRecord = {
         materialId, title: parsed.title, fileName: validated.fileName, mediaType: validated.mediaType,
@@ -93,7 +95,7 @@ export class MaterialService {
   /** Append one explicit new version and move the current pointer; v1 stays readable. */
   async createVersion(ctx: MutationContext, input: NewMaterialVersionRequest, publish?: (change: PreparedRecordChange<MaterialRecord>, view: MaterialView) => Promise<void>): Promise<MaterialView> {
     if (ctx.expectedVersion === undefined) throw new RecordError('material_expected_version_required');
-    const { bytes, ...fields } = input;
+    const { bytes, sources, ...fields } = input;
     const parsed = NewMaterialVersionInputSchema.parse(fields);
     const validated = await validateMaterial({ fileName: parsed.fileName, mediaType: parsed.mediaType, bytes });
     const versionId = derive('ver_', `${ctx.workspaceId}:${ctx.operationId}:${parsed.materialId}`);
@@ -107,6 +109,7 @@ export class MaterialService {
       const version: MaterialVersion = {
         materialId: parsed.materialId, versionId, title: parsed.title, mediaType: validated.mediaType,
         digest: validated.digest, byteLength: validated.byteLength, importedAt, fileName: validated.fileName,
+        ...(sources && sources.length ? { sources: [...sources] } : {}),
       };
       this.assertNameFree(ctx, version.fileName, version.title, parsed.materialId);
       await this.store.publish({ materialId: parsed.materialId, versionId, fileName: version.fileName, bytes, digest: version.digest });

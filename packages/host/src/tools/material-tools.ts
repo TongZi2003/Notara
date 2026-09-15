@@ -9,6 +9,10 @@ import { readMaterial } from '@studyforge/domain/material-read';
 import { toolSchema } from './tool-schema.ts';
 import { sourceUseMeta } from './source-use-tools.ts';
 import { entityReferenceContent } from './entity-reference-output.ts';
+import { readFile } from 'node:fs/promises';
+import { ClassroomMarkdownCreateSchema, ClassroomMarkdownReadSchema, ClassroomMarkdownUpdateSchema, ClassroomMarkdownViewSchema, type ClassroomMarkdownView } from '@studyforge/contracts/classroom-markdown';
+import { MaterialIdSchema, MaterialVersionIdSchema } from '@studyforge/contracts/material-records';
+import { teacherContext } from './learning-context.ts';
 
 // This tool's output keeps an immutable native attachment reference, never a
 // base64 copy of the rendered image in its textual result.
@@ -84,4 +88,35 @@ export function registerMaterialTools(ctx: Context): void {
       },
     }));
   }
+  const markdownOutput = { schema: toolSchema(ClassroomMarkdownViewSchema), render: (_args: unknown, value: unknown) => [{ type: 'text' as const, text: JSON.stringify(ClassroomMarkdownViewSchema.parse(value as ClassroomMarkdownView)) }] };
+  const readMarkdown = async (hostContext: Awaited<ReturnType<typeof teacherContext>>, materialId: string, versionId: string): Promise<ClassroomMarkdownView> => {
+    const view = await ctx.studyforgeMaterialService.get(hostContext, MaterialIdSchema.parse(materialId));
+    const version = view.versions.find(item => item.versionId === MaterialVersionIdSchema.parse(versionId));
+    if (!version) throw new Error('material_version_missing');
+    if (version.mediaType !== 'text/markdown') throw new Error('material_not_markdown');
+    const resolved = await ctx.studyforgeMaterialService.resolve(hostContext, { materialId: view.materialId, versionId: version.versionId });
+    return ClassroomMarkdownViewSchema.parse({ ref: 'material:' + view.materialId, materialId: view.materialId, versionId: version.versionId, revision: view.revision, title: view.title, content: await readFile(resolved.absolutePath, 'utf8'), source: { materialId: view.materialId, versionId: version.versionId }, references: version.sources ?? [] });
+  };
+  ctx.effect(() => ctx.tools.register({ name: 'create_markdown_material', description: '在当前课堂资料空间创建一份 Markdown 讲义或教材章节。只保存明确请求的内容；返回真实资料身份和版本。保存不表示掌握，也不创建创作者会话。', parameters: toolSchema(ClassroomMarkdownCreateSchema), output: markdownOutput,
+    async execute(args, execution) {
+      const input = ClassroomMarkdownCreateSchema.parse(args), context = await teacherContext(ctx, execution);
+      const fileName = (input.title.replace(/[\\/:*?"<>|]/gu, '-').trim().slice(0, 120) || '课堂讲义') + '.md';
+      const saved = await ctx.studyforgeMaterialService.import({ ...context }, { title: input.title, fileName, mediaType: 'text/markdown', bytes: new TextEncoder().encode(input.content), ...(input.references.length ? { sources: input.references } : {}) });
+      return { ref: 'material:' + saved.materialId, materialId: saved.materialId, versionId: saved.currentVersion.versionId, revision: saved.revision, title: saved.title, content: input.content, source: { materialId: saved.materialId, versionId: saved.currentVersion.versionId }, references: input.references };
+    },
+  }));
+  ctx.effect(() => ctx.tools.register({ name: 'read_markdown_material', description: '读取一份已经保存的 Markdown 讲义或教材章节的固定版本。先读取再修改；返回实际正文、版本和资料身份，不返回本地路径。', parameters: toolSchema(ClassroomMarkdownReadSchema), output: markdownOutput,
+    async execute(args, execution) {
+      const input = ClassroomMarkdownReadSchema.parse(args);
+      return readMarkdown(await teacherContext(ctx, execution), input.materialId, input.versionId);
+    },
+  }));
+  ctx.effect(() => ctx.tools.register({ name: 'update_markdown_material', description: '把当前课堂生成的 Markdown 追加为同一份资料的新版本。必须带read_markdown_material返回的真实资料身份、固定版本和revision；冲突时保留旧版本并要求重新读取，不会覆盖学生编辑。', parameters: toolSchema(ClassroomMarkdownUpdateSchema), output: markdownOutput,
+    async execute(args, execution) {
+      const input = ClassroomMarkdownUpdateSchema.parse(args), context = await teacherContext(ctx, execution), before = await readMarkdown(context, input.materialId, input.versionId);
+      if (before.revision !== input.expectedVersion || before.versionId !== input.versionId) throw new Error('version_conflict');
+      const saved = await ctx.studyforgeMaterialService.createVersion({ ...context, expectedVersion: input.expectedVersion }, { materialId: before.materialId, title: before.title, fileName: before.title.replace(/[\\/:*?"<>|]/gu, '-').trim().slice(0, 120) + '.md', mediaType: 'text/markdown', bytes: new TextEncoder().encode(input.content), ...(before.references.length ? { sources: before.references } : {}) });
+      return { ref: 'material:' + saved.materialId, materialId: saved.materialId, versionId: saved.currentVersion.versionId, revision: saved.revision, title: saved.title, content: input.content, source: { materialId: saved.materialId, versionId: saved.currentVersion.versionId }, references: before.references };
+    },
+  }));
 }

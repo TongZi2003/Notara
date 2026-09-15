@@ -9,6 +9,7 @@
  */
 import { z } from 'zod';
 import { TimestampSchema } from './core.ts';
+import { MaterialContextSchema } from './materials.ts';
 
 /** Single size limit for one original, checked before anything is published. */
 export const MAX_MATERIAL_BYTES = 64 * 1024 * 1024;
@@ -48,6 +49,8 @@ export const MaterialVersionSchema = z.object({
   byteLength: z.number().int().nonnegative(),
   importedAt: TimestampSchema,
   fileName: z.string().trim().min(1),
+  /** Original material positions used while a classroom Markdown version was written. */
+  sources: z.array(MaterialContextSchema).max(30).optional(),
 }).strict();
 export type MaterialVersion = z.infer<typeof MaterialVersionSchema>;
 

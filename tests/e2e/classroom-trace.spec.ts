@@ -1,4 +1,5 @@
 import { test, expect, enterClassroom, typeInput } from './fixtures/classroom.ts';
+import { connectRuntime } from '../fixtures/http-runtime.ts';
 test('thought graph is editable and navigates to native conversation without exposing debug trajectory', async ({ page, classroom }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1400, height: 900 }); await enterClassroom(page, classroom.authUrl);
@@ -28,4 +29,28 @@ test('a failed turn gives student wording while its technical message stays out 
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await expect(page.getByTestId('classroom-reply-error')).toHaveText('这次没有收到回复，可以再试一次。');
   await expect(page.getByTestId('classroom-reply-error')).not.toContainText('isolated model request failure');
+});
+
+test('an explicitly advanced conversation stage is visible as a ThoughtMap frame', async ({ page, classroom }) => {
+  await enterClassroom(page, classroom.authUrl);
+  await typeInput(page, '[tools]' + JSON.stringify([{ name: 'advance_conversation_stage', arguments: { title: '界定问题', summary: '先确认研究对象。', nextGoal: '写出第一个判断' } }]));
+  await page.getByRole('button', { name: 'Send message', exact: true }).click();
+  const client = await connectRuntime(classroom);
+  let lesson: string | undefined;
+  await expect.poll(async () => {
+    const reply = await client.rpc<{ items: { sessionId: string; running?: boolean; projections?: { values?: { agentPreset?: string } } }[] }>('session/list', { _request: {} });
+    lesson = reply.ok ? reply.value.items.find(item => item.projections?.values?.agentPreset === 'studyforge-learning' && item.running === false)?.sessionId : undefined;
+    return lesson;
+  }, { timeout: 30_000 }).toBeTruthy();
+  let trace: { frames: unknown[] } | undefined;
+  await expect.poll(async () => {
+    const reply = await client.rpc<{ frames: unknown[] }>('studyforgeTrace/read', { input: { sessionId: lesson } });
+    trace = reply.ok ? reply.value : undefined;
+    return trace;
+  }, { timeout: 30_000 }).toMatchObject({ frames: [{ title: '界定问题', goal: '写出第一个判断', status: 'active' }] });
+  expect(trace!.frames).toHaveLength(1);
+  await page.getByTestId('workspace-open-thoughts').click();
+  await expect(page.getByTestId('thought-frame')).toHaveCount(1);
+  await expect(page.getByTestId('thought-frame')).toContainText('写出第一个判断');
+  await expect(page.getByTestId('thought-frame')).not.toContainText(/掌握|复习/);
 });
