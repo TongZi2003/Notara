@@ -8,9 +8,13 @@ import { toolSchema } from '../tools/tool-schema.ts';
 import { teacherContext } from '../tools/learning-context.ts';
 import {readMaterial} from '@studyforge/domain/material-read';
 import { canonicalPath } from '@studyforge/domain/access';
+import { MathProjectionSchema, applyMathEdits, type MathProjection, type MathEdit } from '@studyforge/contracts/math-workbench';
+import { registerMathTools } from './math-tools.ts';
+import { mathDimension } from '@studyforge/contracts/math-scene';
 
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeLearningWorkbenches: LearningWorkbenches } }
 export class LearningWorkbenches {
+  private readonly projections = new Map<string,{at:number;projection:MathProjection}>();
   readonly host: Context; readonly records: RecordStore<typeof PluginDocumentRecordSchema>;
   constructor(host: Context, records: RecordStore<typeof PluginDocumentRecordSchema>) { this.host = host; this.records = records; }
   async authorize(sessionId: string, id: string, permission: string, digest?: string) {
@@ -32,6 +36,39 @@ export class LearningWorkbenches {
     const key = packageId(context.sessionId + ':' + id + ':' + content.digest), data = { sessionId: context.sessionId!, id, digest: content.digest, document };
     const saved = context.expectedVersion === 0 ? await this.records.create(context, key, data) : await this.records.update(context, 'plugindocument:' + key, data, () => data);
     return { revision: saved.version, document: saved.data.document };
+  }
+  async inspectMath(context:HostContext,id:string) {
+    const row=await this.read(context,id);if(row.document.kind!=='math')throw new Error('math_workbench_required');
+    const content=await this.authorize(context.sessionId!,id,'document');
+    const key=packageId(context.sessionId+':'+id+':'+content.digest), saved=this.projections.get(key);
+    const fresh=!!saved&&saved.projection.revision===row.revision&&Date.now()-saved.at<15000;
+    const history=row.revision?this.records.changes(context,'plugindocument:'+key).slice(-12).map(c=>({revision:c.afterRevision,previous:c.beforeRevision??0,actor:c.actor})):[];
+    return {...row,rendering:fresh?'current' as const:'unavailable' as const,projection:fresh?saved!.projection:null,history};
+  }
+  async publishMath(context:HostContext,id:string,input:MathProjection):Promise<void> {
+    const projection=MathProjectionSchema.parse(input),row=await this.read(context,id);
+    if(row.document.kind!=='math'||projection.revision!==row.revision)throw new Error('math_projection_stale');
+    const names=row.document.objects.map(o=>o.name);
+    if(projection.objects.length!==names.length||new Set(projection.objects.map(o=>o.name)).size!==names.length||projection.objects.some(o=>!names.includes(o.name)))throw new Error('math_projection_objects_mismatch');
+    for(const entry of projection.objects){
+      const object=row.document.objects.find(o=>o.name===entry.name)!;
+      const point=['point','glider','midpoint','intersection','point3d','midpoint3d'].includes(object.kind);
+      if(entry.coordinates&&(!point||entry.coordinates.length!==mathDimension(object))||point&&entry.state==='defined'&&!entry.coordinates||entry.state!=='defined'&&(entry.coordinates||Object.keys(entry.values).length))throw new Error('math_projection_shape_mismatch');
+    }
+    const content=await this.authorize(context.sessionId!,id,'document'),key=packageId(context.sessionId+':'+id+':'+content.digest);
+    for(const [other,value] of this.projections)if(Date.now()-value.at>60000)this.projections.delete(other);
+    this.projections.set(key,{at:Date.now(),projection});
+  }
+  async editMath(context:MutationContext,id:string,edits:MathEdit[]):Promise<PluginDocumentView> {
+    // Transform the requested base revision so retrying an operation stays idempotent.
+    const row=await this.mathRevision(context,id,z.number().int().nonnegative().parse(context.expectedVersion));
+    return this.write(context,id,applyMathEdits(row,edits));
+  }
+  async mathRevision(context:HostContext,id:string,revision:number) {
+    const content=await this.authorize(context.sessionId!,id,'document');
+    const contribution=this.host.studyforgePluginsManager.get(content.pluginRef,content.digest).manifest.notara.workbenches.find(c=>c.id===content.contributionId)!;
+    const doc=revision===0?PluginDocumentSchema.parse(JSON.parse(this.host.studyforgePluginsManager.body(content.pluginRef,content.digest,contribution.document!.seed))):this.records.read(context,'plugindocument:'+packageId(context.sessionId+':'+id+':'+content.digest),revision).data.document;
+    if(doc.kind!=='math')throw new Error('math_workbench_required');return doc;
   }
   async link(context: HostContext, input: PluginLink): Promise<PluginLink> {
     const link = PluginLinkSchema.parse(input);
@@ -66,6 +103,7 @@ export function documentLinks(doc: PluginDocument): PluginLink[] {
   return doc.kind === 'clinic' || doc.kind === 'math' ? doc.links : [];
 }
 export function registerWorkbenchTools(host: Context): void {
+  registerMathTools(host);
   const read = z.object({ id: z.string().optional() }).strict();
   const write = z.object({ id: z.string(), expectedVersion: z.number().int().nonnegative(), documentJson: z.string().max(60000) }).strict();
   const output = { schema: { type: 'object' as const, properties: { json: { type: 'string' as const } }, required: ['json'], additionalProperties: false as const }, render: (_args: unknown, value: { json: string }) => [{ type: 'text' as const, text: value.json }] };

@@ -3,6 +3,8 @@ import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import { z } from 'zod';
 import { PluginDocumentSchema, PluginLinkSchema, SeminarStartSchema, SeminarRoleSchema, type SeminarView, type SeminarRole, type PluginLink } from '@studyforge/contracts/plugin-learning';
 import { studentContext } from './learning-service.ts';
+import { MathProjectionSchema, MathComputeSchema,type MathResult } from '@studyforge/contracts/math-workbench';
+import { computeMath } from './plugins/math-compute.ts';
 const Target = z.object({ sessionId: z.string().min(1), id: z.string().min(1), digest: z.string().min(1) }).strict();
 export class PluginLearningRemote extends TypertRemoteService {
   constructor(ctx: Context) { super(ctx, 'notaraWorkbench'); }
@@ -39,6 +41,19 @@ export class PluginLearningRemote extends TypertRemoteService {
   async sources(input: {sessionId:string;id:string;digest:string;query:string}): Promise<PluginLink[]> {
     const data = Target.extend({ query: z.string().max(200) }).parse(input), context = await studentContext(this.ctx, data.sessionId);
     await this.ctx.studyforgeLearningWorkbenches.authorize(data.sessionId, data.id, 'sources', data.digest); return this.ctx.studyforgeLearningWorkbenches.sources(context, data.query);
+  }
+  @Remote('publishMath')
+  async publishMath(input:{sessionId:string;id:string;digest:string;json:string}):Promise<{accepted:true}> {
+    const data=Target.extend({json:z.string().max(24000)}).parse(input),context=await studentContext(this.ctx,data.sessionId);
+    await this.ctx.studyforgeLearningWorkbenches.authorize(data.sessionId,data.id,'document',data.digest);
+    await this.ctx.studyforgeLearningWorkbenches.publishMath(context,data.id,MathProjectionSchema.parse(JSON.parse(data.json)));return {accepted:true};
+  }
+  @Remote('calculateMath')
+  async calculateMath(input:{sessionId:string;id:string;digest:string;expectedVersion:number;json:string}):Promise<MathResult> {
+    const data=Target.extend({expectedVersion:z.number().int().nonnegative(),json:z.string().max(3000)}).parse(input),context=await studentContext(this.ctx,data.sessionId);
+    await this.ctx.studyforgeLearningWorkbenches.authorize(data.sessionId,data.id,'document',data.digest);
+    const row=await this.ctx.studyforgeLearningWorkbenches.read(context,data.id);if(row.document.kind!=='math'||row.revision!==data.expectedVersion)throw new Error('math_compute_stale');
+    return computeMath(MathComputeSchema.parse(JSON.parse(data.json)),Object.fromEntries(row.document.parameters.map(p=>[p.name,p.value])));
   }
   @Remote('resolveLink')
   async resolveLink(input: {sessionId:string;id:string;digest:string;link:PluginLink}): Promise<PluginLink> {

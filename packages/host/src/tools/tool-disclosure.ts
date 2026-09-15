@@ -22,6 +22,7 @@ const groups: readonly [string, readonly string[]][] = [
   ['课程与计划', ['note_learning_goal', 'list_sets', 'read_set', 'propose_set', 'list_plans', 'read_plan', 'propose_plan', 'read_route', 'propose_route', 'read_skeleton', 'propose_skeleton', 'read_lesson', 'propose_lesson_settings', 'read_handoff', 'propose_handoff']],
   ['委派与协作', ['delegate_search', 'delegate_assistant', 'delegate_peer', 'delegate_problem', 'subagent', 'send_message', 'interrupt_agent']],
   ['内容共建', ['draft_artifact', 'mark_thought', 'read_workbench', 'update_workbench']],
+  ['数学探究', ['read_math_scene','edit_math_scene','calculate_math','restore_math_scene']],
   ['其他阅读能力', ['read', 'read_image', 'glob', 'grep', 'web_search', 'web_fetch', 'skill']],
 ];
 
@@ -91,7 +92,8 @@ export function installToolDisclosure(host: Context, owns: (agent: Agent | undef
     const course = host.studyforgeCourseMetadata.read({ workspaceId: host.studyforgeAccess.workspaceId,
       sessionId: agent.session.id, actor: 'teacher', purpose: 'learning' });
     const hasDocuments = host.studyforgePluginsManager.workbenches(agent.session.id).some(choice => host.studyforgePluginsManager.get(choice.pluginRef, choice.digest).manifest.notara.workbenches.some(item => item.id === choice.contributionId && item.document));
-    return classroomToolCatalogue(tools, course.data.teachingRef === 'diagnose' || !!(course.data.guided && !course.data.learningContext && !course.data.closure)).filter(tool => hasDocuments || !['read_workbench','update_workbench'].includes(tool.name));
+    const hasMath = host.studyforgePluginsManager.workbenches(agent.session.id).some(choice=>host.studyforgePluginsManager.get(choice.pluginRef,choice.digest).manifest.notara.workbenches.some(item=>item.id===choice.contributionId&&item.document?.kind==='math'));
+    return classroomToolCatalogue(tools, course.data.teachingRef === 'diagnose' || !!(course.data.guided && !course.data.learningContext && !course.data.closure)).filter(tool => (hasDocuments || !['read_workbench','update_workbench'].includes(tool.name))&&(hasMath||!['read_math_scene','edit_math_scene','calculate_math','restore_math_scene'].includes(tool.name)));
   };
   host.effect(() => host.tools.register({
     name: 'load_tools', description: '从本课工具目录加载指定工具的完整参数，下一步再按真实schema调用。一次可加载多个精确名称；本课跨轮保留。这里只加载接口，不执行所选工具，不改变教学预设、确认要求或权限。',

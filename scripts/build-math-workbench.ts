@@ -10,4 +10,5 @@ if(Buffer.byteLength(html)>2_000_000)throw new Error('Math workbench exceeds 2MB
 await writeFile(out+'/workbench.html',html);
 await copyFile('node_modules/jsxgraph/LICENSE.MIT',out+'/LICENSE-JSXGraph.txt');
 await copyFile('node_modules/zod/LICENSE',out+'/LICENSE-Zod.txt');
+await copyFile('node_modules/katex/LICENSE',out+'/LICENSE-KaTeX.txt');
 console.log('JSXGraph math workbench: '+Buffer.byteLength(html)+' bytes, offline');

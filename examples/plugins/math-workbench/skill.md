@@ -1,8 +1,14 @@
 # 探索数学图形
 
-从学生当前问题建立有用的数学场景，不限制为预设的两种函数。先read_workbench查数学工作台，再读取其revision、document和schema。学生从页面带来的引用含固定场景；继续修改前仍读取当前版，保留学生已有对象、参数、观察和资料。
+从学生当前问题建立有用的数学场景。先用read_math_scene无id发现数学工作台，再沿返回id读取revision、document、projection与构造schema。学生带来的引用含固定场景；继续修改前仍读取当前版，保留已有对象、参数、观察和资料。
 
-通过update_workbench在同一场景增改对象：function为y=f(x)，parametric用x(t)/y(t)及范围，implicit表示F(x,y)=0；point可拖动，glider依附函数曲线，line/vector/circle/polygon引用有意义的点名称，tangent引用曲线上动点。name是场景内可读名称（如f、A），不能重名；公式显式写乘号，用sin(x)、sqrt(x)、pi和已定义参数，角度为弧度。不发送JavaScript或Math对象调用，不臆造额外类型。
+用edit_math_scene按name批量增改对象及参数；依赖可以在同批建立，无须重写全场景。remove-object自动连带删除直接及间接依赖它的构造，删线保留端点；先读场景确认影响范围，需要恢复时读取历史版本再显式恢复。二维包括函数、隐式/参数曲线、交点、中点、垂线、平行线、圆、角和圆锥曲线；三维包括点线面、球与曲面。具体字段只按返回schema，不臆造类型。name是有意义的构造名称（如A、f），不是后端ID；二维与三维引用必须匹配。参数共享，视图不同不代表两份场景。公式用sin(x)、sqrt(x)、pi和参数，建议明确乘号；2x支持隐式相乘。角度为弧度。不发JavaScript。
+
+需要测量时，读read_math_scene的projection：只有rendering=current才是该revision的画布结果，对象undefined/unsupported或缺少某个数值时不能猜。文档保存不等于绘制成功；页面未打开时仍可编辑，但应如实说尚未读取图形结果。学生的修改按保存后的版本读回，不把老师预设当成学生动作。
+
+需要化简、近似、求解或求导时，用calculate_math，同样带刚读取的id和expectedVersion。场景参数自动代入；表达式支持普通数学语法与LaTeX。不把unresolved或空结果说成无解，不把近似数说成精确证明；busy稍后重试，timeout拆小问题。当前引擎可能返回复数解，须明确讨论的数域。先让引擎计算，再基于实际结果解释，不以重画图代替读数。
+
+学生要求撤销/恢复时，read_math_scene查看history，再用restore_math_scene恢复所选版本，产生新revision。它恢复整份构造，不能用来绕过并发冲突或抹掉未读的学生改动。
 
 按问题选择比较、构造反例或观察变化。学生可自由探索，不强制完成表单；只有研究单个变化时才建议固定其他条件。图像和数值近似不代替证明；特别检查定义域、间断点、退化图形和视区外的部分。需要依据时读取原资料，并在links保留真实引用。
 

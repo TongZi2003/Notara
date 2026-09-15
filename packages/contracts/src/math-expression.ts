@@ -22,13 +22,13 @@ function parseMath(text: string): Node {
     else if (token && /^[\d.]/.test(token)) node = { type:'Literal', value:Number(token) };
     else if (token && /^[A-Za-z]/.test(token)) {
       node = {type:'Identifier',name:token};
-      if (tokens[at] === '(') { at++; const args: Node[] = []; if (tokens[at] !== ')') { args.push(sum()); while (tokens[at] === ',') { at++; args.push(sum()); } } if (tokens[at++] !== ')') throw new Error('missing_parenthesis'); node = {type:'CallExpression',callee:node,arguments:args}; }
+      if (tokens[at] === '(' && Object.hasOwn(functions,token)) { at++; const args: Node[] = []; if (tokens[at] !== ')') { args.push(sum()); while (tokens[at] === ',') { at++; args.push(sum()); } } if (tokens[at++] !== ')') throw new Error('missing_parenthesis'); node = {type:'CallExpression',callee:node,arguments:args}; }
     } else throw new Error('missing_expression');
     depth--; return node;
   };
   const power = (): Node => { const left = primary(); if (tokens[at] === '^' || tokens[at] === '**') { at++; return binary('^',left,unary()); } return left; };
   const unary = (): Node => { const operator = tokens[at]; if (operator === '+' || operator === '-') { at++; if (++depth > 32) throw new Error('nested_expression'); const node: Node = {type:'UnaryExpression',operator,argument:unary()}; depth--; return node; } return power(); };
-  const product = (): Node => { let left = unary(); while (tokens[at] === '*' || tokens[at] === '/') left = binary(tokens[at++]!,left,unary()); return left; };
+  const product = (): Node => { let left = unary(); while (tokens[at] === '*' || tokens[at] === '/' || /^(?:[A-Za-z\d.]|\()/.test(tokens[at]??'')) { const explicit=tokens[at]==='*'||tokens[at]==='/';left = binary(explicit?tokens[at++]!:'*',left,unary()); } return left; };
   const sum = (): Node => { let left = product(); while (tokens[at] === '+' || tokens[at] === '-') left = binary(tokens[at++]!,left,product()); return left; };
   const root = sum(); if (at !== tokens.length) throw new Error('unexpected_token'); return root;
 }
@@ -60,4 +60,24 @@ export function compileMath(expression: string, variables: readonly string[]): (
     switch (node.operator) { case '+': return left + right; case '-': return left - right; case '*': return left * right; case '/': return left / right; default: return left ** right; }
   };
   return scope => run(root, scope);
+}
+
+export type MathExpressionJSON=number|string|[string,...MathExpressionJSON[]];
+/** Same ASCII grammar as the graph, compiled as data for the symbolic engine. */
+export function mathExpressionJSON(text:string):MathExpressionJSON {
+  const sides=text.split('=');if(sides.length>2)throw new Error('只支持一个等号');
+  const names:Record<string,string>={sin:'Sin',cos:'Cos',tan:'Tan',asin:'Arcsin',acos:'Arccos',atan:'Arctan',sqrt:'Sqrt',abs:'Abs',exp:'Exp',log:'Ln',ln:'Ln',log10:'Log10',floor:'Floor',ceil:'Ceil',round:'Round',min:'Min',max:'Max',pow:'Power',sinh:'Sinh',cosh:'Cosh',tanh:'Tanh'};
+  const part=(value:string):MathExpressionJSON=>{
+    const root=parseMath(value),symbols=new Set<string>();
+    const collect=(node:Node):void=>{if(node.type==='Identifier')symbols.add(node.name!);if(node.argument)collect(node.argument);if(node.left)collect(node.left);if(node.right)collect(node.right);node.arguments?.forEach(collect);};collect(root);
+    compileMath(value,[...symbols]);
+    const convert=(node:Node):MathExpressionJSON=>{
+      if(node.type==='Literal')return node.value!;
+      if(node.type==='Identifier')return node.name==='pi'||node.name==='PI'?'Pi':node.name==='e'?'ExponentialE':node.name!;
+      if(node.type==='UnaryExpression')return node.operator==='-'?['Negate',convert(node.argument!)]:convert(node.argument!);
+      if(node.type==='CallExpression')return [names[node.callee!.name!]!,...node.arguments!.map(convert)];
+      return [({'+':'Add','-':'Subtract','*':'Multiply','/':'Divide','^':'Power','**':'Power'} as Record<string,string>)[node.operator!]!,convert(node.left!),convert(node.right!)];
+    };return convert(root);
+  };
+  return sides.length===2?['Equal',part(sides[0]!),part(sides[1]!)]:part(text);
 }

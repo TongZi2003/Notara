@@ -1,0 +1,5 @@
+{
+  "extends":"./tsconfig.base.json",
+  "compilerOptions":{"lib":["ES2023","DOM","DOM.Iterable"],"types":["node"],"incremental":false},
+  "include":["examples/plugin-sources/math-board.ts","examples/plugin-sources/math-workbench.ts"]
+}

@@ -9,11 +9,14 @@ import type {SessionId} from '@deepseek-ai/dsh-session/types';
 import { openEntityReference } from '../materials/entity-reference.ts';
 
 const permissions: Record<string,string> = { 'document-read':'document', 'document-write':'document', 'source-pick':'sources', 'source-open':'sources', compose:'compose', 'seminar-list':'seminar', 'seminar-start':'seminar', 'seminar-follow':'seminar', 'seminar-stop':'seminar', worldbook:'worldbook-context' };
+permissions['math-publish']='document';permissions['math-compute']='document';
 export async function learningAction(ctx:Context, sessionId:string, content:WorkbenchContent, action:string, payload:unknown, pick:()=>Promise<unknown>):Promise<unknown> {
   if (!permissions[action] || !content.permissions.includes(permissions[action]!)) throw new Error('permission');
   const target={sessionId,id:content.id,digest:content.digest};
   const unwrap=<T,>(reply:{ok:true;value:T}|{ok:false;error:unknown}):T=>{if(!reply.ok)throw new Error('action_failed');return reply.value;};
   if(action==='document-read') { z.object({}).strict().parse(payload);const row=unwrap(await ctx.remote.notaraWorkbench.readDocument(target));return {revision:row.revision,document:JSON.parse(row.json)}; }
+  if(action==='math-publish') {const data=z.object({json:z.string().max(24000)}).strict().parse(payload);return unwrap(await ctx.remote.notaraWorkbench.publishMath({...target,...data}));}
+  if(action==='math-compute') {const data=z.object({json:z.string().max(3000),expectedVersion:z.number().int().nonnegative()}).strict().parse(payload);return unwrap(await ctx.remote.notaraWorkbench.calculateMath({...target,...data}));}
   if(action==='document-write') { const data=z.object({json:z.string().max(60000),revision:z.number().int().nonnegative(),operationId:z.string().min(1).max(160)}).strict().parse(payload);const row=unwrap(await ctx.remote.notaraWorkbench.writeDocument({...target,json:data.json,expectedVersion:data.revision,operationId:data.operationId}));return {revision:row.revision,document:JSON.parse(row.json)}; }
   if(action==='source-pick'){z.object({}).strict().parse(payload);return pick();}
   if(action==='source-open'){

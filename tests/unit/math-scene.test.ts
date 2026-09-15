@@ -16,6 +16,27 @@ test('scene validates ranges and real geometry references before publishing', ()
   expect(MathSceneSchema.safeParse({...scene,parameters:[{name:'x',value:1,min:0,max:2}]}).success).toBe(false);
   expect(MathSceneSchema.safeParse({...scene,objects:[{kind:'function',name:'f',expression:'missing*x'}]}).success).toBe(false);
 });
+test('2D and 3D constructions share parameters and validate typed dependencies', () => {
+  const input = {kind:'math',title:'平面与空间',parameters:[{name:'a',value:2,min:1,max:5}],objects:[
+    {kind:'point',name:'A',x:0,y:0},{kind:'point',name:'B',x:4,y:0},
+    {kind:'midpoint',name:'M',from:'A',to:'B'},
+    {kind:'point3d',name:'P',x:0,y:0,z:0},{kind:'point3d',name:'Q',x:4,y:0,z:0},
+    {kind:'point3d',name:'R',x:0,y:3,z:0},{kind:'plane3d',name:'plane',points:['P','Q','R']},
+    {kind:'sphere3d',name:'sphere',center:'P',radius:'a'},
+    {kind:'function3d',name:'surface',expression:'a*sin(x)*cos(y)',xRange:[-3,3],yRange:[-3,3]},
+  ]};
+  expect(MathSceneSchema.safeParse(input).success).toBe(true);
+  expect(MathSceneSchema.safeParse({...input,objects:[...input.objects,{kind:'line3d',name:'bad',from:'A',to:'Q'}]}).success).toBe(false);
+});
+test('derived-point cycles and dangling dependencies are rejected before publication', () => {
+  const seed={kind:'math',title:'循环',objects:[{kind:'point',name:'A',x:0,y:0},{kind:'midpoint',name:'M',from:'A',to:'N'},{kind:'midpoint',name:'N',from:'A',to:'M'}]};
+  const parsed=MathSceneSchema.safeParse(seed);
+  expect(parsed.success).toBe(false);
+  if(!parsed.success)expect(parsed.error.issues.some(i=>i.message.includes('循环'))).toBe(true);
+});
+test('legacy parameter names remain readable when adding 3D capabilities',()=>{
+  expect(MathSceneSchema.safeParse({kind:'math',title:'旧参数',parameters:[{name:'u',value:1,min:0,max:2},{name:'z',value:1,min:0,max:2}],objects:[{kind:'function',name:'f',expression:'u*x+z'}]}).success).toBe(true);
+});
 import { mergeMathScene } from '../../packages/contracts/src/math-merge.ts';
 
 test('scene merge preserves disjoint AI/student changes and reports shared-field conflicts', () => {
