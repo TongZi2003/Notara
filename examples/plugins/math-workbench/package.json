@@ -1,5 +1,5 @@
 {
-  "name":"@notara/math-workbench","version":"1.2.2",
+  "name":"@notara/math-workbench","version":"1.2.3",
   "files":["workbench.html","seed.json","skill.md","README.md","LICENSE-JSXGraph.txt","LICENSE-Zod.txt","LICENSE-KaTeX.txt"],
   "notara":{"apiVersion":1,"title":"数学工作台","description":"共同构造平面与立体图形，计算公式，探索参数变化。",
     "skills":[{"id":"explore","title":"探索数学图形","description":"在同一数学场景中绘图、实验、读取观察并修正解释。","entry":"skill.md"}],

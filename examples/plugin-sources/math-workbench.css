@@ -2,6 +2,7 @@ body{padding:0!important}*{box-sizing:border-box}main{height:100dvh;display:flex
 /* Keep the notebook paper outside the mathematical coordinate canvas. */
 .graph-wrap{background-color:var(--notara-background,#fff);background-image:none}
 #math-board{cursor:grab;touch-action:none}#math-board:active{cursor:grabbing}
+.compute-options:not(.has-variable){grid-template-columns:1fr}
 .graph-wrap.box-selecting,.graph-wrap.box-selecting *{cursor:crosshair!important;touch-action:none}
 .graph-wrap.box-selecting button{cursor:pointer!important}
 .selection-rect{position:absolute;pointer-events:none;z-index:3;border:1px solid var(--notara-accent,#3468c0);background:color-mix(in srgb,var(--notara-accent,#3468c0) 10%,transparent)}

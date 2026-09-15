@@ -17,6 +17,7 @@ document.body.append(root);
 const $=<T extends HTMLElement=HTMLElement>(id:string):T=>document.getElementById(id) as T;
 let scene:Scene,base:Scene,revision=0,dirty=false,saving=false,generation=0,conflicted=false,selected='',fieldEditing=false,formDraft=false;
 let boards:ReturnType<typeof createMathBoards>|undefined,timer:ReturnType<typeof setTimeout>|undefined;
+let pendingSave:Promise<boolean>|undefined;
 let remotePending:{document:Scene;revision:number}|undefined;
 const past:Scene[]=[],future:Scene[]=[];
 const selectedNames=new Set<string>();
@@ -41,7 +42,13 @@ const historyButtons=()=>{$<HTMLButtonElement>('undo').disabled=!past.length||sa
 const nextName=(prefix:string)=>{let n=1;const names=new Set([...scene.objects,...scene.parameters].map(o=>o.name));while(names.has(prefix+n))n++;return prefix+n;};
 async function publish():Promise<void>{if(!boards||dirty||saving||conflicted)return;try{await Notara.publishMath(boards.projection(revision));}catch{/* A concurrent edit invalidates this projection; poll loads its revision. */}}
 function changed():void{dirty=true;generation++;message('同步中…');clearTimeout(timer);timer=setTimeout(()=>{void save();},450);historyButtons();}
-async function save():Promise<boolean>{
+function save():Promise<boolean>{
+  if(pendingSave)return pendingSave;
+  const task=saveScene();pendingSave=task;
+  void task.finally(()=>{if(pendingSave===task)pendingSave=undefined;});
+  return task;
+}
+async function saveScene():Promise<boolean>{
   if(!scene||conflicted)return false;if(saving)return false;if(!dirty)return true;
   saving=true;historyButtons();const copy=structuredClone(scene),at=generation;
   try{const reply=await Notara.saveDocument(revision,copy);revision=reply.revision;base=structuredClone(reply.document as Scene);dirty=generation!==at;message(dirty?'同步中…':'已同步');error('');if(dirty)timer=setTimeout(()=>{void save();},100);return !dirty;}
@@ -199,10 +206,37 @@ $('zoom-in').onclick=()=>{if(scene.view==='2d')boards?.plane.zoomIn();else mutat
 $('zoom-out').onclick=()=>{if(scene.view==='2d')boards?.plane.zoomOut();else mutate(d=>{d.space.bounds=d.space.bounds.map(([a,b])=>[(a+b)/2+(a-b)*.625,(a+b)/2+(b-a)*.625]) as Scene['space']['bounds'];});};
 $('home').onclick=()=>mutate(d=>{if(d.view==='2d')d.viewport=[-5,5,5,-5];else d.space={bounds:[[-5,5],[-5,5],[-5,5]],azimuth:.8,elevation:.35};});
 $('pick-source').onclick=()=>{void Notara.pickSource().then(link=>mutate(d=>{if(!d.links.some(old=>JSON.stringify(old)===JSON.stringify(link)))d.links.push(link);})).catch(()=>error('未添加资料'));};
-let calculationText='';
+let calculationText='',calculationGeneration=0;
+const operation=$<HTMLSelectElement>('compute-operation'),formula=$<HTMLInputElement>('compute-expression'),variable=$<HTMLInputElement>('compute-variable');
+const calculationModes=[['evaluate','计算','例如：1+1 或 sqrt(4)'],['numeric','小数结果','例如：sqrt(2)'],['simplify','化简','例如：(x+1)^2'],['solve','解方程','例如：x^2-5x+6=0'],['differentiate','求导','例如：x^3']] as const;
+operation.replaceChildren(...calculationModes.map(([value,title])=>{const option=document.createElement('option');option.value=value;option.textContent=title;return option;}));
+function calculationInputChanged():void{
+  calculationGeneration++;calculationText='';$('compute-result').replaceChildren();$('keep-calculation').hidden=true;
+  const needsVariable=operation.value==='solve'||operation.value==='differentiate';
+  variable.parentElement!.hidden=!needsVariable;
+  operation.closest('.compute-options')!.classList.toggle('has-variable',needsVariable);
+  formula.placeholder=calculationModes.find(([value])=>value===operation.value)![2];
+}
+operation.onchange=calculationInputChanged;formula.oninput=calculationInputChanged;variable.oninput=calculationInputChanged;calculationInputChanged();
 $<HTMLButtonElement>('calculate').type='button';
-$('calculate').onclick=()=>{void(async()=>{if(!await save())return;const at=revision,input:MathCompute={operation:$<HTMLSelectElement>('compute-operation').value as MathCompute['operation'],expression:$<HTMLInputElement>('compute-expression').value,variable:$<HTMLInputElement>('compute-variable').value};$<HTMLButtonElement>('calculate').disabled=true;$('compute-result').textContent='计算中…';$('keep-calculation').hidden=true;
-  try{const result=await Notara.calculateMath(at,input);if(revision!==at||dirty){$('compute-result').textContent='场景参数已改变，请重新计算。';return;}if(result.status==='result'){$('compute-result').innerHTML=renderToString(result.latex,{output:'mathml',throwOnError:false,trust:false});calculationText=input.expression+' → '+result.latex;$('keep-calculation').hidden=false;}else $('compute-result').textContent=({unresolved:'引擎尚未得到可确认的结果。',undefined:'这个表达式当前没有有限数值。',invalid:'请检查公式语法与变量。',timeout:'计算耗时过长，请简化公式。'} as Record<string,string>)[result.status]??'计算未完成。';}catch{$('compute-result').textContent='暂时无法计算，请保存后重试。';}finally{$<HTMLButtonElement>('calculate').disabled=false;}})();};
+$('calculate').onclick=()=>{void(async()=>{
+  const input:MathCompute={operation:operation.value as MathCompute['operation'],expression:formula.value.trim(),variable:operation.value==='solve'||operation.value==='differentiate'?variable.value.trim()||'x':'x'},generation=calculationGeneration;
+  $('keep-calculation').hidden=true;
+  if(!input.expression){$('compute-result').textContent='请先输入要计算的算式。';formula.focus();return;}
+  if(input.expression.length>800){$('compute-result').textContent='算式过长，请分步计算。';return;}
+  if((input.operation==='solve'||input.operation==='differentiate')&&!/^[A-Za-z][A-Za-z0-9_]{0,23}$/.test(input.variable)){$('compute-result').textContent='请输入有效的变量名，例如 x。';variable.focus();return;}
+  $<HTMLButtonElement>('calculate').disabled=true;$('compute-result').textContent='计算中…';
+  try{
+    if(!await save()){if(generation===calculationGeneration)$('compute-result').textContent='场景尚未同步，请先处理下方的保存提示。';return;}
+    if(generation!==calculationGeneration)return;
+    const at=revision,result=await Notara.calculateMath(at,input);
+    if(generation!==calculationGeneration)return;
+    if(revision!==at||dirty){$('compute-result').textContent='场景参数已改变，请重新计算。';return;}
+    if(result.status==='result'){$('compute-result').innerHTML=renderToString(result.latex,{output:'mathml',throwOnError:false,trust:false});calculationText=input.expression+' → '+result.latex;$('keep-calculation').hidden=false;}
+    else $('compute-result').textContent=({unresolved:input.operation==='solve'?'暂未求得解；请检查方程和所选变量。':input.operation==='numeric'?'还有未赋值的变量，请先设置参数，或选择「计算」保留符号结果。':'暂未得到结果，请尝试简化算式。',undefined:'这个表达式当前没有有限数值。',invalid:'请检查括号、运算符和变量；乘法写作 *，除法写作 /。',timeout:'计算耗时过长，请简化公式。',busy:'计算器正在处理其他请求，请稍后重试。'} as Record<string,string>)[result.status]??'计算未完成。';
+  }catch{if(generation===calculationGeneration)$('compute-result').textContent='计算服务暂时不可用，请稍后重试。';}
+  finally{$<HTMLButtonElement>('calculate').disabled=false;}
+})();};
 $('keep-calculation').onclick=()=>{mutate(d=>{d.observation+=(d.observation?'\n':'')+calculationText;});$<HTMLDetailsElement>('notes').open=true;};
 $('compute-form').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();$('calculate').click();}};$('compute-form').onsubmit=event=>event.preventDefault();
 $('discuss').onclick=()=>{void(async()=>{if(!await save())return;await publish();await Notara.compose('请结合这个数学场景和我的观察继续讨论。用 read_math_scene 读取场景与测量，必要时增量修改同一份构造。');message('已带入，检查后发送');})().catch(()=>error('暂时无法带入对话，请重试'));};
