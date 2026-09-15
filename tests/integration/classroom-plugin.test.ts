@@ -28,7 +28,7 @@ test('teacher-spawned classmates are isolated, public replies return once, priva
   let world = value(await client.rpc<WorldbookView>('studyforgePlugins/readWorldbook', { input: target }));
   const avatar = value(await client.rpc<any>('notaraClassroomView/uploadAvatar', { input: { base64: (await sharp({ create: { width: 64, height: 64, channels: 3, background: '#a6bbcd' } }).png().toBuffer()).toString('base64') } }));
   world.document.classroom = structuredClone(fixture.classroom);
-  world.document.classroom!.roles[0]!.route = { default: { provider: 'studyforge-test', model: 'study-model-a' }, escalation: { provider: 'studyforge-test', model: 'study-model-b' } };
+  world.document.classroom!.roles[0]!.route = { provider: 'studyforge-test', model: 'study-model-a' };
   world.document.classroom!.roles[0]!.avatar = avatar.ref;
   world.document.classroom!.rules = world.document.classroom!.rules.map(rule => ({ ...rule, enabled: rule.trigger.kind === 'manual' }));
   world = value(await client.rpc<WorldbookView>('studyforgePlugins/saveWorldbook', { input: { ...target, expectedVersion: world.revision, operationId: 'prepare', document: world.document } }));
@@ -47,7 +47,7 @@ test('teacher-spawned classmates are isolated, public replies return once, priva
   const call = (name: string, args: unknown) => send('[tools]' + JSON.stringify([{ name: 'load_tools', arguments: { names: [name] } }, { name, arguments: args }]));
   const read = () => client.rpc<ClassroomRuntimeView>('notaraClassroomView/read', { input: target }).then(value);
   await send('PARENT_ONLY_SECRET：这段旧课堂内容不交给同学。');
-  await call('ask_classmate', { id, roleId: 'critic', task: '检查给定推论。', materials: [{ title: '被评议原话', text: 'PUBLIC_MATERIAL：所有正方形是矩形，所以所有矩形都是正方形。' }], destination: 'conversation', route: 'escalated' });
+  await call('ask_classmate', { id, roleId: 'critic', task: '检查给定推论。', materials: [{ title: '被评议原话', text: 'PUBLIC_MATERIAL：所有正方形是矩形，所以所有矩形都是正方形。' }], destination: 'conversation', routeOverride: { provider: 'studyforge-test', model: 'study-model-b' } });
   await expect.poll(async () => (await read()).tasks[0]?.status, { timeout: 30000 }).toBe('completed');
   await expect.poll(async () => (await read()).tasks[0]?.replySequence, { timeout: 30000 }).toBeDefined();
   const publicTask = (await read()).tasks[0]!;

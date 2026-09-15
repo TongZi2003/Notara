@@ -109,8 +109,7 @@ export class ClassroomRuntime {
     const data = ClassmateTaskInputSchema.parse(input), view = await this.definition(context.sessionId!, data.id, true);
     const role = view.document.classroom.roles.find(role => role.id === data.roleId && role.enabled);
     if (!role) throw new Error('classroom_role_unavailable');
-    const effectiveRoute = data.route === 'escalated' ? role.route?.escalation : role.route?.default;
-    if (data.route === 'escalated' && !effectiveRoute) throw new Error('classroom_escalation_unavailable');
+    const effectiveRoute = data.routeOverride ?? role.route;
     const key = keyOf(context.operationId), prior = this.tasks.list(context).find(row => row.ref === 'classroomtask:' + key);
     if (prior) return { ref: prior.ref, name: prior.data.role.name, state: (await this.taskView(prior)).status };
     const currentInput = worldbookInput(parent.session.snapshotEvents()), named = currentInput ? mentionedClassmates(currentInput.text, view.document.classroom) : [];
@@ -126,7 +125,7 @@ export class ClassroomRuntime {
     const content = await this.host.studyforgePluginsManager.openWorkbench(context.sessionId!, data.id);
     const childId = SessionId('classmate-' + key);
     const row = await this.tasks.create(context, key, { sessionId: context.sessionId!, id: data.id, digest: content.digest,
-      role, task: data.task, materials: data.materials, destination: data.destination, route: data.route, ...(effectiveRoute ? { effectiveRoute } : {}), childId, parentTurn, fromSequence: -1, ...(cue ? { cueRef: cue.ref } : {}) });
+      role, task: data.task, materials: data.materials, destination: data.destination, ...(data.routeOverride ? { routeOverride: data.routeOverride } : {}), ...(effectiveRoute ? { effectiveRoute } : {}), childId, parentTurn, fromSequence: -1, ...(cue ? { cueRef: cue.ref } : {}) });
     try {
       await this.host.subagents.startContinuable({ provider: 'spawn', label: role.name, childId,
         request: { parent, toolFilter: { allow: [] }, maxDepth: 1, persona: role.instructions,

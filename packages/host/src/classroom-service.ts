@@ -71,7 +71,7 @@ export function registerClassroomTools(host: Context): void {
       return { json: JSON.stringify({ ...await host.notaraClassroom.definition(context.sessionId!, data.id), ...await host.notaraClassroom.view(context.sessionId!, data.id, true) }) };
     },
   }));
-  host.effect(() => host.tools.register({ name: 'ask_classmate', description: '由老师向本课已启用的同学派发独立任务。先自己读取并选择材料；同学无工具、不继承父会话。返回真实任务引用后等待原生完成通知，不重复派发。公开任务只提供可公开材料；含解答/标准的备课选teacher。遇到难题可将route设为escalated，使用该同学预先配置的升级模型，只影响本次任务。', parameters: toolSchema(ClassmateTaskInputSchema), output,
+  host.effect(() => host.tools.register({ name: 'ask_classmate', description: '由老师向本课已启用的同学派发独立任务。先自己读取并选择材料；同学无工具、不继承父会话。返回真实任务引用后等待原生完成通知，不重复派发。公开任务只提供可公开材料；含解答/标准的备课选teacher。遇到难题可用routeOverride直接指定本次任务的provider/model/推理强度/输出上限，不改写同学默认配置。', parameters: toolSchema(ClassmateTaskInputSchema), output,
     async execute(args, execution) {
       const context = await teacherContext(host, execution);
       return { json: JSON.stringify(await host.notaraClassroom.request(context, execution.agent!, ClassmateTaskInputSchema.parse(args))) };
