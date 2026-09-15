@@ -1,10 +1,13 @@
 import { z } from 'zod';
 
 const Key = z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/);
+export const ClassroomAvatarRefSchema = z.string().regex(/^avatar:[a-f0-9]{64}$/);
+export interface ClassroomAvatarImage { ref: string; mediaType: 'image/webp'; base64: string }
 export function classmateMention(name: string, classroom: string): string { return '@' + name + '（' + classroom + '）'; }
 export const ClassmateSchema = z.object({
   id: Key, name: z.string().trim().min(1).max(32), purpose: z.string().trim().min(1).max(160),
   instructions: z.string().trim().min(1).max(4000), enabled: z.boolean(),
+  avatar: ClassroomAvatarRefSchema.optional().describe('通过本地头像上传得到的引用；改写角色时保留，不自行编造或写图片数据。'),
 }).strict();
 export type Classmate = z.infer<typeof ClassmateSchema>;
 export const ClassroomTriggerSchema = z.discriminatedUnion('kind', [

@@ -1,3 +1,4 @@
+import sharp from 'sharp';
 import { afterEach, expect, test } from 'vitest';
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -11,7 +12,7 @@ const fixture = JSON.parse(await readFile(resolve('tests/fixtures/classroom-seed
 let runtime: IsolatedRuntime | undefined;
 afterEach(async () => { await runtime?.stop(); });
 const value = <T>(reply: RemoteResult<T>): T => { if (!reply.ok) throw new Error(JSON.stringify(reply.error)); return reply.value; };
-type ModelRequest = { sessionId: string; purpose?: string; messages: { id?: string; role: string; source: { kind: string; plugin?: string }; content: { type: string; text?: string; content?: { text?: string }[] }[] }[]; toolNames: string[] };
+type ModelRequest = { sessionId: string; purpose?: string; messages: { id?: string; role: string; source: { kind: string; plugin?: string; avatar?: string }; content: { type: string; text?: string; content?: { text?: string }[] }[] }[]; toolNames: string[] };
 const logs = async (): Promise<ModelRequest[]> => (await readFile(join(runtime!.root, 'model-requests.jsonl'), 'utf8').catch(() => '')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
 const requestText = (row: ModelRequest): string => JSON.stringify(row.messages);
 
@@ -23,7 +24,9 @@ test('teacher-spawned classmates are isolated, public replies return once, priva
   value(await client.rpc('studyforgeCourses/update', { input: { ...session, expectedVersion: 0, operationId: 'private-teacher-context', patch: { temporaryInstructions: 'PARENT_PRIVATE_PROMPT：这段教师私有准备不交给同学。' } } }));
   expect(value(await client.rpc<WorkbenchContent>('studyforgePlugins/openWorkbench', { input: target })).kind).toBe('classroom');
   let world = value(await client.rpc<WorldbookView>('studyforgePlugins/readWorldbook', { input: target }));
+  const avatar = value(await client.rpc<any>('notaraClassroomView/uploadAvatar', { input: { base64: (await sharp({ create: { width: 64, height: 64, channels: 3, background: '#a6bbcd' } }).png().toBuffer()).toString('base64') } }));
   world.document.classroom = structuredClone(fixture.classroom);
+  world.document.classroom!.roles[0]!.avatar = avatar.ref;
   world.document.classroom!.rules = world.document.classroom!.rules.map(rule => ({ ...rule, enabled: rule.trigger.kind === 'manual' }));
   world = value(await client.rpc<WorldbookView>('studyforgePlugins/saveWorldbook', { input: { ...target, expectedVersion: world.revision, operationId: 'prepare', document: world.document } }));
   value(await client.rpc('studyforgePlugins/useWorldbook', { input: { ...target, expectedVersion: world.useRevision, enabled: true } }));
@@ -66,6 +69,9 @@ test('teacher-spawned classmates are isolated, public replies return once, priva
   const publicReplies = latestParent.messages.filter(message => message.source.kind === 'plugin' && message.source.plugin === 'notara-classroom-speaker');
   expect(publicReplies.some(message => JSON.stringify(message).includes('PRIVATE_ANSWER'))).toBe(false);
   expect(publicReplies.length).toBeLessThanOrEqual(2);
+  expect(publicReplies.length).toBeGreaterThan(0);
+  expect(publicReplies.every(message => message.source.avatar === avatar.ref)).toBe(true);
+  expect((await logs()).some(row => requestText(row).includes(avatar.base64))).toBe(false);
   value(await client.rpc('studyforgePlugins/setEnabled', { input: { ref: installed.ref, expectedVersion: installed.revision, enabled: false } }));
   expect((await client.rpc('notaraClassroomView/read', { input: target })).ok).toBe(false);
 }, 180000);

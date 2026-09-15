@@ -56,7 +56,7 @@ export async function apply(ctx: Context): Promise<void> {
   ctx.plugin({ inject: ['slots', 'sessions', 'layout', 'conversation', 'sidebarRight', 'remote.studyforgeTrace', 'remote.studyforgeLibrary', 'remote.studyforgeCreation', 'remote.studyforgeCourses', 'remote.studyforgeMaterials', 'remote.studyforgeTeaching', 'remote.studyforgeMemory', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'remote.studyforgeHandoffs', 'remote.studyforgeProposals', 'remote.studyforgePlugins', 'remote.notaraWorkbench', 'remote.notaraClassroomView'], apply: registerLearningWorkspace });
   // The student-facing system note and the opt-in Raw debug surfaces read the
   // same session binding the native Chat owns; they open no second source.
-  ctx.plugin({ inject: ['remote.studyforgeCourses', 'slots', 'sessions'], apply: registerDebugSurfaces });
+  ctx.plugin({ inject: ['remote.studyforgeCourses', 'remote.notaraClassroomView', 'slots', 'sessions'], apply: registerDebugSurfaces });
   // The materials page needs the Host's own material Remote plus the native
   // document-preview registry it adds a DOCX renderer to.
   ctx.plugin({ inject: ['remote.studyforgeLibrary', 'remote.studyforgeCreation', 'remote.studyforgeTeaching', 'remote.studyforgeMaterials', 'remote.studyforgeSources', 'remote.studyforgeLearning', 'remote.studyforgeOrganization', 'resources', 'sidebarRightTabs', 'documentPreviews', 'slots', 'sidebarRight', 'layout', 'inputTriggers', 'conversation', 'sessions'], apply: scope => registerMaterials(scope, materialNavigation) });

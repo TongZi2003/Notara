@@ -1,3 +1,6 @@
+import type { Context } from '@deepseek-ai/cordis';
+import { ClassmateAvatar } from '../plugins/ClassmateAvatar.tsx';
+import { ClassroomAvatarRefSchema } from '@studyforge/contracts/classroom';
 import type { ContextMessageNode } from '@deepseek-ai/dsh-client-ui-conversation/client';
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import { useState } from 'react';
@@ -32,10 +35,10 @@ export function SystemPromptNote({ node }: PropsRuntime<'conversation.chat.node'
 }
 
 /** One non-user context row, presented without its producer identity. */
-export function ContextNote({ node }: PropsRuntime<'conversation.chat.node', 'context'>): React.JSX.Element | null {
+export function ContextNote({ node, ctx }: PropsRuntime<'conversation.chat.node', 'context'> & { ctx: Context }): React.JSX.Element | null {
   const [open, setOpen] = useState(false);
-  const speaker = z.object({ kind: z.literal('plugin'), plugin: z.literal('notara-classroom-speaker'), form: z.literal('notice'), summary: z.string() }).safeParse(node.data.source);
-  if (speaker.success) return <article className="sf-classmate-reply" data-testid="classmate-reply" data-classmate-sequence={node.data.seq}><header><span>{speaker.data.summary.slice(0, 1)}</span><span>{speaker.data.summary}</span></header><MarkdownBody text={contentText(node.data)} /></article>;
+  const speaker = z.object({ kind: z.literal('plugin'), plugin: z.literal('notara-classroom-speaker'), form: z.literal('notice'), summary: z.string(), avatar: ClassroomAvatarRefSchema.optional() }).safeParse(node.data.source);
+  if (speaker.success) return <article className="sf-classmate-reply" data-testid="classmate-reply" data-classmate-sequence={node.data.seq}><header><span>{speaker.data.avatar ? <ClassmateAvatar ctx={ctx} avatar={speaker.data.avatar} /> : speaker.data.summary.slice(0, 1)}</span><span>{speaker.data.summary}</span></header><MarkdownBody text={contentText(node.data)} /></article>;
   if (node.data.provenance.role === 'recall') {
     const label = node.data.provenance.label;
     const text = contentText(node.data);

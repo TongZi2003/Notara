@@ -191,7 +191,7 @@ export class ClassroomRuntime {
     const view = await this.taskView(row); if (view.status !== 'completed' || !view.reply.trim() || view.replySequence !== undefined) return;
     const resolved = await this.host.sessionController.resolveAgent(SessionId(row.data.sessionId)); if ('error' in resolved) return;
     const message: UserMessage = { id: MessageId('notara-classmate-' + row.ref.slice(row.ref.indexOf(':') + 1)), role: 'user',
-      source: { kind: 'plugin', plugin: CLASSROOM_SPEAKER, form: 'notice', summary: row.data.role.name }, content: [{ type: 'text', text: view.reply }] };
+      source: { kind: 'plugin', plugin: CLASSROOM_SPEAKER, form: 'notice', summary: row.data.role.name, ...(row.data.role.avatar ? { avatar: row.data.role.avatar } : {}) }, content: [{ type: 'text', text: view.reply }] };
     resolved.agent.session.append('user/message', message, { surfaceOp: 'append' });
     await this.host.sessions.flush(resolved.agent.session);
   }

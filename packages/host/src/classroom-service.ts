@@ -6,10 +6,22 @@ import { WorldbookEntrySchema } from '@studyforge/contracts/plugins';
 import { studentContext } from './learning-service.ts';
 import { teacherContext } from './tools/learning-context.ts';
 import { toolSchema } from './tools/tool-schema.ts';
+import type { ClassroomAvatarImage } from '@studyforge/contracts/classroom';
+import { uploadClassroomAvatar, readClassroomAvatar } from './plugins/classroom-avatars.ts';
 
 const Target = z.object({ sessionId: z.string().min(1), id: z.string().min(1) }).strict();
 export class ClassroomRemote extends TypertRemoteService {
   constructor(ctx: Context) { super(ctx, 'notaraClassroomView'); }
+  @Remote('uploadAvatar')
+  async uploadAvatar(input: { base64: string }): Promise<ClassroomAvatarImage> {
+    await studentContext(this.ctx);
+    return uploadClassroomAvatar(this.ctx.studyforgeAccess.root, z.object({ base64: z.string().max(7_000_000) }).strict().parse(input).base64);
+  }
+  @Remote('readAvatar')
+  async readAvatar(input: { ref: string }): Promise<ClassroomAvatarImage> {
+    await studentContext(this.ctx);
+    return readClassroomAvatar(this.ctx.studyforgeAccess.root, input.ref);
+  }
   @Remote('choices')
   async choices(input: { sessionId: string }): Promise<ClassroomChoice[]> {
     await studentContext(this.ctx, input.sessionId); return this.ctx.notaraClassroom.choices(input.sessionId);

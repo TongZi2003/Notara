@@ -3,6 +3,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-chat/client';
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 import type {} from '@deepseek-ai/dsh-client-ui-slots';
+import { createElement } from 'react';
 import { DebugRow } from './DebugRow.tsx';
 import type { RawDebugInjected } from './RawSessionView.tsx';
 import { RawSessionView } from './RawSessionView.tsx';
@@ -66,7 +67,7 @@ export function registerDebugSurfaces(ctx: Context): void {
   // Native Normal transcript mode would otherwise print the context producer's
   // plugin id; the durable row stays in Raw and Trajectory.
   ctx.effect(() => ctx.slots.inject('conversation.chat.node', () => ctx.slots.register(
-    { name: 'conversation.chat.node', key: 'context', priority: -10 }, ContextNote,
+    { name: 'conversation.chat.node', key: 'context', priority: -10 }, props => createElement(ContextNote, { ...props, ctx }),
   )), 'studyforge: classroom context note');
   ctx.effect(() => ctx.slots.inject('conversation.chat.node', () => ctx.slots.register(
     { name: 'conversation.chat.node', key: 'turn-error', priority: -10 }, ReplyError,
