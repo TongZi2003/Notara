@@ -2,7 +2,17 @@
 
 产品设计与执行记录分别见 [设计](../../../docs/superpowers/specs/2026-09-14-notara-plugins-design.md)、[计划](../../../docs/superpowers/plans/2026-09-14-notara-plugins.md)、[验收](../../../docs/dev-log/2026-09-14-Notara-plugins-v1.md)。
 
-支持 npm 包中的 `notara.apiVersion=1`，提供 skills、workbenches、teaching、subjects、worldbooks。完整独立包：[出题与复盘](../../examples/plugins/study-kit/README.md)、[世界书](../../examples/plugins/worldbook/README.md)、[函数实验台](../../examples/plugins/function-lab/README.md)、[论证工作台](../../examples/plugins/argument-studio/README.md)。本地目录及 `.tgz`/`.tar.gz` 均通过插件页检查后确认安装。
+支持 npm 包中的 `notara.apiVersion=1`，提供 skills、workbenches、teaching、subjects、worldbooks。本地目录及 `.tgz`/`.tar.gz` 均通过插件页检查后确认安装。
+
+## 当前启用组合（2026-09-15）
+
+日常环境只启用[数学工作台](../../examples/plugins/math-workbench/README.md)和[世界书](../../examples/plugins/worldbook/README.md)。完整环境沿用58354及其学习数据，数学版本为1.2.3；数学测试入口不再作为日常入口。
+
+函数实验台、几何作图台、论证工作台、老师黑板、错解诊所、史料侦探局、时空地图、多智能体研讨室、情境模拟器均停用。它们作为历史原型保留包、源码和旧成果；构建示例和安装生命周期测试不等于默认启用清单，不因一次构建或测试重新启用。出题与复盘包是未安装的接口示例，不补装。
+
+错题练习直接通过对话和现有卡片能力完成；板书是AI回复中的关键公式与步骤。情景、人设和规则由世界书承载。后续世界书与多智能体管理将合并成「教室」插件，方向见[教室插件](../ui/classroom-plugin-direction.md)，本轮未实现。
+
+## 安装与运行
 
 Host Remote 为 `studyforgePlugins/{prepare,installPackage,list,setEnabled,uninstallPackage,workbenches,openWorkbench,saveNote}`；安装/卸载方法不能命名为 install/uninstall，它们是原生客户端服务保留名称。`PluginView.state` 是加载结果，`enabled` 是请求设置；首次安装可成功保存记录但state=failed，界面不得显示成已启用。
 
