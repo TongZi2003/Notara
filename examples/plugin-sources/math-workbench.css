@@ -16,3 +16,14 @@ body{padding:0!important}*{box-sizing:border-box}main{height:100dvh;display:flex
 #box-select[aria-pressed=true]{color:var(--notara-accent);box-shadow:inset 0 0 0 1px var(--notara-accent)}
 .canvas-hint{max-width:calc(100% - 146px)}
 @media(max-width:620px){#toggle-panel,#close-panel{display:block}#side-panel{display:none;position:absolute;inset:0 auto 0 0;width:min(265px,88%);z-index:5;box-shadow:8px 0 18px #0000000a}main[data-panel=open] #side-panel{display:block}.math-header{gap:4px;padding:6px}.math-header strong{font-size:12px}.math-bottom{padding:0 8px 5px}}@media(max-width:350px){.math-header strong{display:none}.math-header nav{margin-left:0}.history{margin-left:auto}.math-bottom footer{gap:4px}.math-bottom footer button{padding:4px 6px!important}.canvas-hint{display:none}.selection-bar{gap:3px;padding-left:7px}}@media(max-height:450px){.math-header{height:36px}.math-bottom{max-height:38%}.math-workspace{min-height:150px}}
+/* Keep destructive scene actions obvious and easy to hit in a narrow workbench. */
+.math-header button{white-space:nowrap;min-height:28px}
+#action-status{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--notara-accent);opacity:0;transition:opacity .15s ease}
+#action-status[data-visible=true]{opacity:1}
+/* The two JSXGraph boards occupy the same rectangle. Keep the inactive board
+   out of the paint stack as well as out of hit testing. */
+.graph-wrap #space-board{visibility:hidden!important;pointer-events:none!important}
+main[data-view="3d"] .graph-wrap #space-board{visibility:visible!important;pointer-events:auto!important}
+main[data-view="3d"] .graph-wrap #math-board{visibility:hidden!important;pointer-events:none!important}
+#math-board,#space-board{z-index:1}
+.graph-tools,.canvas-hint{z-index:2}

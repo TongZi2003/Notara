@@ -4,15 +4,18 @@ import type { MathProjection } from '../../packages/contracts/src/math-workbench
 import { containsSelection, type SelectionBox } from './math-selection.ts';
 declare const JXG:any;
 export const kindNames:Record<MathObject['kind'],string>={function:'函数',parametric:'参数曲线',implicit:'隐式曲线',point:'点',glider:'曲线上动点',line:'直线 / 线段',vector:'向量',circle:'圆',polygon:'多边形',tangent:'切线',midpoint:'中点',intersection:'交点',parallel:'平行线',perpendicular:'垂线',circumcircle:'三点圆',angle:'角',conic:'五点圆锥曲线',point3d:'空间点',midpoint3d:'空间中点',line3d:'空间直线 / 线段',vector3d:'空间向量',plane3d:'平面',polygon3d:'空间多边形',sphere3d:'球',function3d:'函数曲面',parametric3d:'空间参数曲线',surface3d:'参数曲面'};
-type Hooks={select:(name:string,additive:boolean)=>void;point:(name:string,coordinates:number[])=>void;viewport:(box:number[])=>void;camera:(az:number,el:number)=>void};
+type Hooks={select:(name:string,additive:boolean)=>void;point:(name:string,coordinates:number[])=>void;canvas:(coordinates:[number,number])=>void;viewport:(box:number[])=>void;camera:(az:number,el:number)=>void};
 export function createMathBoards(current:()=>MathScene,hooks:Hooks){
   const scene=current(),elements=new Map<string,any>(),failures:string[]=[];
   let muted=true;
-  const colors={accent:'var(--notara-accent,#3468c0)',red:'#b35d58',green:'#4d8465',gray:'var(--notara-muted,#777)'};
+  // JSXGraph writes these values into SVG attributes; CSS var(...) is not
+  // valid there, so use concrete colors and let the surrounding Notara UI
+  // carry the theme.
+  const colors={accent:'#3468c0',red:'#b35d58',green:'#4d8465',gray:'#8a9199'};
   JXG.Options.jc.compile=false;
   const common={resize:{enabled:false},showCopyright:false,showNavigation:false,showInfobox:false,keepaspectratio:true,pan:{enabled:true},zoom:{enabled:true,wheel:true}};
   const axes={strokeColor:colors.gray,ticks:{strokeColor:colors.gray,label:{fontSize:11,strokeColor:colors.gray}}};
-  const plane=JXG.JSXGraph.initBoard('math-board',{...common,boundingbox:scene.viewport,axis:true,grid:true,defaultAxes:{x:axes,y:axes},pan:{enabled:true,needShift:false,needTwoFingers:false}});
+  const plane=JXG.JSXGraph.initBoard('math-board',{...common,boundingbox:scene.viewport,axis:true,grid:{strokeColor:'#d9dde3',strokeOpacity:.85},defaultAxes:{x:axes,y:axes},pan:{enabled:true,needShift:false,needTwoFingers:false}});
   const space=JXG.JSXGraph.initBoard('space-board',{...common,boundingbox:[-7,7,7,-7],axis:false,grid:false,pan:{enabled:false},zoom:{enabled:false}});
   const view=space.create('view3d',[[-5,-5],[10,10],scene.space.bounds],{projection:'parallel',axesPosition:'center',depthOrder:true,
     az:{slider:{visible:false}},el:{slider:{visible:false}},bank:{slider:{visible:false}},
@@ -67,6 +70,22 @@ export function createMathBoards(current:()=>MathScene,hooks:Hooks){
   // Surface3D builds its mesh in update(), not in its constructor. Complete the
   // initial update before publishing observations or enabling interaction.
   plane.fullUpdate();space.fullUpdate();
+  let canvasPress:{x:number;y:number;moved:boolean}|undefined;
+  plane.on('down',(event:PointerEvent)=>{
+    canvasPress=event.button===0&&current().view==='2d'&&!(event.target as Element)?.closest('[data-math-object]')
+      ?{x:event.clientX,y:event.clientY,moved:false}:undefined;
+  });
+  plane.on('move',(event:PointerEvent)=>{
+    if(canvasPress&&Math.hypot(event.clientX-canvasPress.x,event.clientY-canvasPress.y)>5)canvasPress.moved=true;
+  });
+  plane.on('up',(event:PointerEvent)=>{
+    const press=canvasPress;canvasPress=undefined;
+    if(muted||current().view!=='2d'||!press||press.moved||Math.hypot(event.clientX-press.x,event.clientY-press.y)>5)return;
+    const [x,y]=plane.getUsrCoordsOfMouse(event);
+    // Adding an object rebuilds both boards. Let JSXGraph finish releasing its
+    // pointer before freeing the board that is still dispatching this event.
+    if(Number.isFinite(x)&&Number.isFinite(y))queueMicrotask(()=>{if(!muted)hooks.canvas([Number(x.toFixed(6)),Number(y.toFixed(6))]);});
+  });
   plane.on('boundingbox',()=>{if(!muted)hooks.viewport(plane.getBoundingBox());});
   space.on('up',()=>{if(!muted)hooks.camera(view.az_slide.Value(),view.el_slide.Value());});
   muted=false;
@@ -96,5 +115,5 @@ export function createMathBoards(current:()=>MathScene,hooks:Hooks){
   }).map(object=>object.name);
   return {plane,space,view,elements,failures,projection,highlight,selectWithin,update:()=>{plane.update();space.update();},
     resize:(width:number,height:number)=>{muted=true;try{plane.resizeContainer(width,height,true,true);space.resizeContainer(width,height,true,true);}finally{muted=false;}},
-    destroy:()=>{JXG.JSXGraph.freeBoard(plane);JXG.JSXGraph.freeBoard(space);}};
+    destroy:()=>{muted=true;JXG.JSXGraph.freeBoard(plane);JXG.JSXGraph.freeBoard(space);}};
 }

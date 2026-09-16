@@ -8,14 +8,15 @@ import { renderToString } from 'katex';
 declare const Notara:{loadDocument():Promise<{revision:number;document:PluginDocument}>;saveDocument(revision:number,document:PluginDocument):Promise<{revision:number;document:PluginDocument}>;compose(text:string):Promise<unknown>;pickSource():Promise<PluginLink>;openSource(link:PluginLink):Promise<unknown>;saveNote(note:{title:string;body:string;documentRevision:number}):void;publishMath(projection:MathProjection):Promise<unknown>;calculateMath(revision:number,input:MathCompute):Promise<{status:string;latex:string;json:string;numeric?:number}>};
 type Scene=Extract<PluginDocument,{kind:'math'}>;
 const root=document.createElement('main');
-root.innerHTML=`<header class="math-header"><button id="toggle-panel" aria-label="展开对象与计算" title="对象与计算">☰</button><strong>数学工作台</strong><nav aria-label="数学视图"><button id="view-2d" aria-pressed="true">二维</button><button id="view-3d" aria-pressed="false">三维</button></nav><div class="history"><button id="undo" aria-label="撤销" title="撤销">↶</button><button id="redo" aria-label="重做" title="重做">↷</button></div><button id="sync-now" title="刷新场景" aria-label="刷新数学场景">↻</button></header>
+root.innerHTML=`<header class="math-header"><button id="toggle-panel" type="button" aria-label="展开对象与计算" title="对象与计算">☰</button><strong>数学工作台</strong><nav aria-label="数学视图"><button id="view-2d" type="button" aria-pressed="true">二维</button><button id="view-3d" type="button" aria-pressed="false">三维</button></nav><div class="history"><button id="undo" type="button" aria-label="撤销" title="撤销">↶</button><button id="redo" type="button" aria-label="重做" title="重做">↷</button></div><button id="clear-scene" type="button" title="清空当前构造" aria-label="清空当前构造">清空</button><button id="reset-scene" type="button" title="强制初始化为空白数学场景" aria-label="强制初始化数学场景">强制初始化</button><button id="sync-now" type="button" title="刷新场景" aria-label="刷新数学场景">↻</button><span id="action-status" role="status" aria-live="polite"></span></header>
 <section class="math-workspace"><aside id="side-panel"><div class="panel-tabs"><button id="tab-objects" aria-pressed="true">对象</button><button id="tab-compute" aria-pressed="false">计算</button><button id="close-panel" aria-label="收起对象与计算">×</button></div><section id="objects-panel"><div class="construction-bar"><select id="object-kind" aria-label="构造类型"></select><button id="new-object">＋ 构造</button></div><div id="objects" aria-label="图形对象"></div><div id="inspector"></div><section class="parameter-section"><div class="section-title"><span>参数</span><button id="new-parameter" aria-label="添加参数">＋</button></div><div id="parameters"></div><div id="parameter-editor"></div></section></section>
 <section id="compute-panel" hidden><form id="compute-form"><label>公式<input id="compute-expression" aria-label="计算公式" placeholder="x^2-5x+6=0" required></label><div class="compute-options"><label>运算<select id="compute-operation" aria-label="运算"><option value="solve">求解</option><option value="simplify">化简</option><option value="differentiate">求导</option><option value="evaluate">精确求值</option><option value="numeric">数值近似</option></select></label><label>变量<input id="compute-variable" aria-label="计算变量" value="x" maxlength="24"></label></div><button id="calculate">计算</button></form><p class="hint">支持 LaTeX，自动代入场景参数。</p><div id="compute-result" role="status"></div><button id="keep-calculation" hidden>加入观察</button></section></aside>
-<section class="graph-wrap"><div id="math-board" tabindex="0" aria-label="二维数学画布"></div><div id="space-board" tabindex="0" aria-label="三维数学画布"></div><div id="empty-canvas"><span>从一个构造开始</span><div><button id="example-function">函数与切线</button><button id="example-space">空间几何</button></div></div><div class="graph-tools"><button id="zoom-in" aria-label="放大图形">＋</button><button id="zoom-out" aria-label="缩小图形">−</button><button id="home" aria-label="恢复视区">⌂</button></div><span id="space-hint" class="canvas-hint" hidden>拖动空白处旋转 · 拖点移动 · Shift 调整高度</span></section></section>
+<section class="graph-wrap"><div id="math-board" tabindex="0" aria-label="二维数学画布"></div><div id="space-board" tabindex="0" aria-label="三维数学画布"></div><div class="graph-tools"><button id="zoom-in" aria-label="放大图形">＋</button><button id="zoom-out" aria-label="缩小图形">−</button><button id="home" aria-label="恢复视区">⌂</button></div><span id="space-hint" class="canvas-hint" hidden>拖动空白处旋转 · 拖点移动 · Shift 调整高度</span></section></section>
 <section class="math-bottom"><details id="notes"><summary>观察与资料 <span id="observation-count"></span></summary><textarea id="observation" aria-label="观察与问题" rows="2" placeholder="记录观察、猜想或问题"></textarea><div id="sources"></div><button id="pick-source">关联资料</button></details><footer><span id="sync" role="status">正在读取…</span><button id="save-scene">保存</button><button id="save-note">存为笔记</button><button id="discuss">带入对话 ↗</button></footer><p id="error" role="alert"></p><div id="conflict-actions" hidden><button id="keep-local">保留我的改动</button><button id="use-remote">采用课堂版本</button></div></section>`;
 document.body.append(root);
 const $=<T extends HTMLElement=HTMLElement>(id:string):T=>document.getElementById(id) as T;
-let scene:Scene,base:Scene,revision=0,dirty=false,saving=false,generation=0,conflicted=false,selected='',fieldEditing=false,formDraft=false;
+const blankScene=():Scene=>({kind:'math',title:'数学探索',viewport:[-5,5,5,-5],space:{bounds:[[-5,5],[-5,5],[-5,5]],azimuth:.8,elevation:.35},view:'2d',parameters:[],objects:[],observation:'',links:[]});
+let scene:Scene,base:Scene,revision=0,dirty=false,saving=false,generation=0,conflicted=false,selected='',fieldEditing=false,formDraft=false,bootstrapping=true;
 let boards:ReturnType<typeof createMathBoards>|undefined,timer:ReturnType<typeof setTimeout>|undefined;
 let pendingSave:Promise<boolean>|undefined;
 let remotePending:{document:Scene;revision:number}|undefined;
@@ -33,14 +34,20 @@ const selectionBar=document.createElement('div');selectionBar.className='selecti
 selectionBar.innerHTML='<span id="selection-count" role="status"></span><button id="delete-selection" type="button">删除</button><button id="clear-selection" type="button" aria-label="清除选择">×</button>';
 const selectionHint=document.createElement('span');selectionHint.className='selection-hint';selectionHint.textContent='拖出矩形框选 · Shift 追加';selectionHint.hidden=true;
 graph.append(selectionRect,selectionBar,selectionHint);
+let actionTimer:ReturnType<typeof setTimeout>|undefined;
 const message=(text:string)=>{$('sync').textContent=text;};
+const actionMessage=(text:string)=>{const status=$('action-status');status.textContent=text;status.dataset.visible='true';clearTimeout(actionTimer);actionTimer=setTimeout(()=>{status.dataset.visible='false';},2200);};
 const error=(text:string)=>{$('error').textContent=text;};
 const valid=(doc:Scene)=>MathSceneSchema.safeParse(Object.fromEntries(Object.entries(doc).filter(([key])=>key!=='links')));
 const round=(n:number)=>Number(n.toPrecision(7));
 const pushHistory=()=>{past.push(structuredClone(scene));if(past.length>40)past.shift();future.length=0;};
 const historyButtons=()=>{$<HTMLButtonElement>('undo').disabled=!past.length||saving||conflicted;$<HTMLButtonElement>('redo').disabled=!future.length||saving||conflicted;};
+function loading(active:boolean):void{
+  root.setAttribute('aria-busy',String(active));graph.inert=active;
+  for(const control of root.querySelectorAll<HTMLButtonElement|HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>('button,input,select,textarea'))if(control.id!=='sync-now')control.disabled=active;
+}
 const nextName=(prefix:string)=>{let n=1;const names=new Set([...scene.objects,...scene.parameters].map(o=>o.name));while(names.has(prefix+n))n++;return prefix+n;};
-async function publish():Promise<void>{if(!boards||dirty||saving||conflicted)return;try{await Notara.publishMath(boards.projection(revision));}catch{/* A concurrent edit invalidates this projection; poll loads its revision. */}}
+async function publish():Promise<void>{if(bootstrapping||!boards||dirty||saving||conflicted)return;try{await Notara.publishMath(boards.projection(revision));}catch{/* A concurrent edit invalidates this projection; poll loads its revision. */}}
 function changed():void{dirty=true;generation++;message('同步中…');clearTimeout(timer);timer=setTimeout(()=>{void save();},450);historyButtons();}
 function save():Promise<boolean>{
   if(pendingSave)return pendingSave;
@@ -55,7 +62,7 @@ async function saveScene():Promise<boolean>{
   catch{try{const fresh=await Notara.loadDocument();if(fresh.document.kind==='math'&&fresh.revision!==revision){const merged=mergeMathScene(base,scene,fresh.document);if(!merged.conflicts.length&&valid(merged.document).success){scene=merged.document;base=structuredClone(fresh.document);revision=fresh.revision;render();timer=setTimeout(()=>{void save();},100);}else{remotePending={document:fresh.document,revision:fresh.revision};conflicted=true;$('conflict-actions').hidden=false;error('课堂与当前页面修改了同一处。请选择保留当前改动或采用课堂版本。');}}else error('暂时未能同步，改动仍保留。点击保存重试。');}catch{error('连接暂时不可用，改动仍保留。');}message('尚未同步');return false;}
   finally{saving=false;historyButtons();if(!dirty)void publish();}
 }
-function mutate(edit:(draft:Scene)=>void):boolean{if(!scene||conflicted)return false;const draft=structuredClone(scene);edit(draft);const result=valid(draft);if(!result.success){error(result.error.issues.map(i=>i.message).join('；'));return false;}if(JSON.stringify(draft)===JSON.stringify(scene))return true;pushHistory();scene={...draft,...result.data};error('');changed();render();return true;}
+function mutate(edit:(draft:Scene)=>void):boolean{if(bootstrapping||!scene||conflicted)return false;const draft=structuredClone(scene);edit(draft);const result=valid(draft);if(!result.success){error(result.error.issues.map(i=>i.message).join('；'));return false;}if(JSON.stringify(draft)===JSON.stringify(scene))return true;pushHistory();scene={...draft,...result.data};error('');changed();render();return true;}
 function button(text:string,action:()=>void):HTMLButtonElement{const b=document.createElement('button');b.type='button';b.textContent=text;b.onclick=action;return b;}
 function syncSelection():void{
   for(const name of selectedNames)if(!scene.objects.some(o=>o.name===name&&mathDimension(o)===(scene.view==='3d'?3:2)))selectedNames.delete(name);
@@ -117,10 +124,16 @@ document.addEventListener('keydown',event=>{
   if(event.key==='Escape'){endSelection(undefined,true);clearSelection();selectionMode(false);}
   else if((event.key==='Delete'||event.key==='Backspace')&&selectedNames.size){event.preventDefault();deleteObjects(selectedNames);}
 });
-function viewUI():void{root.dataset.view=scene.view;for(const value of ['2d','3d'])$('view-'+value).setAttribute('aria-pressed',String(scene.view===value));$('space-hint').hidden=boxMode;$('space-hint').textContent=scene.view==='2d'?'拖动空白处平移 · 拖点调整':'拖动空白处旋转 · 拖点移动 · Shift 调整高度';$('empty-canvas').hidden=scene.objects.some(o=>mathDimension(o)===(scene.view==='3d'?3:2));}
+function viewUI():void{root.dataset.view=scene.view;for(const value of ['2d','3d'])$('view-'+value).setAttribute('aria-pressed',String(scene.view===value));$('space-hint').hidden=boxMode;$('space-hint').textContent=scene.view==='2d'?'拖动空白处平移 · 拖点调整':'拖动空白处旋转 · 拖点移动 · Shift 调整高度';}
 function render():void{
   if(!scene)return;observationStarted=false;boards?.destroy();
-  boards=createMathBoards(()=>scene,{select:(name,additive)=>{selectObject(name,additive);},point:(name,coordinates)=>{
+  boards=createMathBoards(()=>scene,{select:(name,additive)=>{selectObject(name,additive);},canvas:(coordinates)=>{
+    if(scene.view!=='2d'||conflicted)return;
+    const name=nextName('P');
+    if(mutate(d=>{d.objects.push({kind:'point',name,x:coordinates[0],y:coordinates[1],draggable:true,color:'accent',visible:true});d.view='2d';})){
+      selectObject(name);actionMessage('已添加 '+name+'，继续点击画布添加点');
+    }
+  },point:(name,coordinates)=>{
     const object=scene.objects.find(o=>o.name===name);if(!object||!['point','point3d','glider'].includes(object.kind))return;
     const before=JSON.stringify(object),draft=structuredClone(object) as any;draft.x=coordinates[0];if(object.kind!=='glider')draft.y=coordinates[1];if(object.kind==='point3d')draft.z=coordinates[2];
     if(JSON.stringify(draft)!==before){pushHistory();Object.assign(object,draft);changed();renderObjects();renderInspector();}
@@ -190,7 +203,7 @@ function parameterEditor(name?:string):void{
 function showTab(tab:'objects'|'compute'):void{$('objects-panel').hidden=tab!=='objects';$('compute-panel').hidden=tab!=='compute';for(const t of ['objects','compute'])$('tab-'+t).setAttribute('aria-pressed',String(t===tab));root.dataset.panel='open';}
 async function load(force=false):Promise<void>{try{const reply=await Notara.loadDocument();if(reply.document.kind!=='math')throw new Error('wrong_document');if(saving||fieldEditing||formDraft||dragSelection)return;
   if(dirty){if(force){remotePending={document:reply.document,revision:reply.revision};conflicted=true;$('conflict-actions').hidden=false;error('当前仍有未同步改动。请选择保留当前改动或采用课堂版本。');}return;}
-  if(!scene||reply.revision!==revision||force){if(scene&&reply.revision!==revision)pushHistory();scene=reply.document;base=structuredClone(scene);revision=reply.revision;dirty=false;conflicted=false;error('');render();message('已同步');}
+  if(bootstrapping||!scene||reply.revision!==revision||force){if(scene&&reply.revision!==revision&&!bootstrapping)pushHistory();scene=reply.document;base=structuredClone(scene);revision=reply.revision;dirty=false;conflicted=false;if(bootstrapping)loading(false);bootstrapping=false;error('');render();message('已同步');}
 }catch{error('暂时无法读取场景，请点击刷新重试。');}}
 $('keep-local').onclick=()=>{if(!remotePending)return;const merged=mergeMathScene(base,scene,remotePending.document);if(!valid(merged.document).success){error('合并后的对象关系不完整，请修正或采用课堂版本。');return;}scene=merged.document;base=structuredClone(remotePending.document);revision=remotePending.revision;remotePending=undefined;conflicted=false;$('conflict-actions').hidden=true;render();changed();};
 $('use-remote').onclick=()=>{if(!remotePending)return;pushHistory();scene=remotePending.document;base=structuredClone(scene);revision=remotePending.revision;remotePending=undefined;dirty=false;conflicted=false;$('conflict-actions').hidden=true;error('');render();message('已采用课堂版本');};
@@ -202,6 +215,8 @@ for(const [kind,title] of Object.entries(kindNames)){const option=document.creat
 $('new-object').onclick=()=>{showTab('objects');renderInspector($<HTMLSelectElement>('object-kind').value as MathObject['kind']);};$('new-parameter').onclick=()=>parameterEditor();
 $('observation').onfocus=()=>{fieldEditing=true;};$('observation').onblur=()=>{fieldEditing=false;observationStarted=false;};$('observation').oninput=()=>{const value=$<HTMLTextAreaElement>('observation').value;if(value===scene.observation)return;if(!observationStarted){pushHistory();observationStarted=true;}scene.observation=value;changed();};
 $('sync-now').onclick=()=>{void load(true);};$('save-scene').onclick=()=>{void save();};
+$('clear-scene').onclick=()=>{if(bootstrapping)return;if(mutate(d=>{d.objects=[];d.parameters=[];d.observation='';d.links=[];d.view='2d';}))actionMessage('已清空，可以直接开始构造');};
+$('reset-scene').onclick=()=>{if(bootstrapping)return;pushHistory();if(remotePending){base=structuredClone(remotePending.document);revision=remotePending.revision;}remotePending=undefined;$('conflict-actions').hidden=true;scene={...blankScene(),title:scene.title};selectedNames.clear();conflicted=false;changed();error('');render();actionMessage('已强制初始化为空白场景');void save();};
 $('zoom-in').onclick=()=>{if(scene.view==='2d')boards?.plane.zoomIn();else mutate(d=>{d.space.bounds=d.space.bounds.map(([a,b])=>[(a+b)/2+(a-b)*.4,(a+b)/2+(b-a)*.4]) as Scene['space']['bounds'];});};
 $('zoom-out').onclick=()=>{if(scene.view==='2d')boards?.plane.zoomOut();else mutate(d=>{d.space.bounds=d.space.bounds.map(([a,b])=>[(a+b)/2+(a-b)*.625,(a+b)/2+(b-a)*.625]) as Scene['space']['bounds'];});};
 $('home').onclick=()=>mutate(d=>{if(d.view==='2d')d.viewport=[-5,5,5,-5];else d.space={bounds:[[-5,5],[-5,5],[-5,5]],azimuth:.8,elevation:.35};});
@@ -241,7 +256,6 @@ $('keep-calculation').onclick=()=>{mutate(d=>{d.observation+=(d.observation?'\n'
 $('compute-form').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();$('calculate').click();}};$('compute-form').onsubmit=event=>event.preventDefault();
 $('discuss').onclick=()=>{void(async()=>{if(!await save())return;await publish();await Notara.compose('请结合这个数学场景和我的观察继续讨论。用 read_math_scene 读取场景与测量，必要时增量修改同一份构造。');message('已带入，检查后发送');})().catch(()=>error('暂时无法带入对话，请重试'));};
 $('save-note').onclick=()=>{void(async()=>{if(!await save())return;const projection=boards?.projection(revision),details=scene.objects.map(o=>{const p=projection?.objects.find(p=>p.name===o.name);return o.name+' · '+kindNames[o.kind]+('expression' in o?'：'+o.expression:'')+(p?.coordinates?' ('+p.coordinates.map(round).join(', ')+')':'');}).join('\n');Notara.saveNote({title:scene.title,documentRevision:revision,body:'## 构造\n\n'+details+'\n\n## 参数\n\n'+(scene.parameters.map(p=>p.name+' = '+p.value).join('，')||'无')+'\n\n## 观察与问题\n\n'+(scene.observation.trim()||'保存本次构造，尚未记录观察结论。')});})().catch(()=>error('暂时无法准备笔记'));};
-$('example-function').onclick=()=>mutate(d=>{const a=nextName('a'),f=nextName('f'),p=nextName('P'),t=nextName('T');d.parameters.push({name:a,value:1,min:-3,max:3,step:.1});d.objects.push(...MathSceneSchema.parse({kind:'math',title:'示例',parameters:d.parameters,objects:[{kind:'function',name:f,expression:a+'*x^2'},{kind:'glider',name:p,curve:f,x:1},{kind:'tangent',name:t,point:p,color:'red'}]}).objects);d.view='2d';});
-$('example-space').onclick=()=>mutate(d=>{const a=nextName('A'),b=nextName('B'),c=nextName('C'),p=nextName('P'),base=nextName('base');const objects=[{kind:'point3d',name:a,x:0,y:0,z:0},{kind:'point3d',name:b,x:4,y:0,z:0},{kind:'point3d',name:c,x:0,y:3,z:0},{kind:'point3d',name:p,x:0,y:0,z:4},{kind:'polygon3d',name:base,points:[a,b,c]},...[a,b,c].map((from,i)=>({kind:'line3d',name:nextName('edge'+i),from,to:p,segment:true,color:'red'}))];d.objects.push(...MathSceneSchema.parse({kind:'math',title:'示例',objects}).objects);d.view='3d';});
 new ResizeObserver(()=>{const wrap=$('math-board').parentElement!;boards?.resize(wrap.clientWidth,wrap.clientHeight);}).observe($('math-board').parentElement!);
-setInterval(()=>{if(!saving&&!document.hidden)void load();},1500);setInterval(()=>{if(!document.hidden)void publish();},5000);void load();
+scene=blankScene();base=structuredClone(scene);loading(true);try{render();}catch(cause){error('坐标系暂时无法显示，请点击刷新重试。');message('尚未就绪');console.error('math workbench initialization failed',cause);}void load();
+setInterval(()=>{if(!saving&&!document.hidden)void load();},1500);setInterval(()=>{if(!document.hidden)void publish();},5000);
