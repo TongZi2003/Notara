@@ -32,15 +32,23 @@ npm run dev:isolated
 
 ## 试用
 
-给非开发者本机试用（数据可重复启动、不丢课堂）：
+给试用者的完整安装与启动流程（macOS / Linux / Windows 相同，Windows 用 PowerShell 或 cmd 即可，不需要 bash）：
 
 ```bash
+git clone <仓库地址> Notara
+cd Notara
+node --version          # 必须 >= v24
 npm ci --no-audit --no-fund
 npm run build
-npm run trial            # 数据落在 ./.trial/；可选参数：数据目录、--port <n>
+npm run trial           # 数据落在 ./.trial/，重启续学；可选：npm run trial -- <数据目录> --port <n>
 ```
 
-打开终端打印的 URL（内含本机登录 token），首次进入按引导配置模型——需要试用者自己的 DeepSeek API key。学习记录、课堂和插件数据都保存在 `.trial/` 里，重启继续。
+1. 终端打印 `Notara 试用实例：http://127.0.0.1:<port>/?token=…`——浏览器打开这个完整 URL（内含本机登录 token）。
+2. 首次进入按引导配置模型提供方，需要试用者自己的 DeepSeek API key。
+3. 装两个日常插件：侧栏 **插件 → 安装插件 → 开发目录**，各填一次仓库内目录的**绝对路径**，「查看安装内容」后「确认安装」：
+   - `<仓库>/examples/plugins/math-workbench`（数学工作台）
+   - `<仓库>/examples/plugins/worldbook`（教室与世界书）
+4. 之后每次试用只需 `npm run trial`；学习记录、课堂、插件固定版本都保存在 `.trial/`。想重置就删掉该目录。
 
 上游明确拒绝 `0.0.0.0` 绑定（会把执行能力暴露到网络）。局域网试用走 SSH 隧道：`ssh -L 3080:127.0.0.1:3080 <试用机>`。
 
