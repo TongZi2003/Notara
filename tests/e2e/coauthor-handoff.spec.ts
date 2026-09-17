@@ -21,6 +21,7 @@ import type { ProposalView } from '@studyforge/contracts/proposals';
 import type { RouteOpenResult, RouteView } from '@studyforge/contracts/routes';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
+import { selection } from '../fixtures/tool-session.ts';
 import { enterClassroom, sendInput, openRoot, openLessonSettings } from './fixtures/classroom.ts';
 
 const test = base.extend<{ dsh: IsolatedRuntime }>({
@@ -283,5 +284,47 @@ test('同一次开课重试只开一节课，也不按日期自动顺延', async
   // Nothing was advanced by date: no route node appeared and the lesson list grew once.
   expect(value(await client.rpc<RouteView>('studyforgeOrganization/route', {})).nodes.length).toBe(routeBefore);
   expect(value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.filter(item => item.sessionId === first.sessionId)).toHaveLength(1);
+  expect(errors).toEqual([]);
+});
+
+test('不在路线上的课提示可以编成路线，路线上的课不再提示', async ({ page, dsh }, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const { client, sessionId } = await proposeClose(page, dsh, '自由课小结', '今天自由探索了一节。');
+  await dismissNotices(page);
+  const proposal = page.getByTestId('inline-proposal').filter({ hasText: '自由课小结' });
+  await proposal.getByTestId('proposal-confirm').click();
+  await expect(proposal.locator('summary')).toContainText('已经保存');
+  await openLessonSettings(page);
+  const editor = page.getByTestId('lesson-settings-modal').getByTestId('handoff-editor');
+  // A lesson no route node binds still offers the route-ify hook.
+  await expect(editor.getByTestId('handoff-route-hint')).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('handoff-route-hint.png'), fullPage: true });
+
+  // A route now exists with a different lesson bound: the free lesson's hint is
+  // about membership, not about whether a route exists at all.
+  const day = new Date().toISOString().slice(0, 10);
+  const route = value(await client.rpc<RouteView>('studyforgeOrganization/addRouteNode', { input: { operationId: 'route-1', node: { title: '路线课', date: day } } }));
+  const bound = value(await client.rpc<RouteOpenResult>('studyforgeOrganization/openPlannedLesson', { input: { operationId: 'open-bound', nodeId: route.nodes[0]!.id } }));
+  await expect(editor.getByTestId('handoff-route-hint')).toBeVisible();
+  await page.getByTestId('lesson-settings-close').click();
+
+  // The bound lesson really closes, so its settings surface shows a handoff too.
+  value(await client.rpc('session/prompt', { request: { sessionId: bound.sessionId, requestId: crypto.randomUUID(), mode: 'queue',
+    content: [{ type: 'text', text: '[tool]' + JSON.stringify({ name: 'propose_handoff', arguments: { kind: 'close', title: '路线课小结', body: '路线上的第一节讲完了。' } }) }] } }));
+  await expect.poll(async () => value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(item => item.sessionId === bound.sessionId)?.running, { timeout: 45_000 }).toBe(false);
+  const proposals = value(await client.rpc<ProposalView[]>('studyforgeProposals/list', { input: { sessionId: bound.sessionId } }));
+  const pending = proposals.find(row => row.title === '路线课小结' && row.items.some(item => item.status === 'pending'));
+  if (pending === undefined) throw new Error('bound lesson close proposal missing');
+  value(await client.rpc<ProposalView>('studyforgeProposals/confirm', { input: { operationId: crypto.randomUUID(), target: pending.ref, selection: selection(pending) } }));
+  value(await client.rpc('session/rename', { request: { sessionId: bound.sessionId, title: '路线上的课' } }));
+
+  // The student switches into that lesson: its summary offers no route-ify hook.
+  await page.getByTestId('notebook-sidebar').locator('button.sf-side-session').filter({ hasText: '路线上的课' }).click();
+  await expect(page.locator('[data-composer-input]')).toBeVisible();
+  await openLessonSettings(page);
+  const boundEditor = page.getByTestId('lesson-settings-modal').getByTestId('handoff-editor');
+  await expect(boundEditor).toBeVisible();
+  await expect(boundEditor.getByTestId('handoff-route-hint')).toHaveCount(0);
   expect(errors).toEqual([]);
 });

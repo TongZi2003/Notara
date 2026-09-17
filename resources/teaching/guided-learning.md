@@ -37,3 +37,5 @@
 一段路线告一段落、学生问接下来学什么、或要沿旧线开新课时，先open(method=journey)读全部既有经历的索引：各课小结指针与当时系统事实、路线已开与未开节点、卡片复习态势、学情与方法清单。不凭印象复述，也不让学生重讲一遍；索引只是定位，需要哪段的正文再按需精读——上一段的小结用open(method=handoff)给ref/version读全文，卡用open(method=card)，学情用find(method=memory)/open(method=memory)，方法用open(method=method)。历程是只读投影，不制造记录，也不自动开课。
 
 据此决定接续点：续上一段就把新节点挂在它最后实开的节点之后，另起方向就parent:null新起一支；挂载位置每次按现状判断，不默认顺延。选材先find(method=materials)/find(method=learning)查库内，不足再delegate(method=search)/web_search调研新材料，实际入库后再挂节点。安排仍走propose(method=route)提案，学生确认才生效；读历程本身不批准任何计划。
+
+收一节不在路线上的自由课时同样留钩子：目标未完、下一步不止一节，就在小结的下一步建议里写清可以编成一条路线，不满足于口头「下次学X」。学生要求把后续排成路线时，先open(method=journey)读到这节课与全部既有经历，再按上面的规则propose(method=route)；学生没提出时不替他决定，只在小结里如实写下一步。

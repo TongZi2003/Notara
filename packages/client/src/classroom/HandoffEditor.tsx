@@ -47,6 +47,10 @@ export function HandoffEditor({ ctx, sessionId, continueInto, onContinued, onCha
   const [notice, setNotice] = useState<string | undefined>(undefined);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  // Whether the lesson this summary belongs to is bound to a route node. The
+  // route-ify hint only makes sense where there is no route to continue, so a
+  // failed or pending read shows nothing rather than a wrong prompt.
+  const [onRoute, setOnRoute] = useState<boolean | null>(null);
   // One attempt keeps one operation id: a lost answer retries the same opening
   // instead of opening a second lesson on the next click.
   const operationFor = useStableOperationId();
@@ -62,6 +66,17 @@ export function HandoffEditor({ ctx, sessionId, continueInto, onContinued, onCha
     }, () => { if (!dropped) setState({ status: 'error', notice: '这一课的小结暂时读不出来。' }); });
     return () => { dropped = true; };
   }, [ctx, sessionId]);
+
+  useEffect(() => {
+    if (state.status !== 'ready') { setOnRoute(null); return; }
+    const lesson = state.view.sessionId;
+    let dropped = false;
+    void ctx.remote.studyforgeOrganization.route().then(result => {
+      if (dropped || !result.ok) return;
+      setOnRoute(result.value.nodes.some(node => node.session?.sessionId === lesson));
+    }, () => {});
+    return () => { dropped = true; };
+  }, [ctx, state]);
 
   if (state.status === 'loading') return null;
   if (state.status === 'missing') return null;
@@ -167,6 +182,9 @@ export function HandoffEditor({ ctx, sessionId, continueInto, onContinued, onCha
         onClick={() => { void startNext(); }}>从这版接着学</button>
       {continueInto !== undefined && <button type="button" className="sf-quiet" data-testid="handoff-continue" disabled={busy}
         onClick={() => { void continueFrom(); }}>把这节课接在这一版</button>}
+      {onRoute === false && <p className="sf-note" data-testid="handoff-route-hint">
+        这节课还不在任何路线里——想让老师把接下来的学习编成一条路线，开好新的一节后跟老师说，它会先回看之前的经历再提一份安排。
+      </p>}
     </div>}
 
     {notice !== undefined && <p className="sf-notice" data-testid="handoff-notice">{notice}</p>}
