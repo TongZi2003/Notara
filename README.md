@@ -7,6 +7,7 @@
 - Node.js `>=24.0.0`（版本以 `.nvmrc` 和 `package.json` 为准）
 - npm 与提交的 `package-lock.json`
 - DSH 及其插件依赖必须保持同一锁定 rc 版本
+- macOS / Linux / Windows 均可运行（Windows 上目录链接自动改用 junction，无需管理员权限）；DSH 自身的 Windows 支持以上游为准，尚未实机验证
 
 ## 常用命令
 

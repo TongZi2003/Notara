@@ -6,6 +6,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// Directory links need no privilege on Windows only as junctions; 'dir' stays elsewhere.
+const dirLink = process.platform === 'win32' ? 'junction' as const : 'dir' as const;
 
 export interface IsolatedRuntime {
   readonly authUrl: string;
@@ -48,7 +50,7 @@ async function boot(root: string, options: { hostEnabled?: boolean; clientEnable
   await writeFile(join(home, 'settings.yaml'), 'ui-onboarding:\n  welcomeNoticeVersion: 2026-08-13.1\n');
   const plugins = join(root, 'plugins');
   await mkdir(plugins);
-  await symlink(join(project, 'node_modules'), join(plugins, 'node_modules'), 'dir');
+  await symlink(join(project, 'node_modules'), join(plugins, 'node_modules'), dirLink);
   const localPackages = ['contracts', 'domain', 'host', 'client'];
   for (const name of localPackages) {
     const target = join(plugins, name);
@@ -60,7 +62,7 @@ async function boot(root: string, options: { hostEnabled?: boolean; clientEnable
     // libraries resolve through the parent node_modules link as before.
     const scope = join(target, 'node_modules', '@studyforge');
     await mkdir(scope, { recursive: true });
-    for (const dependency of localPackages) await symlink(join(plugins, dependency), join(scope, dependency === 'client' ? 'dsh-client' : dependency), 'dir');
+    for (const dependency of localPackages) await symlink(join(plugins, dependency), join(scope, dependency === 'client' ? 'dsh-client' : dependency), dirLink);
   }
   const patch = join(home, 'cordis.patch.yml');
   if (options.testModel) {
