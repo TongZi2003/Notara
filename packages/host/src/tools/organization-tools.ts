@@ -11,7 +11,11 @@ import { teacherContext, observedVersion, rejected } from './learning-context.ts
 import { existingProposal, proposeFromTool, proposalOutput } from './proposal-tools.ts';
 import { toolSchema } from './tool-schema.ts';
 import { CoursePatchSchema, CourseViewSchema } from '@studyforge/contracts/courses';
+import { JourneyViewSchema } from '@studyforge/contracts/journey';
 import { courseRecordRef } from '@studyforge/domain/courses';
+import { journeyView } from '@studyforge/domain/journey';
+import { canonicalPath } from '@studyforge/domain/access';
+import { civilDay } from '@studyforge/domain/read-day';
 import { routeStudyContext } from '../teaching/guided-learning.ts';
 import { assertRefinedReads } from './source-use-tools.ts';
 
@@ -42,6 +46,24 @@ export function registerOrganizationTools(host: Context): void {
     async (args, execution) => host.studyforgeSkeletonService.read(await teacherContext(host, execution), skeletonRead.parse(args).materialId));
   read('read_lesson', '读取当前课的材料、学习集和教学方式；修改之前先读，不能借此关闭课堂。', z.object({}).strict(), CourseViewSchema.extend({ ref: z.string() }),
     async (_args, execution) => { const context = await teacherContext(host, execution); return { ref: courseRecordRef(context.sessionId!), ...host.studyforgeCourseMetadata.read(context) }; });
+  read('read_journey', '读取本工作区全部学习经历的索引：每节课的小结指针与当时系统事实（材料/产出/待确认）、路线已开与未开节点、卡片复习态势、学情与方法清单。续接下一段、规划新路线或回答「之前学了什么」先读这里定位，不凭印象复述；需要哪段的正文再按需精读——小结用open(method=handoff)给ref/version，卡用read_card，学情用read_memory/search_memory，方法用read_method。读取是投影不产生写入，不替代修改前的完整读取。', z.object({}).strict(), JourneyViewSchema,
+    async (_args, execution) => {
+      const context = await teacherContext(host, execution);
+      const native = await host.sessionController.list({}, AbortSignal.timeout(10_000));
+      const lessons = native.items
+        .filter(row => row.projections?.values.agentPreset === 'studyforge-learning' && row.origin !== 'subagent' && row.cwd !== undefined && canonicalPath(row.cwd, host.studyforgeAccess.root) === host.studyforgeAccess.root)
+        .map(row => ({ sessionId: String(row.sessionId), title: String(row.projections?.values.title ?? '课堂').slice(0, 240) }));
+      const route = host.studyforgeRouteService.read(context);
+      return journeyView({
+        handoffs: host.studyforgeHandoffService.list(context),
+        lessons,
+        route: route.version === 0 ? null : route,
+        cards: host.studyforgeCardRecords.list(context),
+        today: civilDay(host.studyforgeClock.now(), host.studyforgeClock.timeZone),
+        memory: host.studyforgeMemoryService.list(context),
+        knowledge: host.studyforgeKnowledgeRecords?.list(context) ?? [],
+      });
+    });
 
   function proposal(name: string, description: string, schema: z.ZodType, build: (args: unknown, execution: ToolRunContext) => Promise<Omit<ProposalInput, 'origin'>>): void {
     host.effect(() => host.tools.register({ name, description, parameters: toolSchema(schema), output: proposalOutput(),

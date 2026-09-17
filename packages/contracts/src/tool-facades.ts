@@ -27,6 +27,7 @@ export const TOOL_FACADES = {
     route: 'read_route',
     skeleton: 'read_skeleton',
     lesson: 'read_lesson',
+    journey: 'read_journey',
     handoff: 'read_handoff',
     markdown: 'read_markdown_material',
     teaching: 'read_teaching',

@@ -17,7 +17,7 @@ const ACTIONS: Record<string, string> = {
   read_memory: '回看学习记录', search_memory: '查找学习记录', note_memory: '记下这次学习观察', revise_memory: '更正学习记录',
   query_evidence: '回看你刚才的作答', record_review: '记下这次复习', register_cards: '整理待学习的卡片', update_card: '更新卡片内容',
   list_plans: '查看学习计划', read_plan: '核对这份计划', list_sets: '查看学习集', read_set: '查看这个学习集',
-  read_lesson: '查看本课安排', read_route: '查看课程路线', read_skeleton: '查看书的目录', read_handoff: '回看上节课的小结',
+  read_lesson: '查看本课安排', read_route: '查看课程路线', read_skeleton: '查看书的目录', read_handoff: '回看上节课的小结', read_journey: '回看全部学习经历',
   propose_card: '准备一张待确认的卡片', propose_review: '整理这次复习的记录', propose_set: '准备学习集的调整',
   propose_plan: '整理学习计划', propose_route: '安排接下来的课程', propose_skeleton: '整理书的目录',
   propose_handoff: '整理课后小结', propose_lesson_settings: '整理本课设置的调整',

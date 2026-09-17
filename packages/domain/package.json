@@ -6,6 +6,7 @@
   "exports": {
     "./source-relations": { "types": "./lib/types/materials/source-relations.d.ts", "default": "./lib/types/materials/source-relations.js" },
     "./handoffs": { "types": "./lib/types/courses/handoff-service.d.ts", "default": "./lib/types/courses/handoff-service.js" },
+    "./journey": { "types": "./lib/types/courses/journey.d.ts", "default": "./lib/types/courses/journey.js" },
     "./class-close": { "types": "./lib/types/courses/class-close-service.d.ts", "default": "./lib/types/courses/class-close-service.js" },
     "./sets": {
       "types": "./lib/types/organization/set-service.d.ts",
