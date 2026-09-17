@@ -6,6 +6,7 @@ import type { HostContext } from '@studyforge/contracts';
 import { ArtifactManifestSchema, ClassroomDocumentSchema, type ArtifactView, type CreationRecord } from '@studyforge/contracts/creation';
 import { canonicalPath, under } from '@studyforge/domain/access';
 import type { Saved } from '@studyforge/domain/storage';
+import { rejected } from '../tools/learning-context.ts';
 
 export const fileDigest = (body: string | Uint8Array): string => createHash('sha256').update(body).digest('hex');
 export function projectRoot(host: Context, name: string): string {
@@ -41,7 +42,7 @@ export function saveProjectFile(host: Context, context: HostContext, ref: string
   // and rename. Native fs observes the same bytes and its stale guard sees edits.
   const before = existsSync(file) ? fileDigest(readFileSync(file)) : fileDigest('');
   if (before === fileDigest(content)) return readProject(host, record);
-  if (before !== expectedDigest) throw new Error('creation_file_conflict');
+  if (before !== expectedDigest) throw rejected('文件在你读取后已被修改，重新读取后再写入');
   const temporary = join(root, '.' + path + '-' + crypto.randomUUID() + '.tmp');
   writeFileSync(temporary, content, { mode: 0o600, flag: 'wx' }); renameSync(temporary, file);
   return readProject(host, record);

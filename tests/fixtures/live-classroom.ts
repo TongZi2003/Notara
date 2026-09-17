@@ -62,12 +62,12 @@ export async function openLiveClassroom(): Promise<LiveClassroom> {
  * Declare one live scenario. The BLOCKED reason is part of the title, so the
  * live report always names what was not verified and why.
  */
-export function liveTest(name: string, run: (classroom: LiveClassroom) => Promise<void>): void {
+export function liveTest(name: string, run: (classroom: LiveClassroom) => Promise<void>, timeoutMs = 300_000): void {
   const blocked = !hasLiveCredential();
   test.skipIf(blocked)(blocked ? `${name} · ${LIVE_BLOCKED}` : name, async () => {
     const classroom = await openLiveClassroom();
     try { await run(classroom); } finally { await classroom.stop(); }
-  }, 300_000);
+  }, timeoutMs);
 }
 
 export type LiveAddress =

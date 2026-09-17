@@ -16,8 +16,14 @@ test('a confirmed diagnosis binds a route, opens once and survives restart witho
   expect((await teacher.call('note_learning_goal', { title: '三角恒等变换', dailyMinutes: 30 })).failed).toBe(false);
   expect(value(await teacher.client.rpc<LearningPath[]>('studyforgeCourses/learningPaths', {}))).toMatchObject([{ title: '三角恒等变换', status: 'diagnosing', next: { sessionId: id } }]);
   const draft = { action: 'add', nodes: [{ title: '配角', decl: { stance: '辨认和差结构，再独立完成一次配角' } }, { title: '综合应用', parentIndex: 0 }] };
-  expect((await teacher.call('propose_route', draft)).failed).toBe(true);
+  const refused = await teacher.call('propose_route', draft);
+  expect(refused.failed).toBe(true);
+  expect(refused.text).toContain('本次调用被拒绝');
+  expect(refused.text).toContain('未生成任何提案或改动');
+  expect(refused.text).toContain('重新提交');
+  expect(refused.text).not.toContain('再点一次');
   expect(value(await teacher.client.rpc<RouteView>('studyforgeOrganization/route', {})).nodes).toHaveLength(0);
+  expect(value(await teacher.client.rpc<unknown[]>('studyforgeProposals/list', { input: { sessionId: id } }))).toHaveLength(0);
   await teacher.call('propose_handoff', { kind: 'close', title: '诊断小结', body: '已检查基础与应用；配角还需练习，参考已完成的诊断作答。' });
   await teacher.confirm('诊断小结');
   const diagnosis = value(await teacher.client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId: id } }));
@@ -54,6 +60,10 @@ test('a free lesson can still plan directly and cannot forge a diagnosis binding
   const teacher = await toolSession(runtime);
   await teacher.call('read_route', {});
   expect((await teacher.call('propose_route', { action: 'add', nodes: [{ title: '自由探索' }] })).failed).toBe(false);
+  const badParent = await teacher.call('propose_route', { action: 'add', nodes: [{ title: '自指父', parentIndex: 0, parent: null }] });
+  expect(badParent.failed).toBe(true);
+  expect(badParent.text).toContain('本次调用被拒绝');
+  expect(badParent.text).toContain('未生成任何提案或改动');
   await teacher.confirm('接下来的课程');
   const route = value(await teacher.client.rpc<RouteView>('studyforgeOrganization/route', {}));
   expect(route.nodes[0]!.study).toBeUndefined();

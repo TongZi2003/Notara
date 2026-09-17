@@ -13,8 +13,13 @@ coverage/
 # Machine-local DSH homes and auth material (never committed)
 .dsh/
 .dsh-home/
+.trial/
 *.local.env
 .env
 .env.*
 **/auth.json
 **/credentials.json
+
+# Session scratch (debug scripts, stray logs); evidence logs under docs/ stay tracked
+/zz-*.mts
+/*.log

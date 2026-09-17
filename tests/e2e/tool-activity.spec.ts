@@ -1,4 +1,4 @@
-import { test, expect, enterClassroom, sendInput } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, enableDebug, sendInput } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { SessionListValue } from '@deepseek-ai/dsh-api-session-controller';
 import { writeFile } from 'node:fs/promises';
@@ -47,6 +47,8 @@ test('tool rows speak plainly until expanded and retain the native inspection ro
   await details.scrollIntoViewIfNeeded();
   await expect(details).toBeVisible();
   await page.screenshot({ path: info.outputPath('tool-details-mobile.png'), fullPage: true });
+  // The inspection route opens the debug-gated native Trajectory view.
+  await enableDebug(page);
   await details.getByRole('button', { name: '查看工具定义与完整记录' }).click();
   await expect(page.getByRole('tab', { name: 'Trajectory', exact: true })).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('tab', { name: 'Chat', exact: true }).click();

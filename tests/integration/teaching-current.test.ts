@@ -37,7 +37,7 @@ test('configured teaching choices change the actual next native request and surv
   runtime = await startIsolated({ testModel: true });
   let client = await connectRuntime(runtime);
   const choices = value(await client.rpc<TeachingChoice[]>('studyforgeTeaching/choices', {}));
-  expect(choices.map(choice => choice.title)).toEqual(['资料整理','诊断分析','苏格拉底授课','头脑风暴拓展','搜索','费曼法','讲解式']);
+  expect(choices.map(choice => choice.title)).toEqual(['资料整理','诊断分析','苏格拉底授课','头脑风暴拓展','搜索','费曼法','讲解式','扩散式学习']);
   const { sessionId } = value(await client.rpc<SessionCreateValue>('session/create', { request: { cwd: join(runtime.root, 'classroom'), agentPreset: 'studyforge-learning' } }));
   async function send(text: string): Promise<Request> {
     const count = await requests().then(rows => rows.length).catch(() => 0);
@@ -48,17 +48,19 @@ test('configured teaching choices change the actual next native request and surv
   }
   const first = await send('从当前问题开始');
   expect(transcript(first)).toContain('# 苏格拉底授课');
+  expect(first.toolNames).toContain('note');
   expect(first.toolNames).not.toContain('read_memory');
-  expect(transcript(first)).toContain('read_memory —');
+  expect(transcript(first)).toContain('memory（read_memory）');
   let course = value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId } }));
   course = value(await client.rpc<CourseView>('studyforgeCourses/update', { input: { sessionId, operationId: crypto.randomUUID(), expectedVersion: course.version, patch: { teachingRef: 'search', temporaryInstructions: '本轮优先核对官方来源。' } } }));
   const changed = await send('现在按这个要求继续');
   expect(changed.sessionId).toBe(sessionId);
   expect(transcript(changed)).toContain('# 搜索');
   expect(transcript(changed)).toContain('本轮优先核对官方来源。');
-  expect(changed.toolNames).not.toContain('web_search');
+  // The wire is constant: a teaching change swaps prompt sections, never tools.
+  expect(changed.toolNames).toEqual(first.toolNames);
   const searching = await send('[tool]' + JSON.stringify({ name: 'load_tools', arguments: { names: ['web_search', 'read_memory'] } }));
-  expect(searching.toolNames).toEqual(expect.arrayContaining(['web_search', 'read_memory']));
+  expect(searching.toolNames).toEqual(first.toolNames);
   await runtime.restart(); client = await connectRuntime(runtime);
   expect(value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId } }))).toEqual(course);
   const resumed = await send('重开后继续');
@@ -71,7 +73,7 @@ test('configured teaching choices change the actual next native request and surv
   expect(instructions).toContain('拆卡是制作题卡');
   expect(instructions).toContain('不是开始讲题或测验的授权');
   expect(organizing.toolNames).not.toContain('propose_card');
-  expect(instructions).toContain('propose_card —');
+  expect(instructions).toContain('propose_card');
 }, 45_000);
 
 test('a saved-result followup retains teacher tools and can read back without a new student turn', async () => {
@@ -98,12 +100,11 @@ test('a saved-result followup retains teacher tools and can read back without a 
     return body?.type === 'text' ? JSON.parse(body.text) : undefined;
   }).toMatchObject({ data: { sessionId, lessonMaterials: { materials: [] } } });
   const receipt = (await requests()).findLast(row => row.messages.findLast(message => message.role === 'user')?.source.kind === 'plugin')!;
-  expect(receipt.toolNames).toContain('read_lesson');
-  expect(receipt.toolNames).toContain('read_card');
-  expect(receipt.toolNames).toContain('propose_card');
+  expect(receipt.toolNames).toContain('open');
+  expect(receipt.toolNames).toContain('propose');
   const notice = receipt.messages.findLast(message => message.role === 'user')!;
   expect(notice.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')).toContain('继续学生正在进行的任务');
   value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '现在继续学这张卡' }] } }));
   await expect.poll(async () => transcript((await requests()).at(-1)!)).toContain('现在继续学这张卡');
-  expect((await requests()).at(-1)!.toolNames).toContain('read_card');
+  expect((await requests()).at(-1)!.toolNames).toContain('open');
 }, 45_000);

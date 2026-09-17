@@ -190,6 +190,6 @@ test('a progressively loaded background search can be followed up and stopped, w
   for (const row of (await modelLog()).filter(row => row.sessionId === childId)) expect(row.toolNames).not.toContain('note_memory');
   await send([{ name: 'interrupt_agent', arguments: { agent_id: childId } }]);
   const parent = (await modelLog()).filter(row => row.sessionId === sessionId).at(-1)!;
-  expect(parent.toolNames).toEqual(expect.arrayContaining(['delegate_search', 'send_message', 'interrupt_agent']));
+  expect(parent.toolNames).toEqual(expect.arrayContaining(['delegate', 'send_message', 'interrupt_agent']));
   expect(textOf(parent)).toContain('interrupt requested for agent');
 }, 60_000);

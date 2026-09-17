@@ -1,4 +1,4 @@
-import { openAppearance, closeAppearance } from './fixtures/classroom.ts';
+import { openAppearance, closeAppearance, openMaterial } from './fixtures/classroom.ts';
 import { test, expect, enterClassroom } from './fixtures/classroom.ts';
 import { checkMapZoom } from './fixtures/mindmap.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
@@ -33,10 +33,11 @@ test('book expands along its real tree, opens a card and its original in place, 
   await page.setViewportSize({ width: 1440, height: 950 });
   await enterClassroom(page, classroom.authUrl);
   await openAppearance(page);
+  await page.getByTestId('theme-notebook').click();
   await page.getByTestId('notebook-tone').selectOption('white');
   await closeAppearance(page);
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
-  await page.getByTestId('material-row').filter({ hasText: '函数原文' }).getByRole('button').first().click();
+  await openMaterial(page, '函数原文');
 
   // A real map: the book root alone, with the breakdown action on it.
   const nodes = page.getByTestId('book-nodes');

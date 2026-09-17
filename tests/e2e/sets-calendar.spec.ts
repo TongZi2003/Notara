@@ -24,7 +24,11 @@ test('student set edits preserve their draft through a real concurrent update an
   await expect(page.getByLabel('学习集名称')).toHaveValue('我的合并草稿');
   await page.getByRole('button', { name: '已核对，保留草稿继续合并' }).click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect.poll(async () => (await page.getByTestId('set-editor').boundingBox())?.width ?? 0).toBeGreaterThan(250);
+  // At phone width the editor must stay usable: fully inside the viewport, no
+  // clipped content, and the save path below still works.
+  const editor = page.getByTestId('set-editor');
+  await expect(editor).toBeVisible();
+  await expect.poll(async () => editor.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   await page.getByRole('button', { name: '保存学习集', exact: true }).click();
   await expect(page.getByRole('heading', { name: '我的合并草稿' })).toBeVisible();
   expect(value(await client.rpc<SetView>('studyforgeOrganization/set', { input: { ref: before.ref } })).name).toBe('我的合并草稿');

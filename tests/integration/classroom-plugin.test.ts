@@ -30,6 +30,8 @@ test('teacher-spawned classmates are isolated, public replies return once, priva
   world.document.classroom = structuredClone(fixture.classroom);
   world.document.classroom!.roles[0]!.route = { provider: 'studyforge-test', model: 'study-model-a' };
   world.document.classroom!.roles[0]!.avatar = avatar.ref;
+  const peerRole = world.document.classroom!.roles.find(role => role.id === 'peer')!;
+  peerRole.relations = [{ target: 'student', label: '同桌', intimacy: 55, note: '开学起坐在一起，会互借笔记。' }, { target: 'critic', label: '前后桌', note: '讨论常互怼。' }];
   world.document.classroom!.rules = world.document.classroom!.rules.map(rule => ({ ...rule, enabled: rule.trigger.kind === 'manual' }));
   world = value(await client.rpc<WorldbookView>('studyforgePlugins/saveWorldbook', { input: { ...target, expectedVersion: world.revision, operationId: 'prepare', document: world.document } }));
   value(await client.rpc('studyforgePlugins/useWorldbook', { input: { ...target, expectedVersion: world.useRevision, enabled: true } }));
@@ -57,6 +59,12 @@ test('teacher-spawned classmates are isolated, public replies return once, priva
   expect(childRequests.some(row => row.provider === 'studyforge-test' && row.model === 'study-model-b')).toBe(true);
   for (const row of childRequests) { expect(row.toolNames).toEqual([]); expect(requestText(row)).not.toContain('PARENT_ONLY_SECRET'); expect(requestText(row)).not.toContain('PARENT_PRIVATE_PROMPT'); }
   expect(childRequests.some(row => requestText(row).includes('PUBLIC_MATERIAL'))).toBe(true);
+  // The critic child sees peer's declared relation toward it as pure situation.
+  expect(childRequests.some(row => requestText(row).includes('同桌 对你：前后桌'))).toBe(true);
+  expect(childRequests.every(row => requestText(row).includes('仅是角色背景设定'))).toBe(true);
+  // The teacher receives the resolved relationship map with the classroom section.
+  const teacherRows = (await logs()).filter(row => row.sessionId === session.sessionId);
+  expect(teacherRows.some(row => requestText(row).includes('to\\":\\"杠精同学') && requestText(row).includes('intimacy\\":55'))).toBe(true);
   await call('ask_classmate', { id, roleId: 'assistant', task: '依据标准核对', materials: [{ title: '参考标准', text: 'PRIVATE_ANSWER：参考解只交老师。' }], destination: 'teacher' });
   await expect.poll(async () => (await read()).tasks[0]?.status, { timeout: 30000 }).toBe('completed');
   const privateTask = (await read()).tasks[0]!;
@@ -102,6 +110,42 @@ test('upgrading the worldbook preserves user entries, adds classroom defaults an
   world = value(await client.rpc<WorldbookView>('studyforgePlugins/readWorldbook', { input: target }));
   expect(world.document.classroom?.roles[0]?.name).toBe('边界同学'); expect(world.document.entries[0]?.content).toBe('保留这段原有内容');
 }, 90000);
+
+test('situational fields reach the classmate persona and runtime intimacy gates worldbook entries', async () => {
+  runtime = await startIsolated({ testModel: true }); const client = await connectRuntime(runtime);
+  const candidate = value(await client.rpc<PluginCandidate>('studyforgePlugins/prepare', { input: { kind: 'directory', path: resolve('examples/plugins/worldbook') } }));
+  const plugin = value(await client.rpc<PluginView>('studyforgePlugins/installPackage', { input: { candidateId: candidate.candidateId, expectedVersion: 0, trustNative: false } }));
+  const session = value(await client.rpc<{ sessionId: string }>('studyforgeCreation/openTeacher', {})), target = { ...session, id: 'plugin-' + plugin.ref.slice(7) + '-worldbook' };
+  const world = value(await client.rpc<WorldbookView>('studyforgePlugins/readWorldbook', { input: target }));
+  world.document.classroom = structuredClone(fixture.classroom);
+  world.document.classroom!.scenario = 'SCENE_SETTING：开学第一周的晚自习教室。';
+  world.document.classroom!.studentPersona = 'STUDENT_ROLE：刚转来的学生。';
+  world.document.classroom!.rules = world.document.classroom!.rules.map(rule => ({ ...rule, enabled: rule.trigger.kind === 'manual' }));
+  const peer = world.document.classroom!.roles.find(role => role.id === 'peer')!;
+  peer.personality = 'PERSONALITY_MARK：随和，爱举生活例子。';
+  peer.greeting = 'GREETING_MARK：这道题卡哪儿了？';
+  peer.relations = [{ target: 'student', label: '同桌', intimacy: 30, note: '开学起坐在一起。' }];
+  world.document.entries.push({ title: 'GATED_ENTRY', content: '同桌熟络后才会开的玩笑。', keywords: ['闲聊'], enabled: true, always: false, role: 'peer', intimacyAtLeast: 60 });
+  value(await client.rpc('studyforgePlugins/saveWorldbook', { input: { ...target, expectedVersion: world.revision, operationId: 'scene', document: world.document } }));
+  value(await client.rpc('studyforgePlugins/useWorldbook', { input: { ...target, expectedVersion: 0, enabled: true } }));
+  const send = async (text: string): Promise<void> => {
+    value(await client.rpc('session/prompt', { request: { ...session, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text }] } }));
+    await expect.poll(async () => value(await client.rpc<any>('session/list', { _request: {} })).items.find((row: any) => row.sessionId === session.sessionId)?.running, { timeout: 30000 }).toBe(false);
+  };
+  const call = (name: string, args: unknown) => send('[tools]' + JSON.stringify([{ name: 'load_tools', arguments: { names: [name] } }, { name, arguments: args }]));
+  const teacherRequests = async () => (await logs()).filter(row => row.sessionId === session.sessionId && !requestText(row).includes('dsh-session-title-llm'));
+  await send('@同桌（教室）闲聊几句。');
+  let teacherText = requestText((await teacherRequests()).at(-1)!);
+  expect(teacherText).toContain('SCENE_SETTING'); expect(teacherText).not.toContain('GATED_ENTRY');
+  await call('adjust_classroom_intimacy', { id: target.id, roleId: 'peer', target: 'student', value: 75 });
+  await send('@同桌（教室）再闲聊几句。');
+  teacherText = requestText((await teacherRequests()).at(-1)!);
+  expect(teacherText).toContain('GATED_ENTRY'); expect(teacherText).toContain('intimacy\\":75');
+  await call('ask_classmate', { id: target.id, roleId: 'peer', task: '陪学生闲聊一句。', materials: [{ title: '闲聊', text: '随便聊聊今天。' }], destination: 'conversation' });
+  await expect.poll(async () => (await logs()).some(row => row.sessionId.startsWith('classmate-')), { timeout: 30000 }).toBe(true);
+  const childText = requestText((await logs()).filter(row => row.sessionId.startsWith('classmate-')).at(-1)!);
+  for (const mark of ['SCENE_SETTING', 'STUDENT_ROLE', 'PERSONALITY_MARK', 'GREETING_MARK', '仅是角色背景设定', '亲密度 75']) expect(childText).toContain(mark);
+}, 120000);
 
 test('periodic and successful note events reach the teacher once and do not count generated turns', async () => {
   runtime = await startIsolated({ testModel: true }); let client = await connectRuntime(runtime);

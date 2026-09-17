@@ -15,7 +15,7 @@ import { writeFile } from 'node:fs/promises';
 import { test as base, expect, type Page } from '@playwright/test';
 import { zipSync } from 'fflate';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
-import { enterClassroom } from './fixtures/classroom.ts';
+import { enterClassroom, openMaterial } from './fixtures/classroom.ts';
 import { docxWithBody, ONE_PIXEL_PNG } from '../fixtures/materials/docx-fixtures.ts';
 
 const test = base.extend<{ runtime: IsolatedRuntime }>({
@@ -31,7 +31,7 @@ async function importDocx(page: Page, file: string): Promise<void> {
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-file-input').setInputFiles(file);
   // The shelf comes first; the reader is a page of its own once the book is opened.
-  await page.getByTestId('material-row').filter({ hasText: file.split('/').pop()!.replace(/\.[^.]+$/u, '') }).getByRole('button').first().click();
+  await openMaterial(page, file.split('/').pop()!.replace(/\.[^.]+$/u, ''));
   await expect(page.getByTestId('docx-body')).toBeVisible();
   await expect(page.getByTestId('docx-state')).toHaveAttribute('data-docx-status', 'ready');
 }
@@ -178,7 +178,7 @@ test('a flattened w:sdt document is unpositioned, and a rich document still draw
   // The rich fixture keeps its real content whatever the positioning verdict is.
   await page.getByTestId('materials-back').click();
   await page.getByTestId('material-file-input').setInputFiles(mixed);
-  await page.getByTestId('material-row').filter({ hasText: '混合文档' }).getByRole('button').first().click();
+  await openMaterial(page, '混合文档');
   const rich = page.getByTestId('docx-body');
   const drawing = rich.locator('img').first();
   await expect(drawing).toBeVisible();

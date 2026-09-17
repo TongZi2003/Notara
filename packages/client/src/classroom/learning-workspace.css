@@ -71,3 +71,20 @@ body[data-sf-notebook=on] .sf-workspace-pane .sf-workbench-filter select{border:
 .sf-reply-error{font:var(--sf-ui-size)/1.7 var(--nb-print,system-ui);color:var(--nb-pencil);padding:6px 0}.sf-reply-error pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 monospace}
 body[data-sf-workspace] [data-slot="conversation.session.header.utilities"]{display:none}
 @container workspace-pane (max-width:540px){.sf-notebook-welcome{font-size:var(--sf-text-hero);white-space:normal;text-align:center}.sf-workspace-pane [data-slot="conversation.hero.workspace"]{max-width:100%}.sf-workspace-pane [data-composer-card]{min-width:0;max-width:100%}}
+/* In-conversation roadmap: one line under the workspace bar. Chips mirror the
+   frame list rendered inside the thoughts view; the active stage keeps its
+   goal inline so the student always sees where the lesson stands. */
+.sf-stage-tracker{display:flex;align-items:center;gap:6px;min-height:34px;padding:4px 24px;border-bottom:1px solid var(--workspace-line);overflow-x:auto;flex:none;font:var(--sf-text-meta)/1.4 var(--nb-print,system-ui);color:var(--nb-pencil)}
+.sf-stage-caption{flex:none;color:var(--nb-pencil);opacity:.75}
+.sf-stage-chip{display:flex;align-items:center;gap:6px;flex:none;border:1px solid var(--workspace-line);border-radius:999px;background:none;padding:3px 10px;cursor:pointer;color:var(--nb-pencil);font:inherit}
+.sf-stage-chip:hover{color:var(--nb-pen);border-color:color-mix(in srgb,var(--nb-pen) 35%,transparent)}
+.sf-stage-chip i{font-style:normal;font-size:10px;width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--nb-pencil) 14%,transparent)}
+.sf-stage-chip em{font-style:normal;opacity:.7;font-size:.92em}
+.sf-stage-chip[data-status=completed] i{background:color-mix(in srgb,var(--nb-pen) 16%,transparent);color:var(--nb-pen)}
+.sf-stage-chip[data-status=active]{color:var(--nb-pen);border-color:color-mix(in srgb,var(--nb-pen) 45%,transparent);background:color-mix(in srgb,var(--nb-pen) 6%,transparent)}
+.sf-stage-chip[data-status=active] i{background:var(--nb-pen);color:var(--nb-page,#fdfaf1)}
+.sf-stage-chip[data-status=paused]{opacity:.7}
+.sf-stage-goal{flex:none;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40%;color:var(--nb-pen);opacity:.85}
+.sf-stage-goal:before{content:'目标：';opacity:.7}
+.sf-learning-workspace[data-narrow=true] .sf-stage-tracker{padding:4px 12px}
+.sf-learning-workspace[data-narrow=true] .sf-stage-goal{display:none}

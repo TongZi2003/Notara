@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { EntityRefSchema } from '@studyforge/contracts';
 import { HandoffViewSchema } from '@studyforge/contracts/handoffs';
 import { toolSchema } from './tool-schema.ts';
-import { teacherContext } from './learning-context.ts';
+import { teacherContext, rejected } from './learning-context.ts';
 import { existingProposal, proposeFromTool, proposalOutput } from './proposal-tools.ts';
 import { checkHandoffProposal, handoffSnapshot } from '../handoff-service.ts';
 
@@ -68,7 +68,7 @@ export function registerHandoffTools(host: Context): void {
       // A continuation is the fixed pin the lesson was handed, so it stays exact.
       if (course.closure) return service.read(ctx, course.closure.handoffRef);
       if (course.continuation !== undefined) return service.readPinned(ctx, course.continuation);
-      throw new Error('本课还没有小结可读。');
+      throw rejected('本课还没有小结可读');
     },
   }));
 }

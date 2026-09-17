@@ -10,6 +10,7 @@ import { canonicalPath } from '@studyforge/domain/access';
 import { readProject, fileDigest, projectRoot } from './project-store.ts';
 import { creationPlugin, creationInstallation, creationManifest, publishCreationPackage } from './package-publication.ts';
 import { pluginSkillId } from '../plugins/plugin-manager.ts';
+import { rejected } from '../tools/learning-context.ts';
 
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeInstalledArtifacts: RecordStore<typeof InstalledArtifactSchema>; } }
 
@@ -50,13 +51,13 @@ export function artifactCheck(host: Context, ref: string): ArtifactCheck {
 export async function installArtifact(host: Context, input: { ref: string; digest: string; operationId: string; expectedVersion: number }): Promise<ArtifactInstallation> {
   z.object({ ref: z.string().regex(/^creation:[a-f0-9]{24}$/), digest: z.string().regex(/^[a-f0-9]{64}$/), operationId: z.string().min(1), expectedVersion: z.number().int().nonnegative() }).strict().parse(input);
   const context = workspaceContext(host), project = host.studyforgeCreationRecords.read(context, input.ref), view = readProject(host, project), check = artifactCheck(host, input.ref);
-  if (view.digest !== input.digest) throw new Error('artifact_snapshot_changed');
-  if (check.issues.length || !view.manifest) throw new Error('artifact_not_ready');
+  if (view.digest !== input.digest) throw rejected('作品快照在你读取后已变化，重新读取作品后再安装');
+  if (check.issues.length || !view.manifest) throw rejected('作品还有未解决的问题或缺少manifest，先修复再安装');
   if (view.manifest.kind !== 'markdown' && !project.data.target) return publishCreationPackage(host, view, input.expectedVersion);
   const current = host.studyforgeInstalledArtifacts.list(context).find(row => row.data.projectRef === input.ref);
   const known = current?.data.versions.find(version => version.digest === input.digest);
   if (current?.data.enabled && !current.data.removed && current.data.activeDigest === input.digest) return installation(host, input.ref)!;
-  if ((current?.data.removed ? 0 : current?.version ?? 0) !== input.expectedVersion) throw new Error('version_conflict');
+  if ((current?.data.removed ? 0 : current?.version ?? 0) !== input.expectedVersion) throw rejected('作品安装状态在你读取后已变化，重新读取后再提交');
   const path = snapshotRoot(host, input.ref, input.digest); mkdirSync(path, { recursive: true, mode: 0o700 });
   for (const file of view.files) {
     const absolute = join(path, file.path);

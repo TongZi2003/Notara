@@ -6,6 +6,15 @@ import { KnowledgeViewSchema } from '@studyforge/contracts/knowledge';
 import type { MutationContext } from '@studyforge/contracts';
 import { z } from 'zod';
 import { MemoryViewSchema } from '@studyforge/contracts/memory';
+import { resolveFacadeTool } from '@studyforge/contracts/tool-facades';
+
+/** A refused submission left nothing behind: no proposal, no write, nothing
+ * pending. The model must say the real reason to the user and let them weigh
+ * in; once the cause is fixed the call has to be re-sent — a refusal never
+ * queues itself for later. */
+export function rejected(reason: string): Error {
+  return new Error(`${reason.replace(/。$/u, '')}。本次调用被拒绝，未生成任何提案或改动；把原因如实告诉用户并听取其意见，修正后需要重新提交，不会自动生效。`);
+}
 
 export async function teacherContext(host: Context, execution: ToolRunContext): Promise<MutationContext> {
   if (!execution.agent) throw new Error('learning_session_required');
@@ -22,11 +31,11 @@ export async function observedVersion(host: Context, execution: ToolRunContext, 
   const observation = await host.sessionQuery.observeSession(SessionId(execution.agent.session.id));
   try {
     const cutoff = observation.events.findIndex(event => event.type === 'tool/call' && event.data.callId === execution.callId);
-    if (cutoff < 0) throw new Error('缺少原生工具调用记录，请重新读取对象后修改。');
+    if (cutoff < 0) throw rejected('缺少原生工具调用记录，请重新读取对象后修改');
     const calls = new Map<string, string>();
     let version: number | undefined;
     for (const event of observation.events.slice(0, cutoff)) {
-      if (event.type === 'tool/call') calls.set(event.data.callId, event.data.name);
+      if (event.type === 'tool/call') calls.set(event.data.callId, resolveFacadeTool(event.data.name, event.data.arguments) ?? event.data.name);
       if (event.type !== 'tool/result') continue;
       const result = event.data.message.content[0];
       const name = calls.get(result.toolCallId);
@@ -57,7 +66,7 @@ export async function observedVersion(host: Context, execution: ToolRunContext, 
         } catch { /* Non-JSON tool text is not an object read. */ }
       }
     }
-    if (version === undefined) throw new Error('请先用对应读取工具查看这个对象，再修改。');
+    if (version === undefined) throw rejected('请先用对应读取工具查看这个对象，再修改');
     return version;
   } finally { observation[Symbol.dispose](); }
 }

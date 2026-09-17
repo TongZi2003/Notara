@@ -7,6 +7,7 @@ import { toolSchema } from '../tools/tool-schema.ts';
 import { readProject, saveProjectFile } from './project-store.ts';
 import { creationInstallation } from './package-publication.ts';
 import { pluginSkillId } from '../plugins/plugin-manager.ts';
+import { rejected } from '../tools/learning-context.ts';
 
 const names = new Set(['read_classroom_draft', 'save_classroom_draft']);
 /** The native creator session owns the target. Neither ids nor paths are model inputs. */
@@ -15,14 +16,14 @@ export function installClassroomAuthoring(host: Context): void {
     ? host.studyforgeCreationRecords.list(host.studyforgePluginsManager.context()).find(row => row.data.sessionId === agent.session.id && row.data.initial.kind === 'classroom') : undefined;
   const target = async (agent: Agent | undefined) => {
     const row = record(agent);
-    if (!row || !agent || (await host.studyforgeAccess.forSession(agent.session.id)).purpose !== 'creation') throw new Error('classroom_creator_required');
+    if (!row || !agent || (await host.studyforgeAccess.forSession(agent.session.id)).purpose !== 'creation') throw rejected('只有创作会话可以修改自己的教室草稿');
     return row;
   };
   const skills = () => host.studyforgePluginsManager.active().flatMap(({ ref, version }) => version.manifest.notara.skills.filter(item => item.scope === 'creation').map(item => ({ ref, version, item })));
   const output = { schema: toolSchema(z.object({ json: z.string() })), render: (_args: unknown, value: { json: string }) => [{ type: 'text' as const, text: value.json }] };
   const view = (row: NonNullable<ReturnType<typeof record>>) => {
     const project = readProject(host, row), file = project.files.find(item => item.path === 'worldbook.json');
-    if (project.manifest?.kind !== 'classroom' || !file) throw new Error('classroom_draft_required');
+    if (project.manifest?.kind !== 'classroom' || !file) throw rejected('这个作品没有教室草稿，只有kind=classroom的作品可编辑');
     return { project, file };
   };
   const result = (row: NonNullable<ReturnType<typeof record>>) => {
@@ -50,7 +51,7 @@ export function installClassroomAuthoring(host: Context): void {
           }
         }
       } finally { observation[Symbol.dispose](); }
-      if (!expected) throw new Error('classroom_read_required: 先读取当前教室草稿再保存。');
+      if (!expected) throw rejected('先read_classroom_draft读取当前教室草稿再保存');
       view(row);
       saveProjectFile(host, { ...host.studyforgePluginsManager.context(), actor: 'teacher', purpose: 'creation', sessionId: row.data.sessionId }, row.ref, 'worldbook.json', expected, JSON.stringify(data.document, null, 2) + '\n');
       return result(row);

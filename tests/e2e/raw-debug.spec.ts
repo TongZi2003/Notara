@@ -28,7 +28,7 @@ test('raw debug stays off by default, then reads the shared binding window', asy
   expect(await note.innerText()).not.toMatch(/@deepseek-ai|\/Users\/|schema/);
   // Native context rows already ride the compact process disclosure.
   const contextRow = page.locator('[data-chat-flow-kind="context"]');
-  if (await contextRow.count() > 0) await expect(contextRow.first()).toBeHidden();
+  if (await contextRow.count() > 0) await expect(contextRow.first()).toHaveAttribute('data-turn-process-hidden', 'true');
   await page.screenshot({ path: testInfo.outputPath('chat-without-internals.png') });
 
   // Default: no Raw view.
@@ -142,7 +142,7 @@ test('the native Normal transcript never prints the internal context source', as
   await normal.first().click();
   await page.keyboard.press('Escape');
 
-  const contextNote = page.getByTestId('sf-context-note');
+  const contextNote = page.getByTestId('sf-context-note').first();
   await expect(contextNote).toBeVisible();
   await contextNote.getByRole('button').click();
   await expect(contextNote.getByTestId('sf-context-note-body')).toBeVisible();

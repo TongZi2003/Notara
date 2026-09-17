@@ -12,7 +12,7 @@ import { observeEvidence } from '../evidence-query.ts';
 import { sourceEvidenceObjects } from '../runtime/context-envelope.ts';
 import { toolSchema } from './tool-schema.ts';
 import { reviewBackfillProblem } from '../handoff-service.ts';
-import { teacherContext, observedVersion } from './learning-context.ts';
+import { teacherContext, observedVersion, rejected } from './learning-context.ts';
 import { existingProposal, proposeFromTool, proposalOutput } from './proposal-tools.ts';
 
 const InputSchema = z.object({ target: EntityRefSchema, mark: ReviewMarkSchema, note: z.string().min(1), evidence: z.string().regex(/^E[1-9][0-9]*$/) }).strict();
@@ -21,16 +21,16 @@ async function freeze(host: Context, execution: ToolRunContext, input: z.infer<t
   const ctx = await teacherContext(host, execution);
   const catalogue = new EvidenceQuery().catalogue(await observeEvidence(host, ctx.sessionId!, { resolveObjects: query => sourceEvidenceObjects(host, ctx, query.fragments ?? []) }));
   const entry = catalogue.entries.find(row => row.alias === input.evidence);
-  if (!entry) throw new Error('请先查询真实依据，选择当前目录中的E别名。');
+  if (!entry) throw rejected('请先查询真实依据，选择当前目录中的E别名');
   const backfill = reviewBackfillProblem(host, ctx, input.target, entry.occurredAt);
-  if (backfill) throw new Error(backfill);
+  if (backfill) throw rejected(backfill);
   const version = await observedVersion(host, execution, input.target);
   const saved = host.studyforgeCardRecords.read(ctx, input.target, version);
   const observation = await host.sessionQuery.observeSession(SessionId(ctx.sessionId!));
   let sequence: number;
   try {
     const event = observation.events.find(event => event.type === 'user/message' && event.data.id === entry.messageId);
-    if (!event || event.type !== 'user/message' || event.data.source.kind !== 'user') throw new Error('review_evidence_not_student');
+    if (!event || event.type !== 'user/message' || event.data.source.kind !== 'user') throw rejected('所选E别名对应的消息不是学生原话，请换一条学生发出的依据');
     sequence = event.seq;
   } finally { observation[Symbol.dispose](); }
   const id = createHash('sha256').update(`${ctx.sessionId}:${entry.messageId}:${input.target}`).digest('hex');
@@ -44,7 +44,7 @@ async function freeze(host: Context, execution: ToolRunContext, input: z.infer<t
 
 export function registerReviewTools(host: Context): void {
   const catalogueSchema = z.object({ entries: z.array(z.object({ alias: z.string(), quote: z.string(), objects: z.array(z.object({ ref: EntityRefSchema, version: VersionTokenSchema }).strict()) }).strict()) }).strict();
-  host.effect(() => host.tools.register({ name: 'query_evidence', description: '按需查看原生课堂已接受的学生原话/作答E别名。系统回执和模型回答不属于学生依据。此查询不保存新事实。', parameters: toolSchema(z.object({}).strict()),
+  host.effect(() => host.tools.register({ name: 'query_evidence', description: '按需查看原生课堂已接受的学生原话/作答E别名。系统回执和模型回答不属于学生依据。记学情默认自动绑定最近一条学生原话，只有要引用更早的依据或核实原话时才需要本查询。此查询不保存新事实。', parameters: toolSchema(z.object({}).strict()),
     output: { schema: toolSchema(catalogueSchema), render: (_args, value) => [{ type: 'text', text: JSON.stringify(catalogueSchema.parse(value)) }] },
     async execute(_args, execution) {
       const ctx = await teacherContext(host, execution);

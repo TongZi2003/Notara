@@ -1,13 +1,15 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import { z } from 'zod';
-import { type ClassroomChoice, type ClassroomRuntimeView, type ClassroomModelRoute, ClassmateTaskInputSchema } from '@studyforge/contracts/classroom';
+import { type ClassroomChoice, type ClassroomRuntimeView, type ClassroomModelRoute, ClassmateTaskInputSchema, ClassmateSchema, Key } from '@studyforge/contracts/classroom';
 import { WorldbookEntrySchema } from '@studyforge/contracts/plugins';
 import { studentContext } from './learning-service.ts';
 import { teacherContext } from './tools/learning-context.ts';
 import { toolSchema } from './tools/tool-schema.ts';
 import type { ClassroomAvatarImage } from '@studyforge/contracts/classroom';
 import { uploadClassroomAvatar, readClassroomAvatar } from './plugins/classroom-avatars.ts';
+import { existingProposal, proposeFromTool, proposalOutput } from './tools/proposal-tools.ts';
+import { packageId } from './plugins/plugin-manager.ts';
 
 const Target = z.object({ sessionId: z.string().min(1), id: z.string().min(1) }).strict();
 export class ClassroomRemote extends TypertRemoteService {
@@ -84,5 +86,27 @@ export function registerClassroomTools(host: Context): void {
   const edit = z.object({ id: z.string().min(1), expectedVersion: z.number().int().nonnegative().describe('刚才read_classroom返回的revision。'), entries: z.array(WorldbookEntrySchema).max(60).describe('更新后的完整条目列表，保留未改的条目。只改世界书内容，不改变同学或调度规则。') }).strict();
   host.effect(() => host.tools.register({ name: 'update_classroom_context', description: '与学生共建世界书条目。先read_classroom读取内容与revision，保留未改条目；更新背景或教法提示，不改变角色、规则或学情。冲突先重读，不覆盖学生的并发编辑。', parameters: toolSchema(edit), output,
     async execute(args, execution) { const context = await teacherContext(host, execution), data = edit.parse(args); return { json: JSON.stringify(await host.notaraClassroom.writeContext(context, data.id, data.expectedVersion, data.entries)) }; },
+  }));
+  const intimacy = z.object({ id: z.string().min(1).describe('read_classroom返回的教室id。'),
+    roleId: Key.describe('本课教室里的同学id。'), target: Key.describe('关系对象：另一位同学id，或 student/teacher。'),
+    value: z.number().int().min(0).max(100).describe('当前亲密度0-100；只覆盖本课情景状态，不改文档默认值。') }).strict();
+  host.effect(() => host.tools.register({ name: 'adjust_classroom_intimacy', description: '调整本课某段情景关系的亲密度（0-100）。纯角色扮演状态：影响世界书亲密度门槛与同学扮演语气，不记学习事实、不评价学生、不写文档默认。当前值用read_classroom查看。', parameters: toolSchema(intimacy), output,
+    async execute(args, execution) { const context = await teacherContext(host, execution), data = intimacy.parse(args); return { json: JSON.stringify(await host.notaraClassroom.adjustIntimacy(context, data)) }; },
+  }));
+  const roleDraft = z.object({ id: z.string().min(1).describe('read_classroom返回的教室工作台id。'),
+    role: ClassmateSchema.omit({ avatar: true, route: true }).describe('新同学的完整设定：id/name/purpose/instructions/enabled必填，personality/greeting/talkativeness/relations可选；模型路由与头像由学生在世界书侧另行设置。') }).strict();
+  host.effect(() => host.tools.register({ name: 'propose_classmate',
+    description: '提议一位新同学加入本课已启用的教室，学生确认后才写入，确认前尚未生效、不声称已加入。先read_classroom核对教室与现有角色，不重复id或名字；向学生说清这位同学为什么出现、会做什么。',
+    parameters: toolSchema(roleDraft), output: proposalOutput(),
+    async execute(args, execution) {
+      const input = roleDraft.parse(args), prior = await existingProposal(host, execution);
+      if (prior) return prior;
+      const context = await teacherContext(host, execution);
+      const view = await host.notaraClassroom.definition(context.sessionId!, input.id, true);
+      if (view.document.classroom.roles.some(role => role.id === input.role.id)) throw new Error('教室里已有同id同学：' + input.role.id);
+      if (view.document.classroom.roles.some(role => role.name === input.role.name)) throw new Error('教室里已有同名同学：' + input.role.name);
+      return proposeFromTool(host, execution, { title: '新同学「' + input.role.name + '」',
+        items: [{ target: 'worldbook:' + packageId(input.id), baseline: view.revision, effect: { kind: 'classmate-role', id: input.id, role: input.role } }] });
+    },
   }));
 }

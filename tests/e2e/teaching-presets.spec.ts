@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 const value = <T,>(result: RemoteResult<T>): T => { if (!result.ok) throw new Error(JSON.stringify(result.error)); return result.value; };
 
-test('five teaching choices preserve the native draft and same lesson; a temporary requirement reaches the next actual request', async ({ page, classroom }, info) => {
+test('teaching choices preserve the native draft and same lesson; a temporary requirement reaches the next actual request', async ({ page, classroom }, info) => {
   const client = await connectRuntime(classroom);
   await enterClassroom(page, classroom.authUrl);
   await sendInput(page, '开始学习');
@@ -18,8 +18,8 @@ test('five teaching choices preserve the native draft and same lesson; a tempora
   await openLessonSettings(page);
   await expect(page.getByTestId('lesson-settings-modal')).toBeVisible();
   await page.getByTestId('lesson-adjust').locator('summary').click();
-  await expect(page.getByTestId('teaching-preset').locator('option')).toHaveText(['资料整理', '诊断分析', '苏格拉底授课', '头脑风暴拓展', '搜索']);
-  for (const choice of ['organize', 'diagnose', 'brainstorm', 'search', 'socratic']) {
+  await expect(page.getByTestId('teaching-preset').locator('option')).toHaveText(['苏格拉底授课', '费曼法', '讲解式']);
+  for (const choice of ['socratic', 'feynman', 'lecture']) {
     await page.getByTestId('teaching-preset').selectOption(choice);
     await expect.poll(async () => value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId: session.sessionId } })).data.teachingRef).toBe(choice);
     await expect(page.locator('[data-composer-input]')).toContainText('这条课堂草稿要保留');
@@ -41,7 +41,7 @@ test('five teaching choices preserve the native draft and same lesson; a tempora
   await openLessonSettings(page);
   await expect(page.getByTestId('lesson-settings-modal')).toBeVisible();
   await page.getByTestId('lesson-adjust').locator('summary').click();
-  await expect(page.getByTestId('teaching-preset')).toHaveValue('socratic');
+  await expect(page.getByTestId('teaching-preset')).toHaveValue('lecture');
   await expect(page.getByTestId('teaching-instructions')).toHaveValue('这节课先完整讲解，再给一道独立练习。');
   await page.screenshot({ path: info.outputPath('teaching-settings.png'), fullPage: true });
 });

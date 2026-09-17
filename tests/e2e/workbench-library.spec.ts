@@ -1,4 +1,4 @@
-import { test, expect, enterClassroom, sendInput, typeInput } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, sendInput, typeInput, openLessonMaterials } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { MaterialView } from '@studyforge/contracts/material-records';
 import type { CourseView } from '@studyforge/contracts/courses';
@@ -18,6 +18,7 @@ test('whiteboard defaults to the library and filters actual lesson references wi
   await expect(page.getByText('已收到：今天先聊聊函数', { exact: true })).toBeVisible();
   const sessionId = value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(row => !row.blank && row.origin !== 'subagent')!.sessionId;
   const before = value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId } }));
+  await openLessonMaterials(page);
   const scope = page.getByTestId('workbench-scope'), map = page.getByTestId('lesson-materials-map');
   await expect(scope).toHaveValue('all');
   await expect(map).toContainText('函数原文'); await expect(map).toContainText('几何原文');
@@ -27,22 +28,24 @@ test('whiteboard defaults to the library and filters actual lesson references wi
   await map.getByTestId('lesson-resource-row').filter({ hasText: '函数原文' }).getByTestId('lesson-resource-open').click();
   await expect(page.getByTestId('lesson-materials-pane')).toContainText('这一页尚未上课');
   expect(value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId } }))).toEqual(before);
+  // Browsing the pane still writes nothing; 带入对话 is what stages the chip.
+  await page.getByTestId('lesson-materials-pane').getByRole('button', { name: '带入对话', exact: true }).click();
   await typeInput(page, '我想讨论这部分');
   const chip = page.locator('[data-composer-chip="studyforge-source"]');
   await expect(chip).toContainText('函数原文');
   await page.getByRole('button', { name: '更多学习操作', exact: true }).click();
-  await page.getByRole('button', { name: '整理本课要点', exact: true }).click();
+  await page.getByRole('button', { name: '整理成讲义', exact: true }).click();
   await expect(chip).toContainText('函数原文');
   await expect(page.locator('[data-composer-input]')).toContainText('我想讨论这部分');
-  await expect(page.locator('[data-composer-input]')).toContainText('整理本课要点');
+  await expect(page.locator('[data-composer-input]')).toContainText('整理成讲义');
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await expect(page.locator('[data-composer-input]')).toBeEmpty();
   await scope.selectOption('lesson');
   await expect(map).toContainText('函数原文'); await expect(map).not.toContainText('几何原文');
   await scope.selectOption('all'); await expect(map).toContainText('几何原文');
   await page.screenshot({ path: info.outputPath('library-whiteboard.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Collapse right sidebar', exact: true }).click();
-  await page.getByTestId('open-lesson').click();
+  await page.getByRole('button', { name: '关闭资料工作台', exact: true }).click();
+  await page.getByTestId('workspace-open-materials').click();
   await expect(scope).toHaveValue('all'); await expect(map).toContainText('几何原文');
   expect(errors).toEqual([]);
 });

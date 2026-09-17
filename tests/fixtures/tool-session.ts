@@ -24,8 +24,10 @@ export async function toolSession(runtime: IsolatedRuntime, existing?: string) {
     await idle();
     const record = (await events()).filter(record => record.type === 'event' && record.event.type === 'tool/result').at(-1);
     if (!record || record.type !== 'event') throw new Error('Tool result missing: ' + name);
-    const result = (record.event.data as { message: { content: { isError?: boolean; content: { text?: string }[] }[] } }).message.content[0]!;
-    return { failed: result.isError === true, text: result.content.flatMap(block => block.text ? [block.text] : []).join('\n') };
+    const result = (record.event.data as { message: { content: { isError?: boolean; content: { type: string; text?: string }[] }[] } }).message.content[0]!;
+    // Canonical JSON is the first native block; subsequent text supplies
+    // navigable references without changing the stored output contract.
+    return { failed: result.isError === true, text: result.content.find(block => block.type === 'text')?.text ?? '' };
   }
   async function confirm(title: string) {
     const rows = value(await client.rpc<ProposalView[]>('studyforgeProposals/list', { input: { sessionId } }));

@@ -5,7 +5,7 @@ import type { PluginDocument, PluginLink } from '../../packages/contracts/src/pl
 import { createMathBoards,kindNames } from './math-board.ts';
 import { selectionBox, type SelectionPoint } from './math-selection.ts';
 import { renderToString } from 'katex';
-declare const Notara:{loadDocument():Promise<{revision:number;document:PluginDocument}>;saveDocument(revision:number,document:PluginDocument):Promise<{revision:number;document:PluginDocument}>;compose(text:string):Promise<unknown>;pickSource():Promise<PluginLink>;openSource(link:PluginLink):Promise<unknown>;saveNote(note:{title:string;body:string;documentRevision:number}):void;publishMath(projection:MathProjection):Promise<unknown>;calculateMath(revision:number,input:MathCompute):Promise<{status:string;latex:string;json:string;numeric?:number}>};
+declare const Notara:{loadDocument():Promise<{revision:number;document:PluginDocument}>;saveDocument(revision:number,document:PluginDocument,op?:{labels?:string[]}):Promise<{revision:number;document:PluginDocument}>;compose(text:string):Promise<unknown>;pickSource():Promise<PluginLink>;openSource(link:PluginLink):Promise<unknown>;saveNote(note:{title:string;body:string;documentRevision:number}):void;publishMath(projection:MathProjection):Promise<unknown>;calculateMath(revision:number,input:MathCompute):Promise<{status:string;latex:string;json:string;numeric?:number}>};
 type Scene=Extract<PluginDocument,{kind:'math'}>;
 const root=document.createElement('main');
 root.innerHTML=`<header class="math-header"><button id="toggle-panel" type="button" aria-label="展开对象与计算" title="对象与计算">☰</button><strong>数学工作台</strong><nav aria-label="数学视图"><button id="view-2d" type="button" aria-pressed="true">二维</button><button id="view-3d" type="button" aria-pressed="false">三维</button></nav><div class="history"><button id="undo" type="button" aria-label="撤销" title="撤销">↶</button><button id="redo" type="button" aria-label="重做" title="重做">↷</button></div><button id="clear-scene" type="button" title="清空当前构造" aria-label="清空当前构造">清空</button><button id="reset-scene" type="button" title="强制初始化为空白数学场景" aria-label="强制初始化数学场景">强制初始化</button><button id="sync-now" type="button" title="刷新场景" aria-label="刷新数学场景">↻</button><span id="action-status" role="status" aria-live="polite"></span></header>
@@ -24,6 +24,8 @@ const past:Scene[]=[],future:Scene[]=[];
 const selectedNames=new Set<string>();
 let boxMode=false,dragSelection:{start:SelectionPoint;pointerId:number;previous:Set<string>;additive:boolean}|undefined;
 let observationStarted=false;
+const pendingOps:string[]=[];
+const noteOp=(label:string):void=>{if(pendingOps[pendingOps.length-1]!==label)pendingOps.push(label);if(pendingOps.length>16)pendingOps.splice(0,pendingOps.length-16);};
 const graph=root.querySelector<HTMLElement>('.graph-wrap')!;
 graph.tabIndex=-1;
 const boxToggle=document.createElement('button');boxToggle.id='box-select';boxToggle.type='button';boxToggle.setAttribute('aria-label','框选对象');boxToggle.title='框选对象 · Shift 追加选择';boxToggle.setAttribute('aria-pressed','false');
@@ -57,12 +59,12 @@ function save():Promise<boolean>{
 }
 async function saveScene():Promise<boolean>{
   if(!scene||conflicted)return false;if(saving)return false;if(!dirty)return true;
-  saving=true;historyButtons();const copy=structuredClone(scene),at=generation;
-  try{const reply=await Notara.saveDocument(revision,copy);revision=reply.revision;base=structuredClone(reply.document as Scene);dirty=generation!==at;message(dirty?'同步中…':'已同步');error('');if(dirty)timer=setTimeout(()=>{void save();},100);return !dirty;}
-  catch{try{const fresh=await Notara.loadDocument();if(fresh.document.kind==='math'&&fresh.revision!==revision){const merged=mergeMathScene(base,scene,fresh.document);if(!merged.conflicts.length&&valid(merged.document).success){scene=merged.document;base=structuredClone(fresh.document);revision=fresh.revision;render();timer=setTimeout(()=>{void save();},100);}else{remotePending={document:fresh.document,revision:fresh.revision};conflicted=true;$('conflict-actions').hidden=false;error('课堂与当前页面修改了同一处。请选择保留当前改动或采用课堂版本。');}}else error('暂时未能同步，改动仍保留。点击保存重试。');}catch{error('连接暂时不可用，改动仍保留。');}message('尚未同步');return false;}
+  saving=true;historyButtons();const copy=structuredClone(scene),at=generation,ops=pendingOps.splice(0);
+  try{const reply=await Notara.saveDocument(revision,copy,ops.length?{labels:[...new Set(ops)].slice(0,8)}:undefined);revision=reply.revision;base=structuredClone(reply.document as Scene);dirty=generation!==at;message(dirty?'同步中…':'已同步');error('');if(dirty)timer=setTimeout(()=>{void save();},100);return !dirty;}
+  catch{pendingOps.unshift(...ops);try{const fresh=await Notara.loadDocument();if(fresh.document.kind==='math'&&fresh.revision!==revision){const merged=mergeMathScene(base,scene,fresh.document);if(!merged.conflicts.length&&valid(merged.document).success){scene=merged.document;base=structuredClone(fresh.document);revision=fresh.revision;render();timer=setTimeout(()=>{void save();},100);}else{remotePending={document:fresh.document,revision:fresh.revision};conflicted=true;$('conflict-actions').hidden=false;error('课堂与当前页面修改了同一处。请选择保留当前改动或采用课堂版本。');}}else error('暂时未能同步，改动仍保留。点击保存重试。');}catch{error('连接暂时不可用，改动仍保留。');}message('尚未同步');return false;}
   finally{saving=false;historyButtons();if(!dirty)void publish();}
 }
-function mutate(edit:(draft:Scene)=>void):boolean{if(bootstrapping||!scene||conflicted)return false;const draft=structuredClone(scene);edit(draft);const result=valid(draft);if(!result.success){error(result.error.issues.map(i=>i.message).join('；'));return false;}if(JSON.stringify(draft)===JSON.stringify(scene))return true;pushHistory();scene={...draft,...result.data};error('');changed();render();return true;}
+function mutate(edit:(draft:Scene)=>void,label?:string):boolean{if(bootstrapping||!scene||conflicted)return false;const draft=structuredClone(scene);edit(draft);const result=valid(draft);if(!result.success){error(result.error.issues.map(i=>i.message).join('；'));return false;}if(JSON.stringify(draft)===JSON.stringify(scene))return true;pushHistory();scene={...draft,...result.data};if(label)noteOp(label);error('');changed();render();return true;}
 function button(text:string,action:()=>void):HTMLButtonElement{const b=document.createElement('button');b.type='button';b.textContent=text;b.onclick=action;return b;}
 function syncSelection():void{
   for(const name of selectedNames)if(!scene.objects.some(o=>o.name===name&&mathDimension(o)===(scene.view==='3d'?3:2)))selectedNames.delete(name);
@@ -82,7 +84,7 @@ function selectObject(name:string,additive=false):void{
 }
 function deleteObjects(names:Iterable<string>):void{
   const removal=mathRemovalClosure(scene.objects,names);
-  if(removal.size)mutate(d=>{d.objects=d.objects.filter(o=>!removal.has(o.name));});
+  if(removal.size)mutate(d=>{d.objects=d.objects.filter(o=>!removal.has(o.name));},'删除 '+[...removal].slice(0,4).join('、')+(removal.size>4?' 等'+removal.size+'项':''));
 }
 function clearSelection():void{selectedNames.clear();syncSelection();renderInspector();}
 function selectionMode(enabled:boolean):void{
@@ -130,14 +132,14 @@ function render():void{
   boards=createMathBoards(()=>scene,{select:(name,additive)=>{selectObject(name,additive);},canvas:(coordinates)=>{
     if(scene.view!=='2d'||conflicted)return;
     const name=nextName('P');
-    if(mutate(d=>{d.objects.push({kind:'point',name,x:coordinates[0],y:coordinates[1],draggable:true,color:'accent',visible:true});d.view='2d';})){
+    if(mutate(d=>{d.objects.push({kind:'point',name,x:coordinates[0],y:coordinates[1],draggable:true,color:'accent',visible:true});d.view='2d';},'添加点 '+name)){
       selectObject(name);actionMessage('已添加 '+name+'，继续点击画布添加点');
     }
   },point:(name,coordinates)=>{
     const object=scene.objects.find(o=>o.name===name);if(!object||!['point','point3d','glider'].includes(object.kind))return;
     const before=JSON.stringify(object),draft=structuredClone(object) as any;draft.x=coordinates[0];if(object.kind!=='glider')draft.y=coordinates[1];if(object.kind==='point3d')draft.z=coordinates[2];
-    if(JSON.stringify(draft)!==before){pushHistory();Object.assign(object,draft);changed();renderObjects();renderInspector();}
-  },viewport:box=>{if(box.length===4&&box.every(v=>Number.isFinite(v)&&Math.abs(v)<=1e6)){scene.viewport=box as Scene['viewport'];changed();}},camera:(az,el)=>{if(Math.abs(az-scene.space.azimuth)>.0001||Math.abs(el-scene.space.elevation)>.0001){scene.space.azimuth=az;scene.space.elevation=el;changed();}}});
+    if(JSON.stringify(draft)!==before){pushHistory();Object.assign(object,draft);noteOp('移动 '+name);changed();renderObjects();renderInspector();}
+  },viewport:box=>{if(box.length===4&&box.every(v=>Number.isFinite(v)&&Math.abs(v)<=1e6)){scene.viewport=box as Scene['viewport'];noteOp('调整视区');changed();}},camera:(az,el)=>{if(Math.abs(az-scene.space.azimuth)>.0001||Math.abs(el-scene.space.elevation)>.0001){scene.space.azimuth=az;scene.space.elevation=el;noteOp('旋转三维视角');changed();}}});
   if(boards.failures.length)error('以下对象暂时无法绘制：'+boards.failures.join('、'));
   viewUI();renderObjects();syncSelection();renderInspector();renderParameters();historyButtons();
   $<HTMLTextAreaElement>('observation').value=scene.observation;$('observation-count').textContent=scene.observation?'· 已记录':'';
@@ -189,38 +191,38 @@ function renderInspector(creating?:MathObject['kind']):void{
   }
   const actions=document.createElement('div');actions.className='property-actions';const submit=document.createElement('button');submit.textContent=creating?'添加':'应用修改';submit.type='button';actions.append(submit);
   if(!creating){const related=mathRemovalClosure(scene.objects,[object.name]).size-1;actions.append(button(related?'删除（含 '+related+' 项关联）':'删除',()=>deleteObjects([object.name])));}else actions.append(button('取消',()=>renderInspector()));form.append(actions);
-  submit.onclick=()=>{fieldEditing=false;const updated={kind:object.kind,...Object.fromEntries([...readers].map(([key,read])=>[key,read()]))} as MathObject;const ok=mutate(d=>{if(creating){d.objects.push(updated);d.view=mathDimension(updated)===3?'3d':'2d';}else d.objects[d.objects.findIndex(o=>o.name===object.name)]=updated;});if(ok){selectObject(updated.name);}};form.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();submit.click();}};form.onsubmit=event=>event.preventDefault();panel.append(form);
+  submit.onclick=()=>{fieldEditing=false;const updated={kind:object.kind,...Object.fromEntries([...readers].map(([key,read])=>[key,read()]))} as MathObject;const ok=mutate(d=>{if(creating){d.objects.push(updated);d.view=mathDimension(updated)===3?'3d':'2d';}else d.objects[d.objects.findIndex(o=>o.name===object.name)]=updated;},(creating?'构造 ':'修改 ')+updated.name);if(ok){selectObject(updated.name);}};form.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();submit.click();}};form.onsubmit=event=>event.preventDefault();panel.append(form);
 }
 function renderParameters():void{
   $('parameters').replaceChildren(...scene.parameters.map(parameter=>{const wrap=document.createElement('div');wrap.className='parameter';const title=button(parameter.name,()=>parameterEditor(parameter.name));title.title='编辑参数';const value=document.createElement('output');value.textContent=String(parameter.value);const slider=document.createElement('input');slider.type='range';slider.min=String(parameter.min);slider.max=String(parameter.max);slider.step=String(parameter.step);slider.value=String(parameter.value);slider.setAttribute('aria-label','参数 '+parameter.name);
-    let started=false;slider.oninput=()=>{if(!started){pushHistory();started=true;}parameter.value=Number(slider.value);value.textContent=slider.value;boards?.update();changed();};slider.onchange=()=>{started=false;renderInspector();};wrap.append(title,slider,value);return wrap;}));
+    let started=false;slider.oninput=()=>{if(!started){pushHistory();started=true;noteOp('调整参数 '+parameter.name);}parameter.value=Number(slider.value);value.textContent=slider.value;boards?.update();changed();};slider.onchange=()=>{started=false;renderInspector();};wrap.append(title,slider,value);return wrap;}));
 }
 function parameterEditor(name?:string):void{
   const original=scene.parameters.find(p=>p.name===name),p=original??{name:nextName('a'),value:1,min:-5,max:5,step:.1};const form=document.createElement('form');form.className='property-form';const fields=new Map<string,HTMLInputElement>();
   for(const [key,label] of Object.entries({name:'参数名',value:'值',min:'下限',max:'上限',step:'步长'})){const wrap=document.createElement('label');wrap.textContent=label;const input=document.createElement('input');input.setAttribute('aria-label',label);input.type=key==='name'?'text':'number';input.step='any';input.value=String(p[key as keyof typeof p]);input.disabled=key==='name'&&!!original;wrap.append(input);form.append(wrap);fields.set(key,input);}
-  const submit=document.createElement('button');submit.textContent='保存参数';submit.type='button';form.append(submit);submit.onclick=()=>{const parameter=Object.fromEntries([...fields].map(([key,input])=>[key,key==='name'?input.value:Number(input.value)])) as typeof p;if(mutate(d=>{const i=d.parameters.findIndex(p=>p.name===name);if(i<0)d.parameters.push(parameter);else d.parameters[i]=parameter;}))$('parameter-editor').replaceChildren();};form.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();submit.click();}};form.onsubmit=event=>event.preventDefault();$('parameter-editor').replaceChildren(form);
+  const submit=document.createElement('button');submit.textContent='保存参数';submit.type='button';form.append(submit);submit.onclick=()=>{const parameter=Object.fromEntries([...fields].map(([key,input])=>[key,key==='name'?input.value:Number(input.value)])) as typeof p;if(mutate(d=>{const i=d.parameters.findIndex(p=>p.name===name);if(i<0)d.parameters.push(parameter);else d.parameters[i]=parameter;},(original?'修改参数 ':'新增参数 ')+parameter.name))$('parameter-editor').replaceChildren();};form.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();submit.click();}};form.onsubmit=event=>event.preventDefault();$('parameter-editor').replaceChildren(form);
 }
 function showTab(tab:'objects'|'compute'):void{$('objects-panel').hidden=tab!=='objects';$('compute-panel').hidden=tab!=='compute';for(const t of ['objects','compute'])$('tab-'+t).setAttribute('aria-pressed',String(t===tab));root.dataset.panel='open';}
 async function load(force=false):Promise<void>{try{const reply=await Notara.loadDocument();if(reply.document.kind!=='math')throw new Error('wrong_document');if(saving||fieldEditing||formDraft||dragSelection)return;
   if(dirty){if(force){remotePending={document:reply.document,revision:reply.revision};conflicted=true;$('conflict-actions').hidden=false;error('当前仍有未同步改动。请选择保留当前改动或采用课堂版本。');}return;}
   if(bootstrapping||!scene||reply.revision!==revision||force){if(scene&&reply.revision!==revision&&!bootstrapping)pushHistory();scene=reply.document;base=structuredClone(scene);revision=reply.revision;dirty=false;conflicted=false;if(bootstrapping)loading(false);bootstrapping=false;error('');render();message('已同步');}
 }catch{error('暂时无法读取场景，请点击刷新重试。');}}
-$('keep-local').onclick=()=>{if(!remotePending)return;const merged=mergeMathScene(base,scene,remotePending.document);if(!valid(merged.document).success){error('合并后的对象关系不完整，请修正或采用课堂版本。');return;}scene=merged.document;base=structuredClone(remotePending.document);revision=remotePending.revision;remotePending=undefined;conflicted=false;$('conflict-actions').hidden=true;render();changed();};
+$('keep-local').onclick=()=>{if(!remotePending)return;const merged=mergeMathScene(base,scene,remotePending.document);if(!valid(merged.document).success){error('合并后的对象关系不完整，请修正或采用课堂版本。');return;}scene=merged.document;base=structuredClone(remotePending.document);revision=remotePending.revision;remotePending=undefined;conflicted=false;$('conflict-actions').hidden=true;render();noteOp('合并课堂改动');changed();};
 $('use-remote').onclick=()=>{if(!remotePending)return;pushHistory();scene=remotePending.document;base=structuredClone(scene);revision=remotePending.revision;remotePending=undefined;dirty=false;conflicted=false;$('conflict-actions').hidden=true;error('');render();message('已采用课堂版本');};
-for(const direction of ['undo','redo'])$(direction).onclick=()=>{const source=direction==='undo'?past:future,dest=direction==='undo'?future:past;if(saving||conflicted||!source.length)return;dest.push(structuredClone(scene));scene=source.pop()!;changed();render();};
-for(const view of ['2d','3d'] as const)$('view-'+view).onclick=()=>{if(!scene)return;endSelection(undefined,true);clearSelection();scene.view=view;viewUI();changed();};
+for(const direction of ['undo','redo'])$(direction).onclick=()=>{const source=direction==='undo'?past:future,dest=direction==='undo'?future:past;if(saving||conflicted||!source.length)return;dest.push(structuredClone(scene));scene=source.pop()!;noteOp(direction==='undo'?'撤销':'重做');changed();render();};
+for(const view of ['2d','3d'] as const)$('view-'+view).onclick=()=>{if(!scene)return;endSelection(undefined,true);clearSelection();scene.view=view;noteOp(view==='3d'?'切换到三维视图':'切换到二维视图');viewUI();changed();};
 for(const tab of ['objects','compute'] as const)$('tab-'+tab).onclick=()=>showTab(tab);
 $('toggle-panel').onclick=()=>{root.dataset.panel=root.dataset.panel==='open'?'closed':'open';};$('close-panel').onclick=()=>{root.dataset.panel='closed';};
 for(const [kind,title] of Object.entries(kindNames)){const option=document.createElement('option');option.value=kind;option.textContent=title;$('object-kind').append(option);}
 $('new-object').onclick=()=>{showTab('objects');renderInspector($<HTMLSelectElement>('object-kind').value as MathObject['kind']);};$('new-parameter').onclick=()=>parameterEditor();
-$('observation').onfocus=()=>{fieldEditing=true;};$('observation').onblur=()=>{fieldEditing=false;observationStarted=false;};$('observation').oninput=()=>{const value=$<HTMLTextAreaElement>('observation').value;if(value===scene.observation)return;if(!observationStarted){pushHistory();observationStarted=true;}scene.observation=value;changed();};
+$('observation').onfocus=()=>{fieldEditing=true;};$('observation').onblur=()=>{fieldEditing=false;observationStarted=false;};$('observation').oninput=()=>{const value=$<HTMLTextAreaElement>('observation').value;if(value===scene.observation)return;if(!observationStarted){pushHistory();observationStarted=true;noteOp('记录观察');}scene.observation=value;changed();};
 $('sync-now').onclick=()=>{void load(true);};$('save-scene').onclick=()=>{void save();};
-$('clear-scene').onclick=()=>{if(bootstrapping)return;if(mutate(d=>{d.objects=[];d.parameters=[];d.observation='';d.links=[];d.view='2d';}))actionMessage('已清空，可以直接开始构造');};
-$('reset-scene').onclick=()=>{if(bootstrapping)return;pushHistory();if(remotePending){base=structuredClone(remotePending.document);revision=remotePending.revision;}remotePending=undefined;$('conflict-actions').hidden=true;scene={...blankScene(),title:scene.title};selectedNames.clear();conflicted=false;changed();error('');render();actionMessage('已强制初始化为空白场景');void save();};
-$('zoom-in').onclick=()=>{if(scene.view==='2d')boards?.plane.zoomIn();else mutate(d=>{d.space.bounds=d.space.bounds.map(([a,b])=>[(a+b)/2+(a-b)*.4,(a+b)/2+(b-a)*.4]) as Scene['space']['bounds'];});};
-$('zoom-out').onclick=()=>{if(scene.view==='2d')boards?.plane.zoomOut();else mutate(d=>{d.space.bounds=d.space.bounds.map(([a,b])=>[(a+b)/2+(a-b)*.625,(a+b)/2+(b-a)*.625]) as Scene['space']['bounds'];});};
-$('home').onclick=()=>mutate(d=>{if(d.view==='2d')d.viewport=[-5,5,5,-5];else d.space={bounds:[[-5,5],[-5,5],[-5,5]],azimuth:.8,elevation:.35};});
-$('pick-source').onclick=()=>{void Notara.pickSource().then(link=>mutate(d=>{if(!d.links.some(old=>JSON.stringify(old)===JSON.stringify(link)))d.links.push(link);})).catch(()=>error('未添加资料'));};
+$('clear-scene').onclick=()=>{if(bootstrapping)return;if(mutate(d=>{d.objects=[];d.parameters=[];d.observation='';d.links=[];d.view='2d';},'清空场景'))actionMessage('已清空，可以直接开始构造');};
+$('reset-scene').onclick=()=>{if(bootstrapping)return;pushHistory();if(remotePending){base=structuredClone(remotePending.document);revision=remotePending.revision;}remotePending=undefined;$('conflict-actions').hidden=true;scene={...blankScene(),title:scene.title};selectedNames.clear();conflicted=false;noteOp('强制初始化');changed();error('');render();actionMessage('已强制初始化为空白场景');void save();};
+$('zoom-in').onclick=()=>{if(scene.view==='2d')boards?.plane.zoomIn();else mutate(d=>{d.space.bounds=d.space.bounds.map(([a,b])=>[(a+b)/2+(a-b)*.4,(a+b)/2+(b-a)*.4]) as Scene['space']['bounds'];},'缩放三维范围');};
+$('zoom-out').onclick=()=>{if(scene.view==='2d')boards?.plane.zoomOut();else mutate(d=>{d.space.bounds=d.space.bounds.map(([a,b])=>[(a+b)/2+(a-b)*.625,(a+b)/2+(b-a)*.625]) as Scene['space']['bounds'];},'缩放三维范围');};
+$('home').onclick=()=>mutate(d=>{if(d.view==='2d')d.viewport=[-5,5,5,-5];else d.space={bounds:[[-5,5],[-5,5],[-5,5]],azimuth:.8,elevation:.35};},'重置视区');
+$('pick-source').onclick=()=>{void Notara.pickSource().then(link=>mutate(d=>{if(!d.links.some(old=>JSON.stringify(old)===JSON.stringify(link)))d.links.push(link);},'关联资料 '+link.title.slice(0,60))).catch(()=>error('未添加资料'));};
 let calculationText='',calculationGeneration=0;
 const operation=$<HTMLSelectElement>('compute-operation'),formula=$<HTMLInputElement>('compute-expression'),variable=$<HTMLInputElement>('compute-variable');
 const calculationModes=[['evaluate','计算','例如：1+1 或 sqrt(4)'],['numeric','小数结果','例如：sqrt(2)'],['simplify','化简','例如：(x+1)^2'],['solve','解方程','例如：x^2-5x+6=0'],['differentiate','求导','例如：x^3']] as const;
@@ -252,7 +254,7 @@ $('calculate').onclick=()=>{void(async()=>{
   }catch{if(generation===calculationGeneration)$('compute-result').textContent='计算服务暂时不可用，请稍后重试。';}
   finally{$<HTMLButtonElement>('calculate').disabled=false;}
 })();};
-$('keep-calculation').onclick=()=>{mutate(d=>{d.observation+=(d.observation?'\n':'')+calculationText;});$<HTMLDetailsElement>('notes').open=true;};
+$('keep-calculation').onclick=()=>{mutate(d=>{d.observation+=(d.observation?'\n':'')+calculationText;},'记录计算结果');$<HTMLDetailsElement>('notes').open=true;};
 $('compute-form').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();$('calculate').click();}};$('compute-form').onsubmit=event=>event.preventDefault();
 $('discuss').onclick=()=>{void(async()=>{if(!await save())return;await publish();await Notara.compose('请结合这个数学场景和我的观察继续讨论。用 read_math_scene 读取场景与测量，必要时增量修改同一份构造。');message('已带入，检查后发送');})().catch(()=>error('暂时无法带入对话，请重试'));};
 $('save-note').onclick=()=>{void(async()=>{if(!await save())return;const projection=boards?.projection(revision),details=scene.objects.map(o=>{const p=projection?.objects.find(p=>p.name===o.name);return o.name+' · '+kindNames[o.kind]+('expression' in o?'：'+o.expression:'')+(p?.coordinates?' ('+p.coordinates.map(round).join(', ')+')':'');}).join('\n');Notara.saveNote({title:scene.title,documentRevision:revision,body:'## 构造\n\n'+details+'\n\n## 参数\n\n'+(scene.parameters.map(p=>p.name+' = '+p.value).join('，')||'无')+'\n\n## 观察与问题\n\n'+(scene.observation.trim()||'保存本次构造，尚未记录观察结论。')});})().catch(()=>error('暂时无法准备笔记'));};

@@ -5,6 +5,7 @@ import type { HostContext } from '@studyforge/contracts';
 import type { RecordStore } from '@studyforge/domain/storage';
 import { SeminarStartSchema, type SeminarRecordSchema, type SeminarView, type SeminarRole } from '@studyforge/contracts/plugin-learning';
 import { z } from 'zod';
+import { rejected } from '../tools/learning-context.ts';
 const roles: Record<SeminarRole, { title: string; persona: string }> = {
   peer: { title: '同伴', persona: '你是独立同伴，只阅读给定的讨论材料。指出你能否跟上这段解释，具体说明卡住的连接，不猜学生能力，不代替老师评分。先给一条最值得讨论的问题。' },
   critic: { title: '质疑者', persona: '你是独立质疑者，只依据给定材料检验前提、反例与边界。区分证据不足、推理错误和价值分歧，不为反对而反对。不要编造来源，不读取学生学情。' },
@@ -46,7 +47,7 @@ export class Seminar {
   start(context: HostContext, id: string, input: z.infer<typeof SeminarStartSchema>): Promise<SeminarView[]> {
     const job = this.tail.then(async () => {
       const content = await this.host.studyforgeLearningWorkbenches.authorize(context.sessionId!, id, 'seminar');
-      const data = SeminarStartSchema.parse(input); if ((await this.list(context, id)).some(r => r.participants.some(p => p.state === 'running' || p.state === 'queued'))) throw new Error('seminar_busy');
+      const data = SeminarStartSchema.parse(input); if ((await this.list(context, id)).some(r => r.participants.some(p => p.state === 'running' || p.state === 'queued'))) throw rejected('这个研讨已有进行中的场次，等它结束或先停止再开新场');
       const parent = await this.host.sessionController.resolveAgent(SessionId(context.sessionId!)); if ('error' in parent) throw new Error('seminar_parent_unavailable');
       let row = await this.records.create({ ...context, operationId: randomUUID() }, randomUUID(), { sessionId: context.sessionId!, id, digest: content.digest, topic: data.topic, materials: data.materials, standard: data.standard, participants: data.roles.map(role => ({ role, state: 'queued', text: '' })) });
       // Native continuations own queues, execution, cancellation and restoration.
@@ -77,7 +78,7 @@ export class Seminar {
   async stop(context: HostContext, id: string, ref: string): Promise<void> {
     const row = this.row(context, id, ref);
     const results = await Promise.allSettled(row.data.participants.filter(p => p.childId).map(async p => this.host.subagents.interrupt(SessionId(p.childId!), { kind: 'user', parentSessionId: SessionId(context.sessionId!) })));
-    if (results.some(result => result.status === 'rejected')) throw new Error('seminar_stop_incomplete');
+    if (results.some(result => result.status === 'rejected')) throw rejected('有参与者未能停止，研讨未完整收止');
   }
   private async stopDisabled(): Promise<void> {
     const context = this.host.studyforgePluginsManager.context();

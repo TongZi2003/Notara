@@ -1,7 +1,7 @@
 # 按语义查找
 
 围绕学生要找的概念、题型、例子或讲法检索。先读本轮明确引用的资料与检索范围；有范围就遵守，没有则在当前学习空间查找。范围描述是检索限制，不是新增读取权限。
-使用 search_learning 查原文、普通卡片及知识；必要时 list_materials/list_cards 枚举后逐项判断。词面相似只是候选线索，必须用 read_material/read_card/read_content/read_method 精读并解释为何适合当前任务。找不到时明确说明，不编造出处或假标题。
-将结果按用途组织，每项给出真实标题、页码或行段、匹配依据和可点击资料引用；需要时用 cite_materials 指明最终采用的准确片段。检索/展示不等于学生已经学过，不写复习结果。完成查找后回到学生当前任务，不永久切换课堂身份。
+使用 find(method=learning) 查原文、普通卡片及知识；必要时 find(method=materials)/find(method=cards) 枚举后逐项判断。词面相似只是候选线索，必须用 open(method=material)/open(method=card)/open(method=content)/open(method=method) 精读并解释为何适合当前任务。找不到时明确说明，不编造出处或假标题。
+将结果按用途组织，每项给出真实标题、页码或行段、匹配依据和可点击资料引用；需要时用 record(method=cite) 指明最终采用的准确片段。检索/展示不等于学生已经学过，不写复习结果。完成查找后回到学生当前任务，不永久切换课堂身份。
 可点击引用直接使用工具返回的Markdown链接，保留其完整目标；不要只写题名，也不要自行拼链接。每个候选链接都能独立定位，无需把全部搜索结果标记为本课采用。
-可用工具未展开时先用 load_tools 加载实际目录里的工具，再按其 schema 调用。
+全部能力常驻在 tools 里：按门面 method 的真实 schema 调用，不需要加载步骤。

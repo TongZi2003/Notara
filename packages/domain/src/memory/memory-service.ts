@@ -124,7 +124,7 @@ export class MemoryService {
 
   /** One adopted observation, or the exact reason it cannot be one. */
   private observation(input: MemoryDraft, catalogue: EvidenceCatalogue): MemoryObservation {
-    const basis = this.evidence.resolve(catalogue, input.evidenceRefs);
+    const basis = this.evidence.resolve(catalogue, input.evidenceRefs ?? []);
     if (basis.length === 0) throw new RecordError('memory_basis_required');
     // Every adopted E is a real student utterance. Attaching a card gives it
     // classroom provenance, but does not stop it being an explicit preference.

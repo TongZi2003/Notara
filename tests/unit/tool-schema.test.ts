@@ -75,7 +75,7 @@ test('every StudyForge registrar emits the enforced native subset and no `type` 
   // The real discriminated unions that a provider rejected as `type: null`.
   const card = tools.find(tool => tool.name === 'propose_card')!;
   expect(card.parameters.type).toBeUndefined();
-  expect((card.parameters.oneOf as { type?: unknown }[]).map(branch => branch.type)).toEqual(['object', 'object']);
+  expect((card.parameters.oneOf as { type?: unknown }[]).map(branch => branch.type)).toEqual(['object', 'object', 'object']);
 });
 
 test('the provider projection adds only the implied object root and mutates nothing', () => {

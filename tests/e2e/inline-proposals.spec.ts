@@ -1,6 +1,6 @@
 import { test as base, expect } from '@playwright/test';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
-import { enterClassroom, sendInput } from './fixtures/classroom.ts';
+import { enterClassroom, enableDebug, sendInput } from './fixtures/classroom.ts';
 const test = base.extend<{ dsh: IsolatedRuntime }>({ dsh: async ({}, use) => {
   const runtime = await startIsolated({ testModel: true });
   try { await use(runtime); } finally { await runtime.stop(); }
@@ -32,12 +32,16 @@ test('proposals stay with their own reply, scroll with chat, and never cover the
   await first.getByTestId('proposal-confirm').click();
   await expect(first.locator('summary')).toContainText('已经保存');
   await expect(first).not.toHaveAttribute('open');
+  // Trajectory is a debug view; the ordinary classroom hides it until the
+  // Settings → General switch turns debug surfaces on.
+  await enableDebug(page);
   await page.getByRole('tab', { name: 'Trajectory', exact: true }).click();
   await expect(turns.first()).toBeHidden();
   await page.getByRole('tab', { name: 'Chat', exact: true }).click();
   // A desktop-open reader becomes a native modal overlay at phone width.
   // Close that separate reader before testing the phone's conversation area.
-  await page.getByRole('button', { name: 'Collapse right sidebar', exact: true }).click();
+  const rightbar = page.getByRole('button', { name: 'Collapse right sidebar', exact: true });
+  if (await rightbar.count() > 0) await rightbar.click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('tab', { name: 'Trajectory', exact: true }).click();
   await expect(page.getByRole('tab', { name: 'Trajectory', exact: true })).toHaveAttribute('aria-selected', 'true');

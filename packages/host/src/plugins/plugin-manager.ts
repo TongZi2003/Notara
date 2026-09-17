@@ -162,7 +162,16 @@ export class PluginManager {
     const key = packageId(sessionId + ':' + id), context = this.context();
     let pin = this.pins.list(context).find(row => row.ref === 'pluginpin:' + key);
     if (!pin) pin = await this.pins.create({ ...context, operationId: 'pin:' + key }, key, { sessionId, pluginRef: choice.pluginRef, contributionId: choice.contributionId, digest: choice.digest });
-    const version = this.get(choice.pluginRef, pin.data.digest), worldbook = version.manifest.notara.worldbooks.find(entry => entry.id === choice.contributionId);
+    return this.workbenchContent(choice, pin.data.digest);
+  }
+  /** Read-only open: monitoring paths must not pin a board the user never opened. */
+  async openedWorkbench(sessionId: string, id: string): Promise<WorkbenchContent | undefined> {
+    const choice = this.workbenches(sessionId).find(item => item.id === id); if (!choice) return undefined;
+    const pin = this.pins.list(this.context()).find(row => row.ref === 'pluginpin:' + packageId(sessionId + ':' + id));
+    return pin ? this.workbenchContent(choice, pin.data.digest) : undefined;
+  }
+  private workbenchContent(choice: WorkbenchChoice, digest: string): WorkbenchContent {
+    const version = this.get(choice.pluginRef, digest), worldbook = version.manifest.notara.worldbooks.find(entry => entry.id === choice.contributionId);
     if (worldbook) {
       const seed = JSON.parse(this.body(choice.pluginRef, version.digest, worldbook.entry)) as { classroom?: unknown };
       return { ...choice, digest: version.digest, title: worldbook.title, kind: seed.classroom ? 'classroom' : 'worldbook', html: '', permissions: ['save-note'] };

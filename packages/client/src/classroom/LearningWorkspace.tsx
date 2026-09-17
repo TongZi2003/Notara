@@ -1,7 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode, type DragEvent } from 'react';
+import type { ClassroomTrace as ClassroomTraceView } from '@studyforge/contracts/classroom-trace';
 import { ClassroomTrace } from './ClassroomTrace.tsx';
+import { thoughtAnchors } from '../materials/content-navigation.tsx';
 import { LessonResources, type LessonResourcesFace } from '../materials/LessonResources.tsx';
 import { LearningObject } from './LearningObject.tsx';
 import { LessonSettingsModal } from './LessonSettings.tsx';
@@ -32,6 +34,41 @@ function MaterialsView({ ctx, sessionId, running, visible, host }: { ctx: Contex
     <section className="sf-lesson-materials-section"><LessonResources ctx={ctx} sessionId={sessionId} host={host} browseId={visible ? `workspace:${sessionId}:materials` : undefined} refreshToken={`${running}:${refresh}`}
       renderObject={(target, controls) => <LearningObject ctx={ctx} sessionId={sessionId} target={target} onBack={controls.back} onSource={anchor => controls.source([anchor], '原文')} />} /></section>
   </aside>;
+}
+
+const FRAME_STATUS: Record<string, string> = { active: '进行中', completed: '已完成', branched: '已分支', paused: '已暂停' };
+
+/** The lesson's in-conversation roadmap: one chip per stage, always on top of
+ * the workspace so the student sees where the lesson is without opening the
+ * mindmap view. Clicking a chip opens the thoughts view anchored to it. */
+function StageTracker({ ctx, sessionId, running }: { ctx: Context; sessionId: string; running: boolean }): React.JSX.Element | null {
+  const [trace, setTrace] = useState<ClassroomTraceView>();
+  useEffect(() => {
+    let live = true;
+    const read = (): void => { void ctx.remote.studyforgeTrace.read({ sessionId }).then(reply => { if (live && reply.ok) setTrace(reply.value); }).catch(() => {}); };
+    read();
+    window.addEventListener('focus', read);
+    window.addEventListener('studyforge:learning-changed', read);
+    return () => { live = false; window.removeEventListener('focus', read); window.removeEventListener('studyforge:learning-changed', read); };
+  }, [ctx, sessionId, running]);
+  const frames = trace?.frames ?? [];
+  if (frames.length === 0) return null;
+  const open = (frame: ClassroomTraceView['frames'][number]): void => {
+    const first = frame.nodes.find(node => node.sequence !== undefined)?.sequence;
+    if (first !== undefined) thoughtAnchors.set(sessionId, { sequence: first });
+    revealWorkspaceView(sessionId, 'thoughts');
+  };
+  return <div className="sf-stage-tracker" data-testid="stage-tracker" role="navigation" aria-label="本课阶段路线">
+    <span className="sf-stage-caption">本课路线</span>
+    {frames.map((frame, index) => {
+      const status = frame.id === trace?.activeFrameId ? 'active' : frame.status;
+      return <button key={frame.id} type="button" className="sf-stage-chip" data-testid="stage-chip" data-status={status}
+        title={frame.goal} onClick={() => open(frame)}>
+        <i>{index + 1}</i><span>{frame.title}</span><em>{FRAME_STATUS[status] ?? status}</em>
+      </button>;
+    })}
+    {trace?.activeFrameId && <span className="sf-stage-goal" data-testid="stage-goal">{frames.find(f => f.id === trace.activeFrameId)?.goal}</span>}
+  </div>;
 }
 
 /** Stable siblings with calculated rectangles: layout changes never reparent or
@@ -93,6 +130,7 @@ function Workspace({ ctx, sessionId, blank, running, title, nativeConversation, 
         <hr /><button data-testid="open-lesson-settings" onClick={event => { setSettings(true); event.currentTarget.closest('details')?.removeAttribute('open'); }}>本课设置</button>
       </div></details>
     </header>
+    <StageTracker ctx={ctx} sessionId={sessionId} running={running} />
     <div className="sf-workspace-surface" ref={surface} data-testid="workspace-surface" onDragEnd={endDrag}>
       {views.map(view => {
         const rect = panes[view] ?? lastRects.current[view] ?? { x: 0, y: 0, ...size }, visible = !!panes[view];

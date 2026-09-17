@@ -86,7 +86,7 @@ test('six navigation entries are visible and learning-space management remains r
   await expect(page.getByTestId('studyforge-page-studyforge.sets')).toBeVisible();
   await expect(page.locator(`[data-setcard="${set.ref}"]`)).toHaveClass(/editing/);
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
-  await page.getByRole('button', { name: '整理与复习', exact: true }).first().click();
+  await page.getByTestId('materials-open-cards').click();
   await expect(page.getByTestId('studyforge-page-studyforge.cards')).toBeVisible();
   await expect(navigation.getByRole('button', { name: '资料', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.getByRole('button', { name: '← 资料', exact: true }).click();

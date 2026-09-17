@@ -26,11 +26,20 @@ export function ClassroomTrace({ ctx, sessionId, running }: { ctx: Context; sess
   const stages = trace?.stages ?? [], frames = trace?.frames ?? [], manual = trace?.nodes.filter(n => !n.id.startsWith('event:')) ?? [],
     framed = frames.flatMap(frame => frame.nodes), visible = frames.length ? [...framed, ...(trace?.unsegmented ?? [])] : [...stages, ...manual];
   const all = [...visible, ...(trace?.nodes ?? [])], active = all.find(node => node.id === selected), activeStage = stages.find(node => node.id === selected);
-  useEffect(() => { const anchor = thoughtAnchors.get(sessionId); if (!anchor || !trace) return; const node = trace.stages.find(n => anchor.sequence !== undefined && anchor.sequence >= (n.stage.fromSequence ?? Infinity) && anchor.sequence <= (n.stage.toSequence ?? -1)) ?? trace.nodes.find(n => n.sequence === anchor.sequence) ?? trace.nodes.find(n => anchor.turn !== undefined && n.turn === anchor.turn); if (node) { setSelected(node.id); thoughtAnchors.delete(sessionId); } }, [trace, sessionId, arrangement]);
+  useEffect(() => { const anchor = thoughtAnchors.get(sessionId); if (!anchor || !trace) return; const node = trace.nodes.find(n => n.sequence === anchor.sequence) ?? trace.nodes.find(n => anchor.turn !== undefined && n.turn === anchor.turn) ?? trace.stages.find(n => anchor.sequence !== undefined && anchor.sequence >= (n.stage.fromSequence ?? Infinity) && anchor.sequence <= (n.stage.toSequence ?? -1)); if (node) { setSelected(node.id); thoughtAnchors.delete(sessionId); } }, [trace, sessionId, arrangement]);
   function beginEdit(node?:ThoughtNode):void {setEditorPin({version:trace?.version??0,...(node?.stageBasis?{basis:node.stageBasis}:{})});setSelected(node?.id);setTitle(node?.title??'');setBody(node?.body??'');setKind(node?.kind??'idea');setEditing(true);}
   async function edit(change: { node?: { id?: string; title: string; body: string; kind: ThoughtNode['kind']; sequence?: number; stageBasis?: string; position?: { x: number; y: number } }; edge?: { from: string; to: string; label: string }; removeEdge?: { from: string; to: string; label: string }; hide?: string }): Promise<void> {
-    if (!trace || busy) return; setBusy(true); setNotice('');
-    try { const reply = await ctx.remote.studyforgeTrace.edit({ sessionId, operationId: crypto.randomUUID(), expectedVersion: editing && change.node?.id === selected ? editorPin.version : trace.version, ...change });
+    if (busy) return; setBusy(true); setNotice('');
+    try {
+      // The view can be saved against before the first read resolves: fetch the
+      // base now instead of silently dropping the student's wording.
+      let base = trace;
+      if (!base) {
+        const current = await ctx.remote.studyforgeTrace.read({ sessionId });
+        if (!current.ok) { setNotice('思维图暂时读不出来，文字仍保留。'); return; }
+        base = current.value; setTrace(base);
+      }
+      const reply = await ctx.remote.studyforgeTrace.edit({ sessionId, operationId: crypto.randomUUID(), expectedVersion: editing && change.node?.id === selected ? editorPin.version || base.version : base.version, ...change });
       if (reply.ok) { setTrace(reply.value); setEditing(false); } else { setNotice('思维图已变化，或这条联系形成循环。请刷新后重试，文字仍保留。'); }
     } catch { setNotice('暂时没能保存，文字仍保留。'); } finally { setBusy(false); }
   }

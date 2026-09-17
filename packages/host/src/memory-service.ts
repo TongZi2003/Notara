@@ -9,6 +9,7 @@ import type { MemoryService } from '@studyforge/domain/memory';
 import { observeEvidence } from './evidence-query.ts';
 import { sourceEvidenceObjects } from './runtime/context-envelope.ts';
 import { studentContext } from './learning-service.ts';
+import { rejected } from './tools/learning-context.ts';
 
 /**
  * The narrow learner-memory port is the domain service itself, declared here so
@@ -103,7 +104,7 @@ export class StudyForgeMemory extends TypertRemoteService {
 
   /** The real accepted cut for the resolved lesson; objects are the ones the message really bound. */
   private async cut(context: HostContext): Promise<EvidenceCatalogue> {
-    if (!context.sessionId) throw new Error('learning_session_required');
+    if (!context.sessionId) throw rejected('本工具只能在课堂会话中使用');
     const sessionId = context.sessionId;
     return new EvidenceQuery().catalogue(await observeEvidence(this.ctx, sessionId, {
       resolveObjects: query => sourceEvidenceObjects(this.ctx, context, query.fragments ?? []),

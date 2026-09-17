@@ -95,9 +95,9 @@ test('native classroom keeps its own composer and carries the student lesson sur
     await page.screenshot({ path: testInfo.outputPath('sent-zero-material.png') });
     await expect.poll(async () => existsSync(join(dsh.root, 'model-requests.jsonl')), { timeout: 30_000 }).toBe(true);
 
-    // The lesson entry opens this client's own rightbar page type; the read is real
-    // (this lesson has no material yet, and the panel says exactly that).
-    const lessonEntry = page.getByTestId('open-lesson');
+    // The materials workbench is the lesson's own workspace pane; the read is
+    // real (this lesson has no material yet, and the panel says exactly that).
+    const lessonEntry = page.getByTestId('workspace-open-materials');
     await expect(lessonEntry).toBeVisible();
     await lessonEntry.click();
     const panel = page.getByTestId('studyforge-lesson-panel');
@@ -132,7 +132,10 @@ test('native classroom keeps its own composer and carries the student lesson sur
     await page.screenshot({ path: testInfo.outputPath('classroom-1024.png') });
 
     await page.setViewportSize({ width: 390, height: 844 });
-    if (!await panel.isVisible()) await page.getByTestId('open-lesson').click();
+    // The click is idempotent: at this width only the active view is drawn, and
+    // a still-settling resize can report the materials pane visible one frame
+    // before the narrow layout reduces it to the chat view alone.
+    await page.getByTestId('workspace-open-materials').click();
     // At the smallest width the native rightbar covers the viewport, so the lesson
     // panel itself is what the student reads there; a browser reload resets the
     // in-memory layout and the navigation is reachable again.
@@ -183,11 +186,11 @@ test('a creation session keeps the classroom and hides the learning lesson surfa
     await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
     await expect(page.locator('[data-composer-input]')).toBeVisible();
     await expect(page.getByRole('button', { name: MODEL_TRIGGER })).toBeVisible();
-    await expect(page.getByTestId('open-lesson')).toHaveCount(0);
+    await expect(page.getByTestId('workspace-open-materials')).toHaveCount(0);
     await expect(page.getByTestId('studyforge-lesson-panel')).toHaveCount(0);
     await page.getByRole('button', { name: 'Open right sidebar', exact: true }).click();
     await expect(page.getByRole('tab').filter({ hasText: 'Files' })).toBeVisible();
-    await expect(page.getByTestId('lesson-deck-reopen')).toHaveCount(0);
+    await expect(page.getByTestId('lesson-materials')).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('creation-session.png') });
     expect(errors).toEqual([]);
   } finally {

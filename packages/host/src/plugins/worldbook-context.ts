@@ -20,12 +20,18 @@ export function worldbookInput(events: readonly SessionEvent[]): { id: string; t
   }
   return current;
 }
+/** Last few user texts so keyword recall covers the recent conversation, not
+ * only the newest line. Bounded on purpose: stale entries must not refire. */
+export function recentUserTexts(events: readonly SessionEvent[], count = 3): string[] {
+  return events.filter(event => event.type === 'user/message' && event.data.source.kind === 'user')
+    .slice(-count).map(event => event.type === 'user/message' ? event.data.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n') : '');
+}
 export function worldbookContext(host: Context): (agent: Agent) => Promise<string> {
   const cache = new WeakMap<Agent, { id: string; text: Promise<string> }>();
   return async agent => {
-    const input = worldbookInput(agent.session.snapshotEvents()); if (!input) return '';
+    const events = agent.session.snapshotEvents(), input = worldbookInput(events); if (!input) return '';
     const old = cache.get(agent); if (old?.id === input.id) return old.text;
-    const text = host.studyforgeWorkbenchData.background(agent.session.id, input.text);
+    const text = host.studyforgeWorkbenchData.background(agent.session.id, input.text, recentUserTexts(events));
     cache.set(agent, { id: input.id, text });
     try { return await text; } catch (error) { cache.delete(agent); throw error; }
   };

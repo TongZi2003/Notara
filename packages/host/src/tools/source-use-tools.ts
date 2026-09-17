@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { SourceAnchorSchema, type SourceAnchor } from '@studyforge/contracts/materials';
 import { ContentReadSchema, SourceUseSchema } from '@studyforge/contracts/content-history';
 import { sourceContains } from '@studyforge/domain/source-relations';
-import { teacherContext } from './learning-context.ts';
+import { teacherContext, rejected } from './learning-context.ts';
 import { toolSchema } from './tool-schema.ts';
 import { contentHistory } from '../materials/content-history.ts';
 
@@ -17,13 +17,13 @@ export async function assertRefinedReads(host: Context, execution: ToolRunContex
   const ctx = await teacherContext(host, execution), observed = await host.sessionQuery.observeSession(SessionId(ctx.sessionId!));
   try {
     const cutoff = observed.events.findIndex(event => event.type === 'tool/call' && event.data.callId === execution.callId);
-    if (cutoff < 0) throw new Error('缺少调用位置，请重新读取原文。');
+    if (cutoff < 0) throw rejected('缺少调用位置，请重新读取原文');
     const reads = observed.events.slice(0, cutoff).flatMap(event => {
       if (event.type !== 'tool/result' || event.data.message.content.some(block => block.isError)) return [];
       const item = SourceUseSchema.safeParse(event.data.meta);
       return item.success && item.data.use === 'read' && !item.data.target ? item.data.sources : [];
     });
-    if (sources.some(source => !reads.some(read => sourceContains(read, source)))) throw new Error('标记refined之前，请由你自己read_material读取完整的细化范围；仅目录用outline。');
+    if (sources.some(source => !reads.some(read => sourceContains(read, source)))) throw rejected('标记refined之前，请由你自己read_material读取完整的细化范围；仅目录用outline');
   } finally { observed[Symbol.dispose](); }
 }
 
@@ -61,7 +61,7 @@ export function registerSourceUseTools(host: Context): void {
         const item = host.studyforgeKnowledgeService.read(ctx, input.target, input.version);
         return { kind: 'knowledge', ref: item.ref, version: item.version, content: item.content, publicSources: item.publicSources };
       }
-      throw new Error('请选择实际检索到的card或knowledge引用。');
+      throw rejected('请选择实际检索到的card或knowledge引用');
     },
   }));
   const citeInput = z.object({ sources: z.array(SourceAnchorSchema).max(30).default([]), target: z.string().min(1).optional() }).strict()
@@ -75,7 +75,7 @@ export function registerSourceUseTools(host: Context): void {
       const observation = await host.sessionQuery.observeSession(SessionId(ctx.sessionId!));
       try {
         const cutoff = observation.events.findIndex(event => event.type === 'tool/call' && event.data.callId === execution.callId);
-        if (cutoff < 0) throw new Error('缺少本次调用位置，请重新读取后采用。');
+        if (cutoff < 0) throw rejected('缺少本次调用位置，请重新读取后采用');
         const reads = observation.events.slice(0, cutoff).flatMap(event => {
           if (event.type !== 'tool/result' || event.data.message.content.some(block => block.isError)) return [];
           const parsed = SourceUseSchema.safeParse(event.data.meta);
@@ -83,11 +83,11 @@ export function registerSourceUseTools(host: Context): void {
         });
         const originals = reads.filter(read => !read.target).flatMap(read => read.sources);
         for (const source of input.sources) {
-          if (!originals.some(read => sourceContains(read, source))) throw new Error('这个片段还没有由你完整读取，请先read_material核对实际范围。');
+          if (!originals.some(read => sourceContains(read, source))) throw rejected('这个片段还没有由你完整读取，请先read_material核对实际范围');
           await host.studyforgeMaterialService.resolve(ctx, { materialId: source.materialId, versionId: source.versionId });
         }
         const card = input.target ? reads.findLast(read => read.target === input.target) : undefined;
-        if (input.target && !card) throw new Error('请先read_content精读要采用的卡片或知识。');
+        if (input.target && !card) throw rejected('请先read_content精读要采用的卡片或知识');
         return SourceUseSchema.parse({ kind: 'studyforge-source-use', use: 'cited', sources: input.sources,
           ...(card ? { target: card.target, version: card.version } : {}) });
       } finally { observation[Symbol.dispose](); }

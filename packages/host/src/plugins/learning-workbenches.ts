@@ -1,8 +1,10 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { HostContext, MutationContext } from '@studyforge/contracts';
 import { PluginDocumentSchema, PluginLinkSchema, type PluginDocument, type PluginDocumentRecordSchema, type PluginDocumentView, type PluginLink } from '@studyforge/contracts/plugin-learning';
+import type { WorkbenchOp } from '@studyforge/contracts/plugins';
 import type { RecordStore } from '@studyforge/domain/storage';
 import { packageId } from './plugin-manager.ts';
+import { summarizeDocumentChange } from './board-activity.ts';
 import { z } from 'zod';
 import { toolSchema } from '../tools/tool-schema.ts';
 import { teacherContext } from '../tools/learning-context.ts';
@@ -11,6 +13,7 @@ import { canonicalPath } from '@studyforge/domain/access';
 import { MathProjectionSchema, applyMathEdits, type MathProjection, type MathEdit } from '@studyforge/contracts/math-workbench';
 import { registerMathTools } from './math-tools.ts';
 import { mathDimension } from '@studyforge/contracts/math-scene';
+import { rejected } from '../tools/learning-context.ts';
 
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeLearningWorkbenches: LearningWorkbenches } }
 export class LearningWorkbenches {
@@ -19,7 +22,7 @@ export class LearningWorkbenches {
   constructor(host: Context, records: RecordStore<typeof PluginDocumentRecordSchema>) { this.host = host; this.records = records; }
   async authorize(sessionId: string, id: string, permission: string, digest?: string) {
     const content = await this.host.studyforgePluginsManager.openWorkbench(sessionId, id);
-    if (!content.permissions.includes(permission) || digest && content.digest !== digest) throw new Error('plugin_permission_denied');
+    if (!content.permissions.includes(permission) || digest && content.digest !== digest) throw rejected('这个工作台没有授权该能力或版本不匹配');
     return content;
   }
   async read(context: HostContext, id: string): Promise<PluginDocumentView> {
@@ -29,16 +32,21 @@ export class LearningWorkbenches {
     const version = this.host.studyforgePluginsManager.get(content.pluginRef, content.digest), contribution = version.manifest.notara.workbenches.find(c => c.id === content.contributionId)!;
     return { revision: 0, document: PluginDocumentSchema.parse(JSON.parse(this.host.studyforgePluginsManager.body(content.pluginRef, content.digest, contribution.document!.seed))) };
   }
-  async write(context: MutationContext, id: string, input: PluginDocument): Promise<PluginDocumentView> {
+  async write(context: MutationContext, id: string, input: PluginDocument, op?: WorkbenchOp): Promise<PluginDocumentView> {
     const content = await this.authorize(context.sessionId!, id, 'document');
-    const document = PluginDocumentSchema.parse(input); if (document.kind !== content.documentKind) throw new Error('plugin_document_kind_mismatch');
+    const document = PluginDocumentSchema.parse(input); if (document.kind !== content.documentKind) throw rejected('document.kind与工作台声明的文档类型不一致');
     for (const link of documentLinks(document)) Object.assign(link, await this.link(context, link));
+    const before = (await this.read(context, id)).document;
     const key = packageId(context.sessionId + ':' + id + ':' + content.digest), data = { sessionId: context.sessionId!, id, digest: content.digest, document };
     const saved = context.expectedVersion === 0 ? await this.records.create(context, key, data) : await this.records.update(context, 'plugindocument:' + key, data, () => data);
+    try {
+      const at = this.records.changes(context, 'plugindocument:' + key).at(-1)?.committedAt;
+      await this.host.studyforgeBoardActivity?.append(context, { id, kind: 'document', revision: saved.version, op, detail: summarizeDocumentChange(before, saved.data.document), at });
+    } catch { /* monitoring never breaks the write it observes */ }
     return { revision: saved.version, document: saved.data.document };
   }
   async inspectMath(context:HostContext,id:string) {
-    const row=await this.read(context,id);if(row.document.kind!=='math')throw new Error('math_workbench_required');
+    const row=await this.read(context,id);if(row.document.kind!=='math')throw rejected('这个工作台不是数学场景');
     const content=await this.authorize(context.sessionId!,id,'document');
     const key=packageId(context.sessionId+':'+id+':'+content.digest), saved=this.projections.get(key);
     const fresh=!!saved&&saved.projection.revision===row.revision&&Date.now()-saved.at<15000;
@@ -68,7 +76,7 @@ export class LearningWorkbenches {
     const content=await this.authorize(context.sessionId!,id,'document');
     const contribution=this.host.studyforgePluginsManager.get(content.pluginRef,content.digest).manifest.notara.workbenches.find(c=>c.id===content.contributionId)!;
     const doc=revision===0?PluginDocumentSchema.parse(JSON.parse(this.host.studyforgePluginsManager.body(content.pluginRef,content.digest,contribution.document!.seed))):this.records.read(context,'plugindocument:'+packageId(context.sessionId+':'+id+':'+content.digest),revision).data.document;
-    if(doc.kind!=='math')throw new Error('math_workbench_required');return doc;
+    if(doc.kind!=='math')throw rejected('这个工作台不是数学场景');return doc;
   }
   async link(context: HostContext, input: PluginLink): Promise<PluginLink> {
     const link = PluginLinkSchema.parse(input);
@@ -109,7 +117,7 @@ export function registerWorkbenchTools(host: Context): void {
   const output = { schema: { type: 'object' as const, properties: { json: { type: 'string' as const } }, required: ['json'], additionalProperties: false as const }, render: (_args: unknown, value: { json: string }) => [{ type: 'text' as const, text: value.json }] };
   host.effect(() => host.tools.register({ name: 'read_workbench', description: '读取已安装的课堂工作台。无id返回有工作文档的可用工作台id；有id返回当前revision、document和完整文档schema。工作文档是备课和讨论草稿，不是学生学情。', parameters: toolSchema(read), output,
     async execute(args, execution) { const context = await teacherContext(host, execution), input = read.parse(args);
-      if (execution.agent?.session.header.origin === 'subagent') throw new Error('main_teacher_required');
+      if (execution.agent?.session.header.origin === 'subagent') throw rejected('子代理不能操作工作台，由主课堂会话调用');
       if (input.id) return { json: JSON.stringify({ id: input.id, ...await host.studyforgeLearningWorkbenches.read(context, input.id), schema: z.toJSONSchema(PluginDocumentSchema) }) };
       const choices = host.studyforgePluginsManager.workbenches(context.sessionId), rows = [];
       for (const choice of choices) { const contribution = host.studyforgePluginsManager.get(choice.pluginRef,choice.digest).manifest.notara.workbenches.find(row => row.id === choice.contributionId); if (contribution?.document) rows.push({ id: choice.id, title: choice.title, kind: contribution.document.kind }); }
@@ -118,8 +126,15 @@ export function registerWorkbenchTools(host: Context): void {
   }));
   host.effect(() => host.tools.register({ name: 'update_workbench', description: '更新课堂工作文档，包括数学场景、黑板、错解、史料、地图和模拟。先read_workbench，沿原id/revision修改其document；documentJson是完整document，形状以返回schema为准。数学场景的表达式只支持数学运算及常用函数，显式写乘号，参数和对象name是可读引用名称；保留学生参数、视区、观察与未改对象。页面会自动同步；不写卡片、不记掌握。', parameters: toolSchema(write), output,
     async execute(args, execution) { const context = await teacherContext(host, execution), input = write.parse(args);
-      if (execution.agent?.session.header.origin === 'subagent') throw new Error('main_teacher_required');
+      if (execution.agent?.session.header.origin === 'subagent') throw rejected('子代理不能操作工作台，由主课堂会话调用');
       return { json: JSON.stringify(await host.studyforgeLearningWorkbenches.write({ ...context, expectedVersion: input.expectedVersion }, input.id, PluginDocumentSchema.parse(JSON.parse(input.documentJson)))) };
+    },
+  }));
+  const activity = z.object({ id: z.string().optional(), limit: z.number().int().min(1).max(80).optional() }).strict();
+  host.effect(() => host.tools.register({ name: 'read_workbench_activity', description: '读取工作台操作轨迹：学生在页面上的写入（含操作标签与改动摘要）与教师工具写入按时间合并；revision对应工作文档版本。无id列出有记录的板；有id返回活动条目，越新的越靠后。', parameters: toolSchema(activity), output,
+    async execute(args, execution) { const context = await teacherContext(host, execution), input = activity.parse(args);
+      if (execution.agent?.session.header.origin === 'subagent') throw rejected('子代理不能操作工作台，由主课堂会话调用');
+      return { json: JSON.stringify(input.id ? await host.studyforgeBoardActivity.view(context, input.id, input.limit ?? 24) : await host.studyforgeBoardActivity.boards(context, context.sessionId!)) };
     },
   }));
 }

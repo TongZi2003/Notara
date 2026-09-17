@@ -30,10 +30,22 @@ export async function startIsolated(options: { hostEnabled?: boolean; clientEnab
   }
 }
 
-async function boot(root: string, options: { hostEnabled?: boolean; clientEnabled?: boolean; testModel?: boolean }): Promise<IsolatedRuntime> {
+/** A trial instance keeps its DSH_HOME and classroom directory across restarts:
+ * same assembly as the isolated runtime, minus the disposable temp root. */
+export async function startPersistent(root: string, options: { hostEnabled?: boolean; clientEnabled?: boolean; testModel?: boolean; port?: number } = {}): Promise<IsolatedRuntime> {
+  if (Number(process.versions.node.split('.')[0]) < 24) throw new Error('Node 24 or newer is required');
+  await mkdir(root, { recursive: true });
+  return boot(root, { ...options, persist: true });
+}
+
+async function boot(root: string, options: { hostEnabled?: boolean; clientEnabled?: boolean; testModel?: boolean; port?: number; persist?: boolean }): Promise<IsolatedRuntime> {
   const home = join(root, 'home');
   const workspace = join(root, 'classroom');
   await Promise.all([mkdir(home), mkdir(workspace)]);
+  // The upstream testing notice is a one-time modal; seed its acknowledgement
+  // (ui-onboarding.welcomeNoticeVersion in dsh-client-ui-settings-models) so
+  // isolated runs behave like a real install that already read it.
+  await writeFile(join(home, 'settings.yaml'), 'ui-onboarding:\n  welcomeNoticeVersion: 2026-08-13.1\n');
   const plugins = join(root, 'plugins');
   await mkdir(plugins);
   await symlink(join(project, 'node_modules'), join(plugins, 'node_modules'), 'dir');
@@ -88,7 +100,7 @@ async function boot(root: string, options: { hostEnabled?: boolean; clientEnable
   env.DSH_HOME = home;
   env.DSH_TELEMETRY_DISABLED = '1';
   function launch() {
-    const child = spawn(process.execPath, [join(project, 'node_modules/.bin/dsh'), 'web', '--host', '127.0.0.1', '--port', '0', '--no-open'], {
+    const child = spawn(process.execPath, [join(project, 'node_modules/.bin/dsh'), 'web', '--host', '127.0.0.1', '--port', String(options.port ?? 0), '--no-open'], {
       cwd: workspace, env, stdio: ['ignore', 'pipe', 'pipe'],
     });
     let output = '';
@@ -128,7 +140,7 @@ async function boot(root: string, options: { hostEnabled?: boolean; clientEnable
   let active = launch(), stopping: Promise<void> | undefined;
   let pastLog = '';
   function stop(): Promise<void> {
-    stopping ??= (async () => { await active.stopProcess(); await rm(root, { recursive: true, force: true }); })();
+    stopping ??= (async () => { await active.stopProcess(); if (!options.persist) await rm(root, { recursive: true, force: true }); })();
     return stopping;
   }
   async function restart(): Promise<void> {

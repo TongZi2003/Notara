@@ -34,8 +34,8 @@
 import type { CardContent, EntityRef, ObjectChange, SourceAnchor, SourceLocator, Timestamp } from '@studyforge/contracts';
 
 /** Typed lesson outputs; each keeps its own identity and entry point. */
-export type OutputKind = 'card' | 'knowledge' | 'memory' | 'handoff' | 'diagram' | 'set' | 'route' | 'plan' | 'skeleton' | 'course';
-const OUTPUT_KINDS: readonly string[] = ['card', 'knowledge', 'memory', 'handoff', 'diagram', 'set', 'route', 'plan', 'skeleton', 'course'];
+export type OutputKind = 'card' | 'knowledge' | 'memory' | 'handoff' | 'diagram' | 'set' | 'route' | 'plan' | 'skeleton' | 'course' | 'teaching';
+const OUTPUT_KINDS: readonly string[] = ['card', 'knowledge', 'memory', 'handoff', 'diagram', 'set', 'route', 'plan', 'skeleton', 'course', 'teaching'];
 
 /** 已保存 / 待确认 / 状态未知. */
 export type OutputStatus = 'saved' | 'pending' | 'unknown';

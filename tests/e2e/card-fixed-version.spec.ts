@@ -10,7 +10,7 @@
  * The version is pinned through the real course metadata Remote and opened by
  * the lesson itself, so nothing here depends on a test-only mount.
  */
-import { test, expect, enterClassroom, sendInput, openCards } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, sendInput, openCards, openLessonMaterials } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { SessionListValue } from '@deepseek-ai/dsh-api-session-controller';
@@ -64,6 +64,7 @@ test('a frozen version shows its own text and offers no edit or newer redline', 
 
   // Re-entering opens the map. The card node opens its pinned revision here.
   await enterClassroom(page, classroom.authUrl);
+  await openLessonMaterials(page);
   const pinned = page.getByTestId('lesson-materials-map').locator('[data-kind="card"]').filter({ hasText: '本节课安排' });
   await expect(pinned).toContainText('固定版本卡片');
   await expect(pinned).not.toContainText('第二版卡片标题');

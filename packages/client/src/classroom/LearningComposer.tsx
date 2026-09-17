@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { SubjectPicker } from './SubjectPicker.tsx';
 import { insertTaskSkill } from './skill-draft.ts';
 import type { TeachingChoice } from '@studyforge/contracts/teaching';
+import type { CourseView } from '@studyforge/contracts/courses';
 import { RolePicker } from '../creation/RolePicker.tsx';
 import { ControlPopover } from './ControlPopover.tsx';
 
@@ -24,14 +25,22 @@ export function registerLearningComposer(ctx: Context): void {
 
 function MoreActions({ ctx, sessionId, useSessions }: PropsRuntime<'conversation.input.left'> & { ctx: Context }): React.JSX.Element | null {
   const learning = useSessions(state => state.byId[sessionId]?.projectionValues?.agentPreset === 'studyforge-learning');
+  const blank = useSessions(state => state.byId[sessionId]?.blank ?? false);
   const [notice, setNotice] = useState('');
   const [skills, setSkills] = useState<TeachingChoice[]>([]);
+  const [course, setCourse] = useState<CourseView>();
   useEffect(() => {
     let live = true;
     const read = (): void => { void ctx.remote.studyforgeTeaching.tasks().then(result => { if (live && result.ok) setSkills(result.value); }).catch(() => { if (live) setNotice('技能暂时读不出来。'); }); };
     read(); window.addEventListener('studyforge:learning-changed', read);
     return () => { live = false; window.removeEventListener('studyforge:learning-changed', read); };
   }, [ctx]);
+  useEffect(() => {
+    if (!blank) { setCourse(undefined); return; }
+    let live = true;
+    void ctx.remote.studyforgeCourses.read({ sessionId }).then(result => { if (live && result.ok) setCourse(result.value); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [ctx, sessionId, blank]);
   if (!learning) return null;
   const insert = (text: string, close: () => void): void => {
     if (ctx.sessions.list.getSnapshot().current !== sessionId || ctx.conversation.blocks.storeFor(sessionId).getSnapshot()) return;
@@ -52,9 +61,25 @@ function MoreActions({ ctx, sessionId, useSessions }: PropsRuntime<'conversation
     close();
     document.querySelector<HTMLElement>('[data-composer-input]')?.focus();
   };
+  const plan = async (close: () => void): Promise<void> => {
+    if (!course || course.data.guided) return;
+    try {
+      const updated = await ctx.remote.studyforgeCourses.update({ sessionId, operationId: crypto.randomUUID(), expectedVersion: course.version,
+        patch: { guided: true, teachingRef: 'diagnose' } });
+      if (!updated.ok) {
+        const latest = await ctx.remote.studyforgeCourses.read({ sessionId });
+        if (latest.ok) setCourse(latest.value);
+        setNotice('这次没能开始规划，请再试一次。');
+        return;
+      }
+      setCourse(updated.value);
+    } catch { setNotice('这次没能开始规划，请再试一次。'); return; }
+    insert('我想规划一下自己的学习。', close);
+  };
+  const canPlan = blank && course !== undefined && !course.data.guided;
   return <ControlPopover key={sessionId} className="sf-composer-more" menuClassName="sf-composer-menu" title="更多学习操作" chevron={false}
     label={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M12 4v16M4 12h16" /></svg>}>
-    {close => <LearningActionsMenu skills={skills} notice={notice} onSkill={skill => {
+    {close => <LearningActionsMenu skills={skills} notice={notice} canPlan={canPlan} onPlan={() => { void plan(close); }} onSkill={skill => {
         if (!insertTaskSkill(ctx, sessionId, skill)) { setNotice('请等当前输入准备完成，再选择技能。'); return; }
         setNotice(''); close();
         document.querySelector<HTMLElement>('[data-composer-input]')?.focus();
@@ -68,20 +93,23 @@ function MoreActions({ ctx, sessionId, useSessions }: PropsRuntime<'conversation
   </ControlPopover>;
 }
 
-function LearningActionsMenu({ skills, notice, onSkill, onCheck, onUpload }: {
-  skills: readonly TeachingChoice[]; notice: string; onSkill: (skill: TeachingChoice) => void; onCheck: () => void; onUpload: () => void;
+function LearningActionsMenu({ skills, notice, canPlan, onPlan, onSkill, onCheck, onUpload }: {
+  skills: readonly TeachingChoice[]; notice: string; canPlan: boolean; onPlan: () => void;
+  onSkill: (skill: TeachingChoice) => void; onCheck: () => void; onUpload: () => void;
 }): React.JSX.Element {
   const [query, setQuery] = useState('');
   const needle = query.trim().normalize('NFKC').toLocaleLowerCase();
   const matches = (text: string): boolean => text.normalize('NFKC').toLocaleLowerCase().includes(needle);
   const visible = skills.filter(skill => matches(skill.title + ' ' + skill.description));
   const check = matches('检查我的理解');
+  const plan = canPlan && matches('规划学习路线');
   return <>
     <div className="sf-composer-search"><LearningActionIcon kind="studyforge-semantic-search" /><input type="search" aria-label="搜索学习操作" placeholder="搜索技能…" autoFocus value={query} onChange={event => setQuery(event.target.value)} /></div>
     <div className="sf-composer-skills" role="group" aria-label="学习技能" key={needle}>
+      {plan && <button type="button" data-testid="learning-entry-plan" title="记录目标和时间条件，先诊断再排一条学习路线" onClick={onPlan}><LearningActionIcon kind="plan" /><span>规划学习路线</span></button>}
       {visible.map(skill => <button type="button" key={skill.id} title={skill.description} onClick={() => onSkill(skill)}><LearningActionIcon kind={skill.id} /><span>{skill.title}</span></button>)}
       {check && <button type="button" onClick={onCheck}><LearningActionIcon kind="check" /><span>检查我的理解</span></button>}
-      {!visible.length && !check && <p className="sf-composer-empty">没有匹配的学习操作</p>}
+      {!visible.length && !check && !plan && <p className="sf-composer-empty">没有匹配的学习操作</p>}
     </div>
     <footer className="sf-composer-upload"><button type="button" onClick={onUpload}><LearningActionIcon kind="upload" /><span>上传新资料到资料库</span></button></footer>
     {notice && <p className="sf-composer-notice" role="status">{notice}</p>}
@@ -97,6 +125,7 @@ function LearningActionIcon({ kind }: { kind: string }): React.JSX.Element {
     'studyforge-markdown-handout': <><path d="M11 2H4v16h12V7zM11 2v5h5M7 11h6M7 14h6" /></>,
     'studyforge-html-demo': <><rect x="2" y="3" width="16" height="12" rx="2" /><path d="m8 6 5 3-5 3zM7 18h6M10 15v3" /></>,
     check: <><circle cx="10" cy="10" r="7.5" /><path d="m6 10 3 3 5-6" /></>,
+    plan: <><circle cx="5" cy="16" r="2.5" /><circle cx="15" cy="4" r="2.5" /><path d="m6.5 14 7-8.5" /></>,
     upload: <><path d="M3 12v5h14v-5M10 13V3M6 7l4-4 4 4" /></>,
   };
   return <svg className="sf-menu-icon" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

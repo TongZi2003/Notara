@@ -47,8 +47,14 @@ test('worldbook background is opt-in, editable, bounded and survives plugin remo
   const matched = value(await client.rpc<WorldbookSelection>('studyforgePlugins/previewWorldbook', { input: { ...target, query: '试验场' } }));
   expect(matched.entries.map(x => x.title)).toEqual(['自定义背景']);
   expect(JSON.stringify(await ask('今天去试验场。'))).toContain('WORLD_USER_EDIT_927');
-  const unrelated = await ask('现在讨论诗歌。');
-  const lastContext = unrelated.messages.filter(row => row.role === 'user' && row.source?.kind === 'plugin').at(-1);
+  // Bounded scan depth: the trigger word stays inside the recent-message window
+  // (the last three completed user messages) for a few turns, then fades out.
+  const stillWarm = await ask('现在讨论诗歌。');
+  expect(JSON.stringify(stillWarm.messages.filter(row => row.role === 'user' && row.source?.kind === 'plugin').at(-1))).toContain('WORLD_USER_EDIT_927');
+  await ask('再聊聊诗歌的韵脚。');
+  await ask('然后看看散文。');
+  const faded = await ask('最后谈点别的。');
+  const lastContext = faded.messages.filter(row => row.role === 'user' && row.source?.kind === 'plugin').at(-1);
   expect(JSON.stringify(lastContext)).not.toContain('WORLD_USER_EDIT_927');
   // Other lessons share user-authored content, but do not inherit activation.
   const other = value(await client.rpc<{ sessionId: string }>('studyforgeCreation/openTeacher', {}));

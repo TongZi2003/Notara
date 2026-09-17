@@ -1,6 +1,8 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { test, expect, enterClassroom, sendInput } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, sendInput, openLessonSettings } from './fixtures/classroom.ts';
+import { connectRuntime } from '../fixtures/http-runtime.ts';
+import type { SessionListValue } from '@deepseek-ai/dsh-api-session-controller';
 
 const MODEL_TRIGGER = /^(Select model|选择模型)/;
 
@@ -8,7 +10,7 @@ async function startLesson(page: Parameters<typeof enterClassroom>[0], url: stri
   await enterClassroom(page, url);
   await sendInput(page, prompt);
   await expect.poll(async () => existsSync(join(root, 'model-requests.jsonl')), { timeout: 30_000 }).toBe(true);
-  await expect(page.getByRole('button', { name: '本课', exact: true })).toBeVisible();
+  await expect(page.getByTestId('learning-workspace')).toBeVisible();
 }
 
 test('a completed turn keeps its native usage and the lesson panel never fills unreported buckets', async ({ page, classroom }, testInfo) => {
@@ -23,8 +25,8 @@ test('a completed turn keeps its native usage and the lesson panel never fills u
   // The native model control stays the only model control.
   await expect(page.getByRole('button', { name: MODEL_TRIGGER })).toHaveCount(1);
 
-  await page.getByRole('button', { name: '本课', exact: true }).click();
-  const panel = page.getByTestId('studyforge-lesson-panel');
+  await openLessonSettings(page);
+  const panel = page.getByTestId('lesson-settings-modal');
   await expect(panel).toBeVisible();
   await expect(panel.getByTestId('usage-input')).toHaveText('8');
   await expect(panel.getByTestId('usage-cache-read')).toHaveText('2');
@@ -50,8 +52,8 @@ test('a turn without a proof of total usage is reported as incomplete coverage',
   page.on('pageerror', error => errors.push(error.message));
   await startLesson(page, classroom.authUrl, '[partial] 换一题', classroom.root);
 
-  await page.getByRole('button', { name: '本课', exact: true }).click();
-  const panel = page.getByTestId('studyforge-lesson-panel');
+  await openLessonSettings(page);
+  const panel = page.getByTestId('lesson-settings-modal');
   await expect(panel).toBeVisible();
   await expect(panel.getByTestId('usage-coverage')).toContainText('覆盖');
   await expect(panel.getByTestId('usage-coverage')).toContainText('只能看已报告的部分');
@@ -70,14 +72,20 @@ test('a second turn refreshes the lesson panel that stayed open, and a refresh a
   page.on('pageerror', error => errors.push(error.message));
   await startLesson(page, classroom.authUrl, '请讲解一次函数', classroom.root);
 
-  await page.getByRole('button', { name: '本课', exact: true }).click();
-  const panel = page.getByTestId('studyforge-lesson-panel');
+  await openLessonSettings(page);
+  const panel = page.getByTestId('lesson-settings-modal');
   await expect(panel.getByTestId('usage-input')).toHaveText('8');
   await expect(panel.getByTestId('usage-coverage')).toContainText('1 个回合');
 
-  // The panel is never closed: the native Session's settle signal is the only
+  // The modal is never closed: the native Session's settle signal is the only
   // thing that re-reads the lesson, so the second turn has to move these lines.
-  await sendInput(page, '再讲一题');
+  // It is sent over the same wire the composer uses, because the modal is a
+  // deliberate overlay above the composer.
+  const client = await connectRuntime(classroom);
+  const listed = await client.rpc<SessionListValue>('session/list', { _request: {} });
+  if (!listed.ok) throw new Error('session/list refused');
+  const sessionId = listed.value.items.find(item => !item.blank && item.origin !== 'subagent')!.sessionId;
+  await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '再讲一题' }] } });
   await expect(panel.getByTestId('usage-input')).toHaveText('16', { timeout: 30_000 });
   await expect(panel.getByTestId('usage-output')).toHaveText('10');
   await expect(panel.getByTestId('usage-cache-read')).toHaveText('4');
@@ -89,8 +97,8 @@ test('a second turn refreshes the lesson panel that stayed open, and a refresh a
   // The same read after a reload shows the same native totals, not a fresh zero.
   await page.reload();
   await expect(page.locator('[data-composer-input]')).toBeVisible();
-  await page.getByRole('button', { name: '本课', exact: true }).click();
-  const reopened = page.getByTestId('studyforge-lesson-panel');
+  await openLessonSettings(page);
+  const reopened = page.getByTestId('lesson-settings-modal');
   await expect(reopened.getByTestId('usage-input')).toHaveText('16');
   await expect(reopened.getByTestId('usage-output')).toHaveText('10');
   await expect(reopened.getByTestId('usage-coverage')).toContainText('2 个回合');

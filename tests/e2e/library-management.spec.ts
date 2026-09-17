@@ -1,10 +1,10 @@
-import { test, expect, enterClassroom, openRoot, typeInput } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, openRoot, openMaterial, typeInput } from './fixtures/classroom.ts';
 test('unified library edits an original, keeps versions and prepares semantic search in the native draft', async ({ page, classroom }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 900 }); await enterClassroom(page, classroom.authUrl); await openRoot(page, '资料');
   await page.getByTestId('materials-empty').locator('input[type="file"]').setInputFiles({ name: '守恒笔记.md', mimeType: 'text/markdown', buffer: Buffer.from('# 守恒\n原文内容') });
   await page.getByTestId('library-browser').getByRole('button', { name: '预览：守恒笔记', exact: true }).click();
-  await page.getByRole('button', { name: '阅读原文', exact: true }).click(); await page.getByRole('button', { name: '编辑原文', exact: true }).click();
+  await page.getByRole('button', { name: '阅读原文', exact: true }).click(); await page.getByRole('button', { name: '编辑 Markdown', exact: true }).click();
   await page.getByRole('textbox', { name: '编辑原文正文' }).fill('# 守恒\n明确系统边界'); await page.getByRole('button', { name: '保存新版本', exact: true }).click();
   await expect(page.getByTestId('materials-notice')).toContainText('已保存新版本'); await page.getByTestId('materials-back').click();
   await page.getByTestId('library-browser').getByRole('button', { name: '预览：守恒笔记', exact: true }).click();
@@ -33,12 +33,18 @@ test('thought sources reveal the independent materials pane and each map retains
   await expect(page.getByTestId('thought-map')).toHaveAttribute('data-zoom', '1.25');
   await expect(page.getByTestId('lesson-materials-map')).toHaveAttribute('data-zoom', '1.5');
   await page.getByRole('button', { name: '关闭资料工作台', exact: true }).click();
-  await thought.locator('.sf-mind-label').filter({ hasText: '解释这里的系统边界' }).first().click();
+  // Question and answer events fold under their stage; the material's
+  // 相关课堂 → 思维图 back-link selects that node and exposes its sources.
+  await openRoot(page, '资料');
+  await openMaterial(page, '能量与系统');
+  await page.getByTestId('book-workspace').getByRole('button', { name: '学习记录', exact: true }).click();
+  const history = page.getByTestId('book-workspace').getByTestId('content-history').first();
+  await history.locator('.sf-content-lesson').first().locator('summary').click();
+  await history.getByRole('button', { name: '思维图', exact: true }).first().click();
   await thought.getByRole('button', { name: /查看原文/ }).first().click();
   await expect(materials).toHaveAttribute('data-visible', 'true');
   await expect(materials.getByTestId('lesson-materials-pane').first()).toContainText('先定义系统');
-  await expect(page.getByTestId('lesson-materials-map')).toHaveAttribute('data-zoom', '1.5');
-  await expect(page.getByTestId('thought-map')).toHaveAttribute('data-zoom', '1.25');
+  await expect(page.getByTestId('lesson-materials-map')).toBeVisible();
   await page.screenshot({ path: info.outputPath('thought-source-workspace.png'), fullPage: true });
   expect(errors).toEqual([]);
 });

@@ -26,7 +26,9 @@ import { registerPlugins } from '../plugins/PluginManager.tsx';
 import { registerCreation } from '../creation/register-creation.tsx';
 import { registerClassroomTrace } from '../classroom/ClassroomTrace.tsx';
 import { registerLearningWorkspace } from '../classroom/LearningWorkspace.tsx';
+import { registerSessionRecovery } from '../classroom/session-recovery.ts';
 import { registerEntityReferences } from '../materials/entity-reference.ts';
+import { registerTeaching } from '../teaching/TeachingPage.tsx';
 
 export const inject = ['remote', 'slots'];
 
@@ -48,7 +50,9 @@ export async function apply(ctx: Context): Promise<void> {
   ctx.plugin({ inject: ['remote.notaraClassroomView', 'inputTriggers', 'conversation', 'sessions'], apply: registerClassmateDraft });
   ctx.plugin({ inject: ['remote.studyforgeCreation', 'remote.studyforgePlugins', 'remote.notaraClassroomView', 'slots', 'sessions', 'layout'], apply: registerCreation });
   ctx.plugin({ inject: ['remote.studyforgePlugins', 'slots', 'layout'], apply: registerPlugins });
+  ctx.plugin({ inject: ['remote.studyforgeTeaching', 'slots', 'layout'], apply: registerTeaching });
   ctx.plugin({ inject: ['slots', 'layout', 'sessions', 'uiWorkspace', 'remote.studyforgeOrganization'], apply: registerNotebookSidebar });
+  ctx.plugin({ inject: ['workspaces', 'sessions', 'uiWorkspace'], apply: registerSessionRecovery });
   ctx.plugin({ inject: ['theme', 'slots', 'layout', 'sessions'], apply: scope => registerNotebook(scope, materialNavigation) });
   // Remote namespaces are separately injected properties: reading
   // `ctx.remote.studyforgeCourses` needs its own nested inject entry.

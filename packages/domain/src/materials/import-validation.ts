@@ -43,6 +43,12 @@ const EXTENSIONS: Record<MaterialMediaType, readonly string[]> = {
   ],
 };
 
+/** The declared type a file name's extension requires; undefined means the library accepts no such file. */
+export function mediaTypeForFileName(fileName: string): MaterialMediaType | undefined {
+  const ext = extname(fileName).toLowerCase();
+  return (Object.keys(EXTENSIONS) as MaterialMediaType[]).find(mediaType => EXTENSIONS[mediaType].includes(ext));
+}
+
 type BinarySignature = 'pdf' | 'docx' | 'png' | 'jpeg' | 'gif' | 'webp';
 /** The only declared types whose bytes are a known binary container. */
 const BINARY: Partial<Record<MaterialMediaType, BinarySignature>> = {

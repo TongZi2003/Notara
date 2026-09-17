@@ -1,0 +1,19 @@
+.sf-teaching-body{display:flex;flex:1;min-height:0}
+.sf-teaching-tree{width:min(34%,300px);min-width:220px;overflow:auto;border-right:1px solid #e7e0cd;padding:18px 14px 48px;display:flex;flex-direction:column;gap:18px}
+.sf-teaching-tree h3{font-size:12px;font-weight:600;letter-spacing:.08em;color:#777d88;margin:0 0 2px;display:flex;flex-direction:column;gap:2px}
+.sf-teaching-tree h3 small{font-weight:400;letter-spacing:.02em;color:#8a887c}
+.sf-teaching-tree ul{list-style:none;margin:0;padding:0}
+.sf-teaching-tree li button{display:flex;align-items:baseline;gap:8px;width:100%;border:0;border-radius:3px;background:transparent;color:inherit;font:inherit;font-size:13px;text-align:left;padding:7px 8px;cursor:pointer}
+.sf-teaching-tree li button:hover{background:#f6f1e3}
+.sf-teaching-tree li button[aria-pressed="true"]{background:#f1ead7}
+.sf-teaching-tree em{font-style:normal;font-size:11px;color:#8a5a2b;border:1px solid #d9c9a8;border-radius:3px;padding:1px 5px;flex:none}
+.sf-teaching-tree i{font-style:normal;font-size:11px;color:#5a688a;border:1px solid #d9d2bd;border-radius:3px;padding:1px 5px;flex:none;margin-left:auto}
+.sf-teaching-editor{flex:1;min-width:0;overflow:auto;display:flex;flex-direction:column;gap:12px;padding:22px 24px 64px}
+.sf-teaching-editor-head{display:flex;flex-direction:column;gap:4px;border-bottom:1px solid #e7e0cd;padding-bottom:10px}
+.sf-teaching-editor-head h2{font-size:15px;font-weight:600;margin:0}
+.sf-teaching-text{margin:0;border:1px solid #e7e0cd;border-radius:3px;background:#fffdf6;color:#26437c;font:13px/1.85 ui-monospace,SFMono-Regular,Menlo,monospace;padding:14px;white-space:pre-wrap;word-break:break-word;min-height:min(52vh,520px)}
+textarea.sf-teaching-text{width:100%;box-sizing:border-box;resize:vertical}
+textarea.sf-teaching-text:focus-visible{outline:2px solid #c93a2e;outline-offset:1px}
+.sf-teaching-bundled{background:#f6f1e3;color:#5a688a}
+.sf-teaching-actions{display:flex;gap:10px;align-items:center}
+@media(max-width:900px){.sf-teaching-body{flex-direction:column}.sf-teaching-tree{width:auto;min-width:0;border-right:0;border-bottom:1px solid #e7e0cd}}

@@ -23,6 +23,7 @@ export * from './book-exploration.ts';
 export * from './calendar.ts';
 export * from './teaching.ts';
 export * from './handoffs.ts';
+export * from './tool-facades.ts';
 
 import { z } from 'zod';
 import { CardContentSchema, CardPatchSchema, CardRecordSchema, CardViewSchema,

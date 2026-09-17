@@ -7,6 +7,11 @@
  * Registration stays native-compliant; the provider-facing copy assembled by
  * `system-prompt/assemble` carries the implied object root.
  *
+ * Under the facade surface the same risk moved one level down: every facade is
+ * itself a bare `{oneOf:[…]}` union of `{method, input}` branches, so the root
+ * repair must still apply, and each wrapped tool's own parameter schema —
+ * including inner unions like propose_card's — sits under `input` unchanged.
+ *
  * The tool list under test is the exact one from the real `request/header`
  * durable event of an isolated formal Host: whatever the loaded host build put
  * there, this test never re-projects or edits it. It also sweeps the whole
@@ -24,6 +29,7 @@ import { assertSupportedJsonSchema } from '@deepseek-ai/dsh-tools';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { SessionCreateValue, SessionListValue, SessionPage } from '@deepseek-ai/dsh-api-session-controller';
 import type { CourseView } from '@studyforge/contracts/courses';
+import { TOOL_FACADES } from '@studyforge/contracts/tool-facades';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 
@@ -33,19 +39,9 @@ function value<T>(result: RemoteResult<T>): T { if (!result.ok) throw new Error(
 
 interface AssembleTool { name: string; description: string; parameters: Record<string, unknown>; }
 
-/** Tools this repository registers; the names fixed by the StudyForge host. */
-const studyforgeNames = ['load_tools', 'delegate_assistant', 'delegate_peer', 'delegate_problem', 'delegate_search',
-  'list_cards', 'read_cards', 'list_materials', 'list_plans', 'list_sets', 'note_memory', 'note_method', 'preview_region',
-  'propose_card', 'propose_handoff', 'propose_lesson_settings', 'propose_plan', 'propose_review', 'propose_route',
-  'propose_set', 'propose_skeleton', 'query_evidence', 'read_card', 'read_handoff', 'read_lesson', 'read_material',
-  'read_memory', 'read_method', 'read_plan', 'read_route', 'read_set', 'read_skeleton', 'record_review',
-  'register_cards', 'revise_memory', 'revise_method', 'search_learning', 'search_memory', 'update_card'];
-/** Tools the released DSH runtime installs alongside them. */
-// Native write/edit remain registered for creation, but are unavailable to learning.
-const builtinNames = ['glob',
-  'grep', 'interrupt_agent', 'read', 'read_image', 'send_message', 'skill', 'subagent', 'web_fetch', 'web_search'];
-/** The subset a provider flatly refuses without an object root. */
-const requiredTools = ['propose_card', 'propose_handoff', 'propose_plan', 'propose_route', 'propose_set'];
+/** The constant classroom wire: every facade plus the builtin capability set. */
+const facadeNames = Object.keys(TOOL_FACADES);
+const wrappedNames: ReadonlySet<string> = new Set(Object.values(TOOL_FACADES).flatMap(methods => Object.values(methods)));
 
 /** Every schema node reachable through the structural keywords the subset keeps. */
 function schemaNodes(root: unknown, path = ''): { path: string; node: Record<string, unknown> }[] {
@@ -72,8 +68,13 @@ test('every assembled tool the model received has an object root and a native-co
   })).sessionId;
   const course = value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId } }));
   value(await client.rpc('studyforgeCourses/update', { input: { sessionId, operationId: 'schema-diagnose', expectedVersion: course.version, patch: { teachingRef: 'diagnose' } } }));
+  // Exercise both dispatch paths on the constant wire: a facade call and the
+  // compatibility loader; neither may change the tool list of later requests.
   value(await client.rpc('session/prompt', {
-    request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tool]' + JSON.stringify({ name: 'load_tools', arguments: { names: [...studyforgeNames, ...builtinNames] } }) }] },
+    request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tools]' + JSON.stringify([
+      { name: 'load_tools', arguments: { names: ['read_route'] } },
+      { name: 'open', arguments: { method: 'route', input: {} } },
+    ]) }] },
   }));
   for (let attempt = 0; attempt < 80; attempt++) {
     const running = value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(item => item.sessionId === sessionId)?.running;
@@ -89,29 +90,32 @@ test('every assembled tool the model received has an object root and a native-co
   const surfaces = headers
     .map(header => (header.event.data as { header?: { tools?: AssembleTool[] } }).header?.tools)
     .filter((tools): tools is AssembleTool[] => Array.isArray(tools));
-  const assembled = surfaces.at(-1);
-  expect(assembled, runtime.log()).toBeDefined();
 
-  const initial = surfaces[0]!;
-  expect(initial).toHaveLength(8);
-  expect(initial.map(tool => tool.name)).not.toContain('propose_card');
-  // After explicit loading, sweep every eligible tool, including diagnostic
-  // registration; unavailable classroom write/edit never enter this request.
-  const names = assembled!.map(tool => tool.name);
+  // The wire is identical on every request of the lesson — that constant set is
+  // the cache contract; no wrapped tool name or load_tools ever appears on it.
+  for (const surface of surfaces) expect(surface.map(tool => tool.name)).toEqual(surfaces[0]!.map(tool => tool.name));
+  const assembled = surfaces.at(-1)!;
+  const names = assembled.map(tool => tool.name);
   expect(new Set(names).size, 'tool names must stay unique').toBe(names.length);
-  expect([...names].sort()).toEqual([...studyforgeNames, ...builtinNames].sort());
-  expect(assembled!.length).toBe(49);
-  const localSearch = assembled!.find(tool => tool.name === 'search_learning')!;
-  expect(localSearch.parameters).toMatchObject({ properties: { include: { items: { enum: ['material', 'card', 'knowledge'] } } } });
-  expect(assembled!.find(tool => tool.name === 'list_cards')?.parameters.required ?? []).toEqual([]);
-  expect(names).toEqual(expect.arrayContaining(requiredTools));
+  for (const facade of facadeNames) expect(names).toContain(facade);
+  for (const name of names) {
+    expect(wrappedNames.has(name), `wrapped tool ${name} leaked onto the wire`).toBe(false);
+    expect(name).not.toBe('load_tools');
+  }
+  // Wrapped parameters keep their contract: the propose facade's card branch
+  // embeds propose_card's own three-way union under `input`, verbatim.
+  const propose = assembled.find(tool => tool.name === 'propose')!;
+  const cardBranch = (propose.parameters.oneOf as Record<string, unknown>[]).find(branch =>
+    (branch.properties as Record<string, { const?: string }>).method?.const === 'card')!;
+  const cardInput = (cardBranch.properties as Record<string, Record<string, unknown>>).input!;
+  expect((cardInput.oneOf as { type?: unknown }[]).map(branch => branch.type)).toEqual(['object', 'object', 'object']);
 
   const unionRoots: string[] = [];
   const plainRoots: string[] = [];
   const nestedUntypedObjectUnions: string[] = [];
   const unprojectedUnionViolations: string[] = [];
   const misplacedTypeOneOf: string[] = [];
-  for (const tool of assembled!) {
+  for (const tool of assembled) {
     const parameters = tool.parameters;
     expect(parameters, tool.name).toBeTypeOf('object');
     // What the provider validates on every function: an object root.
@@ -161,27 +165,17 @@ test('every assembled tool the model received has an object root and a native-co
 
   expect(misplacedTypeOneOf, '`type` beside `oneOf` may only appear at a projected root').toEqual([]);
   expect(unprojectedUnionViolations, 'every all-object union root must carry the implied object type').toEqual([]);
-  // The exact affected set on the real surface: the study-forge object unions.
-  expect([...unionRoots].sort()).toEqual([...requiredTools].sort());
-
-  // The exact regression: the repaired union root is an object union, not a
-  // scalar or an unconstrained schema.
-  const card = assembled!.find(tool => tool.name === 'propose_card')!;
-  expect(card.parameters).toMatchObject({ type: 'object' });
-  expect((card.parameters.oneOf as { type?: unknown }[]).map(branch => branch.type)).toEqual(['object', 'object', 'object']);
+  // Every facade is a method union, so every facade root must have been projected.
+  expect([...unionRoots].sort()).toEqual([...facadeNames].sort());
 
   console.log(JSON.stringify({
-    initialTools: initial.length,
-    initialSchemaBytes: Buffer.byteLength(JSON.stringify(initial)),
-    loadedSchemaBytes: Buffer.byteLength(JSON.stringify(assembled)),
-    assembledTools: assembled!.length,
-    studyforgeTools: names.filter(name => studyforgeNames.includes(name)).length,
-    builtinTools: names.filter(name => builtinNames.includes(name)).length,
+    tools: assembled.length,
+    schemaBytes: Buffer.byteLength(JSON.stringify(assembled)),
     projectedObjectUnionRoots: [...unionRoots].sort(),
     plainObjectRoots: plainRoots.length,
     names: [...names].sort(),
-    // Report-only: nested untyped all-object unions already exist in the
-    // registered definitions, outside this root-level projection.
+    // Report-only: wrapped union schemas (e.g. propose_card) sit under `input`
+    // unchanged; providers only require the function root to be an object.
     nestedUntypedObjectUnionPaths: nestedUntypedObjectUnions.sort(),
   }));
 }, 60_000);

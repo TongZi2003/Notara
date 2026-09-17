@@ -6,6 +6,9 @@ import { checkHandoffProposal, closeConfirmedHandoff } from './handoff-service.t
 import { validateCoursePatch } from './course-service.ts';
 import { courseRecordRef } from '@studyforge/domain/courses';
 import { SkeletonError } from '@studyforge/domain/skeleton';
+import { bundledNodes, overrideRef, overrideRow, saveTeachingOverride } from './teaching/teaching-overrides.ts';
+import { packageId } from './plugins/plugin-manager.ts';
+import { rejected } from './tools/learning-context.ts';
 
 /** Each confirmation invokes its real writer; the receipt describes its result. */
 export function proposalExecutor(host: Context): ProposalExecutor {
@@ -50,6 +53,19 @@ export function proposalExecutor(host: Context): ProposalExecutor {
           await host.studyforgeSkeletonAuthoring.preview(ctx, effect.materialId, item.baseline, effect.change); return;
         }
         case 'handoff-edit': host.studyforgeHandoffService.read(ctx, item.target, item.baseline); return;
+        case 'teaching-override': {
+          if (!bundledNodes(host).some(node => node.id === effect.nodeId)) throw rejected('这个nodeId不是可修改的内置教学节点；先read_teaching列出可修改项');
+          if (item.target !== overrideRef(effect.nodeId)) throw new Error('teaching_target_invalid');
+          if ((overrideRow(host, effect.nodeId)?.version ?? 0) !== item.baseline) throw rejected('这份教学文本在你读取后已有新版本；重新read_teaching取得最新version后再提交');
+          return;
+        }
+        case 'classmate-role': {
+          if (!ctx.sessionId || item.target !== 'worldbook:' + packageId(effect.id)) throw new Error('proposal_classroom_target_invalid');
+          const view = await host.notaraClassroom.definition(ctx.sessionId, effect.id, true);
+          if (view.revision !== item.baseline) throw rejected('课堂角色定义在你读取后已有新版本；重新读取后再提案');
+          if (view.document.classroom.roles.some(role => role.id === effect.role.id || role.name === effect.role.name)) throw rejected('同名同学角色已存在；换一个名字，或先与学生商量是否替换');
+          return;
+        }
       }
     },
     async apply(context, item) {
@@ -65,7 +81,7 @@ export function proposalExecutor(host: Context): ProposalExecutor {
         // Only deterministic pre-publication refusals unlock editing. Storage
         // failures after publication still retain the original operation.
         if (['CardError', 'KnowledgeError', 'SetError', 'RouteError', 'MaterialReadError', 'ZodError'].includes(typed?.name ?? '') ||
-          /^(version_conflict|record_missing|target_invalid|plan_|skeleton_)/.test(typed?.code ?? '')) {
+          /^(version_conflict|record_missing|target_invalid|plan_|skeleton_|classroom_)/.test(typed?.code ?? '')) {
           throw new ProposalEffectRejected(typed?.code ?? 'content_rejected');
         }
         throw error;
@@ -140,6 +156,20 @@ async function applyEffect(host: Context, context: MutationContext, item: Propos
     case 'handoff-edit': {
       const view = await host.studyforgeHandoffService.correct(context, requiredTarget(), item.effect.correction);
       return receipt(view.ref, view.version, view.title);
+    }
+    case 'teaching-override': {
+      const effect = item.effect;
+      if (!bundledNodes(host).some(node => node.id === effect.nodeId)) throw new ProposalEffectRejected('teaching_node_not_editable');
+      if (requiredTarget() !== overrideRef(effect.nodeId)) throw new ProposalEffectRejected('teaching_target_invalid');
+      if ((overrideRow(host, effect.nodeId)?.version ?? 0) !== item.baseline) throw new ProposalEffectRejected('version_conflict');
+      const view = await saveTeachingOverride(host, { nodeId: effect.nodeId, body: effect.body, expectedVersion: item.baseline as number, operationId: context.operationId });
+      return receipt(overrideRef(effect.nodeId), view.version ?? 1, '教法《' + effect.title + '》');
+    }
+    case 'classmate-role': {
+      const effect = item.effect;
+      if (!context.sessionId || requiredTarget() !== 'worldbook:' + packageId(effect.id)) throw new ProposalEffectRejected('proposal_classroom_target_invalid');
+      const view = await host.notaraClassroom.addRole(context, effect.id, item.baseline as number, effect.role);
+      return receipt(requiredTarget(), view.revision ?? 1, '同学「' + effect.role.name + '」');
     }
   }
 }

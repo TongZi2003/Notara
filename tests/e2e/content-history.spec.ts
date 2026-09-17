@@ -1,4 +1,4 @@
-import { test, expect, enterClassroom, openRoot } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, openRoot, openMaterial } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { SessionCreateValue, SessionListValue } from '@deepseek-ai/dsh-api-session-controller';
@@ -21,7 +21,7 @@ test('book coverage and classroom back-links use saved ranges and actual native 
   await page.setViewportSize({ width: 1440, height: 950 });
   await enterClassroom(page, classroom.authUrl);
   await openRoot(page, '资料');
-  await page.getByTestId('material-row').filter({ hasText: '函数与性质' }).getByRole('button').first().click();
+  await openMaterial(page, '函数与性质');
   await expect(page.getByTestId('book-workspace').getByTestId('content-history')).toHaveCount(0);
   await page.getByTestId('book-workspace').getByRole('button', { name: '学习记录', exact: true }).click();
   const history = page.getByTestId('book-workspace').getByTestId('content-history').first();

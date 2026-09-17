@@ -15,20 +15,19 @@ test('native per-session drafts, history and reopening remain separate across tw
   const a = value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(row => !row.origin)!.sessionId;
   value(await client.rpc('session/rename', { request: { sessionId: a, title: '甲课' } }));
   await typeInput(page, '甲课未发送草稿');
-  await page.getByRole('button', { name: 'New session', exact: true }).filter({ hasText: 'New Session' }).click();
+  await page.getByRole('button', { name: 'New session', exact: true }).click();
   await expect(page.locator('[data-composer-input]')).toBeEmpty();
   await sendInput(page, '乙课的第一句');
   await expect(page.locator('[data-conversation-scroll]').getByText('已收到：乙课的第一句', { exact: true })).toHaveCount(1);
   const b = value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(row => !row.origin && row.sessionId !== a)!.sessionId;
   value(await client.rpc('session/rename', { request: { sessionId: b, title: '乙课' } }));
   await typeInput(page, '乙课未发送草稿');
-  await page.getByRole('button', { name: '课程', exact: true }).click();
-  await page.getByTestId('studyforge-lessons').getByRole('button', { name: /甲课/ }).click();
+  // Reopening a lesson goes through the sidebar's own recent-sessions row.
+  await page.getByTestId('notebook-sidebar').locator('button.sf-side-session', { hasText: '甲课' }).click();
   await expect(page.locator('[data-composer-input]')).toHaveText('甲课未发送草稿');
   await expect(page.locator('[data-conversation-scroll]').getByText('已收到：甲课的第一句', { exact: true })).toHaveCount(1);
   await expect(page.locator('[data-conversation-scroll]').getByText('已收到：乙课的第一句', { exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: '课程', exact: true }).click();
-  await page.getByTestId('studyforge-lessons').getByRole('button', { name: /乙课/ }).click();
+  await page.getByTestId('notebook-sidebar').locator('button.sf-side-session', { hasText: '乙课' }).click();
   await expect(page.locator('[data-composer-input]')).toHaveText('乙课未发送草稿');
   await page.screenshot({ path: testInfo.outputPath('native-drafts-separated.png') });
   const requests = await readFile(join(classroom.root, 'model-requests.jsonl'), 'utf8');
@@ -43,8 +42,7 @@ test('native per-session drafts, history and reopening remain separate across tw
   const restored = value(await restoredClient.rpc<SessionListValue>('session/list', { _request: {} }));
   expect(restored.items.filter(row => row.sessionId === a || row.sessionId === b).map(row => row.projections?.values.title).sort()).toEqual(['乙课', '甲课'].sort());
   await enterClassroom(page, classroom.authUrl);
-  await page.getByRole('button', { name: '课程', exact: true }).click();
-  await page.getByTestId('studyforge-lessons').getByRole('button', { name: /甲课/ }).click();
+  await page.getByTestId('notebook-sidebar').locator('button.sf-side-session', { hasText: '甲课' }).click();
   await expect(page.locator('[data-conversation-scroll]').getByText('已收到：甲课的第一句', { exact: true })).toHaveCount(1);
   expect(await readFile(join(classroom.root, 'model-requests.jsonl'), 'utf8')).toBe(requests);
   await page.screenshot({ path: testInfo.outputPath('native-history-after-restart.png') });

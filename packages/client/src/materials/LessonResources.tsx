@@ -87,9 +87,13 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
   const setSelected = (key: string | undefined): void => { setDeck(old => ({ ...old, selected: key })); };
   const setOpen = (content: PaneOpen, key?: string): void => { setDeck(old => openSheet(old, content, key)); };
   const surface = useRef<HTMLDivElement>(null);
+  /** A pointer or focus inside the desk already saw the column; scrolling on
+   *  that activation would move the click target mid-gesture. */
+  const activatedInside = useRef(false);
   useEffect(() => { lessonDecks.set(sessionId, deck); }, [sessionId, deck]);
   useEffect(() => {
     const desk = surface.current;
+    if (activatedInside.current) { activatedInside.current = false; return; }
     if (desk?.dataset.referenceActive === 'true') { desk.scrollLeft = 0; return; }
     const columns = desk?.querySelectorAll<HTMLElement>('[data-sheet-id]');
     const column = [...(columns ?? [])].find(element => element.dataset.sheetId === (deck.active ?? 'map'));
@@ -381,9 +385,16 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
       const trail = parentTrail(graph.nodes, sheet.nodeKey);
       const node = graph.nodes.find(candidate => candidate.key === sheet.nodeKey);
       const close = (): void => { setDeck(old => closeSheet(old, sheet.id)); };
+      const activate = (): void => {
+        setDeck(old => {
+          if (old.active === sheet.id) return old;
+          activatedInside.current = true;
+          return { ...old, active: sheet.id };
+        });
+      };
       return <div className="sf-deck-sheet" key={sheet.id} data-sheet-id={sheet.id} data-active={deck.active === sheet.id}
-        onPointerDownCapture={() => { setDeck(old => old.active === sheet.id ? old : { ...old, active: sheet.id }); }}
-        onFocusCapture={() => { setDeck(old => old.active === sheet.id ? old : { ...old, active: sheet.id }); }}>
+        onPointerDownCapture={activate}
+        onFocusCapture={activate}>
       <Pane open={open} onBack={close} sourceIndex={sheet.sourceIndex}>
         <nav className="sf-deck-trail" aria-label="父级与关系">
           {trail.map(parent => <button type="button" className="sf-quiet" data-testid="deck-parent" key={parent.key} onClick={() => { pick(parent); }}>↑ {parent.title}</button>)}

@@ -68,18 +68,22 @@ export async function openCourseDetail(page: Page, title: string): Promise<void>
   await page.getByTestId('roadmap-node-title').filter({ hasText: title }).click();
   await expect(page.getByTestId('course-node-detail')).toBeVisible();
 }
-/** Settings and imports live in the native rightbar's 开始 page. */
-export async function openLessonStart(page: Page): Promise<void> {
-  await page.getByTestId('open-lesson').click();
-  const start = page.getByRole('tab').filter({ hasText: /开始|Start/ });
-  if (await start.count()) await start.first().click();
-  else await page.getByRole('button', { name: /^(新标签页|New tab)$/ }).first().click();
-  await expect(page.getByTestId('lesson-deck-reopen')).toBeVisible();
+/** The materials workbench is the lesson's own desk inside the workspace. */
+export async function openLessonMaterials(page: Page): Promise<void> {
+  await page.getByTestId('workspace-open-materials').click();
+  await expect(page.getByTestId('studyforge-lesson-panel')).toBeVisible();
 }
+/** Lesson settings live in the workspace layout menu (本课设置). */
 export async function openLessonSettings(page: Page): Promise<void> {
-  await openLessonStart(page);
+  await page.locator('summary[aria-label="调整布局"]').click();
   await page.getByTestId('open-lesson-settings').click();
   await expect(page.getByTestId('lesson-settings-modal')).toBeVisible();
+}
+/** Select one original on the shelf, then open it in the reader page. */
+export async function openMaterial(page: Page, title: string): Promise<void> {
+  await page.getByTestId('material-row').filter({ hasText: title }).getByRole('button', { name: `预览：${title}`, exact: true }).click();
+  await page.getByTestId('library-detail').getByRole('button', { name: '阅读原文', exact: true }).click();
+  await expect(page.getByTestId('material-reader')).toBeVisible();
 }
 export async function typeInput(page: Page, text: string): Promise<void> {
   const input = page.locator('[data-composer-input]');
@@ -92,6 +96,19 @@ export async function typeInput(page: Page, text: string): Promise<void> {
 export async function sendInput(page: Page, text: string): Promise<void> {
   await typeInput(page, text);
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
+}
+
+/** Flip the debug switch in Settings → General; Raw and Trajectory views appear after it. */
+export async function enableDebug(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'General', exact: true }).click();
+  const toggle = page.getByTestId('sf-debug-toggle');
+  if (await toggle.getAttribute('aria-checked') !== 'true') await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
 }
 
 export async function openAppearance(page: Page): Promise<void> {

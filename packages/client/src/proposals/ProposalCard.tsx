@@ -169,10 +169,10 @@ export function ProposalCard({ ctx, proposal, inline = false, onChanged }: Propo
     setEditing(item.id);
     setNotice(undefined);
     setDraft({
-      title: content?.title ?? summary?.title ?? '',
+      title: content?.title ?? summary?.title ?? (effect.kind === 'teaching-override' ? effect.title : ''),
       front: content?.front ?? '',
       back: sectionsToText(content?.sections ?? []),
-      body: summary?.body ?? '',
+      body: summary?.body ?? (effect.kind === 'teaching-override' ? effect.body : ''),
     });
   }
 
@@ -271,6 +271,8 @@ export function ProposalCard({ ctx, proposal, inline = false, onChanged }: Propo
         {(item.draft.effect.kind === 'handoff' || item.draft.effect.kind === 'handoff-edit') && editing !== item.id
           && <HandoffSummary effect={item.draft.effect} />}
         {item.draft.effect.kind === 'lesson-edit' && editing !== item.id && <LessonSummary effect={item.draft.effect} catalogue={catalogue} />}
+        {item.draft.effect.kind === 'teaching-override' && editing !== item.id && <TeachingSummary effect={item.draft.effect} />}
+        {item.draft.effect.kind === 'classmate-role' && <ClassmateSummary effect={item.draft.effect} />}
 
         {item.draft.effect.kind === 'knowledge-collect' && <p className="sf-note" data-testid="proposal-content">将这条知识收录为锦囊。</p>}
         {item.draft.effect.kind === 'review' && <div className="sf-proposal-content" data-testid="proposal-content">
@@ -288,7 +290,7 @@ export function ProposalCard({ ctx, proposal, inline = false, onChanged }: Propo
           <label className="sf-field"><span>标题</span>
             <input data-testid="proposal-editor-title" value={draft.title} onChange={event => { setDraft({ ...draft, title: event.target.value }); }} />
           </label>
-          {isHandoff(item.draft.effect) ? <label className="sf-field"><span>小结正文</span>
+          {isHandoff(item.draft.effect) || item.draft.effect.kind === 'teaching-override' ? <label className="sf-field"><span>{item.draft.effect.kind === 'teaching-override' ? '教法正文' : '小结正文'}</span>
             <textarea data-testid="proposal-editor-handoff-body" rows={6} value={draft.body}
               onChange={event => { setDraft({ ...draft, body: event.target.value }); }} />
           </label> : <>
@@ -394,6 +396,8 @@ function effectLabel(effect: ProposalEffect): string {
     case 'handoff': return '课后小结';
     case 'handoff-edit': return '更正小结';
     case 'lesson-edit': return '调整本课';
+    case 'teaching-override': return '修改教法';
+    case 'classmate-role': return '新同学';
   }
 }
 
@@ -412,6 +416,8 @@ function confirmLabel(kind: ProposalEffect['kind']): string {
     case 'handoff': return '保存小结并结束';
     case 'handoff-edit': return '保存小结修改';
     case 'lesson-edit': return '保存本课设置';
+    case 'teaching-override': return '保存教法修改';
+    case 'classmate-role': return '加进教室';
   }
 }
 
@@ -438,7 +444,31 @@ function describeEffect(effect: ProposalEffect, catalogue?: Catalogue): React.JS
     case 'handoff-edit':
       return <HandoffSummary effect={effect} bodyTestId="proposal-original-handoff-body" />;
     case 'lesson-edit': return <LessonSummary effect={effect} catalogue={catalogue} />;
+    case 'teaching-override': return <TeachingSummary effect={effect} />;
+    case 'classmate-role': return <ClassmateSummary effect={effect} />;
   }
+}
+
+function ClassmateSummary({ effect }: { effect: Extract<ProposalEffect, { kind: 'classmate-role' }> }): React.JSX.Element {
+  const role = effect.role;
+  return <div className="sf-proposal-content" data-testid="proposal-content">
+    <h4 data-testid="proposal-classmate-name">{role.name}{role.personality ? ` · ${role.personality}` : ''}{role.enabled ? '' : '（先不启用）'}</h4>
+    <p className="sf-note" data-testid="proposal-classmate-purpose">{role.purpose}</p>
+    <MarkdownBody text={role.instructions} />
+    {role.greeting !== undefined && <p className="sf-note" data-testid="proposal-classmate-greeting">开场白：{role.greeting}</p>}
+    {role.relations !== undefined && role.relations.length > 0 && <ul className="sf-proposal-lines" data-testid="proposal-classmate-relations">
+      {role.relations.map((relation, index) => <li key={index}>对{relation.target === 'student' ? '你' : relation.target === 'teacher' ? '老师' : relation.target}：{relation.label}{relation.intimacy !== undefined ? `（亲密度 ${relation.intimacy}）` : ''}{relation.note !== '' ? `——${relation.note}` : ''}</li>)}
+    </ul>}
+    <p className="sf-note">保存后这位同学加入教室角色名单，可以由老师安排发言；世界书条目与已有同学不变。</p>
+  </div>;
+}
+
+function TeachingSummary({ effect }: { effect: Extract<ProposalEffect, { kind: 'teaching-override' }> }): React.JSX.Element {
+  return <div className="sf-proposal-content" data-testid="proposal-content">
+    <h4>修改教法「{effect.title}」</h4>
+    <pre className="sf-proposal-teaching" data-testid="proposal-teaching-body">{effect.body}</pre>
+    <p className="sf-note">保存后这节课及以后的课都用这份新文本；内置原文可在「教法」页恢复。</p>
+  </div>;
 }
 function LessonSummary({ effect, catalogue }: { effect: Extract<ProposalEffect, { kind: 'lesson-edit' }>; catalogue?: Catalogue | undefined }): React.JSX.Element {
   const p = effect.patch;
@@ -472,7 +502,7 @@ function isHandoff(effect: ProposalEffect): effect is HandoffEffect {
 
 /** The kinds a student may reword before deciding; the rest are decided as they are. */
 function isEditable(effect: ProposalEffect): boolean {
-  return effect.kind === 'card-create' || isHandoff(effect) || isOrganizationDraft(effect.kind);
+  return effect.kind === 'card-create' || isHandoff(effect) || effect.kind === 'teaching-override' || isOrganizationDraft(effect.kind);
 }
 
 /**
@@ -492,6 +522,7 @@ function revisedEffect(effect: ProposalEffect, draft: { title: string; front: st
     kind: 'handoff-edit',
     correction: { ...(draft.title.trim() === '' ? {} : { title: draft.title.trim() }), body: draft.body },
   };
+  if (effect.kind === 'teaching-override') return { ...effect, body: draft.body };
   return undefined;
 }
 

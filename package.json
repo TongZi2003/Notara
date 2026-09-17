@@ -18,6 +18,7 @@
     "build": "tsx scripts/build.ts",
     "generate:remotes": "tsx scripts/generate-remotes.ts",
     "dev:isolated": "tsx scripts/dev-isolated.ts",
+    "trial": "tsx scripts/trial.ts",
     "test:e2e": "playwright test",
     "test:unit": "vitest run --config vitest.unit.config.ts",
     "test:live": "tsx scripts/test-live.ts",

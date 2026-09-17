@@ -9,8 +9,8 @@ test('thought graph is editable and navigates to native conversation without exp
   await expect(page.getByRole('tab', { name: 'Trajectory', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '记一个想法', exact: true }).click();
   await page.getByRole('textbox', { name: '节点标题' }).fill('先界定系统'); await page.getByRole('textbox', { name: '节点内容' }).fill('哪些物体属于同一个系统？');
-  await page.getByRole('button', { name: '保存节点', exact: true }).click();
-  await page.getByTestId('thought-map').getByRole('button', { name: '先界定系统 想法', exact: true }).click();
+  await page.getByRole('button', { name: '保存小结', exact: true }).click();
+  await page.getByTestId('thought-map').getByRole('button', { name: '先界定系统 想法' }).click();
   await expect(page.locator('.sf-thought-detail')).toContainText('哪些物体属于同一个系统');
   await page.getByRole('button', { name: '放大关系图', exact: true }).click();
   await expect(page.getByTestId('thought-map')).toHaveAttribute('data-zoom', '1.25');
@@ -53,4 +53,28 @@ test('an explicitly advanced conversation stage is visible as a ThoughtMap frame
   await expect(page.getByTestId('thought-frame')).toHaveCount(1);
   await expect(page.getByTestId('thought-frame')).toContainText('写出第一个判断');
   await expect(page.getByTestId('thought-frame')).not.toContainText(/掌握|复习/);
+});
+
+test('the stage tracker projects the in-lesson roadmap above the workspace and opens the frame', async ({ page, classroom }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await enterClassroom(page, classroom.authUrl);
+  await expect(page.getByTestId('stage-tracker')).toHaveCount(0);
+  await typeInput(page, '[tools]' + JSON.stringify([
+    { name: 'advance_conversation_stage', arguments: { title: '界定问题', summary: '先确认研究对象。', nextGoal: '写出第一个判断' } },
+    { name: 'advance_conversation_stage', arguments: { title: '尝试判断', summary: '第一条判断已形成。', nextGoal: '对照反例修正判断' } },
+  ]));
+  await page.getByRole('button', { name: 'Send message', exact: true }).click();
+  const tracker = page.getByTestId('stage-tracker');
+  await expect(tracker).toBeVisible({ timeout: 30_000 });
+  const chips = tracker.getByTestId('stage-chip');
+  await expect(chips).toHaveCount(2);
+  await expect(chips.nth(0)).toContainText('界定问题');
+  await expect(chips.nth(0)).toHaveAttribute('data-status', 'completed');
+  await expect(chips.nth(1)).toContainText('尝试判断');
+  await expect(chips.nth(1)).toHaveAttribute('data-status', 'active');
+  await expect(tracker.getByTestId('stage-goal')).toContainText('对照反例修正判断');
+  await chips.nth(0).click();
+  await expect(page.getByTestId('thought-frames')).toBeVisible();
+  await expect(page.getByTestId('thought-frame').first()).toContainText('界定问题');
+  expect(errors).toEqual([]);
 });

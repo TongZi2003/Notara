@@ -4,12 +4,13 @@ import { ModelLearningSearchInputSchema, LearningSearchResultSchema, type Learni
 import { LearningSearch, type LearningSearchSources } from '@studyforge/domain/learning-search';
 import type { HostContext } from '@studyforge/contracts';
 import { toolSchema } from './tool-schema.ts';
+import { rejected } from './learning-context.ts';
 
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeSearchSources: LearningSearchSources; } }
 
 /** Native web tools remain separate. Local reads use the actual caller's grants. */
 export async function searchLearning(host: Context, context: HostContext, input: LearningSearchInput): Promise<LearningSearchResult> {
-  if (context.purpose !== 'learning') throw new Error('learning_search_purpose_required');
+  if (context.purpose !== 'learning') throw rejected('本工具只在学习课堂中可用');
   const binding = context.sessionId ? await host.studyforgeAccess.forSession(context.sessionId) : undefined;
   const sources = host.studyforgeSearchSources;
   return new LearningSearch({ ...sources, resolve: {
@@ -27,7 +28,7 @@ export function registerSearchTools(host: Context): void {
     parameters: toolSchema(ModelLearningSearchInputSchema),
     output: { schema: toolSchema(LearningSearchResultSchema), render: (_args, value) => [{ type: 'text', text: JSON.stringify(LearningSearchResultSchema.parse(value)) }, ...entityReferenceContent(value)] },
     async execute(args, execution) {
-      if (!execution.agent) throw new Error('learning_session_required');
+      if (!execution.agent) throw rejected('本工具只能在课堂会话中使用');
       const binding = await host.studyforgeAccess.forSession(execution.agent.session.id);
       return searchLearning(host, { workspaceId: binding.workspaceId, sessionId: binding.sessionId, actor: 'teacher', purpose: binding.purpose }, ModelLearningSearchInputSchema.parse(args));
     },

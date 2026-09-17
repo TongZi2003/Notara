@@ -74,8 +74,14 @@ test('original notebook pages show real books, cards, calendar and learning reco
       await page.evaluate(async () => { await document.fonts.ready; });
       if (route === 'home') await expect(surface.getByTestId('agent-role')).toBeVisible();
       if (route === 'materials') {
+        // The shelf groups cards under their original; cards without a chapter
+        // stay folded under the book's own 未分章节 toggle until opened.
+        await expect(surface.getByTestId('material-row')).toHaveCount(3);
+        const group = surface.getByTestId('library-source-group').filter({ hasText: '函数与导数' });
+        await group.getByRole('button').first().click();
+        await group.getByRole('button', { name: '未分章节', exact: true }).click();
         await expect(surface.getByTestId('material-row')).toHaveCount(6);
-        await expect(surface.locator('.sf-library-row')).toHaveCount(6);
+        await expect(surface.locator('.sf-library-source-group')).toHaveCount(3);
       }
       if (route === 'cards') {
         await expect(surface.getByTestId('card-row')).toHaveCount(3);
@@ -90,24 +96,31 @@ test('original notebook pages show real books, cards, calendar and learning reco
       if (route === 'courses') {
         await surface.getByTestId('courses-view').selectOption('list');
         await expect(surface.getByTestId('roadmap-nodes')).toHaveCSS('display', 'block');
-        await expect(surface.getByTestId('roadmap-node')).toHaveCount(3);
+        // Three seeded route nodes plus the lesson this test really opened.
+        await expect(surface.getByTestId('roadmap-node')).toHaveCount(4);
       }
       if (route === 'calendar') {
         await page.getByRole('button', { name: '今天', exact: true }).click();
-        await expect(surface.getByTestId('calendar-course')).toHaveCount(3);
+        // Three seeded route nodes plus the lesson this test really opened.
+        await expect(surface.getByTestId('calendar-course')).toHaveCount(4);
         await surface.getByTestId('calendar-view-list').click();
         await expect(surface.getByTestId('calendar-list')).toHaveCSS('display', 'block');
       }
       expect(await surface.evaluate(element => element.scrollWidth <= element.clientWidth + 1), label + ' content width ' + width).toBe(true);
       await page.screenshot({ path: info.outputPath(`notebook-${route}-${width}.png`), fullPage: true });
       if (route === 'materials' && width === 1440) {
-        await surface.getByTestId('material-row').first().getByRole('button').first().click();
-        await surface.getByRole('button', { name: '阅读原文', exact: true }).click();
+        await surface.getByTestId('material-row').first().getByRole('button', { name: /预览：/ }).click();
+        await surface.getByTestId('library-detail').getByRole('button', { name: '阅读原文', exact: true }).click();
         await expect(surface).toHaveAttribute('data-reading', 'true');
         await page.reload();
         await expect(surface).toHaveAttribute('data-reading', 'true');
         await surface.getByTestId('materials-back').click();
         await expect(surface).toHaveAttribute('data-reading', 'false');
+        // The reload folded the book groups again; this card sits under its
+        // original's 未分章节 fold, so open it the way the shelf really does.
+        const group = surface.getByTestId('library-source-group').filter({ hasText: '函数与导数' });
+        await group.getByRole('button').first().click();
+        await group.getByRole('button', { name: '未分章节', exact: true }).click();
         await surface.getByRole('button', { name: new RegExp(cards[0]!.content.title) }).click();
         await expect(page.getByTestId('card-detail-title')).toHaveText(cards[0]!.content.title);
         await surface.getByRole('button', { name: '关闭资料详情', exact: true }).click();

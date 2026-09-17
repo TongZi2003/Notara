@@ -28,6 +28,7 @@ import { HandoffCorrectionSchema, HandoffViewSchema,
 import { ProposalEffectRejected, type ProposalEffectItem } from '@studyforge/domain/proposals';
 import { nativeOpen, plannedSessionId } from './runtime/native-open.ts';
 import { studentContext } from './learning-service.ts';
+import { rejected } from './tools/learning-context.ts';
 import type { PinnedHandoffReader } from './teaching/lesson-brief.ts';
 
 /** The saved-summary surface this Host needs; the domain `HandoffService` satisfies it. */
@@ -145,7 +146,7 @@ export async function handoffSnapshot(host: Context, ctx: HostContext, callId: s
 /** Refuse a second close before the proposal is even frozen; the domain refuses
  * it again at write time, this only keeps the teacher from proposing a dead item. */
 export function checkHandoffProposal(host: Context, ctx: HostContext): void {
-  if (host.studyforgeCourseMetadata.read(ctx).data.closure !== null) throw new Error('course_already_closed');
+  if (host.studyforgeCourseMetadata.read(ctx).data.closure !== null) throw rejected('本课已收课关闭，不能再提交第二份收课小结；更正已保存的小结用propose_handoff的kind=revise');
 }
 
 /**

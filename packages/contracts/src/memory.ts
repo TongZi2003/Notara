@@ -12,9 +12,15 @@ export const MemoryContentSchema = z.object({
   scope: RecordScopeSchema.optional(), body: z.string().min(1),
 }).strict();
 export type MemoryContent = z.infer<typeof MemoryContentSchema>;
-/** Model chooses supplied E aliases; the Host resolves identities, times and quotes. */
+/**
+ * Model chooses supplied E aliases; the Host resolves identities, times and
+ * quotes. Omitted means the Host binds the most recent accepted student
+ * utterance on its own; supplied aliases select earlier turns and must come
+ * from a real `query_evidence` catalogue read.
+ */
 export const MemoryDraftSchema = MemoryContentSchema.extend({
-  evidenceRefs: z.array(z.string().min(1)).min(1).describe('本轮依据目录中的真实E引用，不能捏造原话'),
+  evidenceRefs: z.array(z.string().min(1)).min(1).optional()
+    .describe('真实E引用，不能捏造原话；省略时宿主自动绑定最近一条学生原话，引用更早的依据才先query_evidence取别名再填'),
 });
 export type MemoryDraft = z.infer<typeof MemoryDraftSchema>;
 /** Bound content saved by the Host, after resolution of the selected E aliases. */

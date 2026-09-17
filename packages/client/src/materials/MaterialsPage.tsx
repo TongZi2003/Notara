@@ -237,7 +237,10 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
         if (id) { ctx.sessions.open(id); ctx.layout.selectPanel(null); }
       }}>← 回到《{originLesson.title || '原来的课'}》</button>}
       <div className="sf-assets-right">
-        {open === undefined && !empty && <ImportMaterial pending={pending} onFiles={files => { void importFiles(files); }} />}
+        {/* While the shelf is still loading `empty` is undecided; rendering the
+            input only once the outcome is known keeps an upload picked in that
+            window from landing on an input the next render replaces. */}
+        {open === undefined && list.status === 'ready' && cardList.status === 'ready' && !empty && <ImportMaterial pending={pending} onFiles={files => { void importFiles(files); }} />}
       </div>
     </header>
     <div className="sf-materials-body">

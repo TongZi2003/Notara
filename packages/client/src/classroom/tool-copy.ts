@@ -1,7 +1,13 @@
+import { resolveFacadeTool } from '@studyforge/contracts/tool-facades';
+
 export type ToolDisplayState = 'running' | 'ok' | 'error' | 'stopped';
 
 /** Describes the action, never an unverified learning or persistence outcome. */
 const ACTIONS: Record<string, string> = {
+  find: '查找课堂资料与记录', open: '读取学习对象', note: '记录学习事实', update: '修改已有内容',
+  record: '登记学习事实', propose: '准备待确认的提案', create: '新建资料或作品',
+  board: '操作课堂工作台', classroom: '参与教室与同学互动', stage: '整理课堂阶段', delegate: '请帮手处理任务',
+  read_workbench_activity: '查看工作台操作记录',
   draft_artifact: '准备可共同编辑的作品', mark_thought: '在思维图记下这个想法',
   load_tools: '准备这一步需要的操作',
   list_materials: '查找书架上的资料', read_material: '阅读原文', preview_region: '查看书页细节',
@@ -22,12 +28,15 @@ const ACTIONS: Record<string, string> = {
 };
 
 export function toolDisplayCopy(name: string, state: ToolDisplayState, argsRaw = '', resultRaw = ''): string {
-  const action = actionCopy(name, objectJson(argsRaw), state === 'ok' ? objectJson(resultRaw) : {});
+  const args = objectJson(argsRaw);
+  const inner = resolveFacadeTool(name, args);
+  const displayName = inner ?? name;
+  const action = actionCopy(displayName, inner ? object(args.input) : args, state === 'ok' ? objectJson(resultRaw) : {});
   if (state === 'running') return `正在${action}…`;
   if (state === 'stopped') return `已停止：${action}`;
   if (state === 'error') return `这次没能${action}`;
-  if (name.startsWith('propose_')) return `${action}：提案已准备好`;
-  if (name === 'subagent' || name.startsWith('delegate_')) return action === ACTIONS[name] ? '已交给帮手处理' : `${action}：已委托`;
+  if (name === 'propose' || displayName.startsWith('propose_')) return `${action}：提案已准备好`;
+  if (name === 'delegate' || displayName === 'subagent' || displayName.startsWith('delegate_')) return action === ACTIONS[displayName] ? '已交给帮手处理' : `${action}：已委托`;
   if (name === 'send_message') return '已给帮手补充说明';
   if (name === 'interrupt_agent') return '已请帮手停止';
   return `${action}：已完成`;

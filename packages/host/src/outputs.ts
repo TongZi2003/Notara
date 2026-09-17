@@ -2,10 +2,11 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { HostContext } from '@studyforge/contracts';
 import { projectOutputs, type OutputProjection, type OutputProposal, type OutputKind } from '@studyforge/domain/outputs';
 import type { ChangeReader } from './calendar-service.ts';
+import { rejected } from './tools/learning-context.ts';
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeOutputSources: readonly ChangeReader[]; } }
 
 export async function lessonOutputs(host: Context, context: HostContext, proposals: readonly OutputProposal[] = []): Promise<OutputProjection> {
-  if (!context.sessionId) throw new Error('course_session_required');
+  if (!context.sessionId) throw rejected('本工具只能在课堂会话中使用');
   const cards = host.studyforgeCardRecords.list(context), knowledge = host.studyforgeKnowledgeRecords.list(context);
   const objects = host.studyforgeOutputSources.flatMap(source => source.list(context).map(row => ({ ...row, kind: source.kind })));
   const pending: OutputProposal[] = host.studyforgeProposalService.list(context).flatMap(proposal => {
@@ -37,6 +38,6 @@ function effectKind(kind: string): OutputKind {
   if (kind === 'lesson-edit') return 'course';
   if (kind === 'review') return 'card';
   const prefix = kind.split('-')[0];
-  if (['card', 'knowledge', 'memory', 'handoff', 'set', 'route', 'plan', 'skeleton'].includes(prefix ?? '')) return prefix as OutputKind;
+  if (['card', 'knowledge', 'memory', 'handoff', 'set', 'route', 'plan', 'skeleton', 'teaching'].includes(prefix ?? '')) return prefix as OutputKind;
   throw new Error('unhandled_proposal_output_kind');
 }

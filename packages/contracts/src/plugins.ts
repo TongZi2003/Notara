@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { ClassroomDefinitionSchema } from './classroom.ts';
+import { ClassroomDefinitionSchema, Key } from './classroom.ts';
+import { ActorSchema, TimestampSchema } from './core.ts';
 
 const EntryPath = z.string().max(240).refine(value => !!value && !value.startsWith('/') && !value.includes('\\') && value.split('/').every(part => !!part && part !== '.' && part !== '..'), 'entry must stay inside the package');
 const Contribution = z.object({ id: z.string().regex(/^[a-z][a-z0-9-]{0,47}$/), title: z.string().trim().min(1).max(120), description: z.string().max(1000).default(''), entry: EntryPath }).strict();
@@ -53,9 +54,27 @@ export const WorldbookEntrySchema = z.object({
   keywords: z.array(z.string().trim().min(1).max(80)).max(20), enabled: z.boolean(), always: z.boolean(),
   kind: z.enum(['background', 'instruction']).optional(),
   scope: z.enum(['turn', 'stage', 'lesson']).optional(),
+  /** Lorebook-style refinement: primary keyword(s) must hit first, then this
+   * secondary-key logic decides. Only applies to keyword-triggered entries. */
+  secondaryKeywords: z.array(z.string().trim().min(1).max(80)).max(10).optional(),
+  selective: z.enum(['and-any', 'and-all', 'not-any', 'not-all']).optional(),
+  /** Bound to a classroom role: counts only while that classmate is in play this
+   * turn (dispatched or mentioned). Teacher-side by default. */
+  role: Key.optional(),
+  roleVisible: z.boolean().optional().describe('同时带进这位同学自己的扮演上下文；默认只给老师侧。'),
+  /** Gate on the bound role's effective intimacy toward the student; needs role. */
+  intimacyAtLeast: z.number().int().min(0).max(100).optional(),
 }).strict();
 export const WorldbookDocumentSchema = z.object({ entries: z.array(WorldbookEntrySchema).max(60), classroom: ClassroomDefinitionSchema.optional() }).strict()
-  .refine(value => JSON.stringify(value).length <= 50_000, 'worldbook_too_large');
+  .refine(value => JSON.stringify(value).length <= 50_000, 'worldbook_too_large')
+  .superRefine((value, ctx) => {
+    const ids = new Set(value.classroom?.roles.map(role => role.id) ?? []);
+    value.entries.forEach((entry, index) => {
+      if (entry.role && !ids.has(entry.role)) ctx.addIssue({ code: 'custom', path: ['entries', index, 'role'], message: 'worldbook_role_missing' });
+      if (entry.intimacyAtLeast !== undefined && !entry.role) ctx.addIssue({ code: 'custom', path: ['entries', index, 'intimacyAtLeast'], message: 'worldbook_intimacy_needs_role' });
+      if (entry.roleVisible && !entry.role) ctx.addIssue({ code: 'custom', path: ['entries', index, 'roleVisible'], message: 'worldbook_role_visible_needs_role' });
+    });
+  });
 export type WorldbookDocument = z.infer<typeof WorldbookDocumentSchema>;
 export const ClassroomTemplatesSchema = z.array(z.object({ title: z.string().trim().min(1).max(100), description: z.string().max(300), document: WorldbookDocumentSchema.safeExtend({ classroom: ClassroomDefinitionSchema }) }).strict()).max(12);
 export const WorldbookRecordSchema = z.object({ id: z.string(), document: WorldbookDocumentSchema }).strict();
@@ -67,3 +86,24 @@ export type WorkbenchDraftValue = z.infer<typeof WorkbenchDraftValueSchema>;
 export const WorkbenchDraftSchema = z.object({ sessionId: z.string(), id: z.string(), digest: z.string(), value: WorkbenchDraftValueSchema }).strict();
 /** JSON travels as text because the pinned Typert generator rejects external recursive JSONType. */
 export interface WorkbenchDraftView { revision: number; json: string }
+/** Semantic labels the board attaches to a write; the Host stores them with the
+ * derived diff so the trail stays readable after the iframe is gone. */
+export const WorkbenchOpSchema = z.object({ labels: z.array(z.string().trim().min(1).max(160)).max(8).optional() }).strict();
+export type WorkbenchOp = z.infer<typeof WorkbenchOpSchema>;
+/** One observed write on a board instance: who, when, what kind of store it
+ * touched, the resulting revision, optional board-reported labels and a
+ * Host-derived summary of what actually changed. */
+export const WorkbenchActivityEntrySchema = z.object({
+  at: TimestampSchema, actor: ActorSchema,
+  kind: z.enum(['document', 'draft', 'worldbook', 'note']),
+  revision: z.number().int().nonnegative().optional(),
+  labels: z.array(z.string().trim().min(1).max(160)).max(8).optional(),
+  detail: z.string().max(600).optional(),
+}).strict();
+export type WorkbenchActivityEntry = z.infer<typeof WorkbenchActivityEntrySchema>;
+/** Activity outlives a plugin upgrade: keyed by session+workbench, not digest. */
+export const WorkbenchActivitySchema = z.object({
+  sessionId: z.string().min(1), id: z.string().min(1),
+  events: z.array(WorkbenchActivityEntrySchema).max(160),
+}).strict();
+export type WorkbenchActivity = z.infer<typeof WorkbenchActivitySchema>;

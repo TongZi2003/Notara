@@ -8,6 +8,7 @@ import { RouteNodeInputSchema, RouteNodePatchSchema } from './routes.ts';
 import { PlanContentSchema, PlanPatchSchema, SkeletonChangeSchema } from './plans.ts';
 import { HandoffCorrectionSchema, HandoffCutoffSchema, HandoffDraftSchema, HandoffFactSchema, HandoffPinSchema } from './handoffs.ts';
 import { CoursePatchSchema } from './courses.ts';
+import { ClassmateSchema } from './classroom.ts';
 
 /**
  * P5.3 冻结目标、编辑版与持久确认（plan §P5.3，CONTRACTS.md §6）。
@@ -56,6 +57,14 @@ export const ProposalEffectSchema = z.discriminatedUnion('kind', [
     facts: z.array(HandoffFactSchema).default([]), continuation: HandoffPinSchema.optional() }).strict(),
   z.object({ kind: z.literal('handoff-edit'), correction: HandoffCorrectionSchema }).strict(),
   z.object({ kind: z.literal('lesson-edit'), patch: CoursePatchSchema }).strict(),
+  // A teacher-drafted rewrite of one bundled teaching text; confirming writes
+  // the workspace override, never the bundled file itself.
+  z.object({ kind: z.literal('teaching-override'), nodeId: z.string().min(1), title: z.string().min(1), body: z.string().min(1) }).strict(),
+  // A teacher-drafted new classmate for an enabled classroom worldbook; `id` is
+  // the worldbook contribution, `role` the full classmate row. Confirming
+  // appends it to `document.classroom.roles` at the frozen baseline — entries,
+  // rules and existing roles are never touched by this effect.
+  z.object({ kind: z.literal('classmate-role'), id: z.string().min(1), role: ClassmateSchema }).strict(),
 ]);
 export type ProposalEffect = z.infer<typeof ProposalEffectSchema>;
 export type ProposalKind = ProposalEffect['kind'];

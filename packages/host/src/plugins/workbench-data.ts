@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { Context } from '@deepseek-ai/cordis';
 import type { RecordStore } from '@studyforge/domain/storage';
-import { WorldbookDocumentSchema, type WorldbookRecordSchema, type WorldbookUseSchema, type WorldbookDocument, type WorldbookView, type WorkbenchDraftSchema, type WorkbenchDraftValue, type WorkbenchDraftView, type WorldbookSelection } from '@studyforge/contracts/plugins';
+import { WorldbookDocumentSchema, type WorldbookRecordSchema, type WorldbookUseSchema, type WorldbookDocument, type WorldbookView, type WorkbenchDraftSchema, type WorkbenchDraftValue, type WorkbenchDraftView, type WorldbookSelection, type WorkbenchOp } from '@studyforge/contracts/plugins';
 import { packageId } from './plugin-manager.ts';
 import { selectWorldbookEntries } from './worldbook-selection.ts';
+import { summarizeWorldbookChange } from './board-activity.ts';
 
 declare module '@deepseek-ai/cordis' { interface Context { studyforgeWorkbenchData: WorkbenchData } }
 /** User-owned content lives outside package snapshots and survives disable/uninstall. */
@@ -34,10 +35,16 @@ export class WorkbenchData {
   async saveWorldbook(input: { sessionId: string; id: string; expectedVersion: number; operationId: string; document: WorldbookDocument }): Promise<WorldbookView> {
     await this.book(input.sessionId, input.id);
     const context = { ...this.context(input.sessionId), expectedVersion: input.expectedVersion, operationId: input.operationId };
+    const prior = (await this.readWorldbook(input.sessionId, input.id)).document;
     const data = { id: input.id, document: WorldbookDocumentSchema.parse(input.document) }, key = packageId(input.id);
     if (input.expectedVersion === 0) await this.books.create(context, key, data);
     else await this.books.update(context, 'worldbook:' + key, data, () => data);
-    return this.readWorldbook(input.sessionId, input.id);
+    const view = await this.readWorldbook(input.sessionId, input.id);
+    try {
+      const at = this.books.changes(this.context(input.sessionId), 'worldbook:' + key).at(-1)?.committedAt;
+      await this.ctx.studyforgeBoardActivity?.append(context, { id: input.id, kind: 'worldbook', revision: view.revision, detail: summarizeWorldbookChange(prior, view.document), at });
+    } catch { /* monitoring never breaks the write it observes */ }
+    return view;
   }
   async useWorldbook(input: { sessionId: string; id: string; expectedVersion: number; enabled: boolean }): Promise<WorldbookView> {
     await this.book(input.sessionId, input.id);
@@ -51,7 +58,7 @@ export class WorkbenchData {
     const content = await this.book(sessionId, id), row = await this.readWorldbook(sessionId, id);
     return selectWorldbookEntries([{ title: content.title, entries: row.document.entries }], query);
   }
-  async background(sessionId: string, query: string): Promise<string> {
+  async background(sessionId: string, query: string, scan: readonly string[] = []): Promise<string> {
     const context = this.context(sessionId), choices = this.ctx.studyforgePluginsManager.workbenches(sessionId);
     const active = this.uses.list(context).filter(row => row.data.sessionId === sessionId && row.data.enabled && choices.some(item => item.id === row.data.id));
     const books: { title: string; entries: WorldbookDocument['entries'] }[] = [];
@@ -61,7 +68,7 @@ export class WorkbenchData {
       const content = await this.book(sessionId, use.data.id);
       books.push({ title: content.title, entries: view.document.entries });
     }
-    return selectWorldbookEntries(books, query).text;
+    return selectWorldbookEntries(books, query, undefined, { scan }).text;
   }
   private async draftTarget(sessionId: string, id: string, digest: string) {
     const workbench = await this.ctx.studyforgePluginsManager.openWorkbench(sessionId, id);
@@ -73,11 +80,15 @@ export class WorkbenchData {
     const row = this.drafts.list(this.context(sessionId)).find(row => row.ref === 'workbenchdraft:' + key);
     return { revision: row?.version ?? 0, json: JSON.stringify(row?.data.value ?? null) };
   }
-  async saveDraft(input: { sessionId: string; id: string; digest: string; expectedVersion: number; operationId: string; value: WorkbenchDraftValue }): Promise<WorkbenchDraftView> {
+  async saveDraft(input: { sessionId: string; id: string; digest: string; expectedVersion: number; operationId: string; value: WorkbenchDraftValue; op?: WorkbenchOp | undefined }): Promise<WorkbenchDraftView> {
     const key = await this.draftTarget(input.sessionId, input.id, input.digest);
     const context = { ...this.context(input.sessionId), expectedVersion: input.expectedVersion, operationId: input.operationId };
     const data = { sessionId: input.sessionId, id: input.id, digest: input.digest, value: input.value };
     const row = input.expectedVersion === 0 ? await this.drafts.create(context, key, data) : await this.drafts.update(context, 'workbenchdraft:' + key, data, () => data);
+    try {
+      const at = this.drafts.changes(this.context(input.sessionId), 'workbenchdraft:' + key).at(-1)?.committedAt;
+      await this.ctx.studyforgeBoardActivity?.append(context, { id: input.id, kind: 'draft', revision: row.version, op: input.op, at });
+    } catch { /* monitoring never breaks the write it observes */ }
     return { revision: row.version, json: JSON.stringify(row.data.value) };
   }
 }

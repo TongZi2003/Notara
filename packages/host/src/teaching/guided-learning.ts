@@ -3,7 +3,7 @@ import type { HostContext } from '@studyforge/contracts';
 import { CourseViewSchema, LearningGoalSchema, type LearningContext, type LearningPath } from '@studyforge/contracts/courses';
 import { studyOf } from '@studyforge/domain/routes';
 import { courseRecordRef } from '@studyforge/domain/courses';
-import { teacherContext, observedVersion } from '../tools/learning-context.ts';
+import { teacherContext, observedVersion, rejected } from '../tools/learning-context.ts';
 import { toolSchema } from '../tools/tool-schema.ts';
 
 /** One diagnostic course owns the goal; confirmed handoff and route are existing records. */
@@ -12,8 +12,8 @@ export function routeStudyContext(host: Context, ctx: HostContext): LearningCont
   const course = host.studyforgeCourseMetadata.read(ctx).data;
   if (course.learningContext) return course.learningContext;
   if (!course.guided) return undefined;
-  if (!course.learningGoal) throw new Error('先用note_learning_goal记录学生实际目标和时间条件。');
-  if (!course.closure?.handoffVersion) throw new Error('先完成目标范围的诊断，用propose_handoff展示诊断小结并等待学生确认；尚不能生成正式学习路线。');
+  if (!course.learningGoal) throw rejected('路线需要先有学生实际目标：先用note_learning_goal记录目标和时间条件');
+  if (!course.closure?.handoffVersion) throw rejected('正式路线需要诊断小结先经学生确认：用propose(method=handoff)提出诊断小结，等学生在界面上确认后再重新提交propose(method=route)；若界面显示小结已确认，说明上次提交被拒没有留下提案，直接重新提交即可，不要让用户重复确认');
   const study = { originSessionId: ctx.sessionId, goal: course.learningGoal,
     diagnosis: { ref: course.closure.handoffRef, version: course.closure.handoffVersion } };
   validateStudy(host, ctx, study);
@@ -25,7 +25,7 @@ export function validateStudy(host: Context, ctx: HostContext, study: LearningCo
   const origin = host.studyforgeCourseMetadata.read({ ...ctx, sessionId: study.originSessionId }).data;
   if (!origin.guided || handoff.sessionId !== study.originSessionId || origin.closure?.handoffRef !== study.diagnosis.ref
     || origin.closure.handoffVersion !== study.diagnosis.version || JSON.stringify(origin.learningGoal) !== JSON.stringify(study.goal)) {
-    throw new Error('learning_diagnosis_binding_invalid');
+    throw rejected('本课绑定的诊断小结或目标已经变化，旧路线上下文失效；先与学生核对当前目标与所属路线');
   }
 }
 
@@ -74,10 +74,10 @@ export function registerGuidedLearning(host: Context): void {
     async execute(args, execution) {
       const goal = LearningGoalSchema.parse(args), ctx = await teacherContext(host, execution);
       const current = host.studyforgeCourseMetadata.read(ctx);
-      if (current.data.learningContext) throw new Error('本课已属于既有学习路线；调整后续安排用propose_route，新目标另开一节诊断课。');
+      if (current.data.learningContext) throw rejected('本课已属于既有学习路线；调整后续安排用propose(method=route)，新目标另开一节诊断课');
       if (current.data.closure) {
         if (JSON.stringify(current.data.learningGoal) === JSON.stringify(goal)) return current;
-        throw new Error('诊断小结已确认，旧目标保持；新目标请从首页开始一条新的学习路线。');
+        throw rejected('诊断小结已确认，旧目标保持；新目标请从首页开始一条新的学习路线');
       }
       return host.studyforgeCourseMetadata.update({ ...ctx, expectedVersion: await observedVersion(host, execution, courseRecordRef(ctx.sessionId!)) },
         { guided: true, learningGoal: goal });

@@ -7,7 +7,7 @@ import { RouteNodeInputSchema, RouteNodePatchSchema, RouteViewSchema } from '@st
 import { PlanContentSchema, PlanPatchSchema, PlanViewSchema, SkeletonChangeSchema } from '@studyforge/contracts/plans';
 import { SkeletonViewSchema } from '@studyforge/contracts/skeleton';
 import type { ProposalInput } from '@studyforge/contracts/proposals';
-import { teacherContext, observedVersion } from './learning-context.ts';
+import { teacherContext, observedVersion, rejected } from './learning-context.ts';
 import { existingProposal, proposeFromTool, proposalOutput } from './proposal-tools.ts';
 import { toolSchema } from './tool-schema.ts';
 import { CoursePatchSchema, CourseViewSchema } from '@studyforge/contracts/courses';
@@ -84,7 +84,7 @@ export function registerOrganizationTools(host: Context): void {
     const input = routeInput.parse(args);
     const study = routeStudyContext(host, await teacherContext(host, execution));
     if (input.action === 'add') return { title: '接下来的课程', items: input.nodes.map(({ parentIndex, ...content }, index) => {
-      if (parentIndex !== undefined && (parentIndex >= index || content.parent !== null)) throw new Error('同批父节点必须在本节点前面，不能同时指定已有parent。');
+      if (parentIndex !== undefined && (parentIndex >= index || content.parent !== null)) throw rejected('同批父节点必须在本节点前面，不能同时指定已有parent');
       return { target: null, baseline: null, effect: { kind: 'route-add' as const, content: { ...content, ...(study ? { study } : {}) },
         ...(parentIndex === undefined ? {} : { parentItem: `item-${parentIndex + 1}` }) } };
     }) };

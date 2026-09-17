@@ -14,6 +14,7 @@ import { type ReviewService, type ReviewResult } from '@studyforge/domain/review
 import { learningRecords, type LearningRecord } from '@studyforge/domain/learning-records';
 import { cardChanges } from '@studyforge/domain/card-changes';
 import type { CardChangeView } from '@studyforge/contracts/changes';
+import { rejected } from './tools/learning-context.ts';
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -33,7 +34,7 @@ const WriteSchema = z.object({ operationId: z.string().min(1), sessionId: z.stri
 export async function studentContext(host: Context, sessionId?: string): Promise<HostContext> {
   if (!sessionId) return { workspaceId: host.studyforgeAccess.workspaceId, purpose: 'learning', actor: 'student' };
   const binding = await host.studyforgeAccess.forSession(sessionId);
-  if (binding.purpose !== 'learning') throw new Error('learning_session_required');
+  if (binding.purpose !== 'learning') throw rejected('这个会话不是学习课堂，学习工具不可用');
   return { workspaceId: binding.workspaceId, sessionId: binding.sessionId, purpose: binding.purpose, actor: 'student' };
 }
 

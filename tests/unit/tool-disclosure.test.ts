@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Session, SessionId } from '@deepseek-ai/dsh-session';
 import { ToolCallId, createToolResultMessage, type ToolSchema } from '@deepseek-ai/dsh-llm';
-import { classroomToolCatalogue, projectClassroomTools, retainedTools, toolCatalogueText } from '../../packages/host/src/tools/tool-disclosure.ts';
+import { TOOL_FACADES, resolveFacadeTool } from '@studyforge/contracts/tool-facades';
+import { classroomToolCatalogue, retainedTools } from '../../packages/host/src/tools/tool-disclosure.ts';
 
 const tool = (name: string): ToolSchema => ({ name, description: '读取课程路线。完整说明不应塞进简短目录。', parameters: { type: 'object', properties: { hidden_parameter: { type: 'string' } } } });
 function call(session: Session, name: string, args: unknown = {}) {
@@ -16,14 +17,18 @@ function result(session: Session, id: ReturnType<typeof ToolCallId>, loaded: str
   }, { surfaceOp: 'append' });
 }
 
-describe('progressive classroom tool disclosure', () => {
-  it('removes deferred parameter schemas while keeping a compact discoverable catalogue', () => {
-    const tools = [tool('read_lesson'), tool('load_tools'), tool('read_route')];
-    const shown = projectClassroomTools({ sections: [], contexts: [], variables: {}, tools }, tools, new Set());
-    expect(shown.tools.map(row => row.name)).toEqual(['read_lesson', 'load_tools']);
-    expect(shown.sections[0]?.text).toContain('read_route — 读取课程路线');
-    expect(shown.sections[0]?.text).not.toContain('hidden_parameter');
-    expect(toolCatalogueText([tool('read_route')])).not.toContain('完整说明不应');
+describe('constant classroom tool surface', () => {
+  it('resolves facade calls to the wrapped tool, from objects and raw JSON', () => {
+    expect(resolveFacadeTool('propose', { method: 'route', input: { action: 'add' } })).toBe('propose_route');
+    expect(resolveFacadeTool('open', JSON.stringify({ method: 'skeleton', input: {} }))).toBe('read_skeleton');
+    expect(resolveFacadeTool('read_material', {})).toBeUndefined();
+    expect(resolveFacadeTool('propose', { method: 'nope' })).toBeUndefined();
+    expect(resolveFacadeTool('open', 'not json')).toBeUndefined();
+    expect(resolveFacadeTool('open', {})).toBeUndefined();
+  });
+  it('keeps every wrapped tool name unique across facades', () => {
+    const inner = Object.values(TOOL_FACADES).flatMap(methods => Object.values(methods));
+    expect(new Set(inner).size).toBe(inner.length);
   });
   it('only accepts completed native loader results, not arguments, failed results or unmatched metadata', () => {
     const session = Session.create(SessionId('load-test'));

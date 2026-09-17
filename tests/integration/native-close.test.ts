@@ -261,7 +261,7 @@ test('关课后原课仍可讨论且不能再提一份收课，接续课固定�
   const confirmed = await fixture.proposals.confirm(lesson('confirm-1'), PROPOSAL_REF, selection);
   const closed = fixture.courses.read(READ);
   // Another summary cannot close the same lesson twice; the tool refuses early.
-  expect(() => checkHandoffProposal(fixture.ctx, lesson('propose-again'))).toThrow('course_already_closed');
+  expect(() => checkHandoffProposal(fixture.ctx, lesson('propose-again'))).toThrow('本课已收课关闭');
   // The lesson keeps taking real teaching additions after the close.
   const later = await fixture.courses.update(lesson('after-close', 'lesson-a', closed.version), { stance: '关课后继续讨论这道题。' });
   expect(later.data.stance).toBe('关课后继续讨论这道题。');

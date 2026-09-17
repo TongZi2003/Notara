@@ -6,6 +6,7 @@ import type { BookBreakdownIntent } from '@studyforge/contracts/book-exploration
 import type { CardContent, HostContext } from '@studyforge/contracts';
 import { decodeSourceFragments } from '@studyforge/contracts/source-context';
 import { validateBookBreakdown } from '@studyforge/domain/book-exploration';
+import { rejected } from '../tools/learning-context.ts';
 
 /** A later real user message replaces the task; receipts and tool results do not.
  * Read only the native cut preceding this call, so a later queued task cannot reparent it. */
@@ -36,8 +37,8 @@ export function bookTaskInstructions(task: BookBreakdownIntent): string {
     `本次节点操作：${task.action === 'cards' ? '拆成题卡' : '细分目录'}。目标：${task.nodePath ?? '书根'}。`,
     '固定原件与完整范围：' + JSON.stringify({ material: task.material, sources: task.sources }),
     task.action === 'cards'
-      ? '先用list_cards按materialId和chapter检查已有卡，并用read_skeleton读取已有目录，再read_material逐题读取上述原文范围。同批读清的题卡放进一次propose_card(kind=cards, title, cards)调用，学生可勾选后一起批准；不要逐题调用propose_card。sources必须准确指向这个原件版本。目录已有对应例题时，chapter填那道例题的完整路径，不要把题卡和例题目录并排挂到父章节；依据原文确认对应关系，不能只按标题相似或同一页猜测。仅跨子节的综合卡才明确选父章节；没有子目录时可省略chapter，由Host挂回所选章节。不要改成讲解、测验或另排目录，不用register_cards绕过确认。可用原生subagent帮忙读取、分题，只把已读材料和制卡要求交给它；它返回草稿，由你核对后合成一批提案。'
-      : '读取已有目录和范围内原文，用propose_skeleton提出有用的下一层目录，保持其他分支。只看目录得到的父节点detail=outline，读清并细化的实际片段detail=refined；父章节整段不代表全章整理完成。',
+      ? '先用find(method=cards)按materialId和chapter检查已有卡，并用open(method=skeleton)读取已有目录，再open(method=material)逐题读取上述原文范围。同批读清的题卡放进一次propose(method=card)且input.kind=cards的调用（填title与cards数组），学生可勾选后一起批准；不要逐题提案。sources必须准确指向这个原件版本。目录已有对应例题时，chapter填那道例题的完整路径，不要把题卡和例题目录并排挂到父章节；依据原文确认对应关系，不能只按标题相似或同一页猜测。仅跨子节的综合卡才明确选父章节；没有子目录时可省略chapter，由Host挂回所选章节。不要改成讲解、测验或另排目录，不用record(method=cards)绕过确认。可用原生subagent帮忙读取、分题，只把已读材料和制卡要求交给它；它返回草稿，由你核对后合成一批提案。'
+      : '读取已有目录和范围内原文，用propose(method=skeleton)提出有用的下一层目录，保持其他分支。只看目录得到的父节点detail=outline，读清并细化的实际片段detail=refined；父章节整段不代表全章整理完成。',
     '这里只授权准备提案；学生确认后才保存。不要因为保存回执切换活动。',
   ].join('\n');
 }
@@ -50,14 +51,14 @@ export async function bindTaskCard(host: Context, execution: ToolRunContext, con
   validateBookBreakdown(structure, task);
   const versions = new Set(task.sources.length ? task.sources.map(source => source.versionId) : [task.material.versionId]);
   if (!content.sources.length || content.sources.some(source => source.materialId !== task.material.materialId || !versions.has(source.versionId))) {
-    throw new Error('本次从选中的章节拆卡，请给每道原题补上该书固定版本的准确来源，再提交提案。');
+    throw rejected('本次从选中的章节拆卡，请给每道原题补上该书固定版本的准确来源，再提交提案');
   }
   if (task.nodePath && content.chapter && content.chapter !== task.nodePath && !content.chapter.startsWith(task.nodePath + '/')) {
-    throw new Error('这张卡的章节不在本次所选节点下，请使用所选章节或已有子章节。');
+    throw rejected('这张卡的章节不在本次所选节点下，请使用所选章节或已有子章节');
   }
   const sections = structure.nodes.filter(node => node.kind === 'section' && (!task.nodePath || node.path.startsWith(task.nodePath + '/')));
   if (!content.chapter && sections.length) {
-    throw new Error('所选范围已有子目录，请先read_skeleton核对原文，为每张题卡明确填写对应例题的chapter完整路径；跨子节的综合卡才明确选择父章节。不能省略章节后把题卡与例题目录并排保存。');
+    throw rejected('所选范围已有子目录，请先read_skeleton核对原文，为每张题卡明确填写对应例题的chapter完整路径；跨子节的综合卡才明确选择父章节。不能省略章节后把题卡与例题目录并排保存');
   }
   const bound = { ...content, ...(task.nodePath && !content.chapter ? { chapter: task.nodePath } : {}) };
   await host.studyforgeCardService.check(context, bound);

@@ -9,7 +9,7 @@ import { studentContext } from './learning-service.ts';
 import { decodeSourceFragments } from '@studyforge/contracts/source-context';
 import { SourceUseSchema } from '@studyforge/contracts/content-history';
 import { toolSchema } from './tools/tool-schema.ts';
-import { teacherContext } from './tools/learning-context.ts';
+import { teacherContext, rejected } from './tools/learning-context.ts';
 import { canonicalPath } from '@studyforge/domain/access';
 import { taskLabels } from './teaching/task-skills.ts';
 import { entityReferenceText } from '@studyforge/contracts/entity-reference';
@@ -107,8 +107,8 @@ export class StudyForgeTrace extends TypertRemoteService {
       graph.frames[activeIndex] = { ...active, summary: data.summary, endSequence: boundary, status: data.mode === 'branch' ? 'branched' : 'completed' };
     }
     const mode: 'root' | 'continue' | 'branch' | 'resume' = activeIndex < 0 ? 'root' : (data.mode ?? 'continue');
-    if (mode === 'branch' && data.parentFrameId && !graph.frames.some(frame => frame.id === data.parentFrameId)) throw new Error('frame_parent_missing');
-    if (mode === 'resume' && data.resumeFrameId && !graph.frames.some(frame => frame.id === data.resumeFrameId)) throw new Error('frame_resume_missing');
+    if (mode === 'branch' && data.parentFrameId && !graph.frames.some(frame => frame.id === data.parentFrameId)) throw rejected('parentFrameId不是现存阶段；先read_thoughtmap列出阶段再选');
+    if (mode === 'resume' && data.resumeFrameId && !graph.frames.some(frame => frame.id === data.resumeFrameId)) throw rejected('resumeFrameId不是现存阶段；先read_thoughtmap列出阶段再选');
     const frame: ThoughtGraph['frames'][number] = {
       id: 'frame:' + idOf(`${data.sessionId}:${data.operationId}`), title: data.title, goal: data.nextGoal, mode,
       status: 'active' as const, startSequence: boundary, operationIds: [data.operationId],
@@ -177,7 +177,7 @@ export function registerThoughtTool(host: Context): void {
     async execute(args, execution) {
       const context = await teacherContext(host, execution), data = readInput.parse(args), trace = await host.studyforgeTrace.read({ sessionId: context.sessionId! });
       if (!data.stageId) return { json: JSON.stringify({ version: trace.version, activeFrameId: trace.activeFrameId, frames: trace.frames.map(frame => ({ id: frame.id, title: frame.title, goal: frame.goal, summary: frame.summary, mode: frame.mode, status: frame.status, parentFrameId: frame.parentFrameId, resumeFrameId: frame.resumeFrameId, nodes: frame.nodes.map(node => ({ id: node.id, title: node.title, body: node.body, sequence: node.sequence, targets: node.targets })) })), unsegmented: trace.unsegmented, stages: trace.stages.map(s => ({ id: s.id, title: s.title, basis: s.stage.basis, pending: s.stage.pending, summary: s.stage.summary, targets: s.targets })) }) };
-      const stage = trace.stages.find(s => s.id === data.stageId); if (!stage) throw new Error('stage_missing');
+      const stage = trace.stages.find(s => s.id === data.stageId); if (!stage) throw rejected('这个stageId不存在；先read_thoughtmap不带参数列出阶段');
       return { json: JSON.stringify({ version: trace.version, stage, conversation: trace.nodes.filter(n => n.sequence !== undefined && n.sequence >= (stage.stage.fromSequence ?? Infinity) && n.sequence <= (stage.stage.toSequence ?? -1)) }) };
     },
   }));
@@ -189,11 +189,11 @@ export function registerThoughtTool(host: Context): void {
       return { json: JSON.stringify({ version: trace.version, activeFrameId: trace.activeFrameId, frames: trace.frames.map(frame => ({ id: frame.id, title: frame.title, goal: frame.goal, summary: frame.summary, status: frame.status, mode: frame.mode })) }) };
     },
   }));
-  host.effect(() => host.tools.register({ name: 'summarize_stage', description: '只压缩一个已沉淀笔记阶段的思维图小结。先read_thoughtmap读取阶段和原文，再带回stageId/basis/version；总结问题、推进与未解决点，不将讨论或保存推断成掌握。沿同一阶段更新，保留学生编辑；不创建卡、不记复习、不结束课堂。', parameters: toolSchema(summaryInput), output: jsonOutput,
+  host.effect(() => host.tools.register({ name: 'summarize_stage', description: '只压缩一个已沉淀笔记阶段的思维图小结。先read_thoughtmap读取阶段和原文，把它返回的version原值填进expectedVersion，再带回stageId/basis；总结问题、推进与未解决点，不将讨论或保存推断成掌握。沿同一阶段更新，保留学生编辑；不创建卡、不记复习、不结束课堂。', parameters: toolSchema(summaryInput), output: jsonOutput,
     async execute(args, execution) {
       const context = await teacherContext(host, execution), data = summaryInput.parse(args), trace = await host.studyforgeTrace.read({ sessionId: context.sessionId! });
       const stage = trace.stages.find(s => s.id === data.stageId);
-      if (!stage || stage.stage.pending || stage.stage.basis !== data.basis || trace.version !== data.expectedVersion) throw new Error('stage_changed_read_again');
+      if (!stage || stage.stage.pending || stage.stage.basis !== data.basis || trace.version !== data.expectedVersion) throw rejected('阶段或思维图在你读取后已有变化：重新read_thoughtmap取得最新basis和version再提交');
       const saved = host.studyforgeThoughts.list(context).find(row => row.data.sessionId === context.sessionId);
       const graph: ThoughtGraph = structuredClone(saved?.data ?? emptyGraph(context.sessionId!));
       const node = ThoughtNodeSchema.strip().parse({ ...stage, title: data.title, body: data.summary, stageBasis: data.basis });

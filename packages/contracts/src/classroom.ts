@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const Key = z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/);
+export const Key = z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/);
 export const ClassroomAvatarRefSchema = z.string().regex(/^avatar:[a-f0-9]{64}$/);
 export interface ClassroomAvatarImage { ref: string; mediaType: 'image/webp'; base64: string }
 export function classmateMention(name: string, classroom: string): string { return '@' + name + '（' + classroom + '）'; }
@@ -15,11 +15,24 @@ export interface ClassroomModelRoute {
   provider: string; providerName: string; model: string; modelName: string;
   reasoningEfforts: { id: string; name: string }[];
 }
+/** Situational role-play setting only: who this classmate is to someone in the
+ * room. Not learning evidence and never read from or written into student memory. */
+export const ClassmateRelationSchema = z.object({
+  target: Key.describe('另一位同学的id，或 student（学生）/teacher（老师）。'),
+  label: z.string().trim().min(1).max(40).describe('关系称呼，如 同桌、青梅竹马、竞争对手。'),
+  intimacy: z.number().int().min(0).max(100).optional().describe('亲密度0-100的情景设定；只是角色背景，不评价学习。'),
+  note: z.string().trim().max(600).default('').describe('这段关系的情景细节与相处方式。'),
+}).strict();
+export type ClassmateRelation = z.infer<typeof ClassmateRelationSchema>;
 export const ClassmateSchema = z.object({
   id: Key, name: z.string().trim().min(1).max(32), purpose: z.string().trim().min(1).max(160),
   instructions: z.string().trim().min(1).max(4000), enabled: z.boolean(),
+  personality: z.string().trim().max(200).optional().describe('性格标签，如 安静谨慎、爱开玩笑；只是扮演背景。'),
+  greeting: z.string().trim().max(600).optional().describe('首次公开发言时的开场白与语气样板；不代替任务内容。'),
+  talkativeness: z.number().int().min(0).max(100).optional().describe('发言倾向0-100，只作老师安排参与的参考，不自动发言。'),
   route: ClassmateRouteSchema.optional().describe('这位同学的默认路由；省略表示跟随老师。'),
   avatar: ClassroomAvatarRefSchema.optional().describe('通过本地头像上传得到的引用；改写角色时保留，不自行编造或写图片数据。'),
+  relations: z.array(ClassmateRelationSchema).max(12).optional().describe('这位同学对教室里其他人的情景关系；不记学习事实。'),
 }).strict();
 export type Classmate = z.infer<typeof ClassmateSchema>;
 export const ClassroomTriggerSchema = z.discriminatedUnion('kind', [
@@ -43,11 +56,19 @@ export type ClassroomRule = z.infer<typeof ClassroomRuleSchema>;
 export const ClassroomDefinitionSchema = z.object({
   title: z.string().trim().min(1).max(100), roles: z.array(ClassmateSchema).max(8),
   rules: z.array(ClassroomRuleSchema).max(24), carrySummary: z.boolean(),
+  scenario: z.string().trim().max(2000).optional().describe('教室的情景前提与舞台背景；纯扮演设定。'),
+  studentPersona: z.string().trim().max(800).optional().describe('学生在这个情景里扮演的身份；只是设定，不记学习事实。'),
 }).strict().superRefine((value, ctx) => {
   for (const key of ['roles', 'rules'] as const) if (new Set(value[key].map(item => item.id)).size !== value[key].length) {
     ctx.addIssue({ code: 'custom', path: [key], message: 'classroom_duplicate_id' });
   }
   if (new Set(value.roles.map(item => item.name)).size !== value.roles.length) ctx.addIssue({ code: 'custom', path: ['roles'], message: 'classroom_duplicate_name' });
+  const ids = new Set(value.roles.map(item => item.id));
+  value.roles.forEach((role, index) => role.relations?.forEach((relation, rIndex) => {
+    if (relation.target === role.id || (relation.target !== 'student' && relation.target !== 'teacher' && !ids.has(relation.target))) {
+      ctx.addIssue({ code: 'custom', path: ['roles', index, 'relations', rIndex, 'target'], message: 'classroom_relation_target' });
+    }
+  }));
   value.rules.forEach((rule, index) => {
     const action = rule.action;
     if (action.kind === 'classmate' && !value.roles.some(role => role.id === action.roleId)) {
@@ -91,6 +112,9 @@ export const ClassroomSessionRecordSchema = z.object({
   sessionId: z.string(), id: z.string(), sinceSequence: z.number().int(), suspended: z.boolean(),
   skipThroughSequence: z.number().int().optional(),
   pausedInput: z.string().optional(),
+  /** Runtime scene state: per-lesson intimacy overrides keyed `${roleId}:${target}`.
+   * Situational role-play state only; shadows the document's authored defaults. */
+  intimacy: z.record(z.string(), z.number().int().min(0).max(100)).optional(),
 }).strict();
 export const ClassroomCueRecordSchema = z.object({
   sessionId: z.string(), id: z.string(), trigger: z.enum(['round', 'stage']), key: z.string(),
@@ -101,4 +125,6 @@ export interface ClassroomChoice { id: string; title: string; enabled: boolean; 
 export interface ClassroomRuntimeView {
   tasks: ClassroomTaskView[]; completedRounds: number; suspended: boolean;
   activeEntries: { title: string; kind: 'background' | 'instruction'; scope: 'turn' | 'stage' | 'lesson' }[];
+  /** Effective situational intimacy for this lesson: session override or authored default. */
+  intimacy: { roleId: string; role: string; target: string; targetName: string; value: number; runtime: boolean }[];
 }

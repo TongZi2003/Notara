@@ -40,6 +40,7 @@ import type { CardContent } from '@studyforge/contracts/cards';
 import { toolSchema } from '../tools/tool-schema.ts';
 import { teacherContext } from '../tools/learning-context.ts';
 import { entityReferenceContent } from '../tools/entity-reference-output.ts';
+import { teachingText } from './teaching-overrides.ts';
 
 /** The four built-in helper roles a lesson can delegate one task to. */
 export const DelegationRoleSchema = z.enum(['search', 'problem', 'assistant', 'peer']);
@@ -83,7 +84,7 @@ interface RoleSpec {
  * `note_method`, `propose_*`), an arbitrary filesystem tool (`read`, `write`,
  * `edit`, `glob`, `grep`, `read_image`) or the delegation tools themselves.
  */
-const ROLES: Record<DelegationRole, RoleSpec> = {
+export const ROLES: Record<DelegationRole, RoleSpec> = {
   search: {
     title: '检索帮手',
     description: '把一次检索交给独立帮手：它看不到本课对话与学生学情，只拿到这一条检索任务，可读本人资料与外部来源。返回它的原话与线索；结果只是线索，是否采信由你判断，它不写任何学习事实。',
@@ -310,7 +311,7 @@ export class TeachingDelegation {
     }
     const filter: ToolRestriction = { allow: [...surface] };
     const prompt: SubagentStartRequest['prompt'] = [{ type: 'text', text: task }];
-    const persona = this.briefs.persona[role];
+    const persona = teachingText(this.host, 'assistant/' + role, this.briefs.persona[role]);
     if (background) {
       const started = await this.host.subagents.startContinuable({
         provider: this.provider, label: ROLES[role].title,
@@ -349,7 +350,7 @@ export class TeachingDelegation {
     const run = await this.host.subagents.start(this.provider, {
       label: ROLES.problem.title,
       prompt: [{ type: 'text', text: problemTask(parsed) }],
-      parent: input.parent, signal: input.signal, persona: this.briefs.persona.problem,
+      parent: input.parent, signal: input.signal, persona: teachingText(this.host, 'assistant/problem', this.briefs.persona.problem),
       toolFilter: filter, outputSchema: PROBLEM_OUTPUT_SCHEMA,
     });
     const childId = String(run.id);
@@ -457,7 +458,7 @@ export function registerDelegationTools(host: Context, options: DelegationToolOp
     run: (args: z.output<I>, execution: ToolRunContext) => Promise<unknown>,
   ): void => {
     host.effect(() => host.tools.register({
-      name, description: description + ' 专门的检索/命题/助教/同伴任务选对应delegate_*，它们也复用原生子会话；通用独立任务才用subagent。后台任务沿返回的真实childId用send_message/interrupt_agent管理，不重复另开。', parameters: toolSchema(input),
+      name, description: description + ' 专门的检索/命题/助教/同伴任务选delegate的对应method，它们也复用原生子会话；通用独立任务才用subagent。后台任务沿返回的真实childId用send_message/interrupt_agent管理，不重复另开。', parameters: toolSchema(input),
       output: { schema: toolSchema(output), render: (_args: unknown, value: unknown) => [{ type: 'text' as const, text: JSON.stringify(output.parse(value)) }, ...entityReferenceContent(value)] },
       async execute(args: unknown, execution: ToolRunContext) { return run(input.parse(args), execution); },
     }));

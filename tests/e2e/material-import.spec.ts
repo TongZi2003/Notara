@@ -6,7 +6,7 @@
 import { writeFile } from 'node:fs/promises';
 import { test as base, expect } from '@playwright/test';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
-import { enterClassroom } from './fixtures/classroom.ts';
+import { enterClassroom, openMaterial } from './fixtures/classroom.ts';
 
 const test = base.extend<{ runtime: IsolatedRuntime }>({
   runtime: async ({}, use, testInfo) => {
@@ -33,10 +33,10 @@ test('an imported original is read directly and never opens a lesson', async ({ 
   await page.getByTestId('material-file-input').setInputFiles(file);
   const row = page.getByTestId('material-row').filter({ hasText: '三角函数笔记' });
   await expect(row).toBeVisible();
-  await expect(row).toContainText('Markdown');
+  await expect(row).toContainText('原文');
   await expect(page.getByTestId('materials-notice')).toContainText('收好了');
   // The shelf is the library; the reader is a page of its own once opened.
-  await row.getByRole('button').first().click();
+  await openMaterial(page, '三角函数笔记');
   // The reader holds the Host's bytes and renders them as real Markdown.
   const reader = page.getByTestId('material-markdown');
   await expect(reader.getByRole('heading', { name: '三角函数笔记' })).toBeVisible();
@@ -68,20 +68,21 @@ test('a new version is explicit, keeps the old bytes readable, and a refresh kee
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   const first = testInfo.outputPath('三角函数笔记.md');
-  const second = testInfo.outputPath('三角函数笔记-第二版.md');
   await writeFile(first, ORIGINAL, 'utf8');
-  await writeFile(second, SECOND, 'utf8');
 
   await enterClassroom(page, runtime.authUrl);
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await page.getByTestId('material-file-input').setInputFiles(first);
   const row = page.getByTestId('material-row').filter({ hasText: '三角函数笔记' });
-  await expect(row).toContainText('Markdown');
+  await expect(row).toBeVisible();
 
-  await row.getByTestId('material-new-version-input').setInputFiles(second);
-  await expect(row).toContainText('2 个版本');
-  await expect(page.getByTestId('materials-notice')).toContainText('第 2 版');
-  await row.getByRole('button').first().click();
+  // A new version is an explicit edit of the original, saved from the reader.
+  await openMaterial(page, '三角函数笔记');
+  await page.getByRole('button', { name: '编辑 Markdown', exact: true }).click();
+  await page.getByTestId('classroom-markdown-draft').fill(SECOND);
+  await page.getByTestId('material-save-version').click();
+  await expect(page.getByTestId('materials-notice')).toContainText('已保存新版本');
+  await expect(page.getByTestId('material-version-select').locator('option')).toHaveCount(2);
   await expect(page.getByTestId('material-markdown')).toContainText('第二版补上了差角公式');
 
   // The first version's own bytes are still there, under its own version.
@@ -99,8 +100,8 @@ test('a new version is explicit, keeps the old bytes readable, and a refresh kee
   await expect(page.getByTestId('material-version-select').locator('option')).toHaveCount(2);
   await page.getByTestId('materials-back').click();
   const afterReload = page.getByTestId('material-row').filter({ hasText: '三角函数笔记' });
-  await expect(afterReload).toContainText('2 个版本');
-  await afterReload.getByRole('button').first().click();
+  await expect(afterReload).toBeVisible();
+  await openMaterial(page, '三角函数笔记');
   await expect(page.getByTestId('material-version-select')).toBeVisible();
   await page.getByTestId('material-version-select').selectOption({ index: 0 });
   await expect(page.getByTestId('material-markdown')).toContainText('正弦与余弦的和角公式');

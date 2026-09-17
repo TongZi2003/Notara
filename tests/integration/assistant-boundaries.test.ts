@@ -52,7 +52,7 @@ const STORY = '# 三角恒等变换\n\n平方关系\n商数关系\n';
 /** Stub tools standing in for the preset surface a lesson really composes. */
 const ALLOWED_STUBS = ['list_materials', 'read_material', 'preview_region', 'read_skeleton', 'read_method', 'search_learning', 'web_search', 'web_fetch', 'list_sets', 'read_set', 'send_message'] as const;
 /** Tools no helper may keep: student state, E, writers, arbitrary fs, another lesson's tools. */
-const FORBIDDEN_STUBS = ['list_cards', 'read_cards', 'query_evidence', 'read_memory', 'record_review', 'propose_review', 'update_card', 'register_cards', 'propose_card', 'note_method', 'revise_method', 'write', 'edit', 'read', 'glob', 'grep', 'read_image', 'bash', 'subagent', 'propose_route'] as const;
+const FORBIDDEN_STUBS = ['list_cards', 'read_cards', 'query_evidence', 'read_memory', 'record_review', 'propose_review', 'update_card', 'register_cards', 'propose_card', 'note_method', 'revise_method', 'write', 'edit', 'read', 'glob', 'grep', 'read_image', 'bash', 'subagent', 'propose_route', 'read_workbench_activity'] as const;
 
 const harnesses: NativeAgentHarness[] = [];
 const cleanups: (() => Promise<void>)[] = [];

@@ -1,4 +1,4 @@
-import { test, expect, enterClassroom, sendInput } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, sendInput, openLessonMaterials } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { SessionListValue } from '@deepseek-ai/dsh-api-session-controller';
@@ -53,7 +53,7 @@ test('chapter task stays in this lesson; proposals attach to its frozen chapter 
   // Node requests use the same native queue and Steer controls as typed prompts.
   await sendInput(page, '[slow]' + '先保持当前回复。'.repeat(60));
   await expect.poll(async () => (await sessions()).find(s => s.sessionId === sessionId)?.running).toBe(true);
-  await page.getByTestId('open-lesson').click();
+  await openLessonMaterials(page);
   await page.getByTestId('lesson-materials-refresh').click();
   const map = page.getByTestId('lesson-materials-map');
   await map.locator('[data-kind="book"]').getByTestId('mindmap-expand').click();
@@ -76,9 +76,12 @@ test('chapter task stays in this lesson; proposals attach to its frozen chapter 
   expect(value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId } })).data.teachingRef).toBe(before.data.teachingRef);
   const taskRequest = (await requests()).find(r => textOf(r).includes('本次节点操作：拆成题卡'))!;
   expect(taskRequest.sessionId).toBe(sessionId);
-  expect(taskRequest.toolNames).toContain('subagent');
+  // Progressive disclosure: the request tools stay at the core set while
+  // delegation lives in the deferred catalogue the task instructions cite.
+  expect(taskRequest.toolNames).toContain('load_tools');
   expect(textOf(taskRequest)).toContain('本节已有卡');
   const instructions = taskRequest.messages.findLast(m => m.role === 'system')!.content.flatMap(b => b.type === 'text' ? [b.text] : []).join('\n');
+  expect(textOf(taskRequest)).toContain('subagent');
   expect(instructions).toContain('# 资料整理');
   expect(instructions).not.toContain('# 苏格拉底授课');
   const taskFragment = taskRequest.messages.flatMap(m => m.role === 'user' ? m.content.flatMap(b => b.type === 'text' ? decodeSourceFragments(b.text).fragments : []) : []).find(f => f.bookTask);
@@ -116,7 +119,7 @@ test('chapter task stays in this lesson; proposals attach to its frozen chapter 
   expect((await requests()).length).toBe(count);
   await enterClassroom(page, classroom.authUrl);
   await page.getByTestId('notebook-sidebar').getByRole('button', { name: /一次函数学习/ }).click();
-  await page.getByTestId('open-lesson').click();
+  await openLessonMaterials(page);
   await expect(map.locator('[data-kind="book"]').first()).toBeVisible();
   await map.locator('[data-kind="book"]').first().getByTestId('mindmap-expand').click();
   await section.getByTestId('mindmap-expand').click();

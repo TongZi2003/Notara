@@ -42,6 +42,8 @@ export const MATERIAL_KIND = 'material';
 export type ImportMaterialRequest = ImportMaterialInput & { readonly bytes: Uint8Array; readonly sources?: readonly MaterialContext[] };
 export type NewMaterialVersionRequest = NewMaterialVersionInput & { readonly bytes: Uint8Array; readonly sources?: readonly MaterialContext[] };
 
+export { mediaTypeForFileName } from './import-validation.ts';
+
 export class MaterialService {
   private readonly records: MaterialRecordStore;
   private readonly store: VersionStore;

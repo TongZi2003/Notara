@@ -9,9 +9,9 @@ import type { RecordStore } from '@studyforge/domain/storage';
 import { WorldbookDocumentSchema, type WorldbookDocument, type WorldbookView } from '@studyforge/contracts/plugins';
 import { ClassmateTaskInputSchema, type ClassmateTaskInput, type ClassroomTaskRecordSchema, type ClassroomTaskRecord,
   type ClassroomSessionRecordSchema, type ClassroomCueRecordSchema, type ClassroomChoice, type ClassroomTaskView,
-  type ClassroomRuntimeView, type ClassmateRoute } from '@studyforge/contracts/classroom';
+  type ClassroomRuntimeView, type ClassmateRoute, type Classmate, type ClassmateRelation } from '@studyforge/contracts/classroom';
 import { automaticRule, classroomEvents, classroomRounds, mentionedClassmates } from './classroom-policy.ts';
-import { worldbookInput } from './worldbook-context.ts';
+import { worldbookInput, recentUserTexts } from './worldbook-context.ts';
 import { selectWorldbookEntries } from './worldbook-selection.ts';
 import { packageId } from './plugin-manager.ts';
 import { settledNotes, projectStages } from '../thought-stages.ts';
@@ -19,6 +19,22 @@ import type { ThoughtNode } from '@studyforge/contracts/classroom-trace';
 
 export const CLASSROOM_SPEAKER = 'notara-classroom-speaker';
 const keyOf = (text: string): string => createHash('sha256').update(text).digest('hex');
+const nameOf = (roles: readonly Classmate[], target: string): string =>
+  target === 'student' ? '学生' : target === 'teacher' ? '老师' : roles.find(role => role.id === target)?.name ?? target;
+type IntimacyOf = (roleId: string, target: string) => number | undefined;
+const relLine = (rel: ClassmateRelation, who: string, intimacy?: number): string => {
+  const value = intimacy ?? rel.intimacy;
+  return `- ${who}：${rel.label}${value !== undefined ? `（亲密度 ${value}）` : ''}${rel.note ? '——' + rel.note : ''}`;
+};
+/** Both directions: what this role feels toward others and what others declared toward it. */
+export function relationText(roles: readonly Classmate[], self: Classmate, intimacyOf?: IntimacyOf): string {
+  const lines = [
+    ...(self.relations ?? []).map(rel => relLine(rel, '对' + nameOf(roles, rel.target), intimacyOf?.(self.id, rel.target))),
+    ...roles.filter(role => role.id !== self.id)
+      .flatMap(role => (role.relations ?? []).filter(rel => rel.target === self.id).map(rel => relLine(rel, role.name + ' 对你', intimacyOf?.(role.id, self.id)))),
+  ];
+  return lines.length ? '情景关系（仅是角色背景设定，不涉及学习评价）：\n' + lines.join('\n') : '';
+}
 type TaskRow = { ref: string; version: number; data: ClassroomTaskRecord };
 function routeOptions(route: ClassmateRoute | undefined): AgentOptions | undefined {
   if (!route) return undefined;
@@ -45,7 +61,19 @@ export class ClassroomRuntime {
       if (!task) return result;
       // Cover own-scope tools and PTC transport as well as inherited tools.
       // Replace composition context, not merely the user prompt supplied to spawn.
-      const persona = `你是课堂同学“${task.data.role.name}”。\n${task.data.role.instructions}\n你只根据老师交付的本次任务与材料独立生成回复。没有工具、资料库、学情或父会话访问，不委派、不操作文件、不写学习事实。缺少材料时说明缺口，由老师补充。只扮演自己。${task.data.destination === 'teacher' ? '这是给老师的内部备课，按任务返回草稿。' : '这是面向学生的公开发言，不泄露未提供或未公开的答案。'}`;
+      let roles = [task.data.role], document: WorldbookDocument | undefined;
+      try { document = (await this.definition(task.data.sessionId, task.data.id)).document; roles = document.classroom?.roles ?? roles; } catch { /* Document gone mid-task: snapshot still carries this role. */ }
+      const role = task.data.role, intimacyOf = this.intimacyOf(task.data.sessionId, task.data.id, roles);
+      const situation = [
+        role.personality ? `性格：${role.personality}` : '',
+        document?.classroom?.scenario ? `情景：${document.classroom.scenario}` : '',
+        document?.classroom?.studentPersona ? `学生的身份：${document.classroom.studentPersona}` : '',
+        relationText(roles, role, intimacyOf),
+        ...(document?.entries ?? []).filter(entry => entry.enabled && entry.role === role.id && entry.roleVisible)
+          .map(entry => `设定「${entry.title}」：${entry.content}`),
+        role.greeting ? `开场白（首次公开发言时使用或体现其语气）：${role.greeting}` : '',
+      ].filter(Boolean).join('\n');
+      const persona = `你是课堂同学“${role.name}”。\n${role.instructions}\n${situation ? situation + '\n' : ''}你只根据老师交付的本次任务与材料独立生成回复。没有工具、资料库、学情或父会话访问，不委派、不操作文件、不写学习事实。缺少材料时说明缺口，由老师补充。只扮演自己。${task.data.destination === 'teacher' ? '这是给老师的内部备课，按任务返回草稿。' : '这是面向学生的公开发言，不泄露未提供或未公开的答案。'}`;
       return { ...result, sections: [{ name: 'notara:classmate', text: '{{classmate_persona}}' }], contexts: [], tools: [], variables: { classmate_persona: persona } };
     });
     host.effect(() => host.tools.guard(execution => this.childTask(execution.agent?.session.id) ? '课堂同学只能根据老师给定材料回复；工具操作请交回老师。' : undefined));
@@ -97,6 +125,18 @@ export class ClassroomRuntime {
   async writeContext(context: MutationContext, id: string, expectedVersion: number, entries: WorldbookDocument['entries']): Promise<WorldbookView> {
     const current = await this.definition(context.sessionId!, id, true);
     const document = WorldbookDocumentSchema.parse({ ...current.document, entries }), data = { id, document }, key = packageId(id);
+    if (expectedVersion === 0) await this.host.studyforgeWorkbenchData.books.create({ ...context, expectedVersion }, key, data);
+    else await this.host.studyforgeWorkbenchData.books.update({ ...context, expectedVersion }, 'worldbook:' + key, data, () => data);
+    return this.definition(context.sessionId!, id);
+  }
+  /** Student-confirmed role creation: the only writer that appends to
+   * `classroom.roles` outside the student's own bench edit. The baseline CAS is
+   * the same one worldbook edits use, so a concurrent student edit is refused. */
+  async addRole(context: MutationContext, id: string, expectedVersion: number, role: Classmate): Promise<WorldbookView> {
+    const current = await this.definition(context.sessionId!, id, true);
+    if (current.document.classroom.roles.some(item => item.id === role.id || item.name === role.name)) throw new Error('classroom_role_exists');
+    const classroom = { ...current.document.classroom, roles: [...current.document.classroom.roles, role] };
+    const document = WorldbookDocumentSchema.parse({ ...current.document, classroom }), data = { id, document }, key = packageId(id);
     if (expectedVersion === 0) await this.host.studyforgeWorkbenchData.books.create({ ...context, expectedVersion }, key, data);
     else await this.host.studyforgeWorkbenchData.books.update({ ...context, expectedVersion }, 'worldbook:' + key, data, () => data);
     return this.definition(context.sessionId!, id);
@@ -215,8 +255,14 @@ export class ClassroomRuntime {
     // Retry only missing projections; ordinary reads do not rescan completed publications.
     if (unpublished.length) void this.enqueue(async () => { for (const row of unpublished) await this.publish(row).catch(() => {}); }).catch(() => {});
     const activeEntries = (await this.selection(sessionId, id, events)).entries.map(entry => ({ title: entry.title, kind: entry.kind ?? 'background' as const, scope: entry.scope ?? 'turn' as const }));
+    const docRoles = (await this.definition(sessionId, id)).document.classroom.roles, overrides = setting?.data.intimacy ?? {};
+    const pairs = new Set([...Object.keys(overrides),
+      ...docRoles.flatMap(role => (role.relations ?? []).filter(rel => rel.intimacy !== undefined).map(rel => role.id + ':' + rel.target))]);
+    const intimacy = [...pairs].map(key => { const [roleId = '', target = ''] = key.split(':');
+      return { roleId, role: nameOf(docRoles, roleId), target, targetName: nameOf(docRoles, target),
+        value: overrides[key] ?? docRoles.find(role => role.id === roleId)?.relations?.find(rel => rel.target === target)?.intimacy ?? 0, runtime: key in overrides }; });
     return { tasks: projected, completedRounds: classroomRounds(events, setting?.data.sinceSequence ?? events.at(-1)?.seq).length,
-      suspended: setting?.data.suspended ?? false, activeEntries };
+      suspended: setting?.data.suspended ?? false, activeEntries, intimacy };
   }
   stopTask(context: HostContext, ref: string): Promise<void> { return this.enqueue(() => this.cancelTask(context, ref)); }
   private async cancelTask(context: HostContext, ref: string): Promise<void> {
@@ -246,6 +292,23 @@ export class ClassroomRuntime {
     for (const row of this.tasks.list(this.context())) await this.settle(row.data.childId).catch(() => {});
     for (const row of this.cues.list(this.context()).filter(row => row.data.state === 'pending')) await this.deliverCue(row.ref).catch(() => {});
   }
+  /** Effective intimacy: per-lesson session override first, authored document default otherwise. */
+  private intimacyOf(sessionId: string, id: string, roles: readonly Classmate[]): IntimacyOf {
+    const over = this.sessions.list(this.context(sessionId)).find(row => row.data.sessionId === sessionId && row.data.id === id)?.data.intimacy ?? {};
+    return (roleId, target) => over[roleId + ':' + target]
+      ?? roles.find(role => role.id === roleId)?.relations?.find(rel => rel.target === target)?.intimacy;
+  }
+  async adjustIntimacy(context: MutationContext, input: { id: string; roleId: string; target: string; value: number }): Promise<ClassroomRuntimeView> {
+    return this.enqueue(async () => {
+      const view = await this.definition(context.sessionId!, input.id, true), roles = view.document.classroom.roles;
+      if (!roles.some(role => role.id === input.roleId)) throw new Error('classroom_role_unavailable');
+      if (input.target !== 'student' && input.target !== 'teacher' && !roles.some(role => role.id === input.target)) throw new Error('classroom_relation_target');
+      const setting = await this.ensureSession(context.sessionId!, input.id);
+      await this.sessions.update({ ...this.context(context.sessionId!), actor: 'teacher', expectedVersion: setting.version, operationId: context.operationId },
+        setting.ref, {}, data => ({ ...data, intimacy: { ...(data.intimacy ?? {}), [input.roleId + ':' + input.target]: input.value } }));
+      return this.view(context.sessionId!, input.id, true);
+    });
+  }
   private async selection(sessionId: string, id: string, events: readonly SessionEvent[]) {
     const view = await this.definition(sessionId, id); if (!view.enabled) return selectWorldbookEntries([], '');
     const own = classroomEvents(events), current = worldbookInput(own), latest = own.findLast(e => e.type === 'user/message' && e.data.source.kind === 'user');
@@ -253,8 +316,14 @@ export class ClassroomRuntime {
     const stageSequence = Math.max(-1, ...this.stages(sessionId, events).filter(stage => !stage.stage.pending).map(stage => stage.stage.toSequence ?? -1));
     const setting = this.sessions.list(this.context(sessionId)).find(row => row.data.sessionId === sessionId && row.data.id === id);
     const texts = (after: number): string => own.filter(e => e.seq > after && e.type === 'user/message' && e.data.source.kind === 'user').flatMap(e => e.type === 'user/message' ? e.data.content.flatMap(b => b.type === 'text' ? [b.text] : []) : []).join('\n');
-    return selectWorldbookEntries([{ title: view.document.classroom.title, entries: view.document.entries }], query,
-      { stage: texts(Math.max(stageSequence, setting?.data.sinceSequence ?? -1)), lesson: texts(setting?.data.sinceSequence ?? -1) });
+    const turn = own.findLast(e => e.type === 'turn/start')?.data.turn ?? -1, scan = recentUserTexts(own), classroom = view.document.classroom;
+    const activeRoles = new Set([
+      ...this.tasks.list(this.context(sessionId)).filter(row => row.data.sessionId === sessionId && row.data.id === id && row.data.parentTurn === turn && !row.data.canceled).map(row => row.data.role.id),
+      ...scan.flatMap(text => mentionedClassmates(text, classroom)),
+    ]);
+    return selectWorldbookEntries([{ title: classroom.title, entries: view.document.entries }], query,
+      { stage: texts(Math.max(stageSequence, setting?.data.sinceSequence ?? -1)), lesson: texts(setting?.data.sinceSequence ?? -1) },
+      { scan, activeRoles, intimacyOf: this.intimacyOf(sessionId, id, classroom.roles) });
   }
   /** Prompt assembly must not call UI readers that list sessions and estimate prompts again. */
   private stages(sessionId: string, events: readonly SessionEvent[]) {
@@ -284,7 +353,14 @@ export class ClassroomRuntime {
             .catch(error => { if ((error as { code?: string }).code !== 'version_conflict') throw error; });
         }
         const selection = await this.selection(agent.session.id, choice.id, events); if (selection.text) parts.push(selection.text);
-        parts.push('本课教室：' + JSON.stringify({ id: choice.id, title: choice.title, roles: choice.roles.filter(r => r.enabled).map(({ id, name, purpose }) => ({ id, name, purpose })), carrySummary: view.document.classroom.carrySummary,
+        const roles = view.document.classroom.roles, intimacyOf = this.intimacyOf(agent.session.id, choice.id, roles);
+        parts.push('本课教室：' + JSON.stringify({ id: choice.id, title: choice.title,
+          ...(view.document.classroom.scenario ? { scenario: view.document.classroom.scenario } : {}),
+          ...(view.document.classroom.studentPersona ? { studentPersona: view.document.classroom.studentPersona } : {}),
+          roles: choice.roles.filter(r => r.enabled).map(({ id, name, purpose, personality, talkativeness, relations }) => ({ id, name, purpose,
+            ...(personality ? { personality } : {}), ...(talkativeness !== undefined ? { talkativeness } : {}),
+            ...(relations?.length ? { relations: relations.map(rel => ({ to: nameOf(roles, rel.target), label: rel.label,
+              ...((intimacyOf(id, rel.target) ?? rel.intimacy) !== undefined ? { intimacy: intimacyOf(id, rel.target) ?? rel.intimacy } : {}), ...(rel.note ? { note: rel.note } : {}) })) } : {}) })), carrySummary: view.document.classroom.carrySummary,
           requestedRoles: input ? mentionedClassmates(input.text, view.document.classroom) : [] }));
       }
       if (parts.length) parts.push('教室同学一律通过ask_classmate派发，由你先读资料、选择任务材料。不要用通用subagent替代本课同学。含答案的备课destination=teacher，公开发言=conversation；公开回复由系统署名呈现，不再逐字重复或代写同学意见。收到subagent-settled是执行回执，不是学生原话；可用read_classroom查看真实状态。继续同任务用continue_classmate；换边界或跨课新建任务。普通消息照常教学，不必每轮邀请同学。');

@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import { z } from 'zod';
 import { PluginDocumentSchema, PluginLinkSchema, SeminarStartSchema, SeminarRoleSchema, type SeminarView, type SeminarRole, type PluginLink } from '@studyforge/contracts/plugin-learning';
+import { WorkbenchOpSchema, type WorkbenchOp } from '@studyforge/contracts/plugins';
 import { studentContext } from './learning-service.ts';
 import { MathProjectionSchema, MathComputeSchema,type MathResult } from '@studyforge/contracts/math-workbench';
 import { computeMath } from './plugins/math-compute.ts';
@@ -31,10 +32,10 @@ export class PluginLearningRemote extends TypertRemoteService {
     const row = await this.ctx.studyforgeLearningWorkbenches.read(context, data.id); return { revision: row.revision, json: JSON.stringify(row.document) };
   }
   @Remote('writeDocument')
-  async writeDocument(input: { sessionId: string; id: string; digest: string; expectedVersion: number; operationId: string; json: string }): Promise<{revision:number;json:string}> {
-    const data = Target.extend({ expectedVersion: z.number().int().nonnegative(), operationId: z.string().min(1).max(160), json: z.string().max(60000) }).parse(input);
+  async writeDocument(input: { sessionId: string; id: string; digest: string; expectedVersion: number; operationId: string; json: string; op?: WorkbenchOp }): Promise<{revision:number;json:string}> {
+    const data = Target.extend({ expectedVersion: z.number().int().nonnegative(), operationId: z.string().min(1).max(160), json: z.string().max(60000), op: WorkbenchOpSchema.optional() }).parse(input);
     const context = await studentContext(this.ctx, data.sessionId); await this.ctx.studyforgeLearningWorkbenches.authorize(data.sessionId, data.id, 'document', data.digest);
-    const row = await this.ctx.studyforgeLearningWorkbenches.write({ ...context, expectedVersion: data.expectedVersion, operationId: data.operationId }, data.id, PluginDocumentSchema.parse(JSON.parse(data.json)));
+    const row = await this.ctx.studyforgeLearningWorkbenches.write({ ...context, expectedVersion: data.expectedVersion, operationId: data.operationId }, data.id, PluginDocumentSchema.parse(JSON.parse(data.json)), data.op);
     return { revision: row.revision, json: JSON.stringify(row.document) };
   }
   @Remote('sources')

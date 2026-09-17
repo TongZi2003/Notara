@@ -10,6 +10,7 @@ import { sourceEvidenceObjects } from './runtime/context-envelope.ts';
 import type { OutputProjection } from '@studyforge/domain/outputs';
 import { validateLessonMaterials } from './materials/validate-lesson-materials.ts';
 import { learningPaths } from './teaching/guided-learning.ts';
+import { rejected } from './tools/learning-context.ts';
 import type { LearningPath } from '@studyforge/contracts/courses';
 import { studentContext } from './learning-service.ts';
 import { teachingBody } from './teaching/teaching-context.ts';
@@ -18,11 +19,11 @@ declare module '@deepseek-ai/cordis' { interface Context { studyforgeCourses: St
 export async function validateCoursePatch(host: Context, context: HostContext, patch: CoursePatch): Promise<void> {
   if (context.sessionId && patch.guided !== undefined) {
     const course = host.studyforgeCourseMetadata.read(context).data;
-    if (course.guided && course.closure && patch.guided === false) throw new Error('closed_diagnosis_context_fixed');
+    if (course.guided && course.closure && patch.guided === false) throw rejected('已确认收课的课程不能退出诊断上下文');
   }
   if (patch.learningGoal && context.sessionId) {
     const current = host.studyforgeCourseMetadata.read(context).data;
-    if (current.closure && JSON.stringify(current.learningGoal) !== JSON.stringify(patch.learningGoal)) throw new Error('learning_goal_fixed_after_diagnosis');
+    if (current.closure && JSON.stringify(current.learningGoal) !== JSON.stringify(patch.learningGoal)) throw rejected('诊断小结已确认后学习目标不能改；新目标另开一条学习路线');
   }
   if (patch.lessonMaterials) await validateLessonMaterials(host, context, patch.lessonMaterials);
   if (patch.teachingRef) teachingBody(host, patch.teachingRef);

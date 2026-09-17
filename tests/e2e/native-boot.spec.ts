@@ -30,8 +30,10 @@ test('native classroom survives refresh, HMR and Client lifecycle without a plac
   try {
     await page.goto(dsh.authUrl);
     await settle(page);
-    await expect(page.getByTestId('studyforge-page-studyforge.home')).toBeVisible();
-    await page.getByTestId('open-classroom').click();
+    // Boot lands on the classroom workspace; 首页 starts a fresh lesson rather
+    // than showing a static page, so the conversation stays in front.
+    await page.getByRole('button', { name: '首页', exact: true }).click();
+    await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
 
     // The native Conversation owns `main`/`conversation`; this client only adds seats.
     await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
@@ -49,7 +51,6 @@ test('native classroom survives refresh, HMR and Client lifecycle without a plac
     expect(await materials.innerText()).not.toMatch(/probe|sessionId|schema|\/Users\/|\.jsonl|studyforge\./);
     await page.screenshot({ path: testInfo.outputPath('student-page.png') });
     await page.getByRole('button', { name: '首页', exact: true }).click();
-    await page.getByTestId('open-classroom').click();
     await expect(page.locator('[data-conversation-scroll]')).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('native-classroom.png') });
 
@@ -79,7 +80,9 @@ test('native classroom survives refresh, HMR and Client lifecycle without a plac
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.keyboard.press('Escape');
     await dsh.setClientEnabled(false);
-    await expect.poll(async () => (await page.request.get(new URL(dsh.authUrl).origin)).text()).not.toContain('@studyforge/dsh-client');
+    // The patch reload tears down and rebuilds the plugin set; under load the
+    // web listener can refuse connections well past the default expect window.
+    await expect.poll(async () => (await page.request.get(new URL(dsh.authUrl).origin)).text(), { timeout: 60_000 }).not.toContain('@studyforge/dsh-client');
     await page.reload();
     await settle(page);
     await expect(page.locator('[data-studyforge-style="p2"]')).toHaveCount(0);
@@ -90,7 +93,7 @@ test('native classroom survives refresh, HMR and Client lifecycle without a plac
     await page.screenshot({ path: testInfo.outputPath('native-ui-restored.png') });
 
     await dsh.setClientEnabled(true);
-    await expect.poll(async () => (await page.request.get(new URL(dsh.authUrl).origin)).text()).toContain('@studyforge/dsh-client');
+    await expect.poll(async () => (await page.request.get(new URL(dsh.authUrl).origin)).text(), { timeout: 60_000 }).toContain('@studyforge/dsh-client');
     await page.reload();
     await settle(page);
     await expect(page.locator('[data-studyforge-style="p2"]')).toHaveCount(1);

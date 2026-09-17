@@ -2,10 +2,10 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { z } from 'zod';
 import { MemoryDraftSchema, MemoryViewSchema, MemorySearchInputSchema, MemorySearchResultSchema } from '@studyforge/contracts/memory';
-import { EvidenceQuery } from '@studyforge/domain/evidence';
+import { EvidenceQuery, type EvidenceCatalogue } from '@studyforge/domain/evidence';
 import { observeEvidence } from '../evidence-query.ts';
 import { sourceEvidenceObjects } from '../runtime/context-envelope.ts';
-import { teacherContext, observedVersion } from './learning-context.ts';
+import { teacherContext, observedVersion, rejected } from './learning-context.ts';
 import { toolSchema } from './tool-schema.ts';
 
 export function registerMemoryTools(host: Context): void {
@@ -31,22 +31,36 @@ export function registerMemoryTools(host: Context): void {
     }));
     return { context, catalogue };
   }
+  /**
+   * Fill the draft's basis: supplied aliases pass through unchanged (earlier
+   * turns stay citable); omitted means the Host binds the most recent accepted
+   * student utterance — the record says "around here" and stores the real quote
+   * for later audit. No student evidence in this session is an honest failure.
+   */
+  function adoptedRefs(refs: string[] | undefined, catalogue: EvidenceCatalogue): string[] {
+    if (refs !== undefined) return refs;
+    const last = catalogue.entries.at(-1);
+    if (!last) {
+      throw rejected('本会话还没有可绑定的学生依据；要引用某条更早的学生原话，先query_evidence取别名再填evidenceRefs');
+    }
+    return [last.alias];
+  }
   host.effect(() => host.tools.register({
-    name: 'note_memory', description: '记学生：直接保存关于学生的一次真实观察（能力/习惯/偏好等），不用于知识内容。先query_evidence再选实际E引用，写清情境和不确定性；偏好须来自学生实际表达，知识归note_method。代码不因两次观察自动认证。',
+    name: 'note_memory', description: '记学生：保存关于学生的一次真实新观察（能力/习惯/偏好等），不用于知识内容。写之前先查重：对照上下文里的学情索引，或用search_memory省略query加kinds枚举同桶，read_memory精读疑似条目；同一对象的再次观察必须revise_memory并入旧档，只有确属不同维度才用本工具新建。依据默认自动绑定最近一条学生原话，evidenceRefs省略即可；要引用更早的依据才先query_evidence取别名再填。写清情境和不确定性；偏好须来自学生实际表达，知识归note_method。代码不因两次观察自动认证。',
     parameters: toolSchema(MemoryDraftSchema), output,
     async execute(args, execution) {
       const input = MemoryDraftSchema.parse(args), { context, catalogue } = await cut(execution);
-      return host.studyforgeMemoryService.note(context, input, catalogue);
+      return host.studyforgeMemoryService.note(context, { ...input, evidenceRefs: adoptedRefs(input.evidenceRefs, catalogue) }, catalogue);
     },
   }));
   const revise = MemoryDraftSchema.extend({ target: z.string().min(1) }).strict();
   host.effect(() => host.tools.register({
-    name: 'revise_memory', description: '更正同一学情target，保留先前措辞和依据。先read_memory，补读实际依据再提交；并发修改被拒时重读合并。',
+    name: 'revise_memory', description: '并入同一学情target的更正或又一次观察：同一能力/习惯/处境的新证据、措辞修正都走这里，旧措辞与依据留在history。先read_memory；依据默认自动绑定最近一条学生原话，要引用更早的依据才先query_evidence取别名填evidenceRefs。并发修改被拒时重读合并。不同维度的观察才用note_memory另建新档。',
     parameters: toolSchema(revise), output,
     async execute(args, execution) {
       const { target, ...draft } = revise.parse(args), { context, catalogue } = await cut(execution);
       const expectedVersion = await observedVersion(host, execution, target);
-      return host.studyforgeMemoryService.revise({ ...context, expectedVersion }, target, draft, catalogue);
+      return host.studyforgeMemoryService.revise({ ...context, expectedVersion }, target, { ...draft, evidenceRefs: adoptedRefs(draft.evidenceRefs, catalogue) }, catalogue);
     },
   }));
 }

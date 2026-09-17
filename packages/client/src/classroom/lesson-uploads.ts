@@ -29,17 +29,18 @@ class LessonUploads {
     for (const listener of this.listeners) listener();
   };
 }
-const uploadsByContext = new WeakMap<Context, Map<string, LessonUploads>>();
-function uploadsFor(ctx: Context, sessionId: string): LessonUploads {
-  let sessions = uploadsByContext.get(ctx);
-  if (!sessions) { sessions = new Map(); uploadsByContext.set(ctx, sessions); }
-  let queue = sessions.get(sessionId);
-  if (!queue) { queue = new LessonUploads(); sessions.set(sessionId, queue); }
+// The queue belongs to the lesson, not the mounted control: the composer seat
+// and the materials desk mount under different plugin contexts, so keying the
+// ledger by Context would split one lesson's attempts into silent halves.
+const uploadsBySession = new Map<string, LessonUploads>();
+function uploadsFor(sessionId: string): LessonUploads {
+  let queue = uploadsBySession.get(sessionId);
+  if (!queue) { queue = new LessonUploads(); uploadsBySession.set(sessionId, queue); }
   return queue;
 }
 
 export function useLessonUploads(ctx: Context, sessionId: string) {
-  const uploads = uploadsFor(ctx, sessionId);
+  const uploads = uploadsFor(sessionId);
   const snapshot = useSyncExternalStore(uploads.subscribe, uploads.read);
   const changed = uploads.publish;
   async function upload(row: UploadRow): Promise<void> {

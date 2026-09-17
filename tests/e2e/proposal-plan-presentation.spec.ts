@@ -1,4 +1,4 @@
-import { test, expect, enterClassroom, sendInput } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, sendInput, openAppearance, closeAppearance } from './fixtures/classroom.ts';
 import type { MaterialView } from '@studyforge/contracts/material-records';
 import type { PlanView } from '@studyforge/contracts/plans';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
@@ -12,6 +12,10 @@ test('plan confirmations show the actual dates and reading positions before savi
   const book = imported.value;
   const source = (line: number) => ({ materialId: book.materialId, versionId: book.currentVersion.versionId, locator: { kind: 'text', start: { line, column: 0 }, end: { line, column: 4 } } });
   await enterClassroom(page, classroom.authUrl);
+  // The dashed paper-slip border is a notebook-theme style; modern has none.
+  await openAppearance(page);
+  await page.getByTestId('theme-notebook').click();
+  await closeAppearance(page);
   await sendInput(page, '[tools]' + JSON.stringify([
     { name: 'propose_plan', arguments: { action: 'create', content: { kind: 'book', title: '两次阅读', materialId: book.materialId, entries: [
       { date: '2026-10-01', sources: [source(1)] }, { date: '2026-10-03', sources: [source(2)] },

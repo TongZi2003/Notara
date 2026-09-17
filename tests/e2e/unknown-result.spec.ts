@@ -38,7 +38,7 @@ function recordWrites(page: Page, endpoint: string): string[] {
 
 async function openCards(page: Page): Promise<void> {
   await openRoot(page, '资料');
-  await page.getByTestId('studyforge-page-studyforge.materials').getByRole('button', { name: '整理与复习', exact: true }).click();
+  await page.getByTestId('studyforge-page-studyforge.materials').getByTestId('materials-open-cards').click();
   await expect(page.getByTestId('studyforge-cards')).toBeVisible();
 }
 

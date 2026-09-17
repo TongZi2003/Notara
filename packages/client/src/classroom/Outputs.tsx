@@ -26,6 +26,7 @@ const KIND_LABELS: Record<OutputKind, string> = {
   diagram: '图示',
   set: '学习集', route: '课程安排', plan: '计划', skeleton: '目录',
   course: '本课设置',
+  teaching: '教法',
 };
 
 const STATUS_LABELS: Record<OutputEntry['status'], string> = {

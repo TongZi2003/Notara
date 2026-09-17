@@ -1,7 +1,8 @@
 import { join } from 'node:path';
-import { test, expect, enterClassroom, typeInput, openRoot, openAppearance, closeAppearance } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, typeInput, sendInput, openRoot, openAppearance, closeAppearance } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import type { CourseView } from '@studyforge/contracts/courses';
+import type { SessionListValue } from '@deepseek-ai/dsh-api-session-controller';
 
 test('learning modes stay inside the native composer and real recommendations hide only after acceptance', async ({ page, classroom }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
@@ -66,10 +67,33 @@ test('learning modes stay inside the native composer and real recommendations hi
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await expect(page.getByTestId('learning-entry')).toHaveCount(0); await expect(mode).toBeVisible();
   await openRoot(page, '首页');
-  await openAppearance(page); await page.getByTestId('notebook-tone').selectOption('white'); await closeAppearance(page);
+  await openAppearance(page); await page.getByTestId('theme-notebook').click(); await page.getByTestId('notebook-tone').selectOption('white'); await closeAppearance(page);
   await page.setViewportSize({ width: 500, height: 800 });
   await expect(mode).toBeVisible();
   await page.screenshot({ path: info.outputPath('home-modes-narrow.png'), fullPage: true });
   await expect.poll(() => page.locator('[data-composer-seat]').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('blank classroom offers a guided planning entry that stages the first message', async ({ page, classroom }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await enterClassroom(page, classroom.authUrl);
+  const input = page.locator('[data-composer-input]');
+  await page.getByRole('button', { name: '更多学习操作', exact: true }).click();
+  const plan = page.getByTestId('learning-entry-plan');
+  await expect(plan).toBeVisible();
+  await plan.click();
+  await expect(input).toContainText('我想规划一下自己的学习');
+  const client = await connectRuntime(classroom);
+  const listed = await client.rpc<SessionListValue>('session/list', { _request: {} });
+  if (!listed.ok) throw new Error('session list failed');
+  const session = listed.value.items.find(item => item.origin !== 'subagent');
+  if (!session) throw new Error('classroom session missing');
+  const course = await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId: session.sessionId } });
+  if (!course.ok) throw new Error('course read failed');
+  expect(course.value.data.guided).toBe(true);
+  expect(course.value.data.teachingRef).toBe('diagnose');
+  await sendInput(page, '我想规划一下自己的学习。');
+  await expect(page.getByTestId('learning-entry')).toHaveCount(0);
   expect(errors).toEqual([]);
 });

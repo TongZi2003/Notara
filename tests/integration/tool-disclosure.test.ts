@@ -15,6 +15,13 @@ async function requests(): Promise<Request[]> {
 }
 const system = (row: Request) => row.messages.filter(m => m.role === 'system').flatMap(m => m.content.flatMap(b => b.type === 'text' ? [b.text] : [])).join('\n');
 const calls = (rows: { name: string; arguments: unknown }[]) => '[tools]' + JSON.stringify(rows);
+const lastResult = (row: Request, name?: string) => {
+  const blocks = row.messages.flatMap(m => m.content);
+  if (!name) return blocks.filter(b => b.type === 'tool-result').at(-1);
+  const call = blocks.findLast(b => b.type === 'tool-call' && b.name === name);
+  if (call?.type !== 'tool-call') throw new Error(`missing ${name} call`);
+  return blocks.find(b => b.type === 'tool-result' && b.toolCallId === call.id);
+};
 async function fixture() {
   runtime = await startIsolated({ testModel: true });
   let client = await connectRuntime(runtime);
@@ -29,44 +36,49 @@ async function fixture() {
   return { create, send, restart: async () => { await runtime!.restart(); client = await connectRuntime(runtime!); } };
 }
 
-test('schemas load on the next actual request, survive restart and stay in their own lesson', async () => {
+const FACADES = ['find', 'open', 'note', 'update', 'record', 'propose', 'create', 'board', 'classroom', 'stage', 'delegate'];
+
+test('the classroom wire is constant: facades dispatch, direct names still work, and load_tools is a receipt', async () => {
   const f = await fixture(), lesson = await f.create();
   const initial = await f.send(lesson, '先讨论今天的问题');
-  expect(initial.toolNames).toHaveLength(8);
-  expect(initial.toolNames).toContain('load_tools');
-  expect(initial.toolNames).not.toContain('propose_route');
-  expect(system(initial)).toContain('propose_route —');
-  const expanded = await f.send(lesson, calls([
+  for (const name of [...FACADES, 'read', 'web_search', 'subagent', 'send_message', 'interrupt_agent']) expect(initial.toolNames).toContain(name);
+  for (const name of ['load_tools', 'read_route', 'propose_route', 'register_cards', 'write', 'run_code']) expect(initial.toolNames).not.toContain(name);
+  // The static method reference lists inner names so direct calls remain discoverable.
+  expect(system(initial)).toContain('read_route');
+  expect(system(initial)).toContain('propose_route');
+  const loaded = await f.send(lesson, calls([
     { name: 'load_tools', arguments: { names: ['read_route', 'propose_route'] } },
-    { name: 'read_route', arguments: {} },
+    { name: 'open', arguments: { method: 'route', input: {} } },
   ]));
-  const history = (await requests()).filter(row => row.sessionId === lesson);
-  expect(history[1]!.toolNames).not.toContain('propose_route');
-  expect(history[2]!.toolNames).toEqual(expect.arrayContaining(['read_route', 'propose_route']));
-  expect(expanded.toolNames).toHaveLength(10);
-  expect(system(expanded)).not.toContain('propose_route —');
-  const read = expanded.messages.flatMap(m => m.content).findLast(b => b.type === 'tool-call' && b.name === 'read_route');
-  expect(read?.type).toBe('tool-call');
-  if (read?.type !== 'tool-call') throw new Error('missing route read');
-  expect(expanded.messages.flatMap(m => m.content).find(b => b.type === 'tool-result' && b.toolCallId === read.id)).toMatchObject({ isError: false });
+  expect(loaded.toolNames).toEqual(initial.toolNames);
+  expect(lastResult(loaded, 'load_tools')).toMatchObject({ isError: false });
+  expect(lastResult(loaded, 'open')).toMatchObject({ isError: false });
+  // The registry stays authoritative: calling a wrapped tool by its exact name still executes.
+  const direct = await f.send(lesson, calls([{ name: 'read_route', arguments: {} }]));
+  expect(direct.toolNames).toEqual(initial.toolNames);
+  expect(lastResult(direct, 'read_route')).toMatchObject({ isError: false });
   await f.restart();
-  expect((await f.send(lesson, '继续刚才的安排')).toolNames).toEqual(expanded.toolNames);
+  expect((await f.send(lesson, '继续刚才的安排')).toolNames).toEqual(initial.toolNames);
   expect((await f.send(await f.create(), '这是一节新课')).toolNames).toEqual(initial.toolNames);
-  console.log(JSON.stringify({ initialTools: initial.toolNames.length, loadedTools: expanded.toolNames.length, initialSchemaBytes: initial.toolSchemaBytes, loadedSchemaBytes: expanded.toolSchemaBytes, restart: 'PASS', isolation: 'PASS' }));
-}, 60_000);
+  console.log(JSON.stringify({ tools: initial.toolNames.length, schemaBytes: initial.toolSchemaBytes, dispatch: 'PASS', direct: 'PASS', restart: 'PASS', isolation: 'PASS' }));
+}, 90_000);
 
-test('invalid or disallowed names load nothing; valid retries work and task controls remain visible', async () => {
+test('unknown facade methods and disallowed load_tools names fail without touching the wire', async () => {
   const f = await fixture(), lesson = await f.create();
-  const failed = await f.send(lesson, calls([{ name: 'load_tools', arguments: { names: ['read_plan', 'not_a_tool'] } }]));
-  expect(failed.toolNames).toHaveLength(8);
-  expect(failed.messages.flatMap(m => m.content).filter(b => b.type === 'tool-result').at(-1)).toMatchObject({ isError: true });
+  const initial = await f.send(lesson, '先看看有什么');
+  const unknown = await f.send(lesson, calls([{ name: 'propose', arguments: { method: 'nonsense', input: {} } }]));
+  expect(unknown.toolNames).toEqual(initial.toolNames);
+  expect(lastResult(unknown, 'propose')).toMatchObject({ isError: true });
+  // The register_cards gate resolves through the facade: a normal lesson cannot batch-register.
+  const gated = await f.send(lesson, calls([{ name: 'record', arguments: { method: 'cards', input: { cards: [] } } }]));
+  expect(lastResult(gated, 'record')).toMatchObject({ isError: true });
+  const missing = await f.send(lesson, calls([{ name: 'load_tools', arguments: { names: ['read_plan', 'not_a_tool'] } }]));
+  expect(missing.toolNames).toEqual(initial.toolNames);
+  expect(lastResult(missing, 'load_tools')).toMatchObject({ isError: true });
   const denied = await f.send(lesson, calls([{ name: 'load_tools', arguments: { names: ['write', 'register_cards'] } }]));
-  expect(denied.toolNames).toHaveLength(8);
-  expect(system(denied)).not.toContain('write —');
-  expect(system(denied)).not.toContain('register_cards —');
-  const loaded = await f.send(lesson, calls([{ name: 'load_tools', arguments: { names: ['read_plan', 'read_plan', 'delegate_search'] } }]));
-  expect(loaded.toolNames).toEqual(expect.arrayContaining(['read_plan', 'delegate_search', 'send_message', 'interrupt_agent']));
-  expect(new Set(loaded.toolNames).size).toBe(loaded.toolNames.length);
-  const replay = await f.send(lesson, calls([{ name: 'load_tools', arguments: { names: ['read_plan'] } }]));
-  expect(replay.toolNames).toEqual(loaded.toolNames);
-}, 60_000);
+  expect(denied.toolNames).toEqual(initial.toolNames);
+  expect(lastResult(denied, 'load_tools')).toMatchObject({ isError: true });
+  const ok = await f.send(lesson, calls([{ name: 'load_tools', arguments: { names: ['read_plan', 'delegate_search'] } }]));
+  expect(ok.toolNames).toEqual(initial.toolNames);
+  expect(lastResult(ok, 'load_tools')).toMatchObject({ isError: false });
+}, 90_000);

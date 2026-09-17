@@ -1,38 +1,28 @@
-# 主课堂工具的渐进披露
+# 主课堂工具的常驻门面
 
-当前实现采用“简短目录 → load_tools → 下一步原生调用”。不按教学Skill锁死能力，不解析学生话语中的关键词来切权限，也不把原有领域工具合成万能调用器。
+当前实现采用「常量 wire + method 门面」。请求里的 `tools` 数组在整课生命周期内不再变化，因此请求前缀对前缀缓存始终稳定；旧实现「目录 → load_tools → 下一步换 schema」会让每次加载重写可见工具集、作废前缀，已退役为兼容回执。
 
-## 默认与发现
+## 门面契约
 
-新课完整接口为8个：`load_tools`、`read_lesson`、`list_materials`、`read_material`、`search_learning`、`list_cards`、`read_card`、`query_evidence`。
+wire 上常驻 11 个门面工具加内建白名单（`read`/`read_image`/`glob`/`grep`/`web_search`/`web_fetch`/`skill`/`subagent`/`send_message`/`interrupt_agent`/`list_subagent_models`），合计 22 个左右，不随已装 board 或插件数量增长。
 
-其余工具在系统提示中按用途分组，目录只有名称与注册description的简短首句，不包含参数schema。分组只影响阅读，不用于授权。模型可一次加载接下来需要的读取和提案接口，例如：
+每个门面只声明 `{method, input}`：`method` 是 `oneOf` 各分支上的 `const` 判别字段，`input` 原样嵌套被包装工具自己的参数 schema——参数合同只有一份定义，门面不复制、不放宽。分发表 `TOOL_FACADES` 定义在 `packages/contracts/src/tool-facades.ts`，host 分发、历史扫描和前端标签共用这一份。
 
-```json
-{"names":["read_route","propose_route"]}
-```
+分发是透明的：`open({method:'material', input:{…}})` 在注册表内调用 `read_material` 的原 `execute`，`render`/`presentationMeta` 转发回内层定义，来源依据 meta、实体引用和图片块照常落地。被包装工具仍注册在案、按原名可直接调用——模型按目录里的旧名直呼也能执行（注册表与 guard 是权威），已恢复的旧会话和既有测试不受影响。
 
-这是`load_tools`的参数。调用不运行这两个工具，也不保存任何学习事实；成功回执之后，下一步模型请求才带入它们的真实schema。模型继续分别调用原生`read_route`和`propose_route`，参数校验、来源、逐对象版本、确认和保存仍由现有实现负责。
+## 守卫与历史
 
-## 本课生命周期
+- `installToolAccess` 的 pre-execute 绑定和 `tools/execute` 包装对 facade 调用照常生效；按名挂钩的 guard（helperForbidden、register_cards 诊断门、load_tools 主课堂限定）先经 `resolveFacadeTool` 解析出内层名再套用原判定。
+- `observedVersion` 扫描 `tool/call` 时同样把门面调用解析回内层名，「先读后改」的版本绑定不变；提案 origin 仍按 `native` + sessionId + callId，幂等不受门面影响。
+- 帮手（helper）会话的 wire 不含门面，原有按名白名单和禁再委派规则不变；帮手经门面绕道时按解析出的内层名命中同一禁令。
+- 创作会话与教室同学任务同样看不到门面。
 
-- 成功的原生`tool/result`携带加载名单metadata；读取时与本课实际`load_tools`调用配对。模型提供的加载参数、学生文本、失败结果、未配对metadata都不能激活名单。
-- 名单按并集合并，本课跨轮、确认回执、刷新和进程重启保持。原生事件日志保留，因此上下文压缩不丢名单；没有新增业务文件、数据库表或事实对象。
-- 已有课实际调用过的工具继续展示，方便修复和后续处理；不会根据旧版全量request/header直接恢复全部工具。
-- 新课从基础接口开始。读取只考虑当前session自己的事件，跳过fork继承前缀。
-- 加载通用subagent或后台检索时一并提供追问与停止工具；不按回合结束自动撤掉它们。
-- 本版采用整课保留，长课可能逐步加载到较大的集合，没有强行限制15或20个工具。后续如要回收工具，需要另定义可观察的任务结束边界。
+## 发现与说明
 
-## 展示与权限
+系统提示附一节静态「本课能力」速查表：每个门面的 method、对应内部实现名与一句用途说明。它在注册表内容不变时逐字节稳定；新装的板级能力不再改变 wire，只在这节文字里体现。
 
-`system-prompt/assemble`只裁剪主课堂发给模型的schemas；工具注册和Host guard不变。未展示不等于新增权限禁令，已经知道名字的调用仍须通过原有执行权限与领域校验。`write/edit/run_code`不列入学习课堂目录，诊断登记只有诊断预设时才列入。`load_tools`本身校验本课目录，整批含不可用或未知名称时整批拒绝。
-
-主课堂的展示裁剪不使用registry的`restrict()`，因此不会连带裁掉专用帮手自己的读取、检索和回话能力。帮手及制作会话看不到也不能调用`load_tools`；帮手原有隔离上下文、事实写入禁令和禁止再委派的限制继续生效。
-
-schema仍在送给provider前经过已有对象根兼容处理。前端默认显示“准备这一步需要的操作”，展开时保留完整名称、参数和结果。
+`load_tools` 仍注册在案但不出现在 wire：旧会话的惯性调用会收到成功回执清单，不产生任何展示变化。
 
 ## 验证口径
 
-正式构建的隔离运行时测试真实request/header和模型请求：新课8接口 → 加载路线工具后10接口 → 重启保留 → 新课重置；全量可用接口49个的schema逐项扫验。测得初始schema JSON为7,437 bytes，全量可用接口为76,868 bytes；这仅是schema体积，不包含目录与其他提示词，不能等同总token、延迟或模型选用准确率。
-
-自然语言排课的真实模型入口为`tests/live/tool-disclosure.test.ts`，不在学生prompt中指定工具名。当前标准实模测试未取得`DEEPSEEK_API_KEY`，标记BLOCKED；不能据脚本模型测试宣称实际工具选择更准确。完整检查、失败恢复及部署结果见[证据目录](../evidence/tool-disclosure/README.md)。
+单测覆盖 `resolveFacadeTool` 的名字/参数解析与映射唯一性（`tests/unit/tool-disclosure.test.ts`）；集成测试沿用原名直接调用的既有断言，并对主课堂 wire 断言 facade 常驻。schema 体积与缓存效果以后续真机证据为准，不从静态结构推断。

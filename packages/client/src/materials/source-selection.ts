@@ -34,7 +34,8 @@ export class SourceReferences {
     for (const listener of this.listeners) listener();
   }
   browse(tabId: string, pick: Omit<SourcePick, 'ref'>): () => void {
-    this.tabs.set(tabId, pick);
+    // Re-set bumps recency: the most recently browsed tab answers first.
+    this.tabs.delete(tabId); this.tabs.set(tabId, pick);
     for (const listener of this.listeners) listener();
     return () => { if (this.tabs.get(tabId) === pick) this.tabs.delete(tabId); };
   }
@@ -42,9 +43,16 @@ export class SourceReferences {
     const picked = this.current(sessionId);
     // An explicit “bring into conversation” includes whole cards/originals as
     // well as selected passages. Generated browse references are not explicit.
-    if (picked && (!this.automaticRefs.has(picked.ref) || picked.context.selection)) return picked;
-    const tab = tabId ? this.tabs.get(tabId) : undefined;
-    return tab?.sessionId === sessionId ? tab : undefined;
+    // A pick already serialized into a sent message is spent: what the student
+    // is looking at now — not that stale reference — answers the next turn.
+    if (picked && !this.consumed.has(picked.ref) && (!this.automaticRefs.has(picked.ref) || picked.context.selection)) return picked;
+    const tab = tabId !== undefined ? this.tabs.get(tabId) : undefined;
+    if (tab !== undefined) return tab.sessionId === sessionId ? tab : undefined;
+    // The workspace's own panes browse under their synthetic ids, never under
+    // the native rightbar tab the caller knows. Fall back to this session's
+    // most recently browsed tab rather than reporting nothing on screen.
+    for (const candidate of [...this.tabs.values()].reverse()) if (candidate.sessionId === sessionId) return candidate;
+    return undefined;
   }
   shouldAttach(pick: Omit<SourcePick, 'ref'>): boolean { return this.suppressed.get(pick.sessionId) !== JSON.stringify(pick.context); }
   nextSubmission(sessionId: string): void { this.suppressed.delete(sessionId); }

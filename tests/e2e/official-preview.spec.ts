@@ -84,7 +84,8 @@ function value<T>(result: RemoteResult<T>): T {
  * book is chosen; the reader is then its own page with a 返回资料 button.
  */
 async function openMaterial(page: Page, title: string): Promise<void> {
-  await page.getByTestId('material-row').filter({ hasText: title }).getByRole('button').first().click();
+  await page.getByTestId('material-row').filter({ hasText: title }).getByRole('button', { name: `预览：${title}`, exact: true }).click();
+  await page.getByTestId('library-detail').getByRole('button', { name: '阅读原文', exact: true }).click();
   await expect(page.getByTestId('material-reader')).toBeVisible();
 }
 
@@ -214,7 +215,7 @@ test('the materials page reads a Chinese formula note and an image without a les
   // no record of its own: an unbroken book's skeleton is absent, not guessed.
   const recordsAfterImport = await recordFiles(join(runtime.root, 'classroom'));
   await page.getByTestId('materials-back').click();
-  await page.getByTestId('material-row').filter({ hasText: '三角函数笔记' }).getByRole('button').first().click();
+  await openMaterial(page, '三角函数笔记');
   await expect(page.getByTestId('material-markdown')).toBeVisible();
   expect(await recordFiles(join(runtime.root, 'classroom'))).toEqual(recordsAfterImport);
 
@@ -222,7 +223,7 @@ test('the materials page reads a Chinese formula note and an image without a les
   // filters blanks cannot show this), and no model was called.
   expect(await nativeSessionIds(client)).toEqual(sessionsBefore);
   await page.getByRole('button', { name: '课程', exact: true }).first().click();
-  await expect(page.getByTestId('studyforge-page-studyforge.courses')).toContainText('还没有课');
+  await expect(page.getByTestId('studyforge-page-studyforge.courses')).toContainText('暂无课程');
   expect(await modelRequestLines(runtime)).toBe(0);
   expect(errors).toEqual([]);
 });
@@ -299,7 +300,7 @@ test('paging and zooming show only finished pages, and a page that cannot be dra
   // Six pages, five fast turns: only the finished last page may be on screen.
   await page.getByTestId('materials-back').click();
   await page.getByTestId('material-file-input').setInputFiles([blank, undrawable]);
-  await page.getByTestId('material-row').filter({ hasText: '六页' }).getByRole('button').first().click();
+  await openMaterial(page, '六页');
   await expect(viewer).toHaveAttribute('data-pdf-displayed-page', '1');
   for (let turn = 0; turn < 5; turn += 1) await page.getByTestId('pdf-next').click({ delay: 0 });
   await expect(viewer).toHaveAttribute('data-pdf-requested-page', '6');
@@ -310,7 +311,7 @@ test('paging and zooming show only finished pages, and a page that cannot be dra
 
   // A page whose own content cannot be decoded is a failure, not a stale page.
   await page.getByTestId('materials-back').click();
-  await page.getByTestId('material-row').filter({ hasText: '画不出的页' }).getByRole('button').first().click();
+  await openMaterial(page, '画不出的页');
   await expect(page.getByTestId('pdf-page-failed')).toBeVisible({ timeout: 20_000 });
   await expect(viewer).not.toHaveAttribute('data-pdf-displayed-page', /\d/);
   expect(await page.getByTestId('pdf-canvas').evaluate(canvas => (canvas as HTMLCanvasElement).width === 0 || (canvas as HTMLCanvasElement).getContext('2d')?.getImageData(0, 0, 1, 1).data[3] === 0)).toBe(true);
@@ -361,8 +362,10 @@ test('the sandboxed HTML cannot reach the application, and a lesson opens the sa
   await page.getByTestId('material-file-input').setInputFiles(note);
   await openMaterial(page, '和角公式');
   await page.getByTestId('material-open-classroom').click();
-  const panel = page.locator('[data-sidebar-right-panel]');
-  await expect(panel.getByText('和角公式.md').first()).toBeVisible();
+  // Opening in the classroom lands in the lesson's own workspace pane, not the
+  // retired native rightbar.
+  const panel = page.getByTestId('studyforge-lesson-panel');
+  await expect(panel.getByText('和角公式', { exact: false }).first()).toBeVisible();
   await expect(panel.getByRole('heading', { name: '三角函数笔记' })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('classroom-official-preview.png'), fullPage: true });
   expect(await modelRequestLines(runtime)).toBe(before);
@@ -399,16 +402,16 @@ test('a contents read that never came back is not shown as an empty book', async
   // Asked again with the read working, the notice goes away: an unbroken book is
   // silent, and the failure is not left standing in for it.
   refused = false;
-  await page.getByRole('button', { name: '刷新结构' }).click();
+  await page.getByRole('button', { name: '刷新目录' }).click();
   await expect(page.getByText('结构暂时无法读取，请刷新。')).toHaveCount(0);
   await expect(page.getByTestId('book-nodes').locator('[data-kind]')).toHaveCount(1);
   // A later failed refresh must not leave a stale structure presented as current.
   refused = true;
-  await page.getByRole('button', { name: '刷新结构' }).click();
+  await page.getByRole('button', { name: '刷新目录' }).click();
   await expect(page.getByText('结构暂时无法读取，请刷新。')).toBeVisible();
   await expect(page.getByTestId('book-nodes')).toHaveCount(0);
   refused = false;
-  await page.getByRole('button', { name: '刷新结构' }).click();
+  await page.getByRole('button', { name: '刷新目录' }).click();
   await expect(page.getByTestId('book-nodes').locator('[data-kind]')).toHaveCount(1);
   expect(errors).toEqual([]);
 });

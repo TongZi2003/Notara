@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { WorkbenchNoteSchema, WorkbenchDraftValueSchema, type WorkbenchChoice, type WorkbenchContent } from '@studyforge/contracts/plugins';
+import { WorkbenchNoteSchema, WorkbenchDraftValueSchema, WorkbenchOpSchema, type WorkbenchChoice, type WorkbenchContent } from '@studyforge/contracts/plugins';
 import { notifyPlugins } from './PluginManager.tsx';
 import { WorldbookWorkbench } from './WorldbookWorkbench.tsx';
 import { ClassroomWorkbench } from './ClassroomWorkbench.tsx';
@@ -65,12 +65,13 @@ export function PluginWorkbench({ ctx, sessionId, id }: { ctx: Context; sessionI
         void learningAction(ctx,sessionId,content,data.action,data.payload,()=>new Promise<PluginLink>((resolve,reject)=>{if(picker.current){reject(new Error('picker_busy'));return;}picker.current={resolve,reject:()=>reject(new Error('canceled'))};setPicking(true);})).then(value=>post({type:'action-result',requestId:data.requestId,ok:true,value})).catch(()=>post({type:'action-result',requestId:data.requestId,ok:false})).finally(()=>draftRequests.delete(data.requestId));return;
       }
       if (data.type === 'draft-read' || data.type === 'draft-save') {
-        const save = data.type === 'draft-save', keys = save ? ['channel','nonce','type','requestId','value','expectedVersion'] : ['channel','nonce','type','requestId'];
+        const save = data.type === 'draft-save', keys = save ? ['channel','nonce','type','requestId','value','expectedVersion','op'] : ['channel','nonce','type','requestId'];
         if (Object.keys(data).some(key => !keys.includes(key)) || typeof data.requestId !== 'string' || !/^[0-9]{1,12}$/.test(data.requestId) || draftRequests.has(data.requestId)) return;
-        if (!content.permissions.includes('draft') || draftRequests.size >= 8 || save && (!Number.isSafeInteger(data.expectedVersion) || data.expectedVersion < 0 || !WorkbenchDraftValueSchema.safeParse(data.value).success)) { post({ type: 'draft-result', requestId: data.requestId, ok: false }); return; }
+        const op = WorkbenchOpSchema.safeParse(data.op);
+        if (!content.permissions.includes('draft') || draftRequests.size >= 8 || save && (!Number.isSafeInteger(data.expectedVersion) || data.expectedVersion < 0 || !WorkbenchDraftValueSchema.safeParse(data.value).success || !op.success)) { post({ type: 'draft-result', requestId: data.requestId, ok: false }); return; }
         draftRequests.add(data.requestId);
         const target = { sessionId, id, digest: content.digest };
-        const task = save ? ctx.remote.studyforgePlugins.saveDraft({ ...target, operationId: nonce + ':' + data.requestId, expectedVersion: data.expectedVersion, json: JSON.stringify(data.value) }) : ctx.remote.studyforgePlugins.readDraft(target);
+        const task = save ? ctx.remote.studyforgePlugins.saveDraft({ ...target, operationId: nonce + ':' + data.requestId, expectedVersion: data.expectedVersion, json: JSON.stringify(data.value), ...(op.data ? { op: op.data } : {}) }) : ctx.remote.studyforgePlugins.readDraft(target);
         void task.then(reply => post({ type: 'draft-result', requestId: data.requestId, ...(reply.ok ? { ok: true, value: { revision: reply.value.revision, value: JSON.parse(reply.value.json) } } : { ok: false }) })).catch(() => post({ type: 'draft-result', requestId: data.requestId, ok: false })).finally(() => draftRequests.delete(data.requestId));
         return;
       }

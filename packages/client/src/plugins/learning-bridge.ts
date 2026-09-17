@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { WorkbenchContent } from '@studyforge/contracts/plugins';
 import { PluginLinkSchema, SeminarStartSchema, SeminarRoleSchema } from '@studyforge/contracts/plugin-learning';
+import { WorkbenchOpSchema } from '@studyforge/contracts/plugins';
 import { z } from 'zod';
 import { requestLessonPane } from '../materials/lesson-pane-request.ts';
 import { openContentClassroom } from '../materials/content-navigation.tsx';
@@ -17,7 +18,7 @@ export async function learningAction(ctx:Context, sessionId:string, content:Work
   if(action==='document-read') { z.object({}).strict().parse(payload);const row=unwrap(await ctx.remote.notaraWorkbench.readDocument(target));return {revision:row.revision,document:JSON.parse(row.json)}; }
   if(action==='math-publish') {const data=z.object({json:z.string().max(24000)}).strict().parse(payload);return unwrap(await ctx.remote.notaraWorkbench.publishMath({...target,...data}));}
   if(action==='math-compute') {const data=z.object({json:z.string().max(3000),expectedVersion:z.number().int().nonnegative()}).strict().parse(payload);return unwrap(await ctx.remote.notaraWorkbench.calculateMath({...target,...data}));}
-  if(action==='document-write') { const data=z.object({json:z.string().max(60000),revision:z.number().int().nonnegative(),operationId:z.string().min(1).max(160)}).strict().parse(payload);const row=unwrap(await ctx.remote.notaraWorkbench.writeDocument({...target,json:data.json,expectedVersion:data.revision,operationId:data.operationId}));return {revision:row.revision,document:JSON.parse(row.json)}; }
+  if(action==='document-write') { const data=z.object({json:z.string().max(60000),revision:z.number().int().nonnegative(),operationId:z.string().min(1).max(160),op:WorkbenchOpSchema.optional()}).strict().parse(payload);const row=unwrap(await ctx.remote.notaraWorkbench.writeDocument({...target,json:data.json,expectedVersion:data.revision,operationId:data.operationId,...(data.op?{op:data.op}:{})}));return {revision:row.revision,document:JSON.parse(row.json)}; }
   if(action==='source-pick'){z.object({}).strict().parse(payload);return pick();}
   if(action==='source-open'){
     const data=z.object({link:PluginLinkSchema}).strict().parse(payload),link=unwrap(await ctx.remote.notaraWorkbench.resolveLink({...target,link:data.link}));

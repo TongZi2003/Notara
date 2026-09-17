@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import { z } from 'zod';
-import { PluginSourceSchema, WorkbenchNoteSchema, WorldbookDocumentSchema, WorkbenchDraftValueSchema, type WorldbookDocument, type WorldbookView, type WorldbookSelection, type WorkbenchDraftView, type PluginSource, type PluginCandidate, type PluginView, type WorkbenchChoice, type WorkbenchContent } from '@studyforge/contracts/plugins';
+import { PluginSourceSchema, WorkbenchNoteSchema, WorldbookDocumentSchema, WorkbenchDraftValueSchema, WorkbenchOpSchema, type WorldbookDocument, type WorldbookView, type WorldbookSelection, type WorkbenchDraftView, type WorkbenchOp, type PluginSource, type PluginCandidate, type PluginView, type WorkbenchChoice, type WorkbenchContent } from '@studyforge/contracts/plugins';
 import { studentContext } from './learning-service.ts';
 import type { CardView } from '@studyforge/contracts/cards';
 import { legacyPlugins, changeLegacyPlugin } from './plugins/legacy-artifacts.ts';
@@ -64,8 +64,8 @@ export class StudyForgePlugins extends TypertRemoteService {
     return this.ctx.studyforgeWorkbenchData.readDraft(data.sessionId, data.id, data.digest);
   }
   @Remote('saveDraft')
-  async saveDraft(input: { sessionId: string; id: string; digest: string; expectedVersion: number; operationId: string; json: string }): Promise<WorkbenchDraftView> {
-    const data = WorkbenchTarget.extend({ digest: z.string(), expectedVersion: Revision, operationId: z.string().min(1).max(160), json: z.string().max(64_000) }).parse(input);
+  async saveDraft(input: { sessionId: string; id: string; digest: string; expectedVersion: number; operationId: string; json: string; op?: WorkbenchOp }): Promise<WorkbenchDraftView> {
+    const data = WorkbenchTarget.extend({ digest: z.string(), expectedVersion: Revision, operationId: z.string().min(1).max(160), json: z.string().max(64_000), op: WorkbenchOpSchema.optional() }).parse(input);
     const { json, ...target } = data;
     await studentContext(this.ctx, data.sessionId); return this.ctx.studyforgeWorkbenchData.saveDraft({ ...target, value: WorkbenchDraftValueSchema.parse(JSON.parse(json)) });
   }
@@ -79,6 +79,7 @@ export class StudyForgePlugins extends TypertRemoteService {
     const links = document ? documentLinks(document.document) : [];
     const result = await this.ctx.studyforgeCardService.create({ ...context, operationId: 'plugin-note:' + data.sessionId + ':' + data.id + ':' + data.operationId }, { title: data.note.title, presentation: 'note', front: data.note.body, sources: links.flatMap(link => link.kind === 'source' ? [link.source] : []), links: links.flatMap(link => link.kind === 'card' ? [link.ref] : []) });
     this.ctx.notaraClassroom?.noteSaved(data.sessionId);
+    await this.ctx.studyforgeBoardActivity?.append({ ...context, operationId: 'plugin-note:' + data.sessionId + ':' + data.id + ':' + data.operationId }, { id: data.id, kind: 'note', detail: `存为笔记「${result.content.title}」${data.note.documentRevision === undefined ? '' : `（文档修订${data.note.documentRevision}）`}` });
     return result;
   }
 }
