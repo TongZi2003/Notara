@@ -10,7 +10,7 @@ import type { SourceAnchor } from '@studyforge/contracts/materials';
 import { DOCX_MEDIA_TYPE } from '../files.ts';
 import { docxLocators } from './docx.ts';
 import { imageLocator } from './image.ts';
-import { pdfLocator } from './pdf.ts';
+import { pdfLocator, pdfTextLocator } from './pdf.ts';
 import { markdownSpan, plainTextSpan, stableSpan, textLocator } from './text.ts';
 
 /** The preview surface one selection is being read from. */
@@ -37,6 +37,13 @@ export function captureAnchors(target: CaptureTarget, range: Range): readonly So
     return locator === undefined ? [] : [anchor(target, locator)];
   }
   if (target.mediaType === 'application/pdf') {
+    // A text-layer selection resolves to byte offsets first; only when it
+    // misses the layer entirely does the geometric rectangle speak.
+    const layer = target.root.querySelector<HTMLElement>('.sf-pdf-text');
+    if (layer !== null) {
+      const located = pdfTextLocator(layer, range);
+      if (located !== undefined) return [{ ...anchor(target, located), quote: range.toString() }];
+    }
     if (target.canvas === undefined) return [];
     const locator = pdfLocator(target.root, target.canvas, range);
     return locator === undefined ? [] : [anchor(target, locator)];

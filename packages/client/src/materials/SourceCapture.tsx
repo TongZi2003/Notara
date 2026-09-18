@@ -9,7 +9,7 @@ import type { SourceReferences } from './source-selection.ts';
 import { MaterialPreview } from './MaterialPreview.tsx';
 import { cardOpenRequest } from '../cards/CardOpenRequest.tsx';
 import { captureAnchors } from './anchors/index.ts';
-import { pdfGeometryOf, pdfLocatorRects } from './anchors/pdf.ts';
+import { pdfGeometryOf, pdfLocatorRects, pdftextRects } from './anchors/pdf.ts';
 import { applyTransform, clampUnit } from './anchors/geometry.ts';
 import { decodeText } from './files.ts';
 
@@ -49,7 +49,8 @@ export function SourceCapture({ ctx, version, data, index, references, sessionId
     const anchors = pending;
     if (anchors === undefined || anchors.length === 0 || saving) return;
     setSaving(true);
-    const page = anchors[0]?.locator.kind === 'pdf' ? anchors[0].locator.page : undefined;
+    const located = anchors[0]?.locator;
+    const page = located !== undefined && (located.kind === 'pdf' || located.kind === 'pdftext') ? located.page : undefined;
     const result = await ctx.remote.studyforgeLearning.createCard({
       operationId: crypto.randomUUID(),
       content: { title: version.title + (page === undefined ? ' · 标注' : ` · 第${String(page)}页`),
@@ -70,7 +71,19 @@ export function SourceCapture({ ctx, version, data, index, references, sessionId
       const anchors = captureAnchors({
         root: container, source: text, materialId: version.materialId, versionId: version.versionId, mediaType: version.mediaType,
       }, range);
-      if (anchors.length) stage(anchors, selection.toString());
+      if (anchors.length) {
+        stage(anchors, selection.toString());
+        // A text-layer pick draws its own highlight right away: the staged
+        // anchor's span is exact, so the same rects the card will draw later
+        // can mark it now.
+        const located = anchors[0]?.locator;
+        if (located?.kind === 'pdftext' && located.start !== undefined && located.end !== undefined) {
+          const layer = container.querySelector<HTMLElement>('.sf-pdf-text');
+          const origin = root.current?.getBoundingClientRect();
+          if (layer && origin) setBoxes(pdftextRects(layer, located.start, located.end)
+            .map(rect => ({ left: rect.left - origin.left, top: rect.top - origin.top, width: rect.width, height: rect.height })));
+        }
+      }
       else setNotice('这段排版暂时无法准确定位，请切换“按原文选取”。');
     };
     document.addEventListener('selectionchange', onSelection);
@@ -130,9 +143,25 @@ export function SourceCapture({ ctx, version, data, index, references, sessionId
         for (const source of card.content.sources) {
           if (source.materialId !== version.materialId || source.versionId !== version.versionId) continue;
           const loc = source.locator;
-          if ((loc.kind === 'pdf' || loc.kind === 'pdftext') && geometry !== undefined && geometry.page === loc.page && canvas !== null) {
-            // 页级与文本锚点没有矩形几何：作为「指路」角标显示，卡身带精确摘录。
-            if (loc.kind === 'pdftext' || loc.rect === undefined) {
+          if (loc.kind === 'pdftext') {
+            // 文本锚点画在它自己命中的字形上；拿不到文字层（还没渲染、旋转页、
+            // 扫描件）才退回「指路」角标。
+            const layer = container.querySelector<HTMLElement>('.sf-pdf-text');
+            if (layer !== null && Number(layer.dataset.sfPage) === loc.page && loc.start !== undefined && loc.end !== undefined) {
+              for (const rect of pdftextRects(layer, loc.start, loc.end)) {
+                next.push({ ref: card.ref, title: card.content.title,
+                  left: rect.left - origin.left, top: rect.top - origin.top, width: rect.width, height: rect.height });
+              }
+            } else if (canvas !== null && geometry !== undefined && geometry.page === loc.page) {
+              const canvasBox = canvas.getBoundingClientRect();
+              guides.push({ ref: card.ref, title: card.content.title,
+                left: canvasBox.left - origin.left + 8, top: canvasBox.top - origin.top + 8 + guides.length * 30 });
+            }
+            continue;
+          }
+          if (loc.kind === 'pdf' && geometry !== undefined && geometry.page === loc.page && canvas !== null) {
+            // 页级锚点没有矩形几何：作为「指路」角标显示，卡身带精确摘录。
+            if (loc.rect === undefined) {
               const canvasBox = canvas.getBoundingClientRect();
               guides.push({ ref: card.ref, title: card.content.title,
                 left: canvasBox.left - origin.left + 8, top: canvasBox.top - origin.top + 8 + guides.length * 30 });
@@ -184,9 +213,15 @@ export function SourceCapture({ ctx, version, data, index, references, sessionId
         if (rect) setBoxes([relative({ left: box.left + rect[0]! * box.width, top: box.top + rect[1]! * box.height, width: (rect[2]! - rect[0]!) * box.width, height: (rect[3]! - rect[1]!) * box.height })]);
         return;
       }
-      // pdftext anchors name a text span, not a box: the page opens at the right
-      // position and the card itself carries the exact text — nothing to draw.
-      if (locator.kind === 'pdftext') return;
+      // pdftext anchors name a text span: the highlight lands on the same
+      // glyphs the offsets were taken from. Without a rendered layer (wrong
+      // page, rotated, scanned) there is honestly nothing to mark.
+      if (locator.kind === 'pdftext') {
+        const layer = container.querySelector<HTMLElement>('.sf-pdf-text');
+        if (layer === null || Number(layer.dataset.sfPage) !== locator.page || locator.start === undefined || locator.end === undefined) return;
+        setBoxes(pdftextRects(layer, locator.start, locator.end).map(relative));
+        return;
+      }
       const block = locator.kind === 'docx'
         ? [...container.querySelectorAll<HTMLElement>('[data-sf-block-id]')].find(element => element.dataset.sfBlockId === locator.blockId && (element.dataset.sfPart ?? 'word/document.xml') === locator.part)
         : container.querySelector<HTMLElement>('[data-source-text]');

@@ -95,7 +95,14 @@ const css = `
 .sf-pdf-button:hover:not(:disabled){border-color:#26437c}
 .sf-pdf-button:disabled{opacity:.5;cursor:default}
 .sf-pdf-page{display:flex;justify-content:center;justify-content:safe center;max-height:72vh;overflow:auto;border:1px solid #e7e0cd;border-radius:3px;background:#f6f1e3;padding:10px}
-.sf-pdf-page canvas{flex:none;background:#fff;box-shadow:0 1px 2px rgba(38,67,124,.12)}
+.sf-pdf-page-inner{position:relative;flex:none;line-height:0}
+.sf-pdf-page-inner canvas{display:block;background:#fff;box-shadow:0 1px 2px rgba(38,67,124,.12)}
+.sf-pdf-text{position:absolute;text-align:initial;inset:0;overflow:clip;line-height:1;letter-spacing:normal;word-spacing:normal;text-size-adjust:none;forced-color-adjust:none;transform-origin:0 0;caret-color:transparent;pointer-events:none;z-index:1;--scale-round-x:1px;--scale-round-y:1px;--min-font-size:1;--text-scale-factor:calc(var(--total-scale-factor,1) * var(--min-font-size));--min-font-size-inv:calc(1 / var(--min-font-size))}
+.sf-pdf-text :is(span,br){color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0 0;user-select:text}
+.sf-pdf-text>span:not(.markedContent),.sf-pdf-text .markedContent span:not(.markedContent){z-index:1;--font-height:0;font-size:calc(var(--text-scale-factor) * var(--font-height));--scale-x:1;--rotate:0deg;transform:rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));pointer-events:auto}
+.sf-pdf-text .markedContent{display:contents}
+.sf-pdf-text ::selection{background:#26437c33}
+.sf-pdf-text[data-sf-pdf-text="empty"]{display:none}
 .sf-docx-shell{display:flex;flex-direction:column;gap:8px}
 .sf-docx-shell .sf-note{margin:0;font-size:12px}
 .sf-docx-body{max-height:70vh;overflow:auto;border:1px solid #e7e0cd;border-radius:3px;background:#fffdf6;padding:12px}

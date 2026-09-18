@@ -17,7 +17,7 @@
  * page wider than the column scrolls instead of being squeezed. A page opens at
  * fit-width and the fit button puts it back there.
  */
-import { getDocument, RenderingCancelledException, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from 'pdfjs-dist';
+import { getDocument, RenderingCancelledException, TextLayer, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from 'pdfjs-dist';
 import { useEffect, useRef, useState } from 'react';
 import { acquirePdfWorker, releasePdfWorker } from './worker.ts';
 
@@ -42,6 +42,7 @@ type LoadState =
 /** One page at a time, at the reader's own zoom. */
 export function PdfViewer({ data, title, onDisplayed, revealPage, onPage }: PdfViewerProps): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const textRef = useRef<HTMLDivElement | null>(null);
   const pageBoxRef = useRef<HTMLDivElement | null>(null);
   const documentRef = useRef<PDFDocumentProxy | undefined>(undefined);
   const taskRef = useRef<PDFDocumentLoadingTask | undefined>(undefined);
@@ -104,6 +105,7 @@ export function PdfViewer({ data, title, onDisplayed, revealPage, onPage }: PdfV
     const pageNumber = Math.min(Math.max(requested, 1), load.pages);
     let live = true;
     let render: RenderTask | undefined;
+    let textLayer: TextLayer | undefined;
     setDrawing(true);
     // The offscreen canvas is this request's own; the visible one is written
     // once, at the end, and only by the request that is still current.
@@ -139,6 +141,29 @@ export function PdfViewer({ data, title, onDisplayed, revealPage, onPage }: PdfV
           page: pageNumber, rotate: page.rotate, view: page.view, transform: natural.transform,
           baseWidth: natural.width, baseHeight: natural.height, renderedWidth: viewport.width, renderedHeight: viewport.height,
         });
+        // The text layer rides the same draw pass: every `str` item becomes a
+        // span stamped with its own offset inside the Host's newline-joined
+        // page text (`data-sf-base`), which is what `pdftext` anchors name. A
+        // page without extractable text — or a rotated one our layer does not
+        // place — simply gets no layer and rectangle capture keeps working.
+        const layerHost = textRef.current;
+        if (layerHost !== null) {
+          layerHost.replaceChildren();
+          layerHost.dataset.sfPage = String(pageNumber);
+          layerHost.dataset.sfPdfText = 'empty';
+          if (viewport.rotation === 0) {
+            try {
+              layerHost.style.setProperty('--total-scale-factor', String(shown));
+              const layer = new TextLayer({ textContentSource: page.streamTextContent(), container: layerHost, viewport });
+              textLayer = layer;
+              await layer.render();
+              if (!live) return;
+              let cursor = 0;
+              layer.textDivs.forEach((div, item) => { div.dataset.sfBase = String(cursor); cursor += (layer.textContentItemsStr[item] ?? '').length + 1; });
+              if (layer.textDivs.length > 0) layerHost.dataset.sfPdfText = 'ready';
+            } catch { /* An unrenderable layer is an empty layer, never a failure. */ }
+          }
+        }
         setDisplayed({ page: pageNumber, scale: round2(shown) });
         setFailedPage(undefined);
         setDrawing(false);
@@ -155,7 +180,7 @@ export function PdfViewer({ data, title, onDisplayed, revealPage, onPage }: PdfV
         setFailedPage(pageNumber);
       }
     })();
-    return () => { live = false; render?.cancel(); };
+    return () => { live = false; render?.cancel(); textLayer?.cancel(); };
   }, [load, requested, scale, zoomed, boxWidth, fitNonce, attempt, onDisplayed]);
 
   if (load.status === 'failed') return <p className="sf-note" role="status" data-testid="pdf-failed">这份 PDF 读不出来，可能已经损坏。</p>;
@@ -187,7 +212,10 @@ export function PdfViewer({ data, title, onDisplayed, revealPage, onPage }: PdfV
         onClick={() => { setAttempt(value => value + 1); }}>再画一次</button>
     </p>}
     <div className="sf-pdf-page" data-testid="pdf-page-box" ref={pageBoxRef}>
-      <canvas ref={canvasRef} aria-label={title} data-testid="pdf-canvas" />
+      <div className="sf-pdf-page-inner">
+        <canvas ref={canvasRef} aria-label={title} data-testid="pdf-canvas" />
+        <div ref={textRef} className="sf-pdf-text" aria-hidden="true" data-testid="pdf-text" />
+      </div>
     </div>
   </div>;
 }

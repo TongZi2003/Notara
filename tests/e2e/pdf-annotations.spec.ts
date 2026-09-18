@@ -105,13 +105,46 @@ test('pdf drag saves a persistent annotation card, the layer reopens it, pre-see
   expect(quoted.content.sources[0]?.locator).toEqual({ kind: 'pdftext', page: 2, start: 0, end: 17 });
   await openMaterial(page, '文字层');
   await expect(viewer).toHaveAttribute('data-pdf-displayed-page', '1');
-  const textGuide = page.getByTestId('annotation-guide').first();
-  await expect(textGuide).toBeVisible();
-  await expect(textGuide).toContainText('第一页的一句话');
+  // 文字层已渲染：pdftext 卡的字节级锚点画成字形高亮，不是指路角标。
+  const layer = page.getByTestId('pdf-text');
+  await expect(layer).toHaveAttribute('data-sf-pdf-text', 'ready');
+  const pageOneMarks = page.getByTestId('annotation-mark');
+  await expect(pageOneMarks).toHaveCount(1);
+  await expect(pageOneMarks.first()).toHaveAttribute('title', '第一页的一句话');
+  await expect(page.getByTestId('annotation-guide')).toHaveCount(0);
+
+  // 学生拖选文字：选区暂存出现高亮与「存为标注」，落卡拿到字节级 pdftext 锚点。
+  const span = layer.locator('[data-sf-base]').first();
+  const spanBox = (await span.boundingBox())!;
+  await page.mouse.move(spanBox.x + 2, spanBox.y + spanBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(spanBox.x + spanBox.width - 2, spanBox.y + spanBox.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await expect(page.getByTestId('source-highlight').first()).toBeVisible();
+  await page.getByTestId('annotation-save').click();
+  await expect(page.getByText('已存为标注卡')).toBeVisible();
+  const selected = value(await client.rpc<CardView[]>('studyforgeLearning/cards', {}))
+    .find(card => card.content.title === '文字层 · 第1页');
+  const selectedLocator = selected?.content.sources[0]?.locator;
+  expect(selectedLocator?.kind).toBe('pdftext');
+  if (selectedLocator?.kind !== 'pdftext') throw new Error('selection must anchor pdf text');
+  expect(selectedLocator.page).toBe(1);
+  const { start, end } = selectedLocator;
+  if (start === undefined || end === undefined) throw new Error('pdftext anchor must carry byte offsets');
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeLessThanOrEqual('alpha first page'.length);
+  expect(end).toBeGreaterThan(start);
+  // 字节级自洽：锚点切出的文本必须是页文本同一区间——像素不撒谎。
+  const { quote: _q, ...selSource } = selected!.content.sources[0]!;
+  const selReading = value(await client.rpc<{ text?: string }>('studyforgeMaterials/read', { input: { source: selSource } }));
+  expect(selReading.text).toBe('alpha first page'.slice(start, end));
+
+  // 第二页的整行卡同样落成字形高亮；指路角标在这里没有位置。
   await viewer.getByTestId('pdf-next').click();
   await expect(viewer).toHaveAttribute('data-pdf-displayed-page', '2');
-  const pageTwoGuide = page.getByTestId('annotation-guide');
-  await expect(pageTwoGuide).toHaveCount(1);
-  await expect(pageTwoGuide.first()).toContainText('第二页整行');
+  const pageTwoMarks = page.getByTestId('annotation-mark');
+  await expect(pageTwoMarks).toHaveCount(1);
+  await expect(pageTwoMarks.first()).toHaveAttribute('title', '第二页整行');
+  await expect(page.getByTestId('annotation-guide')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
