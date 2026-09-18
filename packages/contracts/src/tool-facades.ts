@@ -92,6 +92,7 @@ export const TOOL_FACADES = {
     assistant: 'delegate_assistant',
     peer: 'delegate_peer',
     problem: 'delegate_problem',
+    routes: 'list_model_routes',
   },
 } as const satisfies Record<string, Record<string, string>>;
 

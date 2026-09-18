@@ -40,6 +40,7 @@ import { SourceAnchorSchema } from '@studyforge/contracts/materials';
 import { ClassmateRouteSchema, type ClassmateRoute } from '@studyforge/contracts/classroom';
 import type { CardContent } from '@studyforge/contracts/cards';
 import { toolSchema } from '../tools/tool-schema.ts';
+import { listModelRoutes } from '../tools/model-routes.ts';
 import { teacherContext } from '../tools/learning-context.ts';
 import { entityReferenceContent } from '../tools/entity-reference-output.ts';
 import { teachingText } from './teaching-overrides.ts';
@@ -187,6 +188,12 @@ export const ProblemResultSchema = z.object({
   route: ClassmateRouteSchema.optional(),
   cards: z.array(ProblemCardViewSchema).min(1),
 }).strict();
+
+/** Every route a delegation may name, in the same shape the student picker shows. */
+const ModelRouteListSchema = z.array(z.object({
+  provider: z.string(), providerName: z.string(), model: z.string(), modelName: z.string(),
+  reasoningEfforts: z.array(z.object({ id: z.string(), name: z.string() }).strict()),
+}).strict());
 
 /** The role briefs: the persona each role's child really runs under. */
 export interface AssistantBriefs {
@@ -513,5 +520,8 @@ export function registerDelegationTools(host: Context, options: DelegationToolOp
         ...(input.route === undefined ? {} : { route: input.route }),
       });
     });
+  register('list_model_routes',
+    '列出当前可用的全部模型路由（provider、model、可用推理强度）。学生明确要求用某个模型做某事时才查，把查到的provider/model填进委派或同学任务的route字段；学生没指定时省略route跟随默认，不主动换模型。',
+    z.object({}).strict(), ModelRouteListSchema, () => listModelRoutes(host));
   return delegation;
 }

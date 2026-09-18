@@ -138,6 +138,23 @@ test('structured output from a native problem child is registered once as the sa
   expect(value(await client.rpc<CardView[]>('studyforgeLearning/cards', {})).map(card => card.ref)).toEqual(cards.map(card => card.ref));
 }, 60_000);
 
+test('the delegate facade enumerates the deployment real model routes for the teacher', async () => {
+  runtime = await startIsolated({ testModel: true });
+  const client = await connectRuntime(runtime);
+  const { sessionId } = value(await client.rpc<SessionCreateValue>('session/create', { request: { cwd: join(runtime.root, 'classroom'), agentPreset: 'studyforge-learning' } }));
+  value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tool]' + JSON.stringify({ name: 'delegate', arguments: { method: 'routes', input: {} } }) }] } }));
+  await expect.poll(async () => value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(item => item.sessionId === sessionId)?.running, { timeout: 45_000 }).toBe(false);
+  const prepared = (await modelLog()).filter(row => row.sessionId === sessionId).at(-1)!;
+  const routes = prepared.messages.flatMap(message => message.content).filter(block => block.type === 'tool-result')
+    .flatMap(block => block.content ?? []).flatMap(block => {
+      try { return block.text ? [JSON.parse(block.text) as { provider: string; model: string }[]] : []; } catch { return []; }
+    }).flat();
+  expect(routes, JSON.stringify(prepared.messages.at(-1))).toEqual(expect.arrayContaining([
+    expect.objectContaining({ provider: 'studyforge-test', model: 'study-model-a' }),
+    expect.objectContaining({ provider: 'studyforge-test', model: 'study-model-b' }),
+  ]));
+}, 60_000);
+
 test('a delegation route runs its child under a different model than the lesson', async () => {
   runtime = await startIsolated({ testModel: true });
   const client = await connectRuntime(runtime);

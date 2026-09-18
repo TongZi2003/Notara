@@ -10,6 +10,7 @@ import type { ClassroomAvatarImage } from '@studyforge/contracts/classroom';
 import { uploadClassroomAvatar, readClassroomAvatar } from './plugins/classroom-avatars.ts';
 import { existingProposal, proposeFromTool, proposalOutput } from './tools/proposal-tools.ts';
 import { packageId } from './plugins/plugin-manager.ts';
+import { listModelRoutes } from './tools/model-routes.ts';
 
 const Target = z.object({ sessionId: z.string().min(1), id: z.string().min(1) }).strict();
 export class ClassroomRemote extends TypertRemoteService {
@@ -31,21 +32,7 @@ export class ClassroomRemote extends TypertRemoteService {
   @Remote('modelRoutes')
   async modelRoutes(): Promise<ClassroomModelRoute[]> {
     await studentContext(this.ctx);
-    const routes: ClassroomModelRoute[] = [];
-    for (const provider of this.ctx.llm.listProviders()) {
-      let models;
-      try { models = await this.ctx.llm.listModels(provider.id); } catch { continue; }
-      for (const model of models) {
-        let reasoningEfforts: { id: string; name: string }[] = [];
-        try {
-          const resolved = await this.ctx.llm.resolveModelInfo(provider.id, model.id);
-          reasoningEfforts = resolved.reasoning?.efforts.map(effort => ({ id: String(effort.id), name: effort.name })) ?? [];
-        } catch { /* The model remains selectable; exact validation belongs to DSH at spawn. */ }
-        routes.push({ provider: provider.id, providerName: provider.name, model: model.id, modelName: model.name,
-          reasoningEfforts });
-      }
-    }
-    return routes;
+    return listModelRoutes(this.ctx);
   }
   @Remote('read')
   async read(input: { sessionId: string; id: string }): Promise<ClassroomRuntimeView> {
