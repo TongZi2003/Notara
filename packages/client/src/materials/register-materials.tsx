@@ -152,8 +152,6 @@ export function registerMaterials(ctx: Context, navigation: import('./material-n
   // One business face per plugin apply: the page's effects depend on its identity.
   const face: MaterialsFace = {
     list: () => ctx.remote.studyforgeMaterials.list(),
-    importMaterial: upload => ctx.remote.studyforgeMaterials.import(upload),
-    createVersion: upload => ctx.remote.studyforgeMaterials.createVersion(upload),
     bytes: ref => ctx.remote.studyforgeMaterials.bytes(ref),
     docxIndex: ref => ctx.remote.studyforgeMaterials.docxIndex(ref),
     resolveForSession: input => ctx.remote.studyforgeMaterials.resolveForSession(input),

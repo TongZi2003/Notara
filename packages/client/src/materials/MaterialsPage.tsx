@@ -18,9 +18,10 @@ import type { ComposedProps } from '@deepseek-ai/dsh-client-ui-slots';
 import type { Context } from '@deepseek-ai/cordis';
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
+import { uploadMaterialFile, type MaterialUploadRequest } from './material-upload.ts';
 import type { CardView } from '@studyforge/contracts/cards';
 import type { MaterialContext, SourceAnchor, SourceLocator } from '@studyforge/contracts/materials';
-import type { ImportUpload, MaterialBytes, MaterialResource, VersionUpload } from '@studyforge/contracts/material-api';
+import type { MaterialBytes, MaterialResource } from '@studyforge/contracts/material-api';
 import type { MaterialRef, MaterialVersion, MaterialView } from '@studyforge/contracts/material-records';
 import type { SkeletonNode, SkeletonView } from '@studyforge/contracts/skeleton';
 import type { DocxIndex } from '@studyforge/domain/docx';
@@ -40,7 +41,7 @@ import './reader-page.css';
 import { LibraryBrowser } from './LibraryBrowser.tsx';
 import { MaterialEditor } from './MaterialEditor.tsx';
 import {
-  DOCX_MEDIA_TYPE, byteLabel, decodeBase64, decodeText, encodeBase64, importFailureCopy,
+  DOCX_MEDIA_TYPE, byteLabel, decodeBase64, decodeText, importFailureCopy,
   kindLabel, mediaTypeOfName, titleFromFileName, versionFailureCopy,
 } from './files.ts';
 
@@ -54,8 +55,6 @@ export const MATERIALS_PAGE_ID = 'studyforge.materials';
  */
 export interface MaterialsFace {
   list(): Promise<RemoteResult<MaterialView[]>>;
-  importMaterial(upload: ImportUpload): Promise<RemoteResult<MaterialView>>;
-  createVersion(upload: VersionUpload): Promise<RemoteResult<MaterialView>>;
   bytes(ref: MaterialRef): Promise<RemoteResult<MaterialBytes>>;
   docxIndex(ref: MaterialRef): Promise<RemoteResult<DocxIndex>>;
   resolveForSession(input: { sessionId: string; source: MaterialContext }): Promise<RemoteResult<MaterialResource>>;
@@ -97,7 +96,7 @@ interface Selected {
 interface Unsettled {
   readonly what: 'import' | 'version';
   readonly title: string;
-  readonly upload: ImportUpload | VersionUpload;
+  readonly request: Omit<MaterialUploadRequest, 'kind' | 'onProgress'>;
 }
 
 /** The refusal codes that say "this will be refused again", so retrying is pointless. */
@@ -160,30 +159,33 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
   useEffect(() => { void reload(); }, [reload]);
 
   /** Send one upload and keep it whole whenever the outcome is not knowable. */
-  const send = useCallback(async (what: Unsettled['what'], title: string, upload: ImportUpload | VersionUpload) => {
+  const send = useCallback(async (what: Unsettled['what'], title: string, request: Unsettled['request']) => {
     setPending(true);
     setUnsettled(undefined);
-    let result: RemoteResult<MaterialView> | undefined;
+    let view: MaterialView | undefined;
+    let failure: Error | undefined;
     try {
-      result = what === 'import' ? await host.importMaterial(upload as ImportUpload) : await host.createVersion(upload as VersionUpload);
-    } catch {
-      result = undefined;
+      view = await uploadMaterialFile(ctx, { ...request, kind: what, onProgress: (received, total) => {
+        setNotice({ kind: 'info', text: `《${title}》正在收下… ${Math.round(received / total * 100)}%` });
+      } });
+    } catch (error) {
+      failure = error instanceof Error ? error : new Error(String(error));
     }
     setPending(false);
-    if (result === undefined || (!result.ok && !SETTLED_REFUSALS.test(result.error.message))) {
-      setUnsettled({ what, title, upload });
-      setNotice({ kind: 'info', text: `《${title}》这次没有结果回来。点「重试」会按同一次上传再试，不会变成第二份。` });
-      return;
-    }
-    if (result.ok) {
+    if (failure !== undefined) {
+      if (!SETTLED_REFUSALS.test(failure.message)) {
+        setUnsettled({ what, title, request });
+        setNotice({ kind: 'info', text: `《${title}》这次没有结果回来。点「重试」会按同一次上传再试，不会变成第二份。` });
+        return;
+      }
+      setNotice({ kind: 'error', text: what === 'import' ? importFailureCopy(failure.message) : versionFailureCopy(failure.message) });
+    } else if (view !== undefined) {
       setNotice(what === 'import'
-        ? { kind: 'ok', text: `《${result.value.title}》收好了，架上点开就能读。` }
-        : { kind: 'ok', text: `《${result.value.title}》多了第 ${String(result.value.versions.length)} 版；旧版还在，随时能翻回去。` });
-    } else {
-      setNotice({ kind: 'error', text: what === 'import' ? importFailureCopy(result.error.message) : versionFailureCopy(result.error.message) });
+        ? { kind: 'ok', text: `《${view.title}》收好了，架上点开就能读。` }
+        : { kind: 'ok', text: `《${view.title}》多了第 ${String(view.versions.length)} 版；旧版还在，随时能翻回去。` });
     }
     await reload();
-  }, [host, reload]);
+  }, [ctx, reload]);
 
   const importFiles = useCallback(async (files: readonly File[]) => {
     for (const file of files) {
@@ -195,8 +197,8 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
       const title = titleFromFileName(file.name);
       await send('import', title, {
         operationId: crypto.randomUUID(),
+        file,
         material: { title, fileName: file.name, mediaType },
-        base64: encodeBase64(new Uint8Array(await file.arrayBuffer())),
       });
     }
   }, [send]);
@@ -212,8 +214,8 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
     await send('version', view.title, {
       operationId: crypto.randomUUID(),
       expectedVersion: view.revision,
+      file,
       material: { materialId: view.materialId, title: view.title, fileName: file.name, mediaType },
-      base64: encodeBase64(new Uint8Array(await file.arrayBuffer())),
     });
   }, [send]);
 
@@ -247,7 +249,7 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
       {notice !== undefined && <p className={notice.kind === 'error' ? 'sf-notice sf-notice-error' : 'sf-notice'} role="status"
         data-testid="materials-notice" data-notice-kind={notice.kind}>{notice.text}</p>}
       {unsettled !== undefined && <button type="button" className="sf-action sf-action-quiet" data-testid="materials-retry" disabled={pending}
-        onClick={() => { void send(unsettled.what, unsettled.title, unsettled.upload); }}>
+        onClick={() => { void send(unsettled.what, unsettled.title, unsettled.request); }}>
         重试《{unsettled.title}》
       </button>}
 

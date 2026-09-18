@@ -1,14 +1,13 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { CoursePatch } from '@studyforge/contracts/courses';
-import type { ImportUpload } from '@studyforge/contracts/material-api';
 import type { MaterialView } from '@studyforge/contracts/material-records';
 import { useSyncExternalStore } from 'react';
-import { encodeBase64, importFailureCopy, mediaTypeOfName, titleFromFileName } from '../materials/files.ts';
+import { importFailureCopy, mediaTypeOfName, titleFromFileName } from '../materials/files.ts';
+import { uploadMaterialFile } from '../materials/material-upload.ts';
 
 export interface UploadRow {
   readonly id: string;
   readonly file: File;
-  upload?: ImportUpload;
   material?: MaterialView;
   attach?: { sessionId: string; operationId: string; expectedVersion: number; patch: CoursePatch };
   status: 'pending' | 'saved' | 'retry' | 'refused';
@@ -49,15 +48,18 @@ export function useLessonUploads(ctx: Context, sessionId: string) {
       if (!row.material) {
         const mediaType = mediaTypeOfName(row.file.name);
         if (!mediaType) { row.status = 'refused'; row.message = '支持 PDF、Word、图片、Markdown、网页和纯文本。'; return; }
-        row.upload ??= { operationId: row.id, material: { title: titleFromFileName(row.file.name), fileName: row.file.name, mediaType },
-          base64: encodeBase64(new Uint8Array(await row.file.arrayBuffer())) };
-        const result = await ctx.remote.studyforgeMaterials.import(row.upload);
-        if (!result.ok) {
-          row.status = /material_(name_exists|type_mismatch|content_invalid|too_large|encoding_invalid|name_invalid)/u.test(result.error.message) ? 'refused' : 'retry';
-          row.message = row.status === 'refused' ? importFailureCopy(result.error.message) : '暂时没有收到结果，可以重试。';
+        try {
+          row.material = await uploadMaterialFile(ctx, {
+            kind: 'import', operationId: row.id, file: row.file,
+            material: { title: titleFromFileName(row.file.name), fileName: row.file.name, mediaType },
+            onProgress: (received, total) => { row.message = `正在收下… ${Math.round(received / total * 100)}%`; changed(); },
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          row.status = /material_(name_exists|type_mismatch|content_invalid|too_large|encoding_invalid|name_invalid)/u.test(message) ? 'refused' : 'retry';
+          row.message = row.status === 'refused' ? importFailureCopy(message) : '暂时没有收到结果，可以重试。';
           return;
         }
-        row.material = result.value;
       }
       const material = row.material;
       if (!row.attach) {
@@ -82,7 +84,7 @@ export function useLessonUploads(ctx: Context, sessionId: string) {
     } catch {
       row.status = 'retry'; row.message = row.material ? '资料已收好，暂时没能加入本课。' : '暂时没有收到结果，可以重试。';
     } finally {
-      if (row.status === 'saved') { delete row.upload; delete row.attach; }
+      if (row.status === 'saved') { delete row.attach; }
       changed();
       if (row.status === 'saved') window.dispatchEvent(new Event('studyforge:learning-changed'));
     }

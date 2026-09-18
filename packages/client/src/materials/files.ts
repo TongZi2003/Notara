@@ -7,7 +7,7 @@
  * Host returns the only `MaterialView` the UI renders, and these helpers never
  * become a second source of metadata.
  */
-import type { MaterialMediaType } from '@studyforge/contracts/material-records';
+import { MAX_MATERIAL_BYTES, type MaterialMediaType } from '@studyforge/contracts/material-records';
 
 /** The one Word container the importer and the previewer both name. */
 export const DOCX_MEDIA_TYPE: MaterialMediaType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -110,7 +110,7 @@ export function importFailureCopy(message: string): string {
     case 'material_content_invalid':
       return '这个文件读不出来，可能已经损坏；换一份再看。';
     case 'material_too_large':
-      return '文件超过 64 MB，先压缩或换一份。';
+      return `文件超过 ${Math.round(MAX_MATERIAL_BYTES / (1024 * 1024))} MB，先压缩或换一份。`;
     case 'material_encoding_invalid':
       return '上传中途的数据不完整，重新选这份文件。';
     case 'material_name_invalid':

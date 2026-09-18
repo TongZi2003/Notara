@@ -11,8 +11,10 @@ import { z } from 'zod';
 import { TimestampSchema } from './core.ts';
 import { MaterialContextSchema } from './materials.ts';
 
-/** Single size limit for one original, checked before anything is published. */
-export const MAX_MATERIAL_BYTES = 64 * 1024 * 1024;
+/** Single size limit for one original, checked before anything is published.
+ * Chunked upload carries it: the wire never sees one giant message, the Host
+ * still bounds the assembled bytes before import validation touches them. */
+export const MAX_MATERIAL_BYTES = 256 * 1024 * 1024;
 
 /** Formats the importer sniffs and validates; the file extension must agree with the declared type. */
 export const MaterialMediaTypeSchema = z.enum([
