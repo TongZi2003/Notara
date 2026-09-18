@@ -24,6 +24,10 @@
       "types": "./lib/types/organization/skeleton-authoring.d.ts",
       "default": "./lib/types/organization/skeleton-authoring.js"
     },
+    "./chapter-deriver": {
+      "types": "./lib/types/organization/chapter-deriver.d.ts",
+      "default": "./lib/types/organization/chapter-deriver.js"
+    },
     "./card-changes": {
       "types": "./lib/types/cards/card-changes.d.ts",
       "default": "./lib/types/cards/card-changes.js"

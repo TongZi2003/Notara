@@ -17,7 +17,7 @@ export const CardContentSchema = z.object({
   sections: z.array(CardSectionSchema).default([]).describe('卡背的作者正文；标题没有系统含义'),
   notes: z.string().default(''),
   sources: z.array(SourceAnchorSchema).default([]),
-  chapter: z.string().min(1).optional().describe('只填read_skeleton返回过的既有骨架语义路径；省略表示无挂点'),
+  chapter: z.string().min(1).optional().describe('本卡在唯一来源书内的层级语义路径；骨架没有该层时由本次写入顺带铸成outline节点，省略表示无挂点'),
   tags: z.array(z.string().trim().min(1)).default([]),
   links: z.array(EntityRefSchema).default([]).describe('建卡时选已有实体引用，填裸ref如card:/knowledge:/material:；教师修改时使用增量字段'),
 }).strict();

@@ -36,6 +36,7 @@ import { SetService } from '@studyforge/domain/sets';
 import { RouteService } from '@studyforge/domain/routes';
 import { PlanService } from '@studyforge/domain/plans';
 import { SkeletonAuthoring } from '@studyforge/domain/skeleton-authoring';
+import { ChapterDeriver } from '@studyforge/domain/chapter-deriver';
 import { BookExploration } from '@studyforge/domain/book-exploration';
 import { StudyForgeOrganization, nativeLessons, routeValidators } from './organization-service.ts';
 import { nativeOpen } from './runtime/native-open.ts';
@@ -178,7 +179,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       try { store.read(context, ref); return true; }
       catch (error) { if ((error as { code?: string }).code === 'record_missing') return false; throw error; }
     } };
-    const cards = new CardService(cardRecords, materials, skeletons, targets);
+    const cards = new CardService(cardRecords, materials, skeletons, targets, new ChapterDeriver(skeletonRecords, skeletons, owner));
     const knowledge = new KnowledgeService(knowledgeRecords, undefined, targets);
     const setRecords = await owner.collection('set', SetRecordSchema);
     const sets = new SetService(setRecords, cardRecords, { async hasMaterial(context, id) {

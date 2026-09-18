@@ -23,7 +23,13 @@
  *  - every source anchor resolves to the immutable bytes of the version it pins
  *    (`resolveAnchor`, so a stale locator or a misquote is refused here too);
  *  - `chapter`, when it is set or its sources moved, is a real node of the
- *    skeleton of one of this card's own source books;
+ *    skeleton of one of this card's own source books — or, when a
+ *    {@link ChapterPlacement} is wired, a level this card may mint: a card
+ *    pinned to exactly one source book can claim a well-formed path, and the
+ *    write itself grows it as an outline node anchored to this card's own
+ *    sources, in the same atomic unit. Anchored content mints structure;
+ *    placement stays correctable through the skeleton's own repath/remove
+ *    cascade afterwards;
  *  - math delimiters in the authored text this write actually rewrote. Text
  *    already stored is never re-validated, so an old card with a broken fence
  *    can still have its tags, sources or chapter corrected;
@@ -41,8 +47,9 @@ import type { SetView } from '@studyforge/contracts/sets';
 import { DaySchema } from '@studyforge/contracts/reviews';
 import { CardContentSchema, CardPatchSchema, MutationContextSchema } from '@studyforge/contracts';
 import type { CardContent, CardPatch, CardRecord, CardView, EntityRef, HostContext, MutationContext, ObjectChange, SourceAnchor, VersionToken } from '@studyforge/contracts';
+import { SkeletonPathSchema } from '@studyforge/contracts/skeleton';
 import { type MaterialResolver, resolveAnchor } from '../materials/read-material.ts';
-import { RecordError, type Saved } from '../storage/record-store.ts';
+import { RecordError, type PreparedRecordChange, type Saved } from '../storage/record-store.ts';
 import { changedTextFields, formatMathIssue, mathProblems, type AuthorTextField, type MathIssue } from './content-projection.ts';
 
 /** The record kind a card lives under; the review service writes the same one. */
@@ -56,6 +63,8 @@ export interface CardRecordStore {
   changes(ctx: HostContext, ref: string): ObjectChange[];
   create(ctx: MutationContext, id: string, input: unknown): Promise<Saved<CardRecord>>;
   update(ctx: MutationContext, ref: string, input: unknown, transform: (current: CardRecord) => unknown): Promise<Saved<CardRecord>>;
+  prepareCreate(ctx: MutationContext, id: string, input: unknown): PreparedRecordChange<CardRecord>;
+  prepareUpdate(ctx: MutationContext, ref: string, input: unknown, transform: (current: CardRecord) => unknown): PreparedRecordChange<CardRecord>;
 }
 
 /**
@@ -73,6 +82,24 @@ export interface LinkTargets {
 export interface ChapterSkeletonReader {
   /** A book that was never split reads as an empty node list, not as an error. */
   read(ctx: HostContext, materialId: string): Promise<{ readonly nodes: readonly { readonly path: string }[] }>;
+}
+
+/** One card's claim about where inside its one source book it belongs. */
+export interface ChapterClaim {
+  readonly chapter: string;
+  readonly anchors: readonly SourceAnchor[];
+}
+
+/**
+ * The skeleton side a card write may grow. `plan` returns the skeleton changes
+ * the claimed levels still need — at most one change per book — and `atomic`
+ * publishes them in the same unit as the card change itself, so a card and the
+ * level it claims land or fail together. A service wired without one keeps the
+ * older, stricter rule: a chapter must already be a real node.
+ */
+export interface ChapterPlacement {
+  plan(ctx: MutationContext, claims: ReadonlyMap<string, readonly ChapterClaim[]>): Promise<PreparedRecordChange[]>;
+  atomic(changes: readonly PreparedRecordChange[]): Promise<void>;
 }
 
 /** A refused card write, with the exact rule that refused it. */
@@ -126,12 +153,14 @@ export class CardService {
   private readonly materials: MaterialResolver;
   private readonly skeletons: ChapterSkeletonReader;
   private readonly targets: LinkTargets | undefined;
+  private readonly chapters: ChapterPlacement | undefined;
 
-  constructor(records: CardRecordStore, materials: MaterialResolver, skeletons: ChapterSkeletonReader, targets?: LinkTargets) {
+  constructor(records: CardRecordStore, materials: MaterialResolver, skeletons: ChapterSkeletonReader, targets?: LinkTargets, chapters?: ChapterPlacement) {
     this.records = records;
     this.materials = materials;
     this.skeletons = skeletons;
     this.targets = targets;
+    this.chapters = chapters;
   }
 
   /**
@@ -146,7 +175,11 @@ export class CardService {
     const content = await this.check(ctx, input);
     const id = derive('card_', `${ctx.workspaceId}:${ctx.operationId}`);
     const record: CardRecord = { content, history: [] };
-    return toView(await this.records.create(withoutVersion(ctx), id, record));
+    const placement = await this.placementPlans(ctx, [content]);
+    if (placement.length === 0) return toView(await this.records.create(withoutVersion(ctx), id, record));
+    const plan = this.records.prepareCreate(withoutVersion(ctx), id, record);
+    await this.chapters!.atomic([...placement, plan]);
+    return toView(plan.result);
   }
 
   /**
@@ -181,7 +214,11 @@ export class CardService {
     MutationContextSchema.parse(ctx);
     if (ctx.expectedVersion === undefined) throw new CardError('card_expected_version_required');
     const { change, after } = await this.prepare(ctx, ref, ctx.expectedVersion, patch);
-    return toView(await this.records.update(ctx, ref, change, row => ({ ...row, content: after })));
+    const placement = change.chapter !== undefined || change.sources !== undefined ? await this.placementPlans(ctx, [after]) : [];
+    if (placement.length === 0) return toView(await this.records.update(ctx, ref, change, row => ({ ...row, content: after })));
+    const plan = this.records.prepareUpdate(ctx, ref, change, row => ({ ...row, content: after }));
+    await this.chapters!.atomic([...placement, plan]);
+    return toView(plan.result);
   }
 
   /**
@@ -196,6 +233,29 @@ export class CardService {
    */
   async preview(ctx: HostContext, ref: string, expectedVersion: VersionToken, patch: unknown): Promise<CardContent> {
     return (await this.prepare(ctx, ref, expectedVersion, patch)).after;
+  }
+
+  /**
+   * The skeleton writes these contents' claimed levels still need — one minted
+   * outline node per missing level, anchored to that card's own sources — ready
+   * to fold into the same atomic unit as the card changes themselves, so a card
+   * and the level it claims land or fail together. Batch writers call this for
+   * their whole set; create and edit call it for one. Without a wired
+   * {@link ChapterPlacement} there is nothing to grow and this returns empty.
+   */
+  async placementPlans(ctx: MutationContext, contents: readonly CardContent[]): Promise<PreparedRecordChange[]> {
+    if (this.chapters === undefined) return [];
+    const claims = new Map<string, ChapterClaim[]>();
+    for (const content of contents) {
+      if (content.chapter === undefined) continue;
+      const materialIds = new Set(content.sources.map(source => source.materialId));
+      if (materialIds.size !== 1) continue;
+      const materialId = materialIds.values().next().value!;
+      const rows = claims.get(materialId) ?? [];
+      rows.push({ chapter: content.chapter, anchors: [...content.sources] });
+      claims.set(materialId, rows);
+    }
+    return claims.size === 0 ? [] : this.chapters.plan(ctx, claims);
   }
 
   /**
@@ -272,7 +332,14 @@ export class CardService {
     }
   }
 
-  /** A chapter is a real node of one of this card's own source books' skeletons. */
+  /**
+   * A chapter is a real node of one of this card's own source books' skeletons —
+   * or, when the service can grow structure, a level this card may mint: a card
+   * pinned to exactly one source book may claim a well-formed path it will
+   * create as an outline node anchored to its own sources. A card with no
+   * sources or several source books cannot say which book a missing level
+   * belongs to, so it still has to name a real node.
+   */
   private async assertChapter(ctx: HostContext, chapter: string | undefined, sources: readonly SourceAnchor[]): Promise<void> {
     if (chapter === undefined) return;
     const paths = new Set<string>();
@@ -280,7 +347,10 @@ export class CardService {
       const view = await this.skeletons.read(ctx, materialId);
       for (const node of view.nodes) paths.add(node.path);
     }
-    if (!paths.has(chapter)) throw new CardError('card_chapter_missing', [chapter]);
+    if (paths.has(chapter)) return;
+    const mintable = this.chapters !== undefined && new Set(sources.map(source => source.materialId)).size === 1
+      && SkeletonPathSchema.safeParse(chapter).success;
+    if (!mintable) throw new CardError('card_chapter_missing', [chapter]);
   }
 
   private assertMath(problems: readonly MathIssue[]): void {

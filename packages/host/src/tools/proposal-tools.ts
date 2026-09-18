@@ -28,7 +28,7 @@ export function registerProposalTools(host: Context): void {
     z.object({ kind: z.literal('cards'), title: z.string().trim().min(1), cards: z.array(CardContentSchema).min(1) }).strict(),
     z.object({ kind: z.literal('method'), target: EntityRefSchema }).strict(),
   ]);
-  host.effect(() => host.tools.register({ name: 'propose_card', description: '向学生提案保存普通卡，或收录已保存的私人知识为锦囊。同批拆出的多张卡用kind=cards，填写批次标题title和cards数组，一次调用形成一份可勾选、一起批准的提案；不要逐卡调用。单张用kind=card填写作者内容；kind=method选择刚读过的同一知识target，不复制成普通卡。chapter只填read_skeleton返回过的既有骨架路径，没有就省略；links填裸实体ref（card:/knowledge:/material:…），不是界面里的展示链接。确认前尚未入库，不替学生确认。', parameters: toolSchema(schema), output: proposalOutput(),
+  host.effect(() => host.tools.register({ name: 'propose_card', description: '向学生提案保存普通卡，或收录已保存的私人知识为锦囊。同批拆出的多张卡用kind=cards，填写批次标题title和cards数组，一次调用形成一份可勾选、一起批准的提案；不要逐卡调用。单张用kind=card填写作者内容；kind=method选择刚读过的同一知识target，不复制成普通卡。chapter填卡在唯一来源书内的层级语义路径，骨架缺的层确认时会顺带铸成outline节点；无来源或跨多本书的卡只能用read_skeleton返回过的既有路径，没有就省略；links填裸实体ref（card:/knowledge:/material:…），不是界面里的展示链接。确认前尚未入库，不替学生确认。', parameters: toolSchema(schema), output: proposalOutput(),
     async execute(args, execution) {
       const input = schema.parse(args), prior = await existingProposal(host, execution);
       if (prior) return prior;

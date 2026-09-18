@@ -29,6 +29,9 @@
       "@studyforge/domain/skeleton-authoring": [
         "./packages/domain/src/organization/skeleton-authoring.ts"
       ],
+      "@studyforge/domain/chapter-deriver": [
+        "./packages/domain/src/organization/chapter-deriver.ts"
+      ],
       "@studyforge/domain/card-changes": [
         "./packages/domain/src/cards/card-changes.ts"
       ],

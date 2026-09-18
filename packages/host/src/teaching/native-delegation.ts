@@ -414,7 +414,7 @@ export class TeachingDelegation {
       const id = 'card_' + createHash('sha256').update(`${context.workspaceId}:${operationId}`).digest('hex').slice(0, 24);
       return this.host.studyforgeCardRecords.prepareCreate({ ...context, operationId }, id, { content, history: [] });
     });
-    await this.host.studyforgeRecords.atomic(plans);
+    await this.host.studyforgeRecords.atomic([...await this.host.studyforgeCardService.placementPlans(context, contents), ...plans]);
     return {
       role: 'problem', childId, stopReason: result.stopReason, surface,
       ...(parsed.route ? { route: parsed.route } : {}),

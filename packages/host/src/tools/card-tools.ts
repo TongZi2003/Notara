@@ -48,13 +48,13 @@ export function registerCardTools(host: Context): void {
     async execute(args, execution) {
       const input = batchInput.parse(args), ctx = await teacherContext(host, execution);
       const content = await Promise.all(input.cards.map(card => host.studyforgeCardService.check(ctx, card)));
-      const plans = content.map((card, index) => {
+      const cardPlans = content.map((card, index) => {
         const operationId = ctx.operationId + ':' + index;
         const id = 'card_' + createHash('sha256').update(`${ctx.workspaceId}:${operationId}`).digest('hex').slice(0, 24);
         return host.studyforgeCardRecords.prepareCreate({ ...ctx, operationId }, id, { content: card, history: [] });
       });
-      await host.studyforgeRecords.atomic(plans);
-      return { cards: plans.map(plan => CardViewSchema.parse({ ref: plan.result.ref, version: plan.result.version, ...plan.result.data })) };
+      await host.studyforgeRecords.atomic([...await host.studyforgeCardService.placementPlans(ctx, content), ...cardPlans]);
+      return { cards: cardPlans.map(plan => CardViewSchema.parse({ ref: plan.result.ref, version: plan.result.version, ...plan.result.data })) };
     },
   }));
 }
