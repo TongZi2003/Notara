@@ -37,7 +37,7 @@ export function SourceDocument({ ctx, references, content, useTabInfo, sessionId
     });
     return () => { live = false; };
   }, [ctx, source]);
-  if (source !== undefined) return <SourceCapture key={resourceAddress} version={source.version} data={bytes} index={index}
+  if (source !== undefined) return <SourceCapture key={resourceAddress} ctx={ctx} version={source.version} data={bytes} index={index}
     references={references} sessionId={String(sessionId)} locator={source.source.locator} onPage={onPage} />;
   return <UnboundDocument address={resourceAddress} data={bytes} />;
 }

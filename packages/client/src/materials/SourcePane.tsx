@@ -17,6 +17,7 @@ import type { MaterialBytes, MaterialResource } from '@studyforge/contracts/mate
 import type { MaterialRef, MaterialVersion } from '@studyforge/contracts/material-records';
 import type { DocxIndex } from '@studyforge/domain/docx';
 import { useEffect, useState } from 'react';
+import type { Context } from '@deepseek-ai/cordis';
 import { MaterialPreview } from './MaterialPreview.tsx';
 import { SourceCapture } from './SourceCapture.tsx';
 import { DOCX_MEDIA_TYPE, decodeBase64 } from './files.ts';
@@ -31,6 +32,7 @@ export interface SourcePaneFace {
 }
 
 export interface SourcePaneProps {
+  readonly ctx: Context;
   readonly face: SourcePaneFace;
   readonly sessionId: string;
   /**
@@ -55,7 +57,7 @@ type State =
   | { readonly status: 'ready'; readonly version: MaterialVersion; readonly data: Uint8Array; readonly index: DocxIndex | undefined };
 
 /** Read one position of one original; a second position re-reads the same version. */
-export function SourcePane({ face, sessionId, anchors, browseId, sourceIndex, onLocate }: SourcePaneProps): React.JSX.Element {
+export function SourcePane({ ctx, face, sessionId, anchors, browseId, sourceIndex, onLocate }: SourcePaneProps): React.JSX.Element {
   const [localIndex, setAt] = useState(0);
   const at = sourceIndex ?? localIndex;
   const anchor = anchors[Math.min(at, Math.max(anchors.length - 1, 0))];
@@ -65,12 +67,12 @@ export function SourcePane({ face, sessionId, anchors, browseId, sourceIndex, on
       {anchors.map((item, index) => <button key={`${item.versionId}-${String(index)}`} type="button" className="sf-quiet"
         aria-pressed={index === at} data-testid="source-anchor" onClick={() => { setAt(index); onLocate?.(item, index); }}>{anchorName(item, index)}</button>)}
     </nav>}
-    <SourceBody key={`${anchor.materialId}@${anchor.versionId}:${String(at)}`} face={face} sessionId={sessionId} anchor={anchor} browseId={browseId} />
+    <SourceBody key={`${anchor.materialId}@${anchor.versionId}:${String(at)}`} ctx={ctx} face={face} sessionId={sessionId} anchor={anchor} browseId={browseId} />
   </>;
 }
 
 /** One original's own bytes, at one position, in the pane that opened it. */
-function SourceBody({ face, sessionId, anchor, browseId }: { readonly face: SourcePaneFace; readonly sessionId: string; readonly anchor: MaterialContext; readonly browseId?: string | undefined }): React.JSX.Element {
+function SourceBody({ ctx, face, sessionId, anchor, browseId }: { readonly ctx: Context; readonly face: SourcePaneFace; readonly sessionId: string; readonly anchor: MaterialContext; readonly browseId?: string | undefined }): React.JSX.Element {
   const [state, setState] = useState<State>({ status: 'loading' });
   const [page, setPage] = useState<number | undefined>(undefined);
   const references = heldSourceReferences();
@@ -122,7 +124,7 @@ function SourceBody({ face, sessionId, anchor, browseId }: { readonly face: Sour
   return <><div className="sf-source-actions"><button type="button" className="sf-quiet" onClick={() => {
     references.stage(sessionId, state.version.title, { currentMaterial: { kind: 'source', source: { materialId: state.version.materialId, versionId: state.version.versionId, ...(locator === undefined ? {} : { locator }) } } });
     revealWorkspaceView(sessionId, 'chat');
-  }}>带入对话</button></div><SourceCapture version={state.version} data={state.data} index={state.index} references={references}
+  }}>带入对话</button></div><SourceCapture ctx={ctx} version={state.version} data={state.data} index={state.index} references={references}
     sessionId={sessionId} locator={anchor.locator} onPage={setPage} /></>;
 }
 

@@ -403,7 +403,7 @@ export function LessonResources({ ctx, sessionId, host, browseId, refreshToken, 
             onClick={() => { void breakdown(node, action); }}>{breakdownLabel(action)}</button>)}
         </nav>
         {open.kind === 'source'
-          ? <><SourcePane face={host} sessionId={sessionId} anchors={open.anchors} browseId={activeBrowseId} sourceIndex={sheet.sourceIndex}
+          ? <><SourcePane ctx={ctx} face={host} sessionId={sessionId} anchors={open.anchors} browseId={activeBrowseId} sourceIndex={sheet.sourceIndex}
               onLocate={(_, sourceIndex) => setDeck(old => ({ ...old, sheets: old.sheets.map(item => item.id === sheet.id ? { ...item, sourceIndex, nodeKey: undefined } : item) }))} />
             {open.anchors.map((source, i) => <ContentHistory key={i} ctx={ctx} query={{ source }} refreshToken={refreshToken}
               onRefine={node && breakdownTarget(node) ? anchor => { void breakdown(node, 'directory', anchor); } : undefined}

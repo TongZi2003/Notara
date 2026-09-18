@@ -436,7 +436,7 @@ function MaterialReader({ view, version, host, references, sessionId, readCurren
       }}>
       {state.status === 'loading' && <p className="sf-note" role="status">正在取原件…</p>}
       {state.status === 'failed' && <p className="sf-note" role="status">{state.text}</p>}
-      {state.status === 'ready' && <SourceCapture version={version} data={state.data} index={state.index} references={references} sessionId={sessionId} locator={locator} />}
+      {state.status === 'ready' && <SourceCapture ctx={ctx} version={version} data={state.data} index={state.index} references={references} sessionId={sessionId} locator={locator} />}
     </div>
     </div>
     {/* One version is one tree: a newer version never reuses the older one's
