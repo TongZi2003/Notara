@@ -259,7 +259,10 @@ export function MaterialsPage({ useSessions, host, references, ctx, navigation }
           <p>放进书、讲义、图片或自己的笔记。</p>
           <ImportMaterial appearance="sheet" pending={pending} onFiles={files => { void importFiles(files); }} />
         </section>}
-        <LibraryBrowser ctx={ctx} materials={materials} cards={cards} references={references} onOpen={view => chooseMaterial(view.materialId, view.currentVersion.versionId)} onChange={() => { void reload(); setCardRefresh(n => n + 1); }} />
+        <LibraryBrowser ctx={ctx} materials={materials} cards={cards} references={references}
+          onOpen={view => chooseMaterial(view.materialId, view.currentVersion.versionId)}
+          onSource={(_view, source) => chooseMaterial(source.materialId, source.versionId, source.locator)}
+          onChange={() => { void reload(); setCardRefresh(n => n + 1); }} />
       </div>}
 
       {/* One reading branch, one column: a book is the original on the left and

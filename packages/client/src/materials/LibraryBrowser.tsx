@@ -5,10 +5,13 @@ import type { CardView } from '@studyforge/contracts/cards';
 import type { KnowledgeView } from '@studyforge/contracts/knowledge';
 import type { SetView } from '@studyforge/contracts/sets';
 import type { LibraryRelation } from '@studyforge/contracts/library';
+import type { LearningSearchHit, LearningSearchResult } from '@studyforge/contracts/learning-search';
+import type { MaterialContext } from '@studyforge/contracts/materials';
 import type { SourceReferences } from './source-selection.ts';
 import type { SourceContext } from '@studyforge/contracts/source-context';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CardDetail } from '../cards/CardDetail.tsx';
+import { cardOpenRequest } from '../cards/CardOpenRequest.tsx';
 import { KnowledgeEditor } from '../cards/KnowledgeEditor.tsx';
 import { insertTaskSkill } from '../classroom/skill-draft.ts';
 import { requestLessonPane } from './lesson-pane-request.ts';
@@ -39,9 +42,17 @@ export async function libraryDraft(ctx: Context, references: SourceReferences, i
   document.querySelector<HTMLElement>('[data-composer-input]')?.focus();
 }
 
-export function LibraryBrowser({ ctx, materials, cards, references, onOpen, onChange }: { ctx: Context; materials: readonly MaterialView[]; cards: readonly CardView[]; references: SourceReferences; onOpen(material: MaterialView): void; onChange(): void }): React.JSX.Element {
+type SearchState =
+  | { readonly status: 'idle' }
+  | { readonly status: 'loading' }
+  | { readonly status: 'ready'; readonly result: LearningSearchResult }
+  | { readonly status: 'failed' };
+
+export function LibraryBrowser({ ctx, materials, cards, references, onOpen, onSource, onChange }: { ctx: Context; materials: readonly MaterialView[]; cards: readonly CardView[]; references: SourceReferences; onOpen(material: MaterialView): void; onSource(material: MaterialView, source: MaterialContext): void; onChange(): void }): React.JSX.Element {
   const [knowledge, setKnowledge] = useState<KnowledgeView[]>([]), [sets, setSets] = useState<SetView[]>([]), [relations, setRelations] = useState<LibraryRelation[]>([]);
   const [query, setQuery] = useState(''), [kind, setKind] = useState<LibraryKind>('all'), [tag, setTag] = useState(''), [set, setSet] = useState(''), [selected, setSelected] = useState<string>(), [target, setTarget] = useState(''), [label, setLabel] = useState('相关'), [notice, setNotice] = useState(''), [tick, setTick] = useState(0);
+  const [search, setSearch] = useState<SearchState>({ status: 'idle' });
+  const searchSeq = useRef(0);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const changed = (): void => { setTick(n => n + 1); onChange(); window.dispatchEvent(new Event('studyforge:learning-changed')); };
   useEffect(() => { let live = true; void Promise.all([ctx.remote.studyforgeLearning.knowledge(), ctx.remote.studyforgeOrganization.sets({}), ctx.remote.studyforgeLibrary.relations()]).then(([notes, groups, edges]) => {
@@ -58,19 +69,55 @@ export function LibraryBrowser({ ctx, materials, cards, references, onOpen, onCh
   const treeRevision = tick + ':' + cards.map(card => card.ref + '@' + card.version).join(',');
   const active = items.find(item => item.ref === selected);
   const related = relations.filter(edge => edge.from === selected || edge.to === selected);
+  /** Full-text search across material bodies; the box keeps its live title/tag filter while typing. */
+  const runSearch = (): void => {
+    const text = query.trim();
+    const seq = ++searchSeq.current;
+    if (text.length === 0) { setSearch({ status: 'idle' }); return; }
+    setSearch({ status: 'loading' });
+    void ctx.remote.studyforgeMaterials.search({ query: text, limit: 50 }).then(reply => {
+      if (searchSeq.current !== seq) return;
+      setSearch(reply.ok ? { status: 'ready', result: reply.value } : { status: 'failed' });
+    }).catch(() => { if (searchSeq.current === seq) setSearch({ status: 'failed' }); });
+  };
+  const clearSearch = (): void => { searchSeq.current += 1; setSearch({ status: 'idle' }); };
+  const openHit = (hit: LearningSearchHit): void => {
+    if (hit.corpus === 'material' && hit.source !== null) {
+      const view = materials.find(material => material.materialId === hit.source!.materialId);
+      if (view !== undefined) { onSource(view, hit.source); return; }
+    }
+    if (hit.ref !== null) {
+      if (items.some(item => item.ref === hit.ref)) { setSelected(hit.ref); return; }
+      if (hit.corpus === 'card') { cardOpenRequest.request(hit.ref); ctx.layout.selectPanel('studyforge.cards' as MainPanelId); return; }
+    }
+    setNotice('这条命中暂时没有可打开的条目。');
+  };
   const entries = (rows: readonly LibraryItem[]): React.JSX.Element => <ul className="sf-library-entries">{rows.map(item => <li key={item.ref} data-testid="material-row" data-material-title={item.title} data-ref={item.ref} className="sf-library-item" data-selected={selected === item.ref}>
     <button className="sf-library-item-open" aria-pressed={selected === item.ref} onClick={() => setSelected(item.ref)}><LibraryIcon kind={item.kind} /><span title={item.title}>{item.title}</span></button>
     {(item.tags.length > 0 || item.materialIds.length > 1) && <div className="sf-library-item-meta">{item.materialIds.length > 1 && <span>来自 {item.materialIds.length} 份原文</span>}{item.tags.map(value => <button key={value} className="sf-library-tag" aria-label={`筛选标签：${value}`} aria-pressed={tag === value} onClick={() => chooseTag(tag === value ? '' : value)}>{value}</button>)}</div>}
   </li>)}</ul>;
   return <section className="sf-library-browser" data-testid="library-browser">
     <div className="sf-library-toolbar"><nav aria-label="资料类型" className="sf-library-types">{([['all', '全部'], ['material', '原文'], ['card', '题卡与笔记'], ['knowledge', '知识']] as const).map(([value, title]) => <button key={value} aria-pressed={kind === value} onClick={() => chooseKind(value)}>{title}<span>{value === 'all' ? scoped.length : scoped.filter(item => item.kind === value).length}</span></button>)}</nav><button className="sf-quiet" data-testid="materials-open-cards" onClick={() => ctx.layout.selectPanel('studyforge.cards' as MainPanelId)}>学习与复习 <span aria-hidden="true">↗</span></button></div>
-    <div className="sf-library-searchbar"><label className="sf-library-search"><LibraryIcon kind="search" /><input aria-label="搜索资料" placeholder="搜索标题或标签" value={query} onChange={e => setQuery(e.target.value)} /></label>
+    <div className="sf-library-searchbar"><label className="sf-library-search"><LibraryIcon kind="search" /><input aria-label="搜索资料" placeholder="搜标题或标签，回车搜全文" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') runSearch(); }} /></label>
+      <button className="sf-quiet" data-testid="materials-search-run" disabled={!query.trim() || search.status === 'loading'} onClick={runSearch}>搜全文</button>
       <select aria-label="筛选标签" value={tag} disabled={kind === 'material'} onChange={e => chooseTag(e.target.value)}><option value="">全部标签</option>{tag && !tags.includes(tag) && <option value={tag}>{tag}</option>}{tags.map(value => <option key={value} value={value}>{value}</option>)}</select>
       <select aria-label="筛选学习集" value={set} onChange={e => { setSet(e.target.value); setTag(''); }}><option value="">全部学习集</option>{sets.map(s => <option key={s.ref} value={s.ref}>{s.name}</option>)}</select>
-      {(query || tag) && <button className="sf-quiet" onClick={() => { setQuery(''); chooseTag(''); }}>清除筛选</button>}
+      {(query || tag || search.status !== 'idle') && <button className="sf-quiet" onClick={() => { setQuery(''); chooseTag(''); clearSearch(); }}>清除筛选</button>}
     </div>
     <div className="sf-library-columns" data-inspecting={!!active}><div className="sf-library-catalog" data-testid="materials-list">
-      {catalog.groups.map(group => <section className="sf-library-source-group" data-testid="library-source-group" data-source={group.source.source!.materialId} key={group.source.ref}>
+      {search.status !== 'idle' && <section className="sf-search-hits" data-testid="materials-search-results">
+        <header className="sf-search-hits-head">
+          {search.status === 'loading' && <span role="status">正在检索资料正文…</span>}
+          {search.status === 'failed' && <span role="alert">检索没有成功，请重试。</span>}
+          {search.status === 'ready' && <span>{search.result.hits.length === 0 ? '没有命中' : `${String(search.result.hits.length)} 条命中`}{search.result.hasMore ? '，还有更多，换个更准的词' : ''}</span>}
+          <button type="button" className="sf-quiet" data-testid="materials-search-close" onClick={clearSearch}>返回目录</button>
+        </header>
+        {search.status === 'ready' && search.result.hits.map((hit, index) => <button key={`${hit.corpus}:${hit.ref ?? hit.source?.materialId ?? ''}:${String(index)}`} type="button" className="sf-search-hit" data-testid="search-hit" data-corpus={hit.corpus} onClick={() => openHit(hit)}>
+          <span className="sf-search-hit-row"><LibraryIcon kind={hit.corpus} /><strong>{hit.title}</strong><small>{corpusLabel(hit)}{hitField(hit) === '' ? '' : ' · ' + hitField(hit)}</small></span>
+          <span className="sf-search-hit-quote">{snippetText(hit.snippets[0]!)}</span>
+        </button>)}
+      </section>}
+      {search.status === 'idle' && <>{catalog.groups.map(group => <section className="sf-library-source-group" data-testid="library-source-group" data-source={group.source.source!.materialId} key={group.source.ref}>
         <header className="sf-library-source-head" data-testid="material-row" data-material-title={group.source.title} data-selected={selected === group.source.ref}>
           <button className="sf-library-source-open" aria-expanded={expanded.has(group.source.ref)} onClick={() => toggle(group.source.ref)}><span className="sf-library-chevron" aria-hidden="true">{expanded.has(group.source.ref) ? '⌄' : '›'}</span><LibraryIcon kind="material" /><span><strong>{group.source.title}</strong><small>原文</small></span></button>
           <span className="sf-library-source-count">{group.cards.length || group.total} 张卡片</span>
@@ -81,6 +128,7 @@ export function LibraryBrowser({ ctx, materials, cards, references, onOpen, onCh
       {catalog.cards.length > 0 && <section className="sf-library-loose-group" data-testid="library-loose-cards"><button className="sf-library-chapter-toggle" aria-expanded={expanded.has('loose-cards')} onClick={() => toggle('loose-cards')}><span aria-hidden="true">{expanded.has('loose-cards') ? '⌄' : '›'}</span><span>其他题卡与笔记</span><small>{catalog.cards.length}</small></button>{expanded.has('loose-cards') && entries(catalog.cards)}</section>}
       {catalog.knowledge.length > 0 && <section className="sf-library-loose-group" data-testid="library-knowledge"><button className="sf-library-chapter-toggle" aria-expanded={expanded.has('knowledge')} onClick={() => toggle('knowledge')}><span aria-hidden="true">{expanded.has('knowledge') ? '⌄' : '›'}</span><span>知识</span><small>{catalog.knowledge.length}</small></button>{expanded.has('knowledge') && entries(catalog.knowledge)}</section>}
       {catalog.count === 0 && items.length > 0 && <p className="sf-library-no-results" role="status">没有符合筛选条件的资料</p>}
+      </>}
     </div>
     {active && <section className="sf-library-detail" data-testid="library-detail"><header><h2>{active.title}</h2><button className="sf-quiet" onClick={() => setSelected(undefined)} aria-label="关闭资料详情">×</button></header>
       <div className="sf-org-actions">{active.kind === 'material' && <button className="sf-action" onClick={() => onOpen(materials.find(m => 'material:' + m.materialId === active.ref)!)}>阅读原文</button>}<button className="sf-quiet" onClick={() => { void libraryDraft(ctx, references, active, false).catch(() => setNotice('暂时没能准备课堂引用。')); }}>带入课堂</button><button className="sf-quiet" onClick={() => { void libraryDraft(ctx, references, active, true).catch(() => setNotice('暂时没能准备查找草稿。')); }}>按语义查找</button></div>
@@ -95,6 +143,39 @@ export function LibraryBrowser({ ctx, materials, cards, references, onOpen, onCh
       </details>
     </section>}</div>{notice && <p role="status">{notice}</p>}
   </section>;
+}
+
+/** The corpus a search hit really came from, in the student's words. */
+function corpusLabel(hit: LearningSearchHit): string {
+  return hit.corpus === 'material' ? '原文' : hit.corpus === 'card' ? '题卡' : '知识';
+}
+
+/** Where inside the object the match landed; the locator already names material pages. */
+function hitField(hit: LearningSearchHit): string {
+  const field = hit.snippets[0]?.field ?? '';
+  if (hit.corpus === 'material') {
+    const locator = hit.source?.locator;
+    if (locator === undefined || locator === null) return '';
+    switch (locator.kind) {
+      case 'pdf': return `第 ${String(locator.page)} 页`;
+      case 'pdftext': return `第 ${String(locator.page)} 页摘录`;
+      case 'text': return `第 ${String(locator.start.line)} 行`;
+      case 'docx': return '文档选段';
+      case 'image': return '图上选区';
+    }
+  }
+  if (field === 'title') return '标题';
+  if (field === 'front') return '题面';
+  if (field === 'body' || field === 'text') return '正文';
+  if (field === 'notes') return '备注';
+  if (field.startsWith('sections')) return '正文';
+  return field;
+}
+
+/** One snippet with the matched span marked; null offsets mean "no match point" and show as-is. */
+function snippetText(snippet: LearningSearchHit['snippets'][number]): React.ReactNode {
+  if (snippet.start === null || snippet.end === null) return snippet.text;
+  return <>{snippet.text.slice(0, snippet.start)}<mark>{snippet.text.slice(snippet.start, snippet.end)}</mark>{snippet.text.slice(snippet.end)}</>;
 }
 
 function LibraryIcon({ kind }: { kind: LibraryItem['kind'] | 'search' | 'preview' }): React.JSX.Element {
