@@ -32,10 +32,12 @@ import { RouteNodeInputSchema, RouteNodePatchSchema, RoutePlacementSchema, type 
 import { PlanContentSchema, PlanPatchSchema, SkeletonChangeSchema, type PlanContent, type PlanContentDraft, type PlanPatch, type PlanView, type SkeletonChangeDraft, type SkeletonPreview } from '@studyforge/contracts/plans';
 import type { SkeletonView } from '@studyforge/contracts/skeleton';
 import { BookBreakdownIntentSchema, type BookBreakdownIntent, type BookStructure } from '@studyforge/contracts/book-exploration';
+import type { AtlasView } from '@studyforge/contracts/atlas';
 import type { MaterialRefs, SetService } from '@studyforge/domain/sets';
 import { RouteError, lessonNodeId, type NativeLessonSource, type RouteService, type RouteValidators } from '@studyforge/domain/routes';
 import type { PlanService } from '@studyforge/domain/plans';
 import type { SkeletonAuthoring } from '@studyforge/domain/skeleton-authoring';
+import type { AtlasAuthoring, AtlasService } from '@studyforge/domain/atlas';
 import { validateBookBreakdown, type BookExploration } from '@studyforge/domain/book-exploration';
 import { nativeOpen } from './runtime/native-open.ts';
 import type { SessionRequestId } from '@deepseek-ai/dsh-api-session-controller';
@@ -245,6 +247,8 @@ declare module '@deepseek-ai/cordis' {
     studyforgeRouteService: RouteService;
     studyforgePlanService: PlanService;
     studyforgeSkeletonAuthoring: SkeletonAuthoring;
+    studyforgeAtlasService: AtlasService;
+    studyforgeAtlasAuthoring: AtlasAuthoring;
     studyforgeBookExploration: BookExploration;
   }
 }
@@ -486,5 +490,23 @@ export class StudyForgeOrganization extends TypertRemoteService {
       content: [{ type: 'text', text: text + fragment }],
     }, AbortSignal.timeout(30_000));
     return { sessionId: opened.sessionId };
+  }
+
+  // ---- the whole workspace structure, read-only --------------------------------
+
+  /**
+   * Every material's own book tree plus the cross-book knowledge map (atlas) in
+   * one read — the two projections the structure page draws its 按书籍 / 知识地图
+   * views from. A browse writes nothing: no session, fact or model call.
+   */
+  @Remote('map')
+  async map(input: { sessionId?: string }): Promise<{ books: BookStructure[]; atlas: AtlasView }> {
+    const parsed = BoundSchema.parse(input ?? {});
+    const context = await this.context(parsed.sessionId);
+    const books: BookStructure[] = [];
+    for (const material of await this.ctx.studyforgeMaterialService.list(context)) {
+      books.push(await this.ctx.studyforgeBookExploration.read(context, { materialId: material.materialId, versionId: material.currentVersion.versionId }));
+    }
+    return { books, atlas: await this.ctx.studyforgeAtlasService.read(context) };
   }
 }

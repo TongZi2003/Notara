@@ -6,6 +6,7 @@ import { SetCreateSchema, SetPatchSchema, SetViewSchema } from '@studyforge/cont
 import { RouteNodeInputSchema, RouteNodePatchSchema, RouteViewSchema } from '@studyforge/contracts/routes';
 import { PlanContentSchema, PlanPatchSchema, PlanViewSchema, SkeletonChangeSchema } from '@studyforge/contracts/plans';
 import { SkeletonViewSchema } from '@studyforge/contracts/skeleton';
+import { ATLAS_REF, AtlasChangeSchema, AtlasViewSchema } from '@studyforge/contracts/atlas';
 import type { ProposalInput } from '@studyforge/contracts/proposals';
 import { teacherContext, observedVersion, rejected } from './learning-context.ts';
 import { existingProposal, proposeFromTool, proposalOutput } from './proposal-tools.ts';
@@ -44,6 +45,8 @@ export function registerOrganizationTools(host: Context): void {
   const skeletonRead = z.object({ materialId: z.string().min(1) }).strict();
   read('read_skeleton', '读取这份真实资料的目录，修改之前先读取。没有目录不表示书为空。', skeletonRead, SkeletonViewSchema,
     async (args, execution) => host.studyforgeSkeletonService.read(await teacherContext(host, execution), skeletonRead.parse(args).materialId));
+  read('read_atlas', '读取工作区知识地图(atlas)：不依赖任何单一资料的跨书层次归属树，卡的topic字段挂到这些路径上。修改之前先读取；没有地图不表示卡为空。', z.object({}).strict(), AtlasViewSchema,
+    async (_args, execution) => host.studyforgeAtlasService.read(await teacherContext(host, execution)));
   read('read_lesson', '读取当前课的材料、学习集和教学方式；修改之前先读，不能借此关闭课堂。', z.object({}).strict(), CourseViewSchema.extend({ ref: z.string() }),
     async (_args, execution) => { const context = await teacherContext(host, execution); return { ref: courseRecordRef(context.sessionId!), ...host.studyforgeCourseMetadata.read(context) }; });
   read('read_journey', '读取本工作区全部学习经历的索引：每节课的小结指针与当时系统事实（材料/产出/待确认）、路线已开与未开节点、卡片复习态势、学情与方法清单。续接下一段、规划新路线或回答「之前学了什么」先读这里定位，不凭印象复述；需要哪段的正文再按需精读——小结用open(method=handoff)给ref/version，卡用read_card，学情用read_memory/search_memory，方法用read_method。读取是投影不产生写入，不替代修改前的完整读取。', z.object({}).strict(), JourneyViewSchema,
@@ -117,5 +120,11 @@ export function registerOrganizationTools(host: Context): void {
     const input = skeletonInput.parse(args), target = 'skeleton:' + input.materialId;
     await assertRefinedReads(host, execution, input.change.nodes.filter(node => node.detail === 'refined').flatMap(node => node.sources));
     return { title: '整理目录', items: [{ target, baseline: await observedVersion(host, execution, target), effect: { kind: 'skeleton-save', ...input } }] };
+  });
+  const atlasInput = z.object({ change: AtlasChangeSchema }).strict();
+  proposal('propose_atlas', '提议增补或重整工作区知识地图(atlas)：跨书层次归属树，与某本书的骨架无关。卡的topic字段挂到这些路径上；未列出的兄弟层保留。repath会原子级联所有挂靠卡的topic；删除有依赖的层时先向学生说明影响，明确选择解除绑定才可保存。refined节点的sources必须来自本会话真实读过的范围。', atlasInput, async (args, execution) => {
+    const input = atlasInput.parse(args);
+    await assertRefinedReads(host, execution, input.change.nodes.filter(node => node.detail === 'refined').flatMap(node => node.sources ?? []));
+    return { title: '整理知识地图', items: [{ target: ATLAS_REF, baseline: await observedVersion(host, execution, ATLAS_REF), effect: { kind: 'atlas-save', ...input } }] };
   });
 }

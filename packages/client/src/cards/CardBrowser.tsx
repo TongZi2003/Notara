@@ -163,6 +163,7 @@ function CardRow({ card, onOpen, onLearn }: {
       {card.content.front && <span className="sf-card-face-preview">{clip(card.content.front, 180)}</span>}
       <span className="sf-meta">{PRESENTATION_LABELS[card.content.presentation]}
         {card.content.chapter === undefined ? ' · 未归书' : ` · ${card.content.chapter}`}
+        {card.content.topic === undefined ? '' : ` · 图:${card.content.topic}`}
         {card.content.tags.length > 0 ? ` · ${card.content.tags.join('、')}` : ''}
         {card.review === undefined ? ' · 还没学过' : ` · 下次 ${card.review.nextDue}`}</span>
     </button>

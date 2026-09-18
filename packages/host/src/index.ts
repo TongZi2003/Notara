@@ -21,6 +21,7 @@ import { StudyForgeMaterials } from './materials/resource-service.ts';
 import { registerMaterialTools } from './tools/material-tools.ts';
 import { registerSourceUseTools } from './tools/source-use-tools.ts';
 import { SkeletonRecordSchema } from '@studyforge/contracts/skeleton';
+import { AtlasRecordSchema } from '@studyforge/contracts/atlas';
 import { SkeletonService } from '@studyforge/domain/skeleton';
 import { StudyForgeSources } from './source-service.ts';
 import { registerSearchTools } from './tools/search-tools.ts';
@@ -37,6 +38,7 @@ import { RouteService } from '@studyforge/domain/routes';
 import { PlanService } from '@studyforge/domain/plans';
 import { SkeletonAuthoring } from '@studyforge/domain/skeleton-authoring';
 import { ChapterDeriver } from '@studyforge/domain/chapter-deriver';
+import { AtlasAuthoring, AtlasDeriver, AtlasService } from '@studyforge/domain/atlas';
 import { BookExploration } from '@studyforge/domain/book-exploration';
 import { StudyForgeOrganization, nativeLessons, routeValidators } from './organization-service.ts';
 import { nativeOpen } from './runtime/native-open.ts';
@@ -179,7 +181,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       try { store.read(context, ref); return true; }
       catch (error) { if ((error as { code?: string }).code === 'record_missing') return false; throw error; }
     } };
-    const cards = new CardService(cardRecords, materials, skeletons, targets, new ChapterDeriver(skeletonRecords, skeletons, owner));
+    const atlasRecords = await owner.collection('atlas', AtlasRecordSchema);
+    const atlas = new AtlasService(atlasRecords, materials);
+    ctx.effect(() => ctx.reflect.provide('studyforgeAtlasService', atlas));
+    const cards = new CardService(cardRecords, materials, skeletons, targets, new ChapterDeriver(skeletonRecords, skeletons, owner), new AtlasDeriver(atlasRecords, atlas, owner));
     const knowledge = new KnowledgeService(knowledgeRecords, undefined, targets);
     const setRecords = await owner.collection('set', SetRecordSchema);
     const sets = new SetService(setRecords, cardRecords, { async hasMaterial(context, id) {
@@ -194,11 +199,13 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       hasSet(context, ref) { try { setRecords.read(context, ref); return true; } catch { return false; } },
     });
     const skeletonAuthoring = new SkeletonAuthoring(skeletonRecords, cardRecords, planRecords, skeletons, owner);
+    const atlasAuthoring = new AtlasAuthoring(atlasRecords, cardRecords, atlas, owner);
     const books = new BookExploration(materials, skeletons, cardRecords, knowledgeRecords);
     ctx.effect(() => ctx.reflect.provide('studyforgeSetService', sets));
     ctx.effect(() => ctx.reflect.provide('studyforgeRouteService', routes));
     ctx.effect(() => ctx.reflect.provide('studyforgePlanService', plans));
     ctx.effect(() => ctx.reflect.provide('studyforgeSkeletonAuthoring', skeletonAuthoring));
+    ctx.effect(() => ctx.reflect.provide('studyforgeAtlasAuthoring', atlasAuthoring));
     ctx.effect(() => ctx.reflect.provide('studyforgeBookExploration', books));
     ctx.plugin(StudyForgeOrganization);
     const reviews = new ReviewService(cardRecords, (context, ref) => {
@@ -231,6 +238,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       { kind: 'memory', list: context => memoryRecords.list(context), changes: (context, target) => memoryRecords.changes(context, target) },
       { kind: 'plan', list: context => planRecords.list(context), changes: (context, target) => planRecords.changes(context, target) },
       { kind: 'skeleton', list: context => skeletonRecords.list(context), changes: (context, target) => skeletonRecords.changes(context, target) },
+      { kind: 'atlas', list: context => atlasRecords.list(context), changes: (context, target) => atlasRecords.changes(context, target) },
       { kind: 'set', list: context => setRecords.list(context), changes: (context, target) => setRecords.changes(context, target) },
       { kind: 'route', list: context => routeRecords.list(context), changes: (context, target) => routeRecords.changes(context, target) },
       { kind: 'handoff', list: context => handoffRecords.list(context), changes: (context, target) => handoffRecords.changes(context, target) },

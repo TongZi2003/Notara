@@ -7,6 +7,7 @@ import type { MaterialNavigation } from '../materials/material-navigation.ts';
 import { MemoryPage } from '../memory/MemoryPage.tsx';
 import { SetPage } from '../sets/SetPage.tsx';
 import { Calendar } from './Calendar.tsx';
+import { MAP_PAGE_ID, MapPage } from './MapPage.tsx';
 import { useEffect } from 'react';
 import { LearningEntry } from '../classroom/LearningEntry.tsx';
 import { registerLearningComposer } from '../classroom/LearningComposer.tsx';
@@ -34,6 +35,17 @@ export function registerOrganization(ctx: Context, navigation: MaterialNavigatio
   // B's 记忆 screen is the student's own surface, not only a tab inside one lesson.
   ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'studyforge.memory', priority: -20 },
     () => <MemoryPage ctx={ctx} />)));
+  // 知识地图：按书籍 / atlas 两个视图共用一张 Mindmap 画布。
+  ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: MAP_PAGE_ID, priority: -20 },
+    () => <MapPage ctx={ctx} navigation={navigation} />)));
+  ctx.effect(() => ctx.slots.inject('sidebar.panellist', () => ctx.slots.register(
+    { name: 'sidebar.panellist', id: MAP_PAGE_ID, order: 36, label: '知识地图' },
+    function MapGlyph({ size }): React.JSX.Element {
+      return <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 5v5M7 10l5-5 5 5M7 10H4v9h5M17 10h3v9h-5M9 19h6" />
+      </svg>;
+    },
+  )), 'studyforge: map row');
   ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'studyforge.home', priority: -20 },
     function HomePage(): null {
       useEffect(() => { startLesson(ctx); }, []);
@@ -71,4 +83,9 @@ const css = `
 .sf-book-node[data-selected=true]{border-left-color:#26437c}.sf-book-node .sf-quiet{font-size:11px;margin-top:5px}
 .sf-book-detail{border-top:1px solid #d9d2bd;margin-top:22px;padding-top:16px}.sf-book-mobile-tabs{display:none}
 @media(max-width:760px){.sf-organization-columns{display:flex;flex-direction:column}.sf-organization-list{border-right:0;border-bottom:1px solid #d9d2bd;max-height:180px}.sf-organization-detail,.sf-calendar-body{padding:16px}.sf-book-columns{display:flex;flex-direction:column}.sf-book-structure{border-left:0;padding:0}.sf-book-mobile-tabs{display:flex;gap:10px;margin-bottom:12px}.sf-book-columns[data-view=original] .sf-book-structure{display:none}.sf-book-columns[data-view=structure] .sf-book-original{display:none}}
+.sf-map-page{box-sizing:border-box;height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:#fdfaf1;color:#26437c;font-family:"Songti SC","Noto Serif SC",serif}
+.sf-map-head{display:flex;align-items:center;gap:16px;border-bottom:1px solid #d9d2bd;padding:14px clamp(20px,4vw,48px);font-size:13px;letter-spacing:.08em}
+.sf-map-views{display:flex;gap:6px}
+.sf-map-page>.sf-note,.sf-map-page>.sf-notice{margin:14px clamp(20px,4vw,48px)}
+.sf-map-page .sf-mindmap-shell{flex:1;min-height:0;max-height:none;border:0;border-radius:0}
 `;

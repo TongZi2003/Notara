@@ -30,6 +30,10 @@
  *    sources, in the same atomic unit. Anchored content mints structure;
  *    placement stays correctable through the skeleton's own repath/remove
  *    cascade afterwards;
+ *  - `topic`, when set, is a well-formed path in the workspace knowledge map
+ *    (atlas), which a wired {@link ChapterPlacement} port mints as an outline
+ *    level in the same atomic unit — with no single-book rule, since a
+ *    workspace path has no book ambiguity. Unwired, any topic is refused.
  *  - math delimiters in the authored text this write actually rewrote. Text
  *    already stored is never re-validated, so an old card with a broken fence
  *    can still have its tags, sources or chapter corrected;
@@ -48,6 +52,7 @@ import { DaySchema } from '@studyforge/contracts/reviews';
 import { CardContentSchema, CardPatchSchema, MutationContextSchema } from '@studyforge/contracts';
 import type { CardContent, CardPatch, CardRecord, CardView, EntityRef, HostContext, MutationContext, ObjectChange, SourceAnchor, VersionToken } from '@studyforge/contracts';
 import { SkeletonPathSchema } from '@studyforge/contracts/skeleton';
+import { ATLAS_SCOPE } from '@studyforge/contracts/atlas';
 import { type MaterialResolver, resolveAnchor } from '../materials/read-material.ts';
 import { RecordError, type PreparedRecordChange, type Saved } from '../storage/record-store.ts';
 import { changedTextFields, formatMathIssue, mathProblems, type AuthorTextField, type MathIssue } from './content-projection.ts';
@@ -84,9 +89,9 @@ export interface ChapterSkeletonReader {
   read(ctx: HostContext, materialId: string): Promise<{ readonly nodes: readonly { readonly path: string }[] }>;
 }
 
-/** One card's claim about where inside its one source book it belongs. */
+/** One card's claim about a structural level it belongs at (book chapter or workspace topic). */
 export interface ChapterClaim {
-  readonly chapter: string;
+  readonly path: string;
   readonly anchors: readonly SourceAnchor[];
 }
 
@@ -127,6 +132,7 @@ export function selectCardRows(rows: readonly Saved<CardRecord>[], input: CardLi
     if (query.state === 'unlearned' && review) return false;
     if (!query.tags.every(tag => content.tags.includes(tag))) return false;
     if (query.chapter && content.chapter !== query.chapter && !content.chapter?.startsWith(query.chapter + '/')) return false;
+    if (query.topic && content.topic !== query.topic && !content.topic?.startsWith(query.topic + '/')) return false;
     if (query.materialId && !content.sources.some(source => source.materialId === query.materialId)) return false;
     if (set && !set.members.includes(row.ref) && !content.sources.some(source => set.materials.includes(source.materialId))) return false;
     return true;
@@ -142,7 +148,7 @@ export function listCardSummaries(rows: readonly Saved<CardRecord>[], input: Car
   const end = query.offset + query.limit;
   return CardListResultSchema.parse({ date: today,
     cards: selected.slice(query.offset, end).map(({ ref, version, data }) => ({ ref, version, title: data.content.title,
-      tags: data.content.tags, chapter: data.content.chapter ?? null, nextDue: data.review?.nextDue ?? null,
+      tags: data.content.tags, chapter: data.content.chapter ?? null, topic: data.content.topic ?? null, nextDue: data.review?.nextDue ?? null,
       state: !data.review ? 'unlearned' : data.review.nextDue <= today ? 'due' : 'upcoming' })),
     nextOffset: end < selected.length ? end : null,
   });
@@ -154,13 +160,15 @@ export class CardService {
   private readonly skeletons: ChapterSkeletonReader;
   private readonly targets: LinkTargets | undefined;
   private readonly chapters: ChapterPlacement | undefined;
+  private readonly topics: ChapterPlacement | undefined;
 
-  constructor(records: CardRecordStore, materials: MaterialResolver, skeletons: ChapterSkeletonReader, targets?: LinkTargets, chapters?: ChapterPlacement) {
+  constructor(records: CardRecordStore, materials: MaterialResolver, skeletons: ChapterSkeletonReader, targets?: LinkTargets, chapters?: ChapterPlacement, topics?: ChapterPlacement) {
     this.records = records;
     this.materials = materials;
     this.skeletons = skeletons;
     this.targets = targets;
     this.chapters = chapters;
+    this.topics = topics;
   }
 
   /**
@@ -178,7 +186,7 @@ export class CardService {
     const placement = await this.placementPlans(ctx, [content]);
     if (placement.length === 0) return toView(await this.records.create(withoutVersion(ctx), id, record));
     const plan = this.records.prepareCreate(withoutVersion(ctx), id, record);
-    await this.chapters!.atomic([...placement, plan]);
+    await this.publisher()!.atomic([...placement, plan]);
     return toView(plan.result);
   }
 
@@ -191,6 +199,7 @@ export class CardService {
     const content = CardContentSchema.parse(input);
     await this.assertSources(ctx, content.sources);
     await this.assertChapter(ctx, content.chapter, content.sources);
+    this.assertTopic(content.topic);
     this.assertMath(mathProblems(contentText(content)));
     await this.assertLinks(ctx, content.links);
     return content;
@@ -214,10 +223,10 @@ export class CardService {
     MutationContextSchema.parse(ctx);
     if (ctx.expectedVersion === undefined) throw new CardError('card_expected_version_required');
     const { change, after } = await this.prepare(ctx, ref, ctx.expectedVersion, patch);
-    const placement = change.chapter !== undefined || change.sources !== undefined ? await this.placementPlans(ctx, [after]) : [];
+    const placement = change.chapter !== undefined || change.sources !== undefined || change.topic !== undefined ? await this.placementPlans(ctx, [after]) : [];
     if (placement.length === 0) return toView(await this.records.update(ctx, ref, change, row => ({ ...row, content: after })));
     const plan = this.records.prepareUpdate(ctx, ref, change, row => ({ ...row, content: after }));
-    await this.chapters!.atomic([...placement, plan]);
+    await this.publisher()!.atomic([...placement, plan]);
     return toView(plan.result);
   }
 
@@ -240,22 +249,34 @@ export class CardService {
    * outline node per missing level, anchored to that card's own sources — ready
    * to fold into the same atomic unit as the card changes themselves, so a card
    * and the level it claims land or fail together. Batch writers call this for
-   * their whole set; create and edit call it for one. Without a wired
-   * {@link ChapterPlacement} there is nothing to grow and this returns empty.
+   * their whole set; create and edit call it for one. The workspace-map port
+   * plans claimed `topic` levels the same way, keyed under the single map
+   * scope. Without a wired {@link ChapterPlacement} there is nothing to grow
+   * and this returns empty.
    */
   async placementPlans(ctx: MutationContext, contents: readonly CardContent[]): Promise<PreparedRecordChange[]> {
-    if (this.chapters === undefined) return [];
-    const claims = new Map<string, ChapterClaim[]>();
+    const chapterClaims = new Map<string, ChapterClaim[]>();
+    const topicClaims = new Map<string, ChapterClaim[]>();
     for (const content of contents) {
-      if (content.chapter === undefined) continue;
-      const materialIds = new Set(content.sources.map(source => source.materialId));
-      if (materialIds.size !== 1) continue;
-      const materialId = materialIds.values().next().value!;
-      const rows = claims.get(materialId) ?? [];
-      rows.push({ chapter: content.chapter, anchors: [...content.sources] });
-      claims.set(materialId, rows);
+      if (content.chapter !== undefined) {
+        const materialIds = new Set(content.sources.map(source => source.materialId));
+        if (materialIds.size === 1) {
+          const materialId = materialIds.values().next().value!;
+          const rows = chapterClaims.get(materialId) ?? [];
+          rows.push({ path: content.chapter, anchors: [...content.sources] });
+          chapterClaims.set(materialId, rows);
+        }
+      }
+      if (content.topic !== undefined) {
+        const rows = topicClaims.get(ATLAS_SCOPE) ?? [];
+        rows.push({ path: content.topic, anchors: [...content.sources] });
+        topicClaims.set(ATLAS_SCOPE, rows);
+      }
     }
-    return claims.size === 0 ? [] : this.chapters.plan(ctx, claims);
+    const plans: PreparedRecordChange[] = [];
+    if (this.chapters !== undefined && chapterClaims.size > 0) plans.push(...await this.chapters.plan(ctx, chapterClaims));
+    if (this.topics !== undefined && topicClaims.size > 0) plans.push(...await this.topics.plan(ctx, topicClaims));
+    return plans;
   }
 
   /**
@@ -281,6 +302,7 @@ export class CardService {
     const after = applyPatch(ctx, before, change);
     if (change.sources !== undefined) await this.assertSources(ctx, after.sources);
     if (change.chapter !== undefined || change.sources !== undefined) await this.assertChapter(ctx, after.chapter, after.sources);
+    if (change.topic !== undefined) this.assertTopic(after.topic);
     this.assertMath(mathProblems(changedTextFields(before, after)));
     await this.assertLinks(ctx, introducedLinks(before.links, change));
     return { change, before, after };
@@ -353,6 +375,24 @@ export class CardService {
     if (!mintable) throw new CardError('card_chapter_missing', [chapter]);
   }
 
+  /**
+   * A topic is a path in the workspace knowledge map, not in any one book, so
+   * there is no source-book ambiguity: a wired map port mints any well-formed
+   * level the card claims (single-source, multi-source or source-less alike),
+   * and only the format and the port itself gate the claim. Without a wired
+   * port a topic can never be verified or grown and is refused outright.
+   */
+  private assertTopic(topic: string | undefined): void {
+    if (topic === undefined) return;
+    if (this.topics === undefined) throw new CardError('card_topic_missing', [topic]);
+    if (!SkeletonPathSchema.safeParse(topic).success) throw new CardError('card_topic_invalid', [topic]);
+  }
+
+  /** The wired placement port whose publisher lands this write's plans; both ports share one publisher. */
+  private publisher(): ChapterPlacement | undefined {
+    return this.chapters ?? this.topics;
+  }
+
   private assertMath(problems: readonly MathIssue[]): void {
     if (problems.length === 0) return;
     throw new CardError('card_math_invalid', problems.map(formatMathIssue));
@@ -382,6 +422,8 @@ function applyPatch(ctx: HostContext, before: CardContent, change: CardPatch): C
   };
   const chapter = change.chapter === null ? undefined : change.chapter ?? before.chapter;
   if (chapter !== undefined) merged['chapter'] = chapter;
+  const topic = change.topic === null ? undefined : change.topic ?? before.topic;
+  if (topic !== undefined) merged['topic'] = topic;
   return CardContentSchema.parse(merged);
 }
 

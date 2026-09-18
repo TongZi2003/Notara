@@ -24,6 +24,7 @@ export * from './calendar.ts';
 export * from './teaching.ts';
 export * from './handoffs.ts';
 export * from './tool-facades.ts';
+export * from './atlas.ts';
 
 import { z } from 'zod';
 import { CardContentSchema, CardPatchSchema, CardRecordSchema, CardViewSchema,
@@ -38,6 +39,7 @@ import { CourseMetadataSchema, CourseUpdateSchema, CourseViewSchema } from './co
 import { ImportMaterialInputSchema, MaterialRecordSchema, MaterialViewSchema, MaterialRefSchema } from './material-records.ts';
 import { MaterialReadSchema, ReadMaterialInputSchema } from './material-read.ts';
 import { SkeletonNodesSchema, SkeletonRecordSchema, SkeletonViewSchema } from './skeleton.ts';
+import { AtlasNodesSchema, AtlasRecordSchema, AtlasViewSchema, AtlasChangeSchema } from './atlas.ts';
 import { ReviewOccurrenceSchema, ReviewScheduleSchema, ReviewHistorySchema, LadderSchema } from './reviews.ts';
 import { ProposalInputSchema, ProposalRecordSchema, ProposalViewSchema, ProposalEditInputSchema, ProposalSelectionSchema } from './proposals.ts';
 import { SourceContextSchema, SourceFragmentSchema, FrozenSourceSchema } from './source-context.ts';
@@ -63,6 +65,7 @@ export const CONTRACT_SCHEMAS = {
   'material-import': ImportMaterialInputSchema, 'material-record': MaterialRecordSchema, 'material-view': MaterialViewSchema,
   'material-ref': MaterialRefSchema, 'material-read-input': ReadMaterialInputSchema, 'material-read': MaterialReadSchema,
   'skeleton-nodes': SkeletonNodesSchema, 'skeleton-record': SkeletonRecordSchema, 'skeleton-view': SkeletonViewSchema,
+  'atlas-nodes': AtlasNodesSchema, 'atlas-record': AtlasRecordSchema, 'atlas-view': AtlasViewSchema, 'atlas-change': AtlasChangeSchema,
   'card-patch': CardPatchSchema, 'card-record': CardRecordSchema, 'card-view': CardViewSchema,
   'card-list-input': CardListInputSchema, 'card-list-result': CardListResultSchema,
   'card-batch-read-input': CardBatchReadInputSchema, 'card-batch-read-result': CardBatchReadResultSchema,

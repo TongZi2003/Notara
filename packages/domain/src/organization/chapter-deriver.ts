@@ -43,12 +43,12 @@ export class ChapterDeriver implements ChapterPlacement {
       const view = await this.reader.read(ctx, materialId);
       const mint = new Map<string, SourceAnchor[]>();
       for (const row of rows) {
-        if (view.nodes.some(node => node.path === row.chapter)) continue;
-        const list = mint.get(row.chapter) ?? [];
+        if (view.nodes.some(node => node.path === row.path)) continue;
+        const list = mint.get(row.path) ?? [];
         for (const anchor of row.anchors) {
           if (anchor.materialId === materialId && !list.some(kept => anchorKey(kept) === anchorKey(anchor))) list.push(anchor);
         }
-        mint.set(row.chapter, list);
+        mint.set(row.path, list);
       }
       if (mint.size === 0) continue;
       const added = [...mint].map(([path, sources]) => SkeletonNodeSchema.parse({ path, sources, detail: 'outline' }));

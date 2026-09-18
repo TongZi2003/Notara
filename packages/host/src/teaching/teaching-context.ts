@@ -95,7 +95,7 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
     'list_model_routes',
     'read_card', 'read_cards', 'list_cards', 'query_evidence', 'read_memory', 'search_memory', 'note_memory', 'revise_memory',
     'register_cards', 'update_card', 'note_method', 'revise_method', 'record_review', 'read_math_scene','edit_math_scene','calculate_math','restore_math_scene',
-    'propose_card', 'propose_review', 'propose_set', 'propose_plan', 'propose_route', 'propose_skeleton', 'propose_handoff', 'read_handoff', 'read_lesson', 'read_journey', 'propose_lesson_settings',
+    'propose_card', 'propose_review', 'propose_set', 'propose_plan', 'propose_route', 'propose_skeleton', 'propose_atlas', 'propose_handoff', 'read_handoff', 'read_lesson', 'read_journey', 'propose_lesson_settings',
     'read_classroom', 'ask_classmate', 'continue_classmate', 'update_classroom_context', 'adjust_classroom_intimacy', 'propose_classmate',
     'read_teaching', 'propose_teaching',
     'read', 'write', 'edit', 'glob', 'grep', 'read_image', 'run_code']);

@@ -134,6 +134,7 @@ export function CardDetail({ ctx, target, sessionId, version, readonly, seed, on
       <ul>
         <li><span>标签</span><span className="sf-meta">{content.tags.length === 0 ? '（空）' : content.tags.join('、')}</span></li>
         <li><span>章节</span><span className="sf-meta">{content.chapter ?? '未归书'}</span></li>
+        <li><span>知识地图</span><span className="sf-meta">{content.topic ?? '未归图'}</span></li>
         <li><span>学习</span><span className="sf-meta" data-testid="card-detail-review">
           {view.review === undefined ? '还没学过' : `${String(view.review.reviewCount)} 次 · 下次 ${view.review.nextDue}`}
         </span></li>

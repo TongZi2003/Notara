@@ -6,7 +6,8 @@ import type { SkeletonService } from '../materials/skeleton-service.ts';
 import { RecordError, type RecordStore, type PreparedRecordChange } from '../storage/record-store.ts';
 
 export interface AtomicPublisher { atomic(changes: readonly PreparedRecordChange[]): Promise<void>; }
-const beneath = (path: string, root: string): boolean => path === root || path.startsWith(root + '/');
+/** One path is the named root itself or lives strictly underneath it. */
+export const beneath = (path: string, root: string): boolean => path === root || path.startsWith(root + '/');
 export class SkeletonAuthoring {
   constructor(skeletons: RecordStore<typeof SkeletonRecordSchema>, cards: RecordStore<typeof CardRecordSchema>, plans: RecordStore<typeof PlanContentSchema>, reader: SkeletonService, publisher: AtomicPublisher) {
     this.skeletons = skeletons; this.cards = cards; this.plans = plans; this.reader = reader; this.publisher = publisher;
@@ -82,11 +83,13 @@ export class SkeletonAuthoring {
     return { cards, plans, detached };
   }
 }
-function remap(path: string, change: SkeletonChange): string {
-  const match = change.repath.find(row => beneath(path, row.from));
-  return match ? match.to + path.slice(match.from.length) : path;
-}
-function changedChapter(path: string, change: SkeletonChange): string | undefined {
+/** Where one path lands after a change's repaths and removals are applied; undefined when removed. */
+export function changedChapter(path: string, change: { readonly repath: readonly { readonly from: string; readonly to: string }[]; readonly removePaths: readonly string[] }): string | undefined {
   if (change.removePaths.some(root => beneath(path, root))) return undefined;
   return remap(path, change);
+}
+
+function remap(path: string, change: { readonly repath: readonly { readonly from: string; readonly to: string }[] }): string {
+  const match = change.repath.find(row => beneath(path, row.from));
+  return match ? match.to + path.slice(match.from.length) : path;
 }

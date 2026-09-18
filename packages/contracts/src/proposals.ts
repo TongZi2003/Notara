@@ -6,6 +6,7 @@ import { ReviewHistorySchema } from './reviews.ts';
 import { SetCreateSchema, SetPatchSchema } from './sets.ts';
 import { RouteNodeInputSchema, RouteNodePatchSchema } from './routes.ts';
 import { PlanContentSchema, PlanPatchSchema, SkeletonChangeSchema } from './plans.ts';
+import { AtlasChangeSchema } from './atlas.ts';
 import { HandoffCorrectionSchema, HandoffCutoffSchema, HandoffDraftSchema, HandoffFactSchema, HandoffPinSchema } from './handoffs.ts';
 import { CoursePatchSchema } from './courses.ts';
 import { ClassmateSchema } from './classroom.ts';
@@ -46,6 +47,9 @@ export const ProposalEffectSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('plan-create'), content: PlanContentSchema }).strict(),
   z.object({ kind: z.literal('plan-edit'), patch: PlanPatchSchema }).strict(),
   z.object({ kind: z.literal('skeleton-save'), materialId: z.string().min(1), change: SkeletonChangeSchema }).strict(),
+  // `atlas-save` edits the one workspace knowledge map (ref `atlas:main`);
+  // target/baseline bind it like any other edit.
+  z.object({ kind: z.literal('atlas-save'), change: AtlasChangeSchema }).strict(),
   // P7.5. `handoff` closes a lesson from the teacher's free summary. The teacher
   // writes only `draft`; `cutoff`, `facts` and `continuation` are frozen by the
   // Host from the real log and the real stores BEFORE the student confirms, and

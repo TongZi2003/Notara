@@ -52,6 +52,8 @@ export function saveFailureCopy(message: string): string {
   switch (codeOf(message)) {
     case 'card_math_invalid': return '正文里的公式写错了，修好再保存（其它字段不会丢）。';
     case 'card_chapter_missing': return '这个章节不在当前骨架里，换一个或先清空。';
+    case 'card_topic_missing': return '这条知识地图路径现在挂不上，换一个或先清空。';
+    case 'card_topic_invalid': return '知识地图路径要用 / 分层且不能有空层，改一下再保存。';
     case 'card_link_unresolved': return '关联的卡已经不在了，去掉这一条再保存。';
     case 'card_link_unverifiable': return '现在不能核对关联的卡，稍后再保存。';
     case 'card_links_remove_forbidden': return '这一条关联现在只能由你删，老师那边删不掉。';
@@ -71,6 +73,7 @@ export interface CardDraft {
   readonly notes: string;
   readonly tags: readonly string[];
   readonly chapter: string;
+  readonly topic: string;
   readonly links: readonly string[];
 }
 
@@ -84,13 +87,14 @@ export function draftOf(content: CardContent): CardDraft {
     notes: content.notes,
     tags: [...content.tags],
     chapter: content.chapter ?? '',
+    topic: content.topic ?? '',
     links: [...content.links],
   };
 }
 
 /** A brand-new card's draft: nothing is prefilled that the student did not type. */
 export function emptyDraft(): CardDraft {
-  return { title: '', presentation: 'problem', front: '', sections: [], notes: '', tags: [], chapter: '', links: [] };
+  return { title: '', presentation: 'problem', front: '', sections: [], notes: '', tags: [], chapter: '', topic: '', links: [] };
 }
 
 /**
@@ -102,7 +106,7 @@ export function emptyDraft(): CardDraft {
 export function patchFor(baseline: CardContent, draft: CardDraft): CardPatch {
   const patch: {
     title?: string; presentation?: CardContent['presentation']; front?: string;
-    sections?: CardContent['sections']; notes?: string; tags?: string[]; chapter?: string | null;
+    sections?: CardContent['sections']; notes?: string; tags?: string[]; chapter?: string | null; topic?: string | null;
     links_add: string[]; links_remove: string[];
   } = { links_add: [], links_remove: [] };
   if (draft.title.trim() !== baseline.title) patch.title = draft.title.trim();
@@ -110,6 +114,7 @@ export function patchFor(baseline: CardContent, draft: CardDraft): CardPatch {
   if (draft.front !== baseline.front) patch.front = draft.front;
   if (draft.notes !== baseline.notes) patch.notes = draft.notes;
   if (draft.chapter !== (baseline.chapter ?? '')) patch.chapter = draft.chapter === '' ? null : draft.chapter;
+  if (draft.topic !== (baseline.topic ?? '')) patch.topic = draft.topic === '' ? null : draft.topic;
   if (draft.tags.join('\u0000') !== baseline.tags.join('\u0000')) patch.tags = [...draft.tags];
   const before = baseline.sections.map(section => `${section.heading}\u0000${section.body}`).join('\u0001');
   const after = draft.sections.map(section => `${section.heading}\u0000${section.body}`).join('\u0001');
@@ -125,7 +130,7 @@ export function patchFor(baseline: CardContent, draft: CardDraft): CardPatch {
 export function draftChanged(baseline: CardContent, draft: CardDraft): boolean {
   const patch = patchFor(baseline, draft);
   return patch.title !== undefined || patch.presentation !== undefined || patch.front !== undefined
-    || patch.notes !== undefined || patch.chapter !== undefined || patch.tags !== undefined
+    || patch.notes !== undefined || patch.chapter !== undefined || patch.topic !== undefined || patch.tags !== undefined
     || patch.sections !== undefined || patch.links_add.length > 0 || patch.links_remove.length > 0;
 }
 
@@ -142,7 +147,7 @@ export function versionLabel(view: CardView): string {
  */
 export const CARD_FIELD_LABELS: Readonly<Record<string, string>> = {
   title: '标题', presentation: '类型', front: '卡面', sections: '卡背', back: '卡背',
-  notes: '笔记', tags: '标签', chapter: '章节', links: '关联',
+  notes: '笔记', tags: '标签', chapter: '章节', topic: '知识地图', links: '关联',
   links_add: '新关联', links_remove: '去掉关联', sources: '来源',
 };
 

@@ -140,6 +140,7 @@ export function CardEditor({ ctx, sessionId, target, seed, onSaved, onCancel }: 
         sections: draft.sections.map(section => ({ heading: section.heading, body: section.body })),
         notes: draft.notes, sources: [], tags: [...draft.tags], links: [...draft.links],
         ...(draft.chapter === '' ? {} : { chapter: draft.chapter }),
+        ...(draft.topic === '' ? {} : { topic: draft.topic }),
       };
       await submit({ ...(sessionId ? { sessionId } : {}), kind: 'create', operationId: operationFor(attemptKey('create', sessionId ?? '', JSON.stringify(content))), content });
       return;
@@ -196,6 +197,10 @@ export function CardEditor({ ctx, sessionId, target, seed, onSaved, onCancel }: 
           <label className="ce-field"><span>章节（可留空）</span>
             <input data-testid="card-editor-chapter" value={draft.chapter}
               onChange={event => { setDraft({ ...draft, chapter: event.target.value }); mark('chapter'); }} />
+          </label>
+          <label className="ce-field"><span>知识地图（可留空）</span>
+            <input data-testid="card-editor-topic" value={draft.topic}
+              onChange={event => { setDraft({ ...draft, topic: event.target.value }); mark('topic'); }} />
           </label>
         </div>
 
@@ -265,6 +270,7 @@ export function CardEditor({ ctx, sessionId, target, seed, onSaved, onCancel }: 
             <span className="tk-no">{PRESENTATION_LABELS[draft.presentation]}</span>
             {draft.tags.map(tag => <span className="tk-tag" key={tag}>{tag}</span>)}
             {draft.chapter !== '' && <span className="tk-src">{draft.chapter}</span>}
+            {draft.topic !== '' && <span className="tk-src">{draft.topic}</span>}
           </header>
           <div className="tk-face"><MarkdownBody text={draft.front} testId="card-editor-preview-front" /></div>
           {preview !== '' && <div className="tk-back open">
@@ -299,6 +305,7 @@ export function CardEditor({ ctx, sessionId, target, seed, onSaved, onCancel }: 
               notes: keep('notes') ? draft.notes : latest.notes,
               tags: keep('tags') ? draft.tags : latest.tags,
               chapter: keep('chapter') ? draft.chapter : latest.chapter,
+              topic: keep('topic') ? draft.topic : latest.topic,
               links: keep('links') ? draft.links : latest.links,
             });
             setBaseline(conflict);

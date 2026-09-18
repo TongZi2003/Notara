@@ -52,6 +52,10 @@
       "types": "./lib/types/skeleton.d.ts",
       "default": "./lib/types/skeleton.js"
     },
+    "./atlas": {
+      "types": "./lib/types/atlas.d.ts",
+      "default": "./lib/types/atlas.js"
+    },
     "./materials": {
       "types": "./lib/types/materials.d.ts",
       "default": "./lib/types/materials.js"

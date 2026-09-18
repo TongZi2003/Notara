@@ -32,6 +32,9 @@
       "@studyforge/domain/chapter-deriver": [
         "./packages/domain/src/organization/chapter-deriver.ts"
       ],
+      "@studyforge/domain/atlas": [
+        "./packages/domain/src/organization/atlas.ts"
+      ],
       "@studyforge/domain/card-changes": [
         "./packages/domain/src/cards/card-changes.ts"
       ],

@@ -23,7 +23,7 @@ import { OrganizationDraftEditor, isOrganizationDraft, type OrganizationMaterial
 import { useStableOperationId, attemptKey } from '../cards/attempt.ts';
 import { MarkdownBody } from '../cards/MarkdownBody.tsx';
 import { PRESENTATION_LABELS } from '../cards/format.ts';
-import { SkeletonSummary } from './SkeletonSummary.tsx';
+import { AtlasSummary, SkeletonSummary } from './SkeletonSummary.tsx';
 import { positionLabel } from '../materials/lesson-materials-mindmap.ts';
 
 export interface ProposalCardProps {
@@ -261,7 +261,7 @@ export function ProposalCard({ ctx, proposal, inline = false, onChanged }: Propo
         {(item.draft.effect.kind === 'set-create' || item.draft.effect.kind === 'set-edit'
           || item.draft.effect.kind === 'route-add' || item.draft.effect.kind === 'route-edit'
           || item.draft.effect.kind === 'plan-create' || item.draft.effect.kind === 'plan-edit'
-          || item.draft.effect.kind === 'skeleton-save') && editing !== item.id && <OrganizationSummary effect={item.draft.effect} catalogue={catalogue} />}
+          || item.draft.effect.kind === 'skeleton-save' || item.draft.effect.kind === 'atlas-save') && editing !== item.id && <OrganizationSummary effect={item.draft.effect} catalogue={catalogue} />}
         {item.draft.effect.kind === 'skeleton-save' && item.status === 'pending' && recheckedSkeleton?.version === proposal.version
           && <div data-testid="skeleton-recheck-preview" className="sf-proposal-content">
             <h4>保存后的目录预览</h4>
@@ -376,8 +376,9 @@ function statusCopy(item: ProposalItemView): string {
 }
 
 function isSkeletonConflict(item: ProposalItemView): boolean {
-  return item.status === 'failed' && item.draft.effect.kind === 'skeleton-save'
-    && ['record_exists', 'version_conflict', 'skeleton_version_conflict'].includes(item.failure?.code ?? '');
+  const kind = item.draft.effect.kind;
+  return item.status === 'failed' && (kind === 'skeleton-save' || kind === 'atlas-save')
+    && ['record_exists', 'version_conflict', 'skeleton_version_conflict', 'atlas_version_conflict'].includes(item.failure?.code ?? '');
 }
 
 function effectLabel(effect: ProposalEffect): string {
@@ -393,6 +394,7 @@ function effectLabel(effect: ProposalEffect): string {
     case 'plan-create': return '排计划';
     case 'plan-edit': return '改计划';
     case 'skeleton-save': return '整理书籍结构';
+    case 'atlas-save': return '整理知识地图';
     case 'handoff': return '课后小结';
     case 'handoff-edit': return '更正小结';
     case 'lesson-edit': return '调整本课';
@@ -413,6 +415,7 @@ function confirmLabel(kind: ProposalEffect['kind']): string {
     case 'route-edit': return '保存课程安排';
     case 'plan-create': case 'plan-edit': return '保存计划';
     case 'skeleton-save': return '保存目录';
+    case 'atlas-save': return '保存知识地图';
     case 'handoff': return '保存小结并结束';
     case 'handoff-edit': return '保存小结修改';
     case 'lesson-edit': return '保存本课设置';
@@ -439,6 +442,7 @@ function describeEffect(effect: ProposalEffect, catalogue?: Catalogue): React.JS
     case 'plan-create':
     case 'plan-edit':
     case 'skeleton-save':
+    case 'atlas-save':
       return <OrganizationSummary effect={effect} catalogue={catalogue} />;
     case 'handoff':
     case 'handoff-edit':
@@ -551,10 +555,11 @@ function HandoffSummary({ effect, bodyTestId = 'proposal-handoff-body' }: { read
  * student's view: "2 份资料移进了这个集", never `materials_add: [...]`.
  */
 type OrganizationEffect = Extract<ProposalEffect,
-  { kind: 'set-create' | 'set-edit' | 'route-add' | 'route-edit' | 'plan-create' | 'plan-edit' | 'skeleton-save' }>;
+  { kind: 'set-create' | 'set-edit' | 'route-add' | 'route-edit' | 'plan-create' | 'plan-edit' | 'skeleton-save' | 'atlas-save' }>;
 
 function OrganizationSummary({ effect, catalogue }: { readonly effect: OrganizationEffect; readonly catalogue?: Catalogue | undefined }): React.JSX.Element {
   if (effect.kind === 'skeleton-save') return <SkeletonSummary change={effect.change} />;
+  if (effect.kind === 'atlas-save') return <AtlasSummary change={effect.change} />;
   const block = organizationLines(effect, catalogue);
   return <div className="sf-proposal-content" data-testid="proposal-content">
     <h4>{block.heading}</h4>
@@ -564,7 +569,7 @@ function OrganizationSummary({ effect, catalogue }: { readonly effect: Organizat
   </div>;
 }
 
-function organizationLines(effect: Exclude<OrganizationEffect, { kind: 'skeleton-save' }>, catalogue?: Catalogue): { heading: string; lines: string[] } {
+function organizationLines(effect: Exclude<OrganizationEffect, { kind: 'skeleton-save' | 'atlas-save' }>, catalogue?: Catalogue): { heading: string; lines: string[] } {
   switch (effect.kind) {
     case 'set-create': return { heading: `学习集「${effect.content.name}」`, lines: setCreateLines(effect.content, catalogue) };
     case 'set-edit': return { heading: '改这个学习集', lines: setPatchLines(effect.patch, catalogue) };

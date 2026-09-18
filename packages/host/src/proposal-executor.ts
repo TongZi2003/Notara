@@ -52,6 +52,13 @@ export function proposalExecutor(host: Context): ProposalExecutor {
             '目录已更新。请先调用 read_skeleton 读取当前目录，保留已有章节，再重新提交这份增补草案。');
           await host.studyforgeSkeletonAuthoring.preview(ctx, effect.materialId, item.baseline, effect.change); return;
         }
+        case 'atlas-save': {
+          if (item.target !== 'atlas:main') throw new Error('proposal_atlas_target_invalid');
+          const current = await host.studyforgeAtlasService.read(ctx);
+          if ((current.revision ?? 0) !== item.baseline) throw new SkeletonError('atlas_version_conflict',
+            '知识地图已更新。请先调用 read_atlas 读取当前地图，保留已有层级，再重新提交这份增补草案。');
+          await host.studyforgeAtlasAuthoring.preview(ctx, item.baseline, effect.change); return;
+        }
         case 'handoff-edit': host.studyforgeHandoffService.read(ctx, item.target, item.baseline); return;
         case 'teaching-override': {
           if (!bundledNodes(host).some(node => node.id === effect.nodeId)) throw rejected('这个nodeId不是可修改的内置教学节点；先read_teaching列出可修改项');
@@ -75,13 +82,13 @@ export function proposalExecutor(host: Context): ProposalExecutor {
         // prepareCreate's existing-row refusal is before publication. Older
         // versions mislabeled it as an uncertain save and offered endless retry.
         if (typed?.name === 'RecordError' && (typed.code === 'record_exists'
-          || item.effect.kind === 'skeleton-save' && typed.code === 'version_conflict')) {
+          || (item.effect.kind === 'skeleton-save' || item.effect.kind === 'atlas-save') && typed.code === 'version_conflict')) {
           throw new ProposalEffectRejected(typed.code, false);
         }
         // Only deterministic pre-publication refusals unlock editing. Storage
         // failures after publication still retain the original operation.
         if (['CardError', 'KnowledgeError', 'SetError', 'RouteError', 'MaterialReadError', 'ZodError'].includes(typed?.name ?? '') ||
-          /^(version_conflict|record_missing|target_invalid|plan_|skeleton_|classroom_)/.test(typed?.code ?? '')) {
+          /^(version_conflict|record_missing|target_invalid|plan_|skeleton_|atlas_|classroom_)/.test(typed?.code ?? '')) {
           throw new ProposalEffectRejected(typed?.code ?? 'content_rejected');
         }
         throw error;
@@ -151,6 +158,11 @@ async function applyEffect(host: Context, context: MutationContext, item: Propos
       if (view.revision === undefined) throw new Error('saved_skeleton_revision_missing');
       const material = await host.studyforgeMaterialService.get(context, item.effect.materialId);
       return receipt('skeleton:' + view.materialId, view.revision, material.title + ' · 目录');
+    }
+    case 'atlas-save': {
+      const view = await host.studyforgeAtlasAuthoring.save(context, item.effect.change);
+      if (view.revision === undefined) throw new Error('saved_atlas_revision_missing');
+      return receipt('atlas:main', view.revision, '知识地图');
     }
     case 'handoff': return await closeConfirmedHandoff(host, context, item);
     case 'handoff-edit': {

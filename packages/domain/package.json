@@ -28,6 +28,10 @@
       "types": "./lib/types/organization/chapter-deriver.d.ts",
       "default": "./lib/types/organization/chapter-deriver.js"
     },
+    "./atlas": {
+      "types": "./lib/types/organization/atlas.d.ts",
+      "default": "./lib/types/organization/atlas.js"
+    },
     "./card-changes": {
       "types": "./lib/types/cards/card-changes.d.ts",
       "default": "./lib/types/cards/card-changes.js"

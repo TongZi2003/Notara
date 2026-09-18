@@ -14,7 +14,7 @@
 
 知识、方法、小结进私人知识条目；关于学生的认识进学情。偏好只根据学生实际表达，保存原话与情境；附带题卡的表达仍是学生的话。学情按需find(method=memory)/open(method=memory)，知识笔记按find(method=learning)/open(method=method)；空学情不等于没有学过。标签或词面匹配只是线索，相关性由阅读正文后的判断决定。记学情前先对照上下文里的学情索引（或按kind枚举同桶）、精读疑似条目：同一能力、习惯或处境的再次观察用note(method=memory_revise)并入同一档，旧措辞与依据随之保留；只有确属另一维度才note(method=memory)另建新档。记知识同样先对照上下文里的方法与知识索引（或find(method=learning)枚举knowledge语料）：同一主题的增补用note(method=method_revise)并入同一档，只有确属另一主题才note(method=method)另建新档。
 
-找今天要复习的卡用find(method=cards,state=due)，包含逾期且排除还没学的卡；按已有tags、chapter、materialId、learningSetRef可收窄，nextOffset继续下一页。名单只是候选，选定后open(method=card)或open(method=cards)精读；批读也绑定每张卡所见的版本，查看不等于学习。学情枚举用find(method=memory)省略query并按需给kinds，内容枚举用find(method=learning)省略query；这两种摘要都不能替代修改前的完整读取。
+找今天要复习的卡用find(method=cards,state=due)，包含逾期且排除还没学的卡；按已有tags、chapter、topic、materialId、learningSetRef可收窄，nextOffset继续下一页。名单只是候选，选定后open(method=card)或open(method=cards)精读；批读也绑定每张卡所见的版本，查看不等于学习。学情枚举用find(method=memory)省略query并按需给kinds，内容枚举用find(method=learning)省略query；这两种摘要都不能替代修改前的完整读取。
 
 普通新卡用propose(method=card)，同批多张用input.kind=cards、title和cards数组一次提案（单张仍可用kind=card），让学生勾选后一并保存，别逐张弹确认。通常课内复习用propose(method=review)，等待学生确认后才说已保存；不得因被拒改走直接写工具。record(method=cards)仅诊断收尾或专门命题产物，record(method=review)仅首次实际学过或非复习课顺带用过。note(method=method)保存私人知识笔记，收录锦囊还须propose(method=card)的input.kind=method确认；note(method=memory)保存的是带真实依据的学生观察。结束课和小结用propose(method=handoff)，归档只整理课程列表，不能替代收尾。
 

@@ -39,7 +39,7 @@ export async function observedVersion(host: Context, execution: ToolRunContext, 
       if (event.type !== 'tool/result') continue;
       const result = event.data.message.content[0];
       const name = calls.get(result.toolCallId);
-      if (result.isError || !name || !['read_card', 'read_cards', 'update_card', 'read_method', 'note_method', 'revise_method', 'read_set', 'read_plan', 'read_route', 'read_skeleton', 'read_memory', 'note_memory', 'revise_memory', 'read_lesson'].includes(name)) continue;
+      if (result.isError || !name || !['read_card', 'read_cards', 'update_card', 'read_method', 'note_method', 'revise_method', 'read_set', 'read_plan', 'read_route', 'read_skeleton', 'read_atlas', 'read_memory', 'note_memory', 'revise_memory', 'read_lesson'].includes(name)) continue;
       for (const block of result.content) {
         if (block.type !== 'text') continue;
         try {
@@ -58,6 +58,11 @@ export async function observedVersion(host: Context, execution: ToolRunContext, 
           if (name === 'read_skeleton') {
             const skeleton = z.object({ materialId: z.string(), revision: z.number().int().nonnegative().optional() }).safeParse(value);
             if (skeleton.success && target === 'skeleton:' + skeleton.data.materialId) version = skeleton.data.revision ?? 0;
+            continue;
+          }
+          if (name === 'read_atlas') {
+            const atlas = z.object({ revision: z.number().int().nonnegative().optional() }).safeParse(value);
+            if (atlas.success && target === 'atlas:main') version = atlas.data.revision ?? 0;
             continue;
           }
           const parsed = target.startsWith('card:') ? CardViewSchema.safeParse(value) : target.startsWith('knowledge:') ? KnowledgeViewSchema.safeParse(value)
