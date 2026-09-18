@@ -61,13 +61,22 @@ test('pdf drag saves a persistent annotation card, the layer reopens it, pre-see
     operationId: 'seeded-mark', content: { title: '预置的第二页标注', presentation: 'note', front: '', sections: [], notes: '',
       sources: [{ materialId: material.materialId, versionId: material.versionId, locator: { kind: 'pdf', page: 2, rect: [.2, .2, .5, .5] } }], tags: [], links: [] },
   } }));
+  // AI 指路卡：页级锚点没有几何，显示为「指路」角标而不是高亮框。
+  value(await client.rpc<CardView>('studyforgeLearning/createCard', { input: {
+    operationId: 'guide-mark', content: { title: '这一页值得先看', presentation: 'note', front: '定义域决定后面所有讨论。', sections: [], notes: '',
+      sources: [{ materialId: material.materialId, versionId: material.versionId, locator: { kind: 'pdf', page: 1 } }], tags: [], links: [] },
+  } }));
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await openMaterial(page, '标注页');
   await expect(viewer).toHaveAttribute('data-pdf-displayed-page', '1');
   await expect(page.getByTestId('annotation-mark')).toHaveCount(1);
+  const guide = page.getByTestId('annotation-guide').first();
+  await expect(guide).toBeVisible();
+  await expect(guide).toContainText('这一页值得先看');
   await viewer.getByTestId('pdf-next').click();
   await expect(viewer).toHaveAttribute('data-pdf-displayed-page', '2');
   await expect(page.getByTestId('annotation-mark')).toHaveCount(1);
   await expect(page.getByTestId('annotation-mark').first()).toHaveAttribute('title', '预置的第二页标注');
+  await expect(page.getByTestId('annotation-guide')).toHaveCount(0);
   expect(errors).toEqual([]);
 });

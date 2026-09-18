@@ -32,6 +32,7 @@ export function SourceCapture({ ctx, version, data, index, references, sessionId
   const [cards, setCards] = useState<readonly CardView[]>([]);
   const [cardTick, setCardTick] = useState(0);
   const [annotations, setAnnotations] = useState<readonly { ref: string; title: string; left: number; top: number; width: number; height: number }[]>([]);
+  const [pointers, setPointers] = useState<readonly { ref: string; title: string; left: number; top: number }[]>([]);
   const pageRef = useRef<number>();
   const text = version.mediaType.startsWith('text/') ? decodeText(data) : undefined;
   useEffect(() => { if (locator?.kind === 'text') setSourceView(true); }, [locator]);
@@ -117,6 +118,7 @@ export function SourceCapture({ ctx, version, data, index, references, sessionId
     const reveal = (): void => {
       const origin = outer.getBoundingClientRect();
       const next: { ref: string; title: string; left: number; top: number; width: number; height: number }[] = [];
+      const guides: { ref: string; title: string; left: number; top: number }[] = [];
       const push = (card: CardView, rect: readonly number[], box: DOMRect): void => {
         next.push({ ref: card.ref, title: card.content.title,
           left: box.left + rect[0]! * box.width - origin.left, top: box.top + rect[1]! * box.height - origin.top,
@@ -128,7 +130,14 @@ export function SourceCapture({ ctx, version, data, index, references, sessionId
         for (const source of card.content.sources) {
           if (source.materialId !== version.materialId || source.versionId !== version.versionId) continue;
           const loc = source.locator;
-          if (loc.kind === 'pdf' && loc.rect !== undefined && geometry !== undefined && geometry.page === loc.page && canvas !== null) {
+          if (loc.kind === 'pdf' && geometry !== undefined && geometry.page === loc.page && canvas !== null) {
+            // 页级锚点没有几何：作为「指路」角标显示，人再拖框补精确范围。
+            if (loc.rect === undefined) {
+              const canvasBox = canvas.getBoundingClientRect();
+              guides.push({ ref: card.ref, title: card.content.title,
+                left: canvasBox.left - origin.left + 8, top: canvasBox.top - origin.top + 8 + guides.length * 30 });
+              continue;
+            }
             const [x0, y0, x1, y1] = geometry.view;
             const a = applyTransform(geometry.transform, x0 + loc.rect[0]! * (x1 - x0), y1 - loc.rect[1]! * (y1 - y0));
             const b = applyTransform(geometry.transform, x0 + loc.rect[2]! * (x1 - x0), y1 - loc.rect[3]! * (y1 - y0));
@@ -140,7 +149,7 @@ export function SourceCapture({ ctx, version, data, index, references, sessionId
           }
         }
       }
-      setAnnotations(next);
+      setAnnotations(next); setPointers(guides);
     };
     const schedule = (): void => { cancelAnimationFrame(frame); frame = requestAnimationFrame(reveal); };
     const observer = new MutationObserver(schedule);
@@ -210,6 +219,9 @@ export function SourceCapture({ ctx, version, data, index, references, sessionId
         }} />}
     </div>
     {boxes.map((box, n) => <span key={n} data-testid="source-highlight" style={{ ...box, position: 'absolute', pointerEvents: 'none', background: '#e9bd3c40', outline: '2px solid #bc861c' }} />)}
+    {pointers.map(mark => <button key={mark.ref} type="button" data-testid="annotation-guide" title={mark.title}
+      style={{ left: mark.left, top: mark.top, position: 'absolute', padding: '2px 8px', border: '1px dashed #bc861c', borderRadius: 10, cursor: 'pointer', background: '#fdfaf1e6', color: '#8a6414', fontSize: 12 }}
+      onClick={() => { cardOpenRequest.request(mark.ref); ctx.layout.selectPanel('studyforge.cards' as MainPanelId); }}>指路 · {mark.title}</button>)}
     {annotations.map(mark => <button key={mark.ref + String(mark.left) + String(mark.top)} type="button" data-testid="annotation-mark" title={mark.title}
       style={{ left: mark.left, top: mark.top, width: mark.width, height: mark.height, position: 'absolute', padding: 0, border: 0, cursor: 'pointer', background: '#e9bd3c30', outline: '1.5px solid #bc861c' }}
       onClick={() => { cardOpenRequest.request(mark.ref); ctx.layout.selectPanel('studyforge.cards' as MainPanelId); }} />)}
