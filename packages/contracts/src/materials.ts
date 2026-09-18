@@ -57,8 +57,26 @@ export const DocxLocatorSchema = z.object({
   path: ['end'],
 });
 
+/**
+ * A text anchor inside one PDF page's extracted text layer. `start`/`end` are
+ * UTF-16 offsets into the page's joined text items (newline-joined, the same
+ * string read_material returns); both or neither. With no span the anchor
+ * resolves through its `quote`: the quote must occur exactly once in the page
+ * text, otherwise the anchor is ambiguous and refused.
+ */
+export const PdftextLocatorSchema = z.object({
+  kind: z.literal('pdftext'),
+  page: PositivePageSchema,
+  start: ColumnOffsetSchema.optional(),
+  end: ColumnOffsetSchema.optional(),
+}).strict().refine(
+  ({ start, end }) => (start === undefined) === (end === undefined) && (start === undefined || end! > start),
+  { message: 'pdftext needs start<end together, or neither (quote-resolved)', path: ['end'] },
+);
+
 export const SourceLocatorSchema = z.discriminatedUnion('kind', [
   PdfLocatorSchema,
+  PdftextLocatorSchema,
   ImageLocatorSchema,
   TextLocatorSchema,
   DocxLocatorSchema,

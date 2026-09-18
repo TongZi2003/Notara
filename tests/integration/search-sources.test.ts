@@ -110,14 +110,14 @@ test('a DOCX hit keeps the stable block id and the real UTF-16 offsets', async (
   expect(hit.source?.locator).toEqual({ kind: 'docx', part: 'word/document.xml', blockId: 'body/p[1]', start: 4, end: 10 });
 });
 
-test('a PDF text layer is indexed page by page and never invented', async () => {
+test('a PDF text layer is indexed page by page and a hit narrows to a byte-exact pdftext anchor', async () => {
   const { materials, search } = await open();
   await materials.import(write('m-pdf'), { title: '真题', fileName: '真题.pdf', mediaType: 'application/pdf', bytes: textPdf(['alpha first page', 'bravo second page']) });
   const second = await search.search(HOST, { query: 'bravo' });
   expect(second.notes).toEqual([]);
-  expect(second.hits[0]).toMatchObject({ corpus: 'material', source: { locator: { kind: 'pdf', page: 2 } } });
+  expect(second.hits[0]).toMatchObject({ corpus: 'material', source: { locator: { kind: 'pdftext', page: 2, start: 0, end: 5 } } });
   const first = await search.search(HOST, { query: 'alpha' });
-  expect(first.hits[0]!.source?.locator).toEqual({ kind: 'pdf', page: 1 });
+  expect(first.hits[0]!.source?.locator).toEqual({ kind: 'pdftext', page: 1, start: 0, end: 5 });
 });
 
 test('a scan without a text layer is a typed reason, not an empty result', async () => {

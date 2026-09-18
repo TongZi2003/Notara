@@ -48,13 +48,28 @@ export async function readMaterial(resolver: MaterialResolver, ctx: HostContext,
   const bytes = await readFile(absolutePath);
   const { locator } = source;
   if (version.mediaType === 'application/pdf') {
-    if (locator && locator.kind !== 'pdf') throw new MaterialReadError('locator_format_mismatch');
+    if (locator && locator.kind !== 'pdf' && locator.kind !== 'pdftext') throw new MaterialReadError('locator_format_mismatch');
     const loading = getDocument({ data: Uint8Array.from(bytes), standardFontDataUrl: fonts, useSystemFonts: true });
     const document = await loading.promise;
     try {
       const number = locator?.page ?? 1;
       if (number > document.numPages) throw new MaterialReadError('source_page_out_of_range');
       const page = await document.getPage(number);
+      if (locator?.kind === 'pdftext') {
+        // Text anchors read only the extracted layer — no raster is needed, and
+        // a scanned page without a text layer cannot hold one at all.
+        const content = await page.getTextContent();
+        const joined = content.items.flatMap(item => 'str' in item ? [item.str] : []).join('\n');
+        if (joined.length === 0) throw new MaterialReadError('source_text_layer_missing');
+        if (locator.start === undefined) {
+          return { title: version.title, source: { ...base, locator: { kind: 'pdftext', page: number } },
+            text: joined.slice(0, MAX_TEXT), pageCount: document.numPages, truncated: joined.length > MAX_TEXT };
+        }
+        const end = locator.end ?? 0;
+        if (locator.start >= end || end > joined.length) throw new MaterialReadError('source_offset_out_of_range');
+        return { title: version.title, source: { ...base, locator: { kind: 'pdftext', page: number, start: locator.start, end } },
+          text: joined.slice(locator.start, end), pageCount: document.numPages, truncated: false };
+      }
       // Canonical PDF coordinates use the crop box with rotation=0. Display
       // rotation and zoom are inverted by the client before producing an anchor.
       const unit = page.getViewport({ scale: 1, rotation: 0 });
@@ -123,6 +138,21 @@ async function cropImage(bytes: Buffer, rect: NormalizedRect = [0, 0, 1, 1]): Pr
 export async function resolveAnchor(resolver: MaterialResolver, ctx: HostContext, anchor: SourceAnchor): Promise<MaterialRead> {
   const { quote, ...source } = SourceAnchorSchema.parse(anchor);
   const reading = await readMaterial(resolver, ctx, source);
+  if (source.locator.kind === 'pdftext') {
+    // A span-less pdftext anchor resolves through its quote: the quote must
+    // name exactly one place in the page's extracted text, so a duplicate
+    // quote is refused rather than silently pinned to the first hit.
+    if (source.locator.start === undefined) {
+      if (quote === undefined || quote.length === 0) throw new MaterialReadError('source_locator_incomplete');
+      const joined = reading.text ?? '';
+      const at = joined.indexOf(quote);
+      if (at < 0) throw new MaterialReadError('source_quote_mismatch');
+      if (joined.indexOf(quote, at + 1) >= 0) throw new MaterialReadError('source_quote_ambiguous');
+      return { ...reading, text: quote, source: { ...source, locator: { kind: 'pdftext', page: source.locator.page, start: at, end: at + quote.length } } };
+    }
+    if (quote !== undefined && quote !== reading.text) throw new MaterialReadError('source_quote_mismatch');
+    return reading;
+  }
   if (quote !== undefined && (source.locator.kind === 'text' || source.locator.kind === 'docx') && quote !== reading.text) throw new MaterialReadError('source_quote_mismatch');
   return reading;
 }

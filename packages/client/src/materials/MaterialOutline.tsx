@@ -90,6 +90,7 @@ function describeSources(node: SkeletonNode, view: MaterialView, version: Materi
 function describeLocator(locator: SourceLocator): string {
   switch (locator.kind) {
     case 'pdf': return `第 ${String(locator.page)} 页`;
+    case 'pdftext': return `第 ${String(locator.page)} 页摘录`;
     case 'text': return locator.start.line === locator.end.line
       ? `第 ${String(locator.start.line)} 行` : `第 ${String(locator.start.line)}–${String(locator.end.line)} 行`;
     case 'image': return '图中的位置';

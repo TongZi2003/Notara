@@ -7,7 +7,7 @@ import { writeFile } from 'node:fs/promises';
 import { test, expect, enterClassroom, openMaterial } from './fixtures/classroom.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 import { readerImage } from '../fixtures/materials/reader-image.ts';
-import { scannedPdf } from '../fixtures/materials/synthetic-pdf.ts';
+import { scannedPdf, textPdf } from '../fixtures/materials/synthetic-pdf.ts';
 import type { CardView } from '@studyforge/contracts/cards';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 const value = <T,>(reply: RemoteResult<T>): T => { if (!reply.ok) throw new Error(JSON.stringify(reply.error)); return reply.value; };
@@ -78,5 +78,40 @@ test('pdf drag saves a persistent annotation card, the layer reopens it, pre-see
   await expect(page.getByTestId('annotation-mark')).toHaveCount(1);
   await expect(page.getByTestId('annotation-mark').first()).toHaveAttribute('title', '预置的第二页标注');
   await expect(page.getByTestId('annotation-guide')).toHaveCount(0);
+
+  // pdftext 摘录卡：有文字层的 PDF 上字节级锚点——createCard 经 resolveAnchor
+  // 校验真实页文本后落成，阅读面同样显示为「指路」角标（没有矩形可画）。
+  const textFile = info.outputPath('文字层.pdf');
+  await writeFile(textFile, textPdf([['alpha first page'], ['bravo second page']]));
+  await page.getByTestId('materials-back').click();
+  await page.getByTestId('material-file-input').setInputFiles(textFile);
+  await expect(page.getByTestId('material-row').filter({ hasText: '文字层' })).toBeVisible();
+  const library = value(await client.rpc<{ materialId: string; currentVersion: { versionId: string }; title: string }[]>('studyforgeMaterials/list', {}));
+  const textMaterial = library.find(item => item.title === '文字层');
+  expect(textMaterial).toBeDefined();
+  const excerpt = value(await client.rpc<CardView>('studyforgeLearning/createCard', { input: {
+    operationId: 'pdftext-mark', content: { title: '第一页的一句话', presentation: 'note', front: '', sections: [], notes: '',
+      sources: [{ materialId: textMaterial!.materialId, versionId: textMaterial!.currentVersion.versionId, locator: { kind: 'pdftext', page: 1, start: 0, end: 5 }, quote: 'alpha' }], tags: [], links: [] },
+  } }));
+  expect(excerpt.content.sources[0]?.locator).toMatchObject({ kind: 'pdftext', page: 1 });
+  const { quote: _quote, ...readSource } = excerpt.content.sources[0]!;
+  const reading = value(await client.rpc<{ text?: string }>('studyforgeMaterials/read', { input: { source: readSource } }));
+  expect(reading.text).toBe('alpha');
+  // 只给 quote 的锚点在确认时解析成具体偏移落库：读面不再需要 quote。
+  const quoted = value(await client.rpc<CardView>('studyforgeLearning/createCard', { input: {
+    operationId: 'pdftext-quote', content: { title: '第二页整行', presentation: 'note', front: '', sections: [], notes: '',
+      sources: [{ materialId: textMaterial!.materialId, versionId: textMaterial!.currentVersion.versionId, locator: { kind: 'pdftext', page: 2 }, quote: 'bravo second page' }], tags: [], links: [] },
+  } }));
+  expect(quoted.content.sources[0]?.locator).toEqual({ kind: 'pdftext', page: 2, start: 0, end: 17 });
+  await openMaterial(page, '文字层');
+  await expect(viewer).toHaveAttribute('data-pdf-displayed-page', '1');
+  const textGuide = page.getByTestId('annotation-guide').first();
+  await expect(textGuide).toBeVisible();
+  await expect(textGuide).toContainText('第一页的一句话');
+  await viewer.getByTestId('pdf-next').click();
+  await expect(viewer).toHaveAttribute('data-pdf-displayed-page', '2');
+  const pageTwoGuide = page.getByTestId('annotation-guide');
+  await expect(pageTwoGuide).toHaveCount(1);
+  await expect(pageTwoGuide.first()).toContainText('第二页整行');
   expect(errors).toEqual([]);
 });

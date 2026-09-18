@@ -63,7 +63,7 @@ export function registerMaterialTools(ctx: Context): void {
   for (const name of ['read_material', 'preview_region'] as const) {
     ctx.effect(() => ctx.tools.register({
       name,
-      description: name === 'preview_region' ? '查看已导入原件指定区域的真实图像。source 必须含固定版本、PDF物理页或图片及rect；返回原生图片附件与实际位置。' : '读取已导入资料的固定版本及位置。PDF按物理页返回图像；扫描件不虚构文字。Markdown按原文行列，DOCX按稳定段落。无locator时只读首个可读范围。',
+      description: name === 'preview_region' ? '查看已导入原件指定区域的真实图像。source 必须含固定版本、PDF物理页或图片及rect；返回原生图片附件与实际位置。' : '读取已导入资料的固定版本及位置。PDF按物理页返回图像，kind=pdftext按页文本层返回真实文字（locator可只给page、由quote在页内唯一定位）；扫描件不虚构文字。Markdown按原文行列，DOCX按稳定段落。无locator时只读首个可读范围。',
       parameters: toolSchema(ReadMaterialInputSchema),
       output: { schema: toolSchema(ValueSchema), render, presentationMeta: (_args, value) => {
         const reading = ValueSchema.parse(value).reading;

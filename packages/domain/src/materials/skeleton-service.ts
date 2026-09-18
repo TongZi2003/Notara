@@ -208,6 +208,8 @@ function locatorKey(locator: SourceAnchorLocator): string {
   switch (locator.kind) {
     case 'pdf':
       return `pdf\u0000${String(locator.page)}\u0000${(locator.rect ?? []).join(',')}`;
+    case 'pdftext':
+      return `pdftext\u0000${String(locator.page)}\u0000${String(locator.start)}-${String(locator.end)}`;
     case 'image':
       return `image\u0000${(locator.rect ?? []).join(',')}`;
     case 'text':

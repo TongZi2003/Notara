@@ -199,6 +199,7 @@ function locatorKey(locator: SourceLocator | undefined): string {
   if (locator === undefined) return 'none';
   switch (locator.kind) {
     case 'pdf': return `pdf:${locator.page}:${locator.rect?.join(',') ?? ''}`;
+    case 'pdftext': return `pdftext:${locator.page}:${String(locator.start)}:${String(locator.end)}`;
     case 'image': return `image:${locator.rect?.join(',') ?? ''}`;
     case 'text': return `text:${locator.start.line}:${locator.start.column}:${locator.end.line}:${locator.end.column}`;
     case 'docx': return `docx:${locator.part}:${locator.blockId}:${locator.start}:${locator.end}`;

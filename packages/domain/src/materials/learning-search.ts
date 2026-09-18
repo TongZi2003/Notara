@@ -205,7 +205,7 @@ function knowledgeFields(knowledge: KnowledgeContent): SearchField[] {
 
 /** The field name a material segment is reported under. */
 function fieldOfSegment(locator: SourceLocator): string {
-  return locator.kind === 'pdf' ? `page-${locator.page}` : locator.kind === 'docx' ? `${locator.part}#${locator.blockId}` : 'text';
+  return locator.kind === 'pdf' || locator.kind === 'pdftext' ? `page-${locator.page}` : locator.kind === 'docx' ? `${locator.part}#${locator.blockId}` : 'text';
 }
 
 /** Case-insensitive match that never shifts offsets; an empty query lists everything. */
@@ -254,6 +254,9 @@ function refine(field: SearchField, start: number, end: number): SourceLocator |
   if (locator === null) return null;
   if (locator.kind === 'docx') return { kind: 'docx', part: locator.part, blockId: locator.blockId, start, end };
   if (locator.kind === 'text') return { kind: 'text', start: pointAt(field.text, start), end: pointAt(field.text, end) };
+  // A PDF page segment's text is the same newline-joined layer pdftext names,
+  // so a match narrows to a byte-exact text anchor instead of the whole page.
+  if (locator.kind === 'pdf') return { kind: 'pdftext', page: locator.page, start, end };
   return locator;
 }
 
@@ -334,7 +337,7 @@ async function pdfText(absolutePath: string): Promise<MaterialText> {
     const segments: MaterialTextSegment[] = [];
     for (let page = 1; page <= document.numPages; page += 1) {
       const content = await (await document.getPage(page)).getTextContent();
-      const text = content.items.flatMap(item => 'str' in item ? [item.str] : []).join('');
+      const text = content.items.flatMap(item => 'str' in item ? [item.str] : []).join('\n');
       if (text.length > 0) segments.push({ text, locator: { kind: 'pdf', page } });
     }
     if (segments.length === 0) return { state: 'no_text_layer' };

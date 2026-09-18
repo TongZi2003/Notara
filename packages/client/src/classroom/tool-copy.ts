@@ -63,6 +63,7 @@ function fields(patch: Fields, names: Record<string, string>): string {
 }
 function position(locator: Fields): string {
   if (locator.kind === 'pdf' && positive(locator.page)) return `第 ${locator.page} 页${locator.rect ? '的局部' : ''}`;
+  if (locator.kind === 'pdftext' && positive(locator.page)) return `第 ${locator.page} 页摘录`;
   if (locator.kind === 'text') {
     const start = positive(object(locator.start).line), end = positive(object(locator.end).line);
     if (start) return end && end > start ? `第 ${start}–${end} 行` : `第 ${start} 行`;

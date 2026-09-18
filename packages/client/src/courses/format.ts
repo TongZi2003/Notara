@@ -70,6 +70,7 @@ export function materialLabel(
   const locator = material.source.locator;
   if (locator === undefined) return title;
   if (locator.kind === 'pdf') return `${title} · 第 ${locator.page} 页`;
+  if (locator.kind === 'pdftext') return `${title} · 第 ${locator.page} 页摘录`;
   if (locator.kind === 'image') return `${title} · 图片`;
   if (locator.kind === 'docx') return `${title} · ${locator.part}`;
   return `${title} · L${locator.start.line}`;

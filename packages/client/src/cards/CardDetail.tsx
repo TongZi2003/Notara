@@ -171,6 +171,7 @@ function describeLocator(source: SourceAnchor): string {
   switch (source.locator.kind) {
     case 'text': return `第 ${String(source.locator.start.line)} 行`;
     case 'pdf': return `第 ${String(source.locator.page)} 页`;
+    case 'pdftext': return `第 ${String(source.locator.page)} 页摘录`;
     case 'image': return '图上一处';
     case 'docx': return '文档里一段';
   }

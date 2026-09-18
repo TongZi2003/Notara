@@ -35,7 +35,7 @@ export function MaterialPreview({ version, data, index, locator, onPage }: Mater
   const objectUrl = useObjectUrl(data, mediaType, needsObjectUrl);
 
   if (mediaType === DOCX_MEDIA_TYPE) return <DocxPreview data={data} index={index} />;
-  if (mediaType === 'application/pdf') return <PdfViewer data={data} title={version.title} revealPage={locator?.kind === 'pdf' ? locator.page : undefined} onPage={onPage} />;
+  if (mediaType === 'application/pdf') return <PdfViewer data={data} title={version.title} revealPage={locator?.kind === 'pdf' || locator?.kind === 'pdftext' ? locator.page : undefined} onPage={onPage} />;
   if (mediaType === 'text/markdown') return <MarkdownView text={decodeText(data)} />;
 
   if (mediaType.startsWith('image/')) {

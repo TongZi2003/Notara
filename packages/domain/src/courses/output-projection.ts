@@ -196,6 +196,7 @@ function locatorPosition(locator: SourceLocator): readonly number[] {
       const box = locator.rect ?? [0, 0, 1, 1];
       return [0, locator.page, box[1], box[0]];
     }
+    case 'pdftext': return [0, locator.page, 1, locator.start ?? 0];
     case 'image': {
       const box = locator.rect ?? [0, 0, 1, 1];
       return [1, 0, box[1], box[0]];

@@ -130,9 +130,9 @@ export function SourceCapture({ ctx, version, data, index, references, sessionId
         for (const source of card.content.sources) {
           if (source.materialId !== version.materialId || source.versionId !== version.versionId) continue;
           const loc = source.locator;
-          if (loc.kind === 'pdf' && geometry !== undefined && geometry.page === loc.page && canvas !== null) {
-            // 页级锚点没有几何：作为「指路」角标显示，人再拖框补精确范围。
-            if (loc.rect === undefined) {
+          if ((loc.kind === 'pdf' || loc.kind === 'pdftext') && geometry !== undefined && geometry.page === loc.page && canvas !== null) {
+            // 页级与文本锚点没有矩形几何：作为「指路」角标显示，卡身带精确摘录。
+            if (loc.kind === 'pdftext' || loc.rect === undefined) {
               const canvasBox = canvas.getBoundingClientRect();
               guides.push({ ref: card.ref, title: card.content.title,
                 left: canvasBox.left - origin.left + 8, top: canvasBox.top - origin.top + 8 + guides.length * 30 });
@@ -184,6 +184,9 @@ export function SourceCapture({ ctx, version, data, index, references, sessionId
         if (rect) setBoxes([relative({ left: box.left + rect[0]! * box.width, top: box.top + rect[1]! * box.height, width: (rect[2]! - rect[0]!) * box.width, height: (rect[3]! - rect[1]!) * box.height })]);
         return;
       }
+      // pdftext anchors name a text span, not a box: the page opens at the right
+      // position and the card itself carries the exact text — nothing to draw.
+      if (locator.kind === 'pdftext') return;
       const block = locator.kind === 'docx'
         ? [...container.querySelectorAll<HTMLElement>('[data-sf-block-id]')].find(element => element.dataset.sfBlockId === locator.blockId && (element.dataset.sfPart ?? 'word/document.xml') === locator.part)
         : container.querySelector<HTMLElement>('[data-source-text]');

@@ -197,12 +197,12 @@ export class CardService {
    */
   async check(ctx: HostContext, input: unknown): Promise<CardContent> {
     const content = CardContentSchema.parse(input);
-    await this.assertSources(ctx, content.sources);
-    await this.assertChapter(ctx, content.chapter, content.sources);
-    this.assertTopic(content.topic);
-    this.assertMath(mathProblems(contentText(content)));
-    await this.assertLinks(ctx, content.links);
-    return content;
+    const normalized = { ...content, sources: await this.assertSources(ctx, content.sources) };
+    await this.assertChapter(ctx, normalized.chapter, normalized.sources);
+    this.assertTopic(normalized.topic);
+    this.assertMath(mathProblems(contentText(normalized)));
+    await this.assertLinks(ctx, normalized.links);
+    return normalized;
   }
 
   /** One consistent read, either the current revision or an exact older one. */
@@ -299,8 +299,9 @@ export class CardService {
     if (typeof expectedVersion !== 'number') throw new RecordError('version_conflict');
     const change = CardPatchSchema.parse(patch);
     const before = this.baseline(ctx, ref, expectedVersion).data.content;
-    const after = applyPatch(ctx, before, change);
-    if (change.sources !== undefined) await this.assertSources(ctx, after.sources);
+    const patched = applyPatch(ctx, before, change);
+    const after = change.sources === undefined ? patched
+      : { ...patched, sources: await this.assertSources(ctx, patched.sources) };
     if (change.chapter !== undefined || change.sources !== undefined) await this.assertChapter(ctx, after.chapter, after.sources);
     if (change.topic !== undefined) this.assertTopic(after.topic);
     this.assertMath(mathProblems(changedTextFields(before, after)));
@@ -314,16 +315,24 @@ export class CardService {
    * locator and quote, so each is checked — only a literally identical anchor
    * (same version, same locator, same quote) is read once.
    */
-  private async assertSources(ctx: HostContext, sources: readonly SourceAnchor[]): Promise<void> {
-    const seen = new Set<string>();
+  private async assertSources(ctx: HostContext, sources: readonly SourceAnchor[]): Promise<SourceAnchor[]> {
+    const resolved = new Map<string, SourceAnchor['locator']>();
+    const out: SourceAnchor[] = [];
     for (const source of sources) {
       const key = anchorKey(source);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      // The reader's own codes (`material_missing`, `source_quote_mismatch`, …)
-      // stay intact: a repair needs to know which rule refused the anchor.
-      await resolveAnchor(this.materials, ctx, source);
+      let locator = resolved.get(key);
+      if (locator === undefined) {
+        // The reader's own codes (`material_missing`, `source_quote_mismatch`, …)
+        // stay intact: a repair needs to know which rule refused the anchor.
+        locator = (await resolveAnchor(this.materials, ctx, source)).source.locator;
+        resolved.set(key, locator);
+      }
+      // The stored anchor keeps the canonical locator the reader resolved: a
+      // quote-located pdftext span lands as concrete offsets, so later reads
+      // are the same byte-exact span rather than a question asked again.
+      out.push(locator === source.locator ? source : { ...source, locator });
     }
+    return out;
   }
 
   /**

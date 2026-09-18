@@ -476,6 +476,7 @@ function describeAnchors(anchors: readonly SourceAnchor[]): string {
   if (first === undefined) return '选段';
   switch (first.locator.kind) {
     case 'pdf': return `第 ${String(first.locator.page)} 页`;
+    case 'pdftext': return `第 ${String(first.locator.page)} 页摘录`;
     case 'text': return `第 ${String(first.locator.start.line)} 行`;
     case 'image': return '图上一处';
     case 'docx': return '选段';

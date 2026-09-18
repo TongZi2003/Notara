@@ -166,6 +166,7 @@ export function positionLabel(locator: SourceLocator): string {
   switch (locator.kind) {
     case 'text': return `第 ${String(locator.start.line)} 行`;
     case 'pdf': return `第 ${String(locator.page)} 页`;
+    case 'pdftext': return `第 ${String(locator.page)} 页摘录`;
     case 'image': return '图上选区';
     case 'docx': return '选段';
   }
