@@ -1,0 +1,11 @@
+.sf-atlas-edit{max-width:640px;margin:16px 0 0;padding:14px 16px;border:1px solid var(--nb-rule,#ddd);border-radius:var(--sf-ui-radius,8px)}
+.sf-atlas-edit-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sf-atlas-edit-head>strong{flex:none}
+.sf-atlas-edit-head>code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--nb-pencil,#777);font-size:.85em}
+.sf-atlas-edit-row{display:flex;align-items:center;gap:10px;margin:8px 0}
+.sf-atlas-edit-row>input,.sf-atlas-edit-row>select{flex:1;min-width:0;padding:5px 8px;border:1px solid var(--nb-rule,#ddd);border-radius:4px;font:inherit}
+.sf-atlas-edit-note{margin:4px 0;color:var(--nb-pencil,#777);font-size:.9em}
+.sf-atlas-impact{margin-top:10px;padding:10px 12px;background:color-mix(in srgb,var(--nb-pen,#36c) 5%,transparent);border-radius:6px}
+.sf-atlas-impact>p{margin:0 0 6px}
+.sf-atlas-edit-actions{margin-top:12px}
+.sf-mindmap-node[data-drop-target=true]{outline:2px dashed var(--nb-pen,#36c);outline-offset:2px}

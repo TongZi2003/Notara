@@ -32,7 +32,7 @@ import { RouteNodeInputSchema, RouteNodePatchSchema, RoutePlacementSchema, type 
 import { PlanContentSchema, PlanPatchSchema, SkeletonChangeSchema, type PlanContent, type PlanContentDraft, type PlanPatch, type PlanView, type SkeletonChangeDraft, type SkeletonPreview } from '@studyforge/contracts/plans';
 import type { SkeletonView } from '@studyforge/contracts/skeleton';
 import { BookBreakdownIntentSchema, type BookBreakdownIntent, type BookStructure } from '@studyforge/contracts/book-exploration';
-import type { AtlasView } from '@studyforge/contracts/atlas';
+import { AtlasChangeSchema, type AtlasChangeDraft, type AtlasPreview, type AtlasView } from '@studyforge/contracts/atlas';
 import type { MaterialRefs, SetService } from '@studyforge/domain/sets';
 import { RouteError, lessonNodeId, type NativeLessonSource, type RouteService, type RouteValidators } from '@studyforge/domain/routes';
 import type { PlanService } from '@studyforge/domain/plans';
@@ -453,6 +453,26 @@ export class StudyForgeOrganization extends TypertRemoteService {
   async saveSkeleton(input: { operationId: string; sessionId?: string; materialId: string; expectedVersion: number; change: SkeletonChangeDraft }): Promise<SkeletonView> {
     const parsed = WriteSchema.extend({ materialId: z.string().min(1), expectedVersion: z.number().int().nonnegative(), change: SkeletonChangeSchema }).strict().parse(input);
     return this.ctx.studyforgeSkeletonAuthoring.save(await this.mutation(parsed.sessionId, parsed.operationId, parsed.expectedVersion), parsed.materialId, parsed.change);
+  }
+
+  // ---- atlas authoring --------------------------------------------------------
+
+  /**
+   * What one workspace-map change would do: the merged topic levels and the
+   * real cards a repath/removal moves. Reads the current revision; writes
+   * nothing — the same confirm-then-save boundary the skeleton pair has.
+   */
+  @Remote('previewAtlas')
+  async previewAtlas(input: { version: number; change: AtlasChangeDraft; sessionId?: string }): Promise<AtlasPreview> {
+    const parsed = BoundSchema.extend({ version: z.number().int().nonnegative(), change: AtlasChangeSchema }).strict().parse(input);
+    return this.ctx.studyforgeAtlasAuthoring.preview(await this.context(parsed.sessionId), parsed.version, parsed.change);
+  }
+
+  /** Save one confirmed map change; the map row and every dependent card topic move together. */
+  @Remote('saveAtlas')
+  async saveAtlas(input: { operationId: string; sessionId?: string; expectedVersion: number; change: AtlasChangeDraft }): Promise<AtlasView> {
+    const parsed = WriteSchema.extend({ expectedVersion: z.number().int().nonnegative(), change: AtlasChangeSchema }).strict().parse(input);
+    return this.ctx.studyforgeAtlasAuthoring.save(await this.mutation(parsed.sessionId, parsed.operationId, parsed.expectedVersion), parsed.change);
   }
 
   // ---- one book's read-only structure ---------------------------------------

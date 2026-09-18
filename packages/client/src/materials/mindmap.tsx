@@ -34,6 +34,10 @@ export interface MindmapProps {
   readonly summary?: (node: MindNode) => string | undefined;
   readonly positions?: Readonly<Record<string, { x: number; y: number }>>;
   readonly onMove?: (key: string, position: { x: number; y: number }) => void;
+  /** A drag that ended over another node reports the pair instead of a position. */
+  readonly onDrop?: ((sourceKey: string, targetKey: string) => void) | undefined;
+  /** A node that must never accept the dragged key (self and descendants). */
+  readonly dropDenied?: ((sourceKey: string, targetKey: string) => boolean) | undefined;
   /** The container's own test id; the nodes are found by `[data-kind]` inside it. */
   readonly testId: string;
   readonly label: string;
@@ -67,6 +71,7 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
   const drawing = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [moved, setMoved] = useState<Record<string, { x: number; y: number }>>({});
+  const [dropTarget, setDropTarget] = useState<string | undefined>(undefined);
   const zoomRef = useRef(1);
   const anchor = useRef<{ x: number; y: number; worldX: number; worldY: number }>();
   const changeZoom = useCallback((next: number, point?: { x: number; y: number }): void => {
@@ -231,11 +236,25 @@ export function Mindmap(props: MindmapProps): React.JSX.Element {
         })}
       </svg>
       {visible.map(node => <div key={node.key} className="sf-mindmap-node" data-kind={node.kind} data-key={node.key} data-selected={props.selected === node.key}
-        data-testid={props.nodeTestId ?? 'mindmap-node'}
-        style={{ ...spot(node.key), width: nodeWidth }}>{props.onMove && <button className="sf-quiet sf-mind-drag" aria-label={'移动' + node.title} onPointerDown={event => {
+        data-testid={props.nodeTestId ?? 'mindmap-node'} data-drop-target={dropTarget === node.key || undefined}
+        style={{ ...spot(node.key), width: nodeWidth }}>{(props.onMove ?? props.onDrop) && <button className="sf-quiet sf-mind-drag" aria-label={'移动' + node.title} onPointerDown={event => {
           event.preventDefault(); const handle = event.currentTarget, initial = spot(node.key), x = event.clientX, y = event.clientY; let position = { x: initial.left, y: initial.top }; handle.setPointerCapture(event.pointerId);
-          const move = (e: PointerEvent): void => { position = { x: Math.max(100, initial.left + (e.clientX - x) / zoom), y: Math.max(10, initial.top + (e.clientY - y) / zoom) }; setMoved(old => ({ ...old, [node.key]: position })); };
-          const done = (): void => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', done); handle.removeEventListener('pointercancel', done); props.onMove?.(node.key, position); };
+          const wrapper = handle.closest('.sf-mindmap-node') as HTMLElement | null; if (wrapper) wrapper.style.pointerEvents = 'none';
+          const under = (e: PointerEvent): string | undefined => {
+            const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest('.sf-mindmap-node[data-key]')?.getAttribute('data-key');
+            return hit === undefined || hit === null || hit === node.key || props.dropDenied?.(node.key, hit) === true ? undefined : hit;
+          };
+          const move = (e: PointerEvent): void => { position = { x: Math.max(100, initial.left + (e.clientX - x) / zoom), y: Math.max(10, initial.top + (e.clientY - y) / zoom) }; setMoved(old => ({ ...old, [node.key]: position })); setDropTarget(under(e)); };
+          const done = (e: PointerEvent): void => {
+            handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', done); handle.removeEventListener('pointercancel', done);
+            const target = props.onDrop === undefined ? undefined : under(e); setDropTarget(undefined);
+            if (wrapper) wrapper.style.pointerEvents = '';
+            if (target !== undefined) { setMoved(old => { const next = { ...old }; delete next[node.key]; return next; }); props.onDrop?.(node.key, target); return; }
+            // A caller that only accepts drops keeps no free position: the node
+            // returns to its row instead of staying where the drag ended.
+            if (props.onMove === undefined) { setMoved(old => { const next = { ...old }; delete next[node.key]; return next; }); return; }
+            props.onMove(node.key, position);
+          };
           handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', done); handle.addEventListener('pointercancel', done);
         }}>⠿</button>}{body(node)}</div>)}
     </div>

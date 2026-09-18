@@ -10,7 +10,7 @@
  */
 import type { Context } from '@deepseek-ai/cordis';
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
-import type { AtlasView } from '@studyforge/contracts/atlas';
+import type { AtlasChangeDraft, AtlasPreview, AtlasView } from '@studyforge/contracts/atlas';
 import type { BookStructure } from '@studyforge/contracts/book-exploration';
 import type { CardView } from '@studyforge/contracts/cards';
 import type { MaterialContext } from '@studyforge/contracts/materials';
@@ -18,8 +18,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cardOpenRequest } from '../cards/CardOpenRequest.tsx';
 import type { MaterialNavigation } from '../materials/material-navigation.ts';
 import { bookHint } from '../materials/lesson-materials-mindmap.ts';
-import { Mindmap } from '../materials/mindmap.tsx';
+import { Mindmap, type MindAction } from '../materials/mindmap.tsx';
 import type { MindNode } from '../materials/mindmap-model.ts';
+import './map-page.css';
 
 /** Registered `main` key and matching sidebar row id. */
 export const MAP_PAGE_ID = 'studyforge.map';
@@ -65,6 +66,38 @@ function bookForest(books: readonly BookStructure[]): MapProjection {
 
 /** 「未归图」伪根的 key：收所有没写 topic 的卡。 */
 const UNFILED_KEY = 'unfiled';
+const TOPIC_PREFIX = 'topic:';
+const CARD_PREFIX = 'card:';
+
+/** One in-flight atlas edit the confirm panel holds: the change plus its preview. */
+interface AtlasDraft {
+  readonly kind: 'rename' | 'move' | 'child' | 'remove';
+  /** The topic path being edited. */
+  readonly path: string;
+  /** New name (rename/child). */
+  readonly input: string;
+  /** New parent path ('' = 顶层); drag-drops land pre-filled. */
+  readonly target: string;
+  readonly preview: AtlasPreview | undefined;
+  readonly change: AtlasChangeDraft | undefined;
+  readonly detach: boolean;
+  readonly busy: boolean;
+  readonly error: string | undefined;
+}
+
+/** The change one draft builds, in the atlas's own vocabulary. */
+function changeOf(draft: AtlasDraft): AtlasChangeDraft {
+  const leaf = draft.path.slice(draft.path.lastIndexOf('/') + 1);
+  const parent = draft.path.slice(0, draft.path.lastIndexOf('/'));
+  switch (draft.kind) {
+    case 'rename': return { repath: [{ from: draft.path, to: (parent === '' ? '' : parent + '/') + draft.input.trim() }] };
+    case 'move': return { repath: [{ from: draft.path, to: (draft.target === '' ? '' : draft.target + '/') + leaf }] };
+    case 'child': return { nodes: [{ path: draft.path + '/' + draft.input.trim(), detail: 'refined' }] };
+    case 'remove': return { removePaths: [draft.path], detachDependents: draft.detach };
+  }
+}
+
+const DRAFT_TITLE: Record<AtlasDraft['kind'], string> = { rename: '改层名', move: '移动层', child: '新建子层', remove: '删除层' };
 
 /** atlas 视图：主题层按路径建树，卡按自己的 topic 落到真实存在的最近一层。 */
 function atlasTree(atlas: AtlasView, cards: readonly CardView[]): MapProjection {
@@ -179,6 +212,54 @@ export function MapPage({ ctx, navigation }: { ctx: Context; navigation: Materia
   const expand = useCallback((node: MindNode, open: boolean): void => {
     setExpanded(current => open ? [...new Set([...current, node.key])] : current.filter(key => key !== node.key));
   }, []);
+  const [draft, setDraft] = useState<AtlasDraft | undefined>(undefined);
+  const openDraft = useCallback((kind: AtlasDraft['kind'], path: string, target = ''): void => {
+    setDraft({ kind, path, input: '', target, preview: undefined, change: undefined, detach: false, busy: false, error: undefined });
+  }, []);
+  const atlasActions: readonly MindAction[] = useMemo(() => [
+    { label: '改名', when: node => node.key.startsWith(TOPIC_PREFIX), run: node => { openDraft('rename', node.key.slice(TOPIC_PREFIX.length)); } },
+    { label: '移动到', when: node => node.key.startsWith(TOPIC_PREFIX), run: node => { openDraft('move', node.key.slice(TOPIC_PREFIX.length)); } },
+    { label: '新建子层', when: node => node.key.startsWith(TOPIC_PREFIX), run: node => { openDraft('child', node.key.slice(TOPIC_PREFIX.length)); } },
+    { label: '删除', when: node => node.key.startsWith(TOPIC_PREFIX), run: node => { openDraft('remove', node.key.slice(TOPIC_PREFIX.length)); } },
+  ], [openDraft]);
+  /** Topic repaths go through preview+confirm; card drops edit the card's own topic directly. */
+  const onAtlasDrop = useCallback((source: string, target: string): void => {
+    if (source.startsWith(TOPIC_PREFIX) && target.startsWith(TOPIC_PREFIX)) {
+      const from = source.slice(TOPIC_PREFIX.length), to = target.slice(TOPIC_PREFIX.length);
+      if (from.slice(0, from.lastIndexOf('/')) === to) return;
+      setDraft({ kind: 'move', path: from, input: '', target: to, preview: undefined, change: undefined, detach: false, busy: false, error: undefined });
+      return;
+    }
+    if (!source.startsWith(CARD_PREFIX)) return;
+    const ref = source.slice(CARD_PREFIX.length);
+    const card = cards?.find(row => row.ref === ref);
+    const topic = target === UNFILED_KEY ? null : target.startsWith(TOPIC_PREFIX) ? target.slice(TOPIC_PREFIX.length) : undefined;
+    if (card === undefined || topic === undefined || (card.content.topic ?? null) === topic) return;
+    void ctx.remote.studyforgeLearning.editCard({ operationId: crypto.randomUUID(), target: ref, expectedVersion: card.version, patch: { topic, links_add: [], links_remove: [] } })
+      .then(reply => { if (reply.ok) setReload(value => value + 1); else setFailed('归属没有改成功：' + (reply.error?.message ?? '')); })
+      .catch(() => setFailed('归属没有改成功。'));
+  }, [cards, ctx]);
+  const dropDenied = useCallback((source: string, target: string): boolean =>
+    source === target || (source.startsWith(TOPIC_PREFIX) && target.startsWith(source + '/')), []);
+  const runPreview = useCallback(async (): Promise<void> => {
+    if (draft === undefined || data === undefined || draft.busy) return;
+    const change = changeOf(draft);
+    setDraft({ ...draft, busy: true, error: undefined });
+    const reply = await ctx.remote.studyforgeOrganization.previewAtlas({ version: data.atlas.revision ?? 0, change });
+    setDraft(reply.ok
+      ? { ...draft, preview: reply.value, change, busy: false, error: undefined }
+      : { ...draft, preview: undefined, busy: false, error: reply.error?.message ?? '预览没有成功' });
+  }, [ctx, draft, data]);
+  const runSave = useCallback(async (): Promise<void> => {
+    if (draft?.change === undefined || data === undefined || draft.busy) return;
+    setDraft({ ...draft, busy: true, error: undefined });
+    const reply = await ctx.remote.studyforgeOrganization.saveAtlas({
+      operationId: crypto.randomUUID(), expectedVersion: data.atlas.revision ?? 0,
+      change: { ...draft.change, detachDependents: draft.detach },
+    });
+    if (reply.ok) { setDraft(undefined); setReload(value => value + 1); return; }
+    setDraft({ ...draft, busy: false, error: reply.error?.message ?? '保存没有成功' });
+  }, [ctx, draft, data]);
   return <main className="sf-map-page" data-testid="studyforge-page-map">
     <header className="sf-map-head">
       <span>知识地图</span>
@@ -198,7 +279,31 @@ export function MapPage({ ctx, navigation }: { ctx: Context; navigation: Materia
       testId="map-canvas" label={view === 'books' ? '按书籍分布的结构' : '跨书知识地图'}
       nodes={projection.nodes} mode={mode} expanded={expanded} selected={selected}
       onPick={pick} onExpand={expand}
+      actions={view === 'atlas' ? atlasActions : undefined}
+      onDrop={view === 'atlas' ? onAtlasDrop : undefined}
+      dropDenied={view === 'atlas' ? dropDenied : undefined}
       empty={view === 'books' ? '还没有一本书被读过结构。在资料页打开一本书，读过的层级会出现在这里。' : '知识地图还是空的。给卡填一个主题归属，或让老师帮你整理，第一层就会长出来。'}
     />}
+    {draft !== undefined && data !== undefined && <section className="sf-atlas-edit" data-testid="atlas-edit" aria-label="修改知识地图">
+      <header className="sf-atlas-edit-head"><strong>{DRAFT_TITLE[draft.kind]}</strong><code>{draft.path}</code><button type="button" className="sf-quiet" aria-label="取消" onClick={() => { setDraft(undefined); }}>×</button></header>
+      {draft.kind === 'rename' && <label className="sf-atlas-edit-row">新名称<input data-testid="atlas-edit-input" value={draft.input} onChange={e => { setDraft({ ...draft, input: e.target.value, preview: undefined }); }} /></label>}
+      {draft.kind === 'move' && <label className="sf-atlas-edit-row">移动到<select data-testid="atlas-edit-target" value={draft.target} onChange={e => { setDraft({ ...draft, target: e.target.value, preview: undefined }); }}>
+        <option value="">顶层</option>
+        {data.atlas.nodes.map(node => node.path).filter(path => path !== draft.path && !path.startsWith(draft.path + '/')).map(path => <option key={path} value={path}>{path}</option>)}
+      </select></label>}
+      {draft.kind === 'child' && <label className="sf-atlas-edit-row">子层名<input data-testid="atlas-edit-input" value={draft.input} onChange={e => { setDraft({ ...draft, input: e.target.value, preview: undefined }); }} /></label>}
+      {draft.kind === 'remove' && <p className="sf-atlas-edit-note">这一层连同它的下层一起移出地图；挂在它们身上的卡归属见下方影响。</p>}
+      {draft.preview !== undefined && <div className="sf-atlas-impact" data-testid="atlas-impact">
+        <p>{draft.preview.impact.cards.length === 0 && draft.preview.impact.removedPaths.length === 0 ? '没有卡或层受这次修改影响。'
+          : `${String(draft.preview.impact.cards.length)} 张卡的归属会随之调整${draft.preview.impact.removedPaths.length === 0 ? '。' : `；一并移出 ${draft.preview.impact.removedPaths.join('、')}。`}`}</p>
+        {draft.preview.requiresDetach && <label className="sf-atlas-edit-row"><input type="checkbox" data-testid="atlas-detach" checked={draft.detach} onChange={e => { setDraft({ ...draft, detach: e.target.checked }); }} />这些卡的地图归属一并清空（卡本身保留）</label>}
+      </div>}
+      {draft.error !== undefined && <p className="sf-notice sf-notice-error" role="alert">{draft.error}</p>}
+      <div className="sf-atlas-edit-actions">
+        {draft.preview === undefined
+          ? <button type="button" className="sf-action" data-testid="atlas-preview-run" disabled={draft.busy || ((draft.kind === 'rename' || draft.kind === 'child') && draft.input.trim() === '')} onClick={() => { void runPreview(); }}>{draft.busy ? '正在预览…' : '查看影响'}</button>
+          : <button type="button" className="sf-action" data-testid="atlas-save-run" disabled={draft.busy || (draft.preview.requiresDetach && !draft.detach)} onClick={() => { void runSave(); }}>{draft.busy ? '正在保存…' : '确认修改'}</button>}
+      </div>
+    </section>}
   </main>;
 }
