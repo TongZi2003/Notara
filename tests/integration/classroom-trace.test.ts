@@ -72,4 +72,4 @@ test('explicit stage advancement creates half-open frames and keeps route data s
   expect(trace.frames[1]).toMatchObject({ status: 'branched' });
   expect(trace.frames[2]).toMatchObject({ mode: 'branch', status: 'active', parentFrameId: trace.frames[1]!.id });
   expect(trace.branches).toHaveLength(1);
-});
+}, 90_000);

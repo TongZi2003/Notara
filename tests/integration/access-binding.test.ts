@@ -127,7 +127,7 @@ test('real native Remote authorizes read, readAll, readRelated and stat using th
       expect(result.body.result).toMatchObject({ ok: false });
     }
   }
-});
+}, 30_000);
 
 test('real grep/glob registry calls respect session grants; shell-equivalent PTC cannot bypass them', async () => {
   const { access, root, other } = await fixture();

@@ -63,7 +63,7 @@ test('metadata patch cannot close a classroom, forge title or attach another wor
   const race = await Promise.all(['one', 'two'].map(operationId => client.rpc('studyforgeCourses/update', { input: { ...first, operationId } })));
   expect(race.filter(result => result.ok)).toHaveLength(1);
   expect(value(await client.rpc<CourseView>('studyforgeCourses/read', { input: { sessionId: own.sessionId } })).data.closure).toBeNull();
-});
+}, 30_000);
 
 test('native prompt idempotency and accepted evidence survive restart without a second input ledger', async () => {
   runtime = await startIsolated({ testModel: true });

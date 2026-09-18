@@ -92,7 +92,16 @@ export function summarizeDocumentChange(before: PluginDocument, after: PluginDoc
   return (items.length ? items.slice(0, 6).join('；') + (items.length > 6 ? ` 等 ${items.length} 项` : '') : '内容未变').slice(0, 600);
 }
 export function summarizeWorldbookChange(before: WorldbookDocument, after: WorldbookDocument): string {
-  const items = genericChange(before as Record<string, unknown>, after as Record<string, unknown>);
+  // Entry titles are gated worldbook content: a title in the prompt-side
+  // activity feed would leak what the intimacy/role gates deliberately
+  // withhold. Diff the entries array as a count, never by name.
+  const { entries: beforeEntries, ...restBefore } = before;
+  const { entries: afterEntries, ...restAfter } = after;
+  const items = genericChange(restBefore as Record<string, unknown>, restAfter as Record<string, unknown>);
+  if (JSON.stringify(beforeEntries) !== JSON.stringify(afterEntries)) {
+    const delta = afterEntries.length - beforeEntries.length;
+    items.push(delta === 0 ? '修改条目' : `条目 ${delta > 0 ? '+' : ''}${String(delta)}`);
+  }
   return (items.length ? items.slice(0, 6).join('；') : '内容未变').slice(0, 600);
 }
 
