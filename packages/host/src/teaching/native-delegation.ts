@@ -30,12 +30,14 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Context } from '@deepseek-ai/cordis';
+import type { AgentOptions } from '@deepseek-ai/dsh-agent';
 import type {} from '@deepseek-ai/dsh-subagent';
 import type { SubagentResult, SubagentRun, SubagentStartRequest } from '@deepseek-ai/dsh-subagent';
 import { assertObjectJsonSchema, type ObjectJsonSchema, type ToolRestriction, type ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { z } from 'zod';
 import type { MutationContext, SourceAnchor } from '@studyforge/contracts';
 import { SourceAnchorSchema } from '@studyforge/contracts/materials';
+import { ClassmateRouteSchema, type ClassmateRoute } from '@studyforge/contracts/classroom';
 import type { CardContent } from '@studyforge/contracts/cards';
 import { toolSchema } from '../tools/tool-schema.ts';
 import { teacherContext } from '../tools/learning-context.ts';
@@ -114,11 +116,15 @@ export const MaterialExcerptSchema = z.object({
 }).strict();
 export type MaterialExcerpt = z.infer<typeof MaterialExcerptSchema>;
 
+/** One delegation's model route: the child runs under it instead of the teacher's. */
+const DelegationRouteSchema = ClassmateRouteSchema.describe('本次任务使用的模型路由：provider与model必须是已配置的provider路由；省略跟随本课老师。只影响本次委派。');
+
 /** Search: one retrieval task, optionally kept as a durable child for follow-ups. */
 export const SearchDelegationInputSchema = z.object({
   task: z.string().trim().min(1).describe('要查什么；只写这一次检索需要的缺口'),
   context: z.string().trim().min(1).optional().describe('必要的约束或已知线索；不要粘贴本课对话'),
   background: z.boolean().default(false).describe('true 时建立可持续追问的子会话，稍后用原生 send_message 继续'),
+  route: DelegationRouteSchema.optional(),
 }).strict();
 
 /** Tutor: materials plus an existing standard, never the lesson or the student's own history. */
@@ -126,6 +132,7 @@ export const AssistantDelegationInputSchema = z.object({
   materials: z.array(MaterialExcerptSchema).min(1).describe('只能依据的材料原文'),
   standard: z.string().trim().min(1).describe('已有标准或参考解；没有标准就不要派助教'),
   question: z.string().trim().min(1).optional().describe('要判断什么'),
+  route: DelegationRouteSchema.optional(),
 }).strict();
 
 /** Peer: the student's own words plus materials. There is no field for an answer. */
@@ -133,6 +140,7 @@ export const PeerDelegationInputSchema = z.object({
   materials: z.array(MaterialExcerptSchema).min(1).describe('只能依据的材料原文'),
   explanation: z.string().trim().min(1).describe('学生自己写下的解释原话'),
   question: z.string().trim().min(1).optional().describe('要评审什么'),
+  route: DelegationRouteSchema.optional(),
 }).strict();
 
 /** Problem writing: only a goal, its constraints and the real anchors to honour. */
@@ -141,6 +149,7 @@ export const ProblemDelegationInputSchema = z.object({
   constraints: z.string().trim().min(1).optional().describe('题目约束，例如难度、题量以外的要求'),
   count: z.number().int().min(1).max(5).default(1),
   sources: z.array(SourceAnchorSchema).max(8).default([]).describe('这些题真实依据的材料位置；登记时原样挂在卡上'),
+  route: DelegationRouteSchema.optional(),
 }).strict();
 
 /** One proposed problem. The solution is stored behind the face and never returned early. */
@@ -166,6 +175,7 @@ export const DelegationResultSchema = z.object({
   stopReason: z.string().min(1),
   background: z.boolean(),
   surface: z.array(z.string().min(1)),
+  route: ClassmateRouteSchema.optional(),
 }).strict();
 
 /** One problem delegation: the registered cards, never their solutions. */
@@ -174,6 +184,7 @@ export const ProblemResultSchema = z.object({
   childId: z.string().min(1),
   stopReason: z.string().min(1),
   surface: z.array(z.string().min(1)),
+  route: ClassmateRouteSchema.optional(),
   cards: z.array(ProblemCardViewSchema).min(1),
 }).strict();
 
@@ -253,6 +264,7 @@ export interface DelegationOutcome {
   readonly stopReason: string;
   readonly background: boolean;
   readonly surface: readonly string[];
+  readonly route?: ClassmateRoute;
 }
 
 /** One problem delegation's real effect: registered cards, faces only. */
@@ -261,10 +273,20 @@ export interface ProblemOutcome {
   readonly childId: string;
   readonly stopReason: string;
   readonly surface: readonly string[];
+  readonly route?: ClassmateRoute;
   readonly cards: readonly z.output<typeof ProblemCardViewSchema>[];
 }
 
 type DelegationParent = SubagentStartRequest['parent'];
+
+/** The per-child AgentOptions one delegation route resolves to, if any. */
+function routeOptions(route: ClassmateRoute | undefined): AgentOptions | undefined {
+  if (!route) return undefined;
+  const options: AgentOptions = { provider: route.provider, model: route.model };
+  if (route.reasoningEffort !== undefined) options.reasoningEffort = route.reasoningEffort as NonNullable<AgentOptions['reasoningEffort']>;
+  if (route.maxTokens !== undefined) options.maxTokens = route.maxTokens;
+  return options;
+}
 
 /**
  * The role adapter. One instance per Host; it holds no child handle, no queue
@@ -300,7 +322,7 @@ export class TeachingDelegation {
    */
   async run(input: {
     readonly role: DelegationRole; readonly parent: DelegationParent; readonly task: string;
-    readonly signal: AbortSignal; readonly background?: boolean;
+    readonly signal: AbortSignal; readonly background?: boolean; readonly route?: ClassmateRoute;
   }): Promise<DelegationOutcome> {
     const { role, parent, task, signal } = input;
     const background = input.background === true;
@@ -312,20 +334,22 @@ export class TeachingDelegation {
     const filter: ToolRestriction = { allow: [...surface] };
     const prompt: SubagentStartRequest['prompt'] = [{ type: 'text', text: task }];
     const persona = teachingText(this.host, 'assistant/' + role, this.briefs.persona[role]);
+    const agentOptions = routeOptions(input.route);
     if (background) {
       const started = await this.host.subagents.startContinuable({
         provider: this.provider, label: ROLES[role].title,
-        request: { prompt, parent, persona, toolFilter: filter }, signal,
+        request: { prompt, parent, persona, toolFilter: filter, ...(agentOptions ? { agentOptions } : {}) }, signal,
       });
-      return { role, childId: String(started.childId), output: '', stopReason: 'accepted', background: true, surface };
+      return { role, childId: String(started.childId), output: '', stopReason: 'accepted', background: true, surface, ...(input.route ? { route: input.route } : {}) };
     }
     const run = await this.host.subagents.start(this.provider, {
       label: ROLES[role].title, prompt, parent, signal, persona, toolFilter: filter,
+      ...(agentOptions ? { agentOptions } : {}),
     });
     const childId = String(run.id);
     const result = await settle(run);
     if (result.stopReason !== 'completed') throw incomplete(result, childId);
-    return { role, childId, output: textOf(result), stopReason: result.stopReason, background: false, surface };
+    return { role, childId, output: textOf(result), stopReason: result.stopReason, background: false, surface, ...(input.route ? { route: input.route } : {}) };
   }
 
   /**
@@ -340,18 +364,22 @@ export class TeachingDelegation {
   async proposeProblems(input: {
     readonly parent: DelegationParent; readonly signal: AbortSignal; readonly context: MutationContext;
     readonly target: string; readonly constraints?: string; readonly count?: number; readonly sources?: readonly SourceAnchor[];
+    readonly route?: ClassmateRoute;
   }): Promise<ProblemOutcome> {
     const parsed = ProblemDelegationInputSchema.parse({
       target: input.target, count: input.count ?? 1, sources: input.sources ?? [],
       ...(input.constraints === undefined ? {} : { constraints: input.constraints }),
+      ...(input.route === undefined ? {} : { route: input.route }),
     });
     const surface = this.surface('problem', input.parent);
     const filter: ToolRestriction = { allow: [...surface] };
+    const agentOptions = routeOptions(parsed.route);
     const run = await this.host.subagents.start(this.provider, {
       label: ROLES.problem.title,
       prompt: [{ type: 'text', text: problemTask(parsed) }],
       parent: input.parent, signal: input.signal, persona: teachingText(this.host, 'assistant/problem', this.briefs.persona.problem),
       toolFilter: filter, outputSchema: PROBLEM_OUTPUT_SCHEMA,
+      ...(agentOptions ? { agentOptions } : {}),
     });
     const childId = String(run.id);
     const result = await settle(run);
@@ -382,6 +410,7 @@ export class TeachingDelegation {
     await this.host.studyforgeRecords.atomic(plans);
     return {
       role: 'problem', childId, stopReason: result.stopReason, surface,
+      ...(parsed.route ? { route: parsed.route } : {}),
       cards: plans.map(plan => ProblemCardViewSchema.parse({
         ref: plan.result.ref, version: plan.result.version,
         title: plan.result.data.content.title, front: plan.result.data.content.front,
@@ -458,7 +487,7 @@ export function registerDelegationTools(host: Context, options: DelegationToolOp
     run: (args: z.output<I>, execution: ToolRunContext) => Promise<unknown>,
   ): void => {
     host.effect(() => host.tools.register({
-      name, description: description + ' 专门的检索/命题/助教/同伴任务选delegate的对应method，它们也复用原生子会话；通用独立任务才用subagent。后台任务沿返回的真实childId用send_message/interrupt_agent管理，不重复另开。', parameters: toolSchema(input),
+      name, description: description + ' 专门的检索/命题/助教/同伴任务选delegate的对应method，它们也复用原生子会话；通用独立任务才用subagent。后台任务沿返回的真实childId用send_message/interrupt_agent管理，不重复另开。可选route给本次委派指定另一模型路由（provider+model，可带reasoningEffort/maxTokens），省略跟随本课老师。', parameters: toolSchema(input),
       output: { schema: toolSchema(output), render: (_args: unknown, value: unknown) => [{ type: 'text' as const, text: JSON.stringify(output.parse(value)) }, ...entityReferenceContent(value)] },
       async execute(args: unknown, execution: ToolRunContext) { return run(input.parse(args), execution); },
     }));
@@ -469,11 +498,11 @@ export function registerDelegationTools(host: Context, options: DelegationToolOp
   };
 
   register(DELEGATION_TOOLS.search, ROLES.search.description, SearchDelegationInputSchema, DelegationResultSchema,
-    (input, execution) => delegation.run({ role: 'search', parent: parentOf(execution), task: searchTask(input), signal: execution.signal, background: input.background }));
+    (input, execution) => delegation.run({ role: 'search', parent: parentOf(execution), task: searchTask(input), signal: execution.signal, background: input.background, ...(input.route ? { route: input.route } : {}) }));
   register(DELEGATION_TOOLS.assistant, ROLES.assistant.description, AssistantDelegationInputSchema, DelegationResultSchema,
-    (input, execution) => delegation.run({ role: 'assistant', parent: parentOf(execution), task: assistantTask(input), signal: execution.signal }));
+    (input, execution) => delegation.run({ role: 'assistant', parent: parentOf(execution), task: assistantTask(input), signal: execution.signal, ...(input.route ? { route: input.route } : {}) }));
   register(DELEGATION_TOOLS.peer, ROLES.peer.description, PeerDelegationInputSchema, DelegationResultSchema,
-    (input, execution) => delegation.run({ role: 'peer', parent: parentOf(execution), task: peerTask(input), signal: execution.signal }));
+    (input, execution) => delegation.run({ role: 'peer', parent: parentOf(execution), task: peerTask(input), signal: execution.signal, ...(input.route ? { route: input.route } : {}) }));
   register(DELEGATION_TOOLS.problem, ROLES.problem.description, ProblemDelegationInputSchema, ProblemResultSchema,
     async (input, execution) => {
       const context = await teacherContext(host, execution);
@@ -481,6 +510,7 @@ export function registerDelegationTools(host: Context, options: DelegationToolOp
         parent: parentOf(execution), signal: execution.signal, context,
         target: input.target, count: input.count, sources: input.sources,
         ...(input.constraints === undefined ? {} : { constraints: input.constraints }),
+        ...(input.route === undefined ? {} : { route: input.route }),
       });
     });
   return delegation;

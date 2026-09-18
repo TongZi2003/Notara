@@ -312,6 +312,6 @@ test('the role briefs are real files, and a missing or templated one fails regis
   expect(briefs.persona.peer).toContain('参考答案');
   expect(() => loadAssistantBriefs(join(ASSISTANTS_DIR, 'missing'))).toThrowError(/assistant_brief_missing/);
   const { harness } = await mount();
-  expect(Object.keys(ProblemDelegationInputSchema.shape)).toEqual(['target', 'constraints', 'count', 'sources']);
+  expect(Object.keys(ProblemDelegationInputSchema.shape)).toEqual(['target', 'constraints', 'count', 'sources', 'route']);
   expect(harness.ctx.tools.get(DELEGATION_TOOLS.problem)?.name).toBe(DELEGATION_TOOLS.problem);
 });

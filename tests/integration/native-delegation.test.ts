@@ -45,7 +45,7 @@ function value<T>(result: RemoteResult<T>): T {
 
 interface LoggedBlock { readonly type: string; readonly text?: string; readonly content?: readonly LoggedBlock[]; }
 interface LoggedMessage { readonly role: string; readonly content: readonly LoggedBlock[]; }
-interface LoggedRequest { readonly sessionId?: string; readonly messages: readonly LoggedMessage[]; readonly toolNames?: readonly string[]; }
+interface LoggedRequest { readonly sessionId?: string; readonly provider?: string; readonly model?: string; readonly messages: readonly LoggedMessage[]; readonly toolNames?: readonly string[]; }
 function textOf(request: LoggedRequest): string {
   const text = (block: LoggedBlock): string => block.text ?? block.content?.map(text).join('\n') ?? '';
   return request.messages.flatMap(message => message.content).map(text).join('\n');
@@ -136,6 +136,23 @@ test('structured output from a native problem child is registered once as the sa
   expect(cards[0]?.history).toEqual([]); expect(cards[0]?.review).toBeUndefined();
   value(await client.rpc('session/prompt', request));
   expect(value(await client.rpc<CardView[]>('studyforgeLearning/cards', {})).map(card => card.ref)).toEqual(cards.map(card => card.ref));
+}, 60_000);
+
+test('a delegation route runs its child under a different model than the lesson', async () => {
+  runtime = await startIsolated({ testModel: true });
+  const client = await connectRuntime(runtime);
+  const { sessionId } = value(await client.rpc<SessionCreateValue>('session/create', { request: { cwd: join(runtime.root, 'classroom'), agentPreset: 'studyforge-learning' } }));
+  value(await client.rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: '[tool]' + JSON.stringify({
+    name: 'delegate_search',
+    arguments: { task: '路由测试：只确认收到任务', route: { provider: 'studyforge-test', model: 'study-model-b' } },
+  }) }] } }));
+  await expect.poll(async () => value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.find(item => item.sessionId === sessionId)?.running, { timeout: 45_000 }).toBe(false);
+  const children = value(await client.rpc<SessionListValue>('session/list', { _request: {} })).items.filter(item => item.parentSessionId === sessionId && item.origin === 'subagent');
+  expect(children).toHaveLength(1);
+  const log = await modelLog();
+  const childRequest = log.find(entry => entry.sessionId === children[0]!.sessionId);
+  expect(childRequest, JSON.stringify(log.map(entry => [entry.sessionId, entry.model]))).toMatchObject({ provider: 'studyforge-test', model: 'study-model-b' });
+  expect(log.find(entry => entry.sessionId === sessionId)).toMatchObject({ provider: 'studyforge-test', model: 'study-model-a' });
 }, 60_000);
 
 test('a prose-only problem child is refused by the Host and registers no card', async () => {
