@@ -43,12 +43,12 @@ npm run build
 npm run trial           # 数据落在 ./.trial/，重启续学；可选：npm run trial -- <数据目录> --port <n>
 ```
 
-1. 终端打印 `Notara 试用实例：http://127.0.0.1:<port>/?token=…`——浏览器打开这个完整 URL（内含本机登录 token）。
+1. 启动成功后浏览器自动打开登录页（`--no-open` 可禁用）；完整 URL（内含本机登录 token）同时打印在终端并写入 `.trial/launcher.json` 的 `authUrl`，脚本包装直接读文件即可，无需解析终端输出。
 2. 首次进入按引导配置模型提供方，需要试用者自己的 DeepSeek API key。
 3. 装两个日常插件：侧栏 **插件 → 安装插件 → 开发目录**，各填一次仓库内目录的**绝对路径**，「查看安装内容」后「确认安装」：
    - `<仓库>/examples/plugins/math-workbench`（数学工作台）
    - `<仓库>/examples/plugins/worldbook`（教室与世界书）
-4. 之后每次试用只需 `npm run trial`；学习记录、课堂、插件固定版本都保存在 `.trial/`。想重置就删掉该目录。
+4. 之后每次试用只需 `npm run trial`；学习记录、课堂、插件固定版本都保存在 `.trial/`。想重置就删掉该目录。**运行中的终端窗口即服务本体，关闭窗口服务即停止**——旧标签页/书签在端口未监听时会显示「无法访问此页面」（ERR_CONNECTION_REFUSED），重新 `npm run trial` 从自动打开的登录页进入。
 
 上游明确拒绝 `0.0.0.0` 绑定（会把执行能力暴露到网络）。局域网试用走 SSH 隧道：`ssh -L 3080:127.0.0.1:3080 <试用机>`。
 

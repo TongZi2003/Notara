@@ -128,7 +128,6 @@ async function boot(root: string, options: { hostEnabled?: boolean; clientEnable
       }
     }
     async function ready(): Promise<void> {
-      await writeFile(join(root, 'launcher.json'), JSON.stringify({ pid: child.pid, parentPid: process.pid, workspace, node: process.versions.node }));
       const deadline = Date.now() + 45_000;
       while (!authUrl) {
         if (spawnError) throw new Error(`DSH spawn failed: ${spawnError.message}`);
@@ -136,6 +135,11 @@ async function boot(root: string, options: { hostEnabled?: boolean; clientEnable
         if (Date.now() > deadline) throw new Error(`DSH boot timed out: ${redact(output)}`);
         await new Promise(resolveReady => setTimeout(resolveReady, 50));
       }
+      // launcher.json carries the live authUrl so a wrapper never has to parse
+      // stdout for the login address — console encoding made that brittle on
+      // Windows. The trial root already holds DSH_HOME secrets; the token URL
+      // is the same trust level.
+      await writeFile(join(root, 'launcher.json'), JSON.stringify({ pid: child.pid, parentPid: process.pid, workspace, node: process.versions.node, authUrl }));
     }
     return { child, stopProcess, ready, authUrl: () => authUrl, log: () => redact(output) };
   }
