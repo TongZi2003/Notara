@@ -4,18 +4,58 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./classroom": { "types": "./lib/types/classroom.d.ts", "default": "./lib/types/classroom.js" },
-    "./math-workbench": { "types": "./lib/types/math-workbench.d.ts", "default": "./lib/types/math-workbench.js" },
-    "./math-scene": { "types": "./lib/types/math-scene.d.ts", "default": "./lib/types/math-scene.js" },
-    "./math-expression": { "types": "./lib/types/math-expression.d.ts", "default": "./lib/types/math-expression.js" },
-    "./entity-reference": { "types": "./lib/types/entity-reference.d.ts", "default": "./lib/types/entity-reference.js" },
-    "./plugin-learning": { "types": "./lib/types/plugin-learning.d.ts", "default": "./lib/types/plugin-learning.js" },
-    "./plugins": { "types": "./lib/types/plugins.d.ts", "default": "./lib/types/plugins.js" },
-    "./classroom-trace": { "types": "./lib/types/classroom-trace.d.ts", "default": "./lib/types/classroom-trace.js" },
-    "./library": { "types": "./lib/types/library.d.ts", "default": "./lib/types/library.js" },
-    "./creation": { "types": "./lib/types/creation.d.ts", "default": "./lib/types/creation.js" },
-    "./content-history": { "types": "./lib/types/content-history.d.ts", "default": "./lib/types/content-history.js" },
-    "./teaching": { "types": "./lib/types/teaching.d.ts", "default": "./lib/types/teaching.js" },
+    "./classroom": {
+      "types": "./lib/types/classroom.d.ts",
+      "default": "./lib/types/classroom.js"
+    },
+    "./math-workbench": {
+      "types": "./lib/types/math-workbench.d.ts",
+      "default": "./lib/types/math-workbench.js"
+    },
+    "./math-scene": {
+      "types": "./lib/types/math-scene.d.ts",
+      "default": "./lib/types/math-scene.js"
+    },
+    "./math-expression": {
+      "types": "./lib/types/math-expression.d.ts",
+      "default": "./lib/types/math-expression.js"
+    },
+    "./entity-reference": {
+      "types": "./lib/types/entity-reference.d.ts",
+      "default": "./lib/types/entity-reference.js"
+    },
+    "./plugin-learning": {
+      "types": "./lib/types/plugin-learning.d.ts",
+      "default": "./lib/types/plugin-learning.js"
+    },
+    "./plugins": {
+      "types": "./lib/types/plugins.d.ts",
+      "default": "./lib/types/plugins.js"
+    },
+    "./classroom-trace": {
+      "types": "./lib/types/classroom-trace.d.ts",
+      "default": "./lib/types/classroom-trace.js"
+    },
+    "./library": {
+      "types": "./lib/types/library.d.ts",
+      "default": "./lib/types/library.js"
+    },
+    "./creation": {
+      "types": "./lib/types/creation.d.ts",
+      "default": "./lib/types/creation.js"
+    },
+    "./content-history": {
+      "types": "./lib/types/content-history.d.ts",
+      "default": "./lib/types/content-history.js"
+    },
+    "./teaching": {
+      "types": "./lib/types/teaching.d.ts",
+      "default": "./lib/types/teaching.js"
+    },
+    "./teaching-rounds": {
+      "types": "./lib/types/teaching-rounds.d.ts",
+      "default": "./lib/types/teaching-rounds.js"
+    },
     "./changes": {
       "types": "./lib/types/changes.d.ts",
       "default": "./lib/types/changes.js"

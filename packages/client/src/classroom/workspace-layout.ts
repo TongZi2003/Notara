@@ -1,5 +1,5 @@
 /** Browser-local arrangement only. Never writes lesson facts or native drafts. */
-export const VIEWS = ['chat', 'thoughts', 'materials'] as const;
+export const VIEWS = ['chat', 'thoughts', 'materials', 'rounds'] as const;
 export type WorkspaceView = typeof VIEWS[number] | `plugin-${string}`;
 const isView = (value: unknown): value is WorkspaceView => typeof value === 'string' && ((VIEWS as readonly string[]).includes(value) || /^plugin-[a-f0-9]{24}-[a-z][a-z0-9-]{0,47}$/.test(value));
 /** Keep unavailable views in saved layout, prune only the current render. */

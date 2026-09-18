@@ -4,7 +4,7 @@
 
 ## 门面契约
 
-wire 上常驻 11 个门面工具加内建白名单（`read`/`read_image`/`glob`/`grep`/`web_search`/`web_fetch`/`skill`/`subagent`/`send_message`/`interrupt_agent`/`list_subagent_models`），合计 22 个左右，不随已装 board 或插件数量增长。
+wire 上常驻 12 个门面工具加内建白名单（`read`/`read_image`/`glob`/`grep`/`web_search`/`web_fetch`/`skill`/`subagent`/`send_message`/`interrupt_agent`/`list_subagent_models`），合计 23 个左右，不随已装 board 或插件数量增长。
 
 每个门面只声明 `{method, input}`：`method` 是 `oneOf` 各分支上的 `const` 判别字段，`input` 原样嵌套被包装工具自己的参数 schema——参数合同只有一份定义，门面不复制、不放宽。分发表 `TOOL_FACADES` 定义在 `packages/contracts/src/tool-facades.ts`，host 分发、历史扫描和前端标签共用这一份。
 

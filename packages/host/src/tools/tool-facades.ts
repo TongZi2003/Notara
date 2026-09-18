@@ -24,6 +24,7 @@ const FACADE_DESCRIPTIONS: Record<string, string> = {
   classroom: '教室与同学：查看教室状态、向同学派发或追问任务、与学生共建世界书条目、调整情景亲密度。',
   stage: '课堂阶段：读取思维图阶段、原子推进当前阶段、沉淀已结束阶段的小结。',
   delegate: '委派独立帮手：检索、命题、助教、同伴角色任务；返回真实childId后用send_message/interrupt_agent管理。',
+  round: '多角色教学回合：命题→学生作答→同伴评审→助教勘误。open开一轮，answer把学生原话送入，correct推进勘误，read看状态，stop收止。学生在回合面板也可作答与求勘误，同一份记录。',
 };
 
 const callShape = z.object({ method: z.string().min(1), input: z.unknown() }).strict();

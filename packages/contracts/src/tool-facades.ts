@@ -96,6 +96,13 @@ export const TOOL_FACADES = {
     problem: 'delegate_problem',
     routes: 'list_model_routes',
   },
+  round: {
+    open: 'round_open',
+    read: 'round_read',
+    answer: 'round_answer',
+    correct: 'round_correct',
+    stop: 'round_stop',
+  },
 } as const satisfies Record<string, Record<string, string>>;
 
 export type ToolFacadeName = keyof typeof TOOL_FACADES;

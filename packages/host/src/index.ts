@@ -80,6 +80,10 @@ import { WorkbenchData } from './plugins/workbench-data.ts';
 import { BoardActivity } from './plugins/board-activity.ts';
 import { PluginDocumentRecordSchema, SeminarRecordSchema } from '@studyforge/contracts/plugin-learning';
 import { Seminar } from './plugins/seminar.ts';
+import { TeachingRounds } from './teaching/rounds.ts';
+import { TeachingRoundRecordSchema } from '@studyforge/contracts/teaching-rounds';
+import { StudyForgeRounds } from './rounds-service.ts';
+import { registerRoundTools } from './tools/round-tools.ts';
 import { LearningWorkbenches, registerWorkbenchTools } from './plugins/learning-workbenches.ts';
 import { PluginLearningRemote } from './plugin-learning-service.ts';
 import { PluginManager } from './plugins/plugin-manager.ts';
@@ -272,7 +276,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     registerMemoryTools(ctx);
     registerHandoffTools(ctx);
     registerTeachingTools(ctx);
-    registerDelegationTools(ctx, { assistantsDir: fileURLToPath(new URL('../teaching-resources/assistants', import.meta.url)) });
+    const delegation = registerDelegationTools(ctx, { assistantsDir: fileURLToPath(new URL('../teaching-resources/assistants', import.meta.url)) });
+    const rounds = new TeachingRounds(ctx, await owner.collection('teachinground', TeachingRoundRecordSchema), delegation);
+    ctx.effect(() => ctx.reflect.provide('notaraRounds', rounds));
+    ctx.plugin(StudyForgeRounds);
+    registerRoundTools(ctx);
     registerFacadeTools(ctx);
     try { await dispatcher.flush({ workspaceId: workspace.id, purpose: 'learning', actor: 'system' }); }
     catch { /* Stored pending receipts remain available for explicit retry. */ }
