@@ -330,6 +330,7 @@ export class TeachingDelegation {
   async run(input: {
     readonly role: DelegationRole; readonly parent: DelegationParent; readonly task: string;
     readonly signal: AbortSignal; readonly background?: boolean; readonly route?: ClassmateRoute;
+    readonly onChildId?: (childId: string) => Promise<void>;
   }): Promise<DelegationOutcome> {
     const { role, parent, task, signal } = input;
     const background = input.background === true;
@@ -347,13 +348,16 @@ export class TeachingDelegation {
         provider: this.provider, label: ROLES[role].title,
         request: { prompt, parent, persona, toolFilter: filter, ...(agentOptions ? { agentOptions } : {}) }, signal,
       });
-      return { role, childId: String(started.childId), output: '', stopReason: 'accepted', background: true, surface, ...(input.route ? { route: input.route } : {}) };
+      const childId = String(started.childId);
+      await input.onChildId?.(childId);
+      return { role, childId, output: '', stopReason: 'accepted', background: true, surface, ...(input.route ? { route: input.route } : {}) };
     }
     const run = await this.host.subagents.start(this.provider, {
       label: ROLES[role].title, prompt, parent, signal, persona, toolFilter: filter,
       ...(agentOptions ? { agentOptions } : {}),
     });
     const childId = String(run.id);
+    await input.onChildId?.(childId);
     const result = await settle(run);
     if (result.stopReason !== 'completed') throw incomplete(result, childId);
     return { role, childId, output: textOf(result), stopReason: result.stopReason, background: false, surface, ...(input.route ? { route: input.route } : {}) };
@@ -371,7 +375,7 @@ export class TeachingDelegation {
   async proposeProblems(input: {
     readonly parent: DelegationParent; readonly signal: AbortSignal; readonly context: MutationContext;
     readonly target: string; readonly constraints?: string; readonly count?: number; readonly sources?: readonly SourceAnchor[];
-    readonly route?: ClassmateRoute;
+    readonly route?: ClassmateRoute; readonly onChildId?: (childId: string) => Promise<void>;
   }): Promise<ProblemOutcome> {
     const parsed = ProblemDelegationInputSchema.parse({
       target: input.target, count: input.count ?? 1, sources: input.sources ?? [],
@@ -389,6 +393,7 @@ export class TeachingDelegation {
       ...(agentOptions ? { agentOptions } : {}),
     });
     const childId = String(run.id);
+    await input.onChildId?.(childId);
     const result = await settle(run);
     if (result.stopReason !== 'completed') throw incomplete(result, childId);
     const drafts = ProblemSetSchema.safeParse(result.structured);

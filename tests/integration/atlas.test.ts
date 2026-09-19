@@ -147,6 +147,17 @@ test('repath 整层移位时挂靠卡的 topic 原子跟走', async () => {
   expect((await atlas.read(HOST)).nodes.map(node => node.path)).toEqual(['理科/分数']);
 });
 
+test('repath 目标撞上保留节点时拒绝，不清空整张 atlas', async () => {
+  const { atlas, authoring } = await open();
+  await authoring.save(student('seed-atlas', 0), {
+    nodes: [{ path: 'a', detail: 'outline' }, { path: 'a/x', detail: 'outline' }, { path: 'b', detail: 'outline' }],
+  });
+  const before = await atlas.read(HOST);
+  await expect(authoring.preview(HOST, before.revision!, { repath: [{ from: 'a', to: 'b' }] }))
+    .rejects.toMatchObject({ code: 'atlas_repath_conflict' });
+  expect((await atlas.read(HOST)).nodes.map(node => node.path)).toEqual(['a', 'a/x', 'b']);
+});
+
 test('删层带挂靠卡时不显式解除绑定就拒绝', async () => {
   const { cards, atlas, authoring, importBook } = await open();
   const book = await importBook('import-1', BOOK);

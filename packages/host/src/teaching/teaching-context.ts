@@ -7,7 +7,7 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import { TeachingManifestSchema, type TeachingChoice } from '@studyforge/contracts/teaching';
-import { TOOL_FACADE_NAMES, resolveFacadeTool } from '@studyforge/contracts/tool-facades';
+import { resolveFacadeTool } from '@studyforge/contracts/tool-facades';
 import type { Agent } from '@deepseek-ai/dsh-agent';
 import { continuationBrief } from './lesson-brief.ts';
 import { providerToolSchemas } from '../tools/model-tool-schemas.ts';
@@ -90,15 +90,9 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
   installTaskSkills(host, catalog.directory);
   registerGuidedLearning(host);
   // Some native composition plugins register local tools after spawn's inherited
-  // filter. These teacher-only capabilities must remain absent for every helper.
-  const helperForbidden = new Set(['read_workbench', 'update_workbench', 'read_workbench_activity', 'draft_artifact', 'create_markdown_material', 'read_markdown_material', 'update_markdown_material', 'import_uploaded_material', 'mark_thought', 'read_thoughtmap', 'advance_conversation_stage', 'summarize_stage', 'note_learning_goal', 'cite_materials', 'subagent', 'delegate_search', 'delegate_problem', 'delegate_assistant', 'delegate_peer',
-    'list_model_routes',
-    'read_card', 'read_cards', 'list_cards', 'query_evidence', 'read_memory', 'search_memory', 'note_memory', 'revise_memory',
-    'register_cards', 'update_card', 'note_method', 'revise_method', 'record_review', 'read_math_scene','edit_math_scene','calculate_math','restore_math_scene',
-    'propose_card', 'propose_review', 'propose_set', 'propose_plan', 'propose_route', 'propose_skeleton', 'propose_atlas', 'propose_handoff', 'read_handoff', 'read_lesson', 'read_journey', 'propose_lesson_settings',
-    'read_classroom', 'ask_classmate', 'continue_classmate', 'update_classroom_context', 'adjust_classroom_intimacy', 'propose_classmate',
-    'read_teaching', 'propose_teaching',
-    'read', 'write', 'edit', 'glob', 'grep', 'read_image', 'run_code']);
+  // filter. Helpers may see only this material-first union; each delegation role
+  // narrows it further before its child starts.
+  const helperAllowed = new Set(['web_search', 'web_fetch', 'list_materials', 'read_material', 'preview_region', 'search_learning', 'read_content', 'list_sets', 'read_set', 'read_skeleton', 'read_method', 'send_message']);
   const helper = (agent: Agent | undefined): boolean => !!agent && agent.session.header.origin === 'subagent'
     && (host.sessionProjections.snapshot(agent.session, ['agentPreset']).values.agentPreset ?? agent.session.header.agentPreset) === 'studyforge-learning';
   const owns = (agent: Agent | undefined): agent is Agent => !!agent
@@ -174,13 +168,13 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
     // A saved-result notice resumes the same teacher with the same tools.
     // Confirmation/idempotency belong to the writers, not a blanket tool ban
     // that contradicts the receipt's instruction to continue teaching.
-    const visible = helper(context.agent) ? result.tools.filter(tool => !helperForbidden.has(tool.name) && !TOOL_FACADE_NAMES.has(tool.name)) : result.tools;
+    const visible = helper(context.agent) ? result.tools.filter(tool => helperAllowed.has(tool.name)) : result.tools;
     const projected = disclose({ ...result, tools: visible }, context.agent);
     return { ...projected, tools: providerToolSchemas(projected.tools) };
   });
   host.effect(() => host.tools.guard(execution => {
     const gated = resolveFacadeTool(execution.name, execution.arguments) ?? execution.name;
-    if (helper(execution.agent) && helperForbidden.has(gated)) return '这次独立任务只读取材料和返回结果，不能读取学情、写入学习事实或继续委派。';
+    if (helper(execution.agent) && !helperAllowed.has(gated)) return '这次独立任务只读取材料和返回结果，不能读取学情、写入学习事实或继续委派。';
     if (gated === 'register_cards') {
       if (!owns(execution.agent)) return '普通批量登记只在诊断课或独立命题的宿主写入中使用。';
       const course = host.studyforgeCourseMetadata.read({ workspaceId: host.studyforgeAccess.workspaceId, sessionId: execution.agent.session.id, actor: 'teacher', purpose: 'learning' });

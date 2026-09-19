@@ -61,7 +61,7 @@ export function compareText(before: string, after: string): TextChange[] {
 function authorFields(content: CardContent, showBack: boolean): Record<string, string> {
   return { title: content.title, front: content.front, ...(showBack ? { back: content.sections.map(section => '## ' + section.heading + '\n' + section.body).join('\n\n'), notes: content.notes } : {}) };
 }
-const metadataFields = ['presentation', 'sources', 'chapter', 'tags', 'links'] as const;
+const metadataFields = ['presentation', 'sources', 'chapter', 'topic', 'tags', 'links'] as const;
 
 /** Per-operation reads never fold interleaved lessons into a false net edit. */
 export function cardChanges(records: CardRecordStore, context: HostContext, target: string, options: { sessionId?: string; showBack?: boolean } = {}): CardChangeView[] {

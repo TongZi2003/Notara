@@ -100,9 +100,8 @@ export class AtlasService {
 
   /** Path-keyed merge, identical to the skeleton's: replace in place or append. */
   merge(existing: readonly AtlasNode[], incoming: readonly AtlasNode[]): { nodes: AtlasNode[] } {
-    const parsed = AtlasNodesSchema.safeParse(existing);
-    const nodes = parsed.success ? [...parsed.data] : [];
-    const incomingParsed = AtlasNodesSchema.parse(incoming);
+    const nodes = parseMergeNodes(existing);
+    const incomingParsed = parseMergeNodes(incoming);
     for (const node of incomingParsed) {
       const at = nodes.findIndex(item => item.path === node.path);
       if (at < 0) nodes.push(node);
@@ -140,6 +139,7 @@ export class AtlasAuthoring {
     }
     const removed = before.filter(node => change.removePaths.some(path => beneath(node.path, path)));
     const retained = before.filter(node => !removed.includes(node)).map(node => ({ ...node, path: remapPath(node.path, change) }));
+    assertUniquePaths(retained);
     if (!change.replaceExisting) {
       for (const node of change.nodes) {
         const old = retained.find(existing => existing.path === node.path);
@@ -249,6 +249,20 @@ function remapPath(path: string, change: AtlasChange): string {
 
 function anchorKey(anchor: SourceAnchor): string {
   return `${anchor.versionId}${anchor.quote ?? ''}${JSON.stringify(anchor.locator)}`;
+}
+
+function parseMergeNodes(input: unknown): AtlasNode[] {
+  const parsed = AtlasNodesSchema.safeParse(input);
+  if (!parsed.success) throw new AtlasError('atlas_nodes_invalid', parsed.error.issues[0]?.message ?? '地图节点不符合 schema');
+  return [...parsed.data];
+}
+
+function assertUniquePaths(nodes: readonly AtlasNode[]): void {
+  const seen = new Set<string>();
+  for (const node of nodes) {
+    if (seen.has(node.path)) throw new RecordError('atlas_repath_conflict');
+    seen.add(node.path);
+  }
 }
 
 function codeOf(error: unknown): string | undefined {

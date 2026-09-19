@@ -16,7 +16,6 @@ function ActorLine({ actor }: { actor: RoundActorView }): React.JSX.Element {
   return <div className="sf-round-actor" data-role={actor.role} data-state={actor.state} data-testid={`round-actor-${actor.role}`}>
     <header><strong>{ROLE_LABELS[actor.role]}</strong><em>{ACTOR_STATE[actor.state] ?? actor.state}</em></header>
     {actor.text && <p className="sf-round-actor-text">{actor.text}</p>}
-    {actor.state === 'failed' && actor.detail && <p className="sf-round-actor-detail">{actor.detail}</p>}
   </div>;
 }
 

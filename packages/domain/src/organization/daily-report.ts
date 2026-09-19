@@ -31,7 +31,7 @@ export const DAILY_REPORT_REF = `${DAILY_REPORT_KIND}:${DAILY_REPORT_ID}`;
 export interface DailyReportStore {
   readonly workspaceId: string;
   read(ctx: HostContext, ref: string, revision?: number): Saved<DailyReportSettings>;
-  create(ctx: MutationContext, id: string, input: unknown): Promise<Saved<DailyReportSettings>>;
+  create(ctx: MutationContext, id: string, input: unknown, fingerprintInput?: unknown): Promise<Saved<DailyReportSettings>>;
   updateCurrent(ctx: Omit<MutationContext, 'expectedVersion'>, ref: string, input: unknown,
     transform: (current: DailyReportSettings) => unknown): Promise<Saved<DailyReportSettings>>;
 }
@@ -93,7 +93,10 @@ export class DailyReportService {
   private async write(ctx: MutationContext, input: unknown, transform: (current: DailyReportSettings) => DailyReportSettings): Promise<DailyReportSettings> {
     const { expectedVersion: _ignored, ...derived } = ctx;
     const existing = this.optional(ctx);
-    if (existing === undefined) return (await this.records.create(derived, DAILY_REPORT_ID, transform({ enabled: false, timeZone: this.clock.timeZone }))).data;
+    if (existing === undefined) {
+      const next = transform({ enabled: false, timeZone: this.clock.timeZone });
+      return (await this.records.create(derived, DAILY_REPORT_ID, next, input)).data;
+    }
     return (await this.records.updateCurrent(derived, DAILY_REPORT_REF, input, current => transform(current))).data;
   }
 

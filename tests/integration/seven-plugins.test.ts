@@ -25,7 +25,8 @@ test('seven packages install, teacher board updates reach documents and true ind
  expect((await client.rpc('notaraWorkbench/readDocument',{input:target('geometry-lab')})).ok).toBe(false);
  const seminar=target('seminar-room');expect((await client.rpc('notaraWorkbench/startSeminar',{input:{...seminar,topic:'无标准',materials:'材料',standard:'',roles:['assistant']}})).ok).toBe(false);
  const started=value(await client.rpc<SeminarView[]>('notaraWorkbench/startSeminar',{input:{...seminar,topic:'检验一个推理',materials:'SEMINAR_INPUT：所有正方形是矩形，所有矩形是正方形吗？',standard:'只有第一句总成立。',roles:['peer','critic','assistant']}}));
- const ref=started[0]!.ref,ids=started[0]!.participants.map(p=>p.childId);expect(new Set(ids).size).toBe(3);expect(ids.every(Boolean)).toBe(true);
+ const ref=started[0]!.ref;expect(JSON.stringify(started)).not.toContain('childId');
+ const ids=value(await client.rpc<any>('session/list',{_request:{}})).items.filter((item:any)=>item.parentSessionId===session.sessionId&&item.origin==='subagent').map((item:any)=>String(item.sessionId));expect(new Set(ids).size).toBe(3);
  const list=()=>client.rpc<SeminarView[]>('notaraWorkbench/seminars',{input:seminar}).then(value);
  await expect.poll(async()=>(await list())[0]!.participants.every(p=>p.state==='completed'),{timeout:30000}).toBe(true);
  const requests=(await readFile(join(runtime.root,'model-requests.jsonl'),'utf8')).trim().split('\n').map(line=>JSON.parse(line));
@@ -33,7 +34,7 @@ test('seven packages install, teacher board updates reach documents and true ind
  value(await client.rpc('notaraWorkbench/followSeminar',{input:{...seminar,ref,role:'peer',text:'FOLLOW_SAME_CHILD：请举一个反例。',operationId:crypto.randomUUID()}}));
  await expect.poll(async()=>(await list())[0]!.participants.find(p=>p.role==='peer')!.text,{timeout:20000}).toContain('FOLLOW_SAME_CHILD');
  await expect.poll(async()=>(await list())[0]!.participants.every(p=>p.state==='completed'),{timeout:20000}).toBe(true);
- await runtime.restart();client=await connectRuntime(runtime);expect((await list())[0]!.participants.map(p=>p.childId)).toEqual(ids);
+ await runtime.restart();client=await connectRuntime(runtime);expect(JSON.stringify(await list())).not.toContain('childId');
  value(await client.rpc('notaraWorkbench/followSeminar',{input:{...seminar,ref,role:'peer',text:'AFTER_RESTART：请继续。',operationId:crypto.randomUUID()}}));
  await expect.poll(async()=>(await list())[0]!.participants.find(p=>p.role==='peer')!.text,{timeout:20000}).toContain('AFTER_RESTART');
  expect((await client.rpc('notaraWorkbench/stopSeminar',{input:{...seminar,digest:'wrong',ref}})).ok).toBe(false);

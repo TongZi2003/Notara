@@ -36,7 +36,7 @@ function viewOf(row: Row): TeachingRoundView {
   return {
     ref: row.ref, revision: row.version, topic: data.topic, stage: data.stage,
     materialTitles: data.materials.map(material => material.title),
-    actors: data.actors.map(({ childId: _childId, ...actor }) => actor),
+    actors: data.actors.map(({ childId: _childId, detail: _detail, ...actor }) => actor),
     ...(data.cardRef === undefined ? {} : { cardRef: data.cardRef }),
     ...(data.questionTitle === undefined ? {} : { questionTitle: data.questionTitle }),
     ...(data.questionFront === undefined ? {} : { questionFront: data.questionFront }),
@@ -48,15 +48,12 @@ function setActor(actors: readonly RoundActor[], role: RoundRole, patch: ActorPa
   return actors.map(actor => actor.role === role ? { ...actor, ...patch } : actor);
 }
 
-function reason(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 export class TeachingRounds {
   readonly host: Context;
   readonly records: RecordStore<typeof TeachingRoundRecordSchema>;
   readonly delegation: TeachingDelegation;
   private tail = Promise.resolve();
+  private readonly stopRequests = new Set<string>();
   constructor(host: Context, records: RecordStore<typeof TeachingRoundRecordSchema>, delegation: TeachingDelegation) {
     this.host = host; this.records = records; this.delegation = delegation;
   }
@@ -112,16 +109,24 @@ export class TeachingRounds {
         const outcome = await this.delegation.proposeProblems({
           parent, signal, context: { ...context, operationId: `${context.operationId}:round:${row.ref}` },
           target: data.topic, count: 1, sources: data.sources,
+          onChildId: async childId => {
+            row = await this.update(context, row, current => ({ ...current,
+              actors: setActor(current.actors, 'problem', { state: 'running', childId }) }));
+            if (this.stopRequests.has(row.ref)) await this.interrupt(context, childId);
+          },
           ...(data.constraints === undefined ? {} : { constraints: data.constraints }),
         });
         const card = outcome.cards[0]!;
         row = await this.update(context, row, current => ({ ...current, stage: 'answering',
           cardRef: card.ref, questionTitle: card.title, questionFront: card.front,
           actors: setActor(current.actors, 'problem', { state: 'completed', childId: outcome.childId }) }));
-      } catch (error) {
-        row = await this.update(context, row, current => ({ ...current, stage: 'failed',
-          actors: setActor(current.actors, 'problem', { state: 'failed', detail: reason(error) }) }));
-        throw rejected(`这一轮的题目没有写出来（${reason(error)}），回合已记录为失败`);
+      } catch {
+        row = await this.update(context, row, current => ({ ...current, stage: this.stopRequests.has(row.ref) ? 'stopped' : 'failed',
+          actors: current.actors.map(actor => actor.role === 'problem'
+            ? { ...actor, state: this.stopRequests.has(row.ref) ? 'stopped' as const : 'failed' as const }
+            : actor.state === 'queued' || actor.state === 'running' ? { ...actor, state: 'stopped' as const } : actor) }));
+        if (this.stopRequests.has(row.ref)) throw rejected('这一轮已停止');
+        throw rejected('这一轮的题目没有写出来，回合已记录为失败，请稍后重试');
       }
       return viewOf(row);
     });
@@ -133,7 +138,7 @@ export class TeachingRounds {
    * The student's own answer is the turn the record was built around: it is
    * stored verbatim, then the peer reviews it against materials alone — the
    * standard never enters that child's task. A failed peer does not block the
-   * correction stage; its actor row keeps the real reason.
+   * correction stage; its actor row records the failed state without internals.
    */
   answer(context: MutationContext, ref: string, text: string, signal: AbortSignal): Promise<TeachingRoundView> {
     const job = this.tail.then(async (): Promise<TeachingRoundView> => {
@@ -144,12 +149,21 @@ export class TeachingRounds {
       const parent = await this.parent(context);
       try {
         const outcome = await this.delegation.run({ role: 'peer', parent, signal,
+          onChildId: async childId => {
+            row = await this.update(context, row, current => ({ ...current,
+              actors: setActor(current.actors, 'peer', { state: 'running', childId }) }));
+            if (this.stopRequests.has(row.ref)) await this.interrupt(context, childId);
+          },
           task: peerTask({ materials: row.data.materials, explanation: text, question: row.data.questionFront ?? row.data.topic }) });
         row = await this.update(context, row, current => ({ ...current, stage: 'awaiting_correction',
           actors: setActor(current.actors, 'peer', { state: 'completed', childId: outcome.childId, text: outcome.output }) }));
-      } catch (error) {
-        row = await this.update(context, row, current => ({ ...current, stage: 'awaiting_correction',
-          actors: setActor(current.actors, 'peer', { state: 'failed', detail: reason(error) }) }));
+      } catch {
+        row = await this.update(context, row, current => ({ ...current, stage: this.stopRequests.has(row.ref) ? 'stopped' : 'awaiting_correction',
+          actors: current.actors.map(actor => actor.role === 'peer'
+            ? { ...actor, state: this.stopRequests.has(row.ref) ? 'stopped' as const : 'failed' as const }
+            : this.stopRequests.has(row.ref) && (actor.state === 'queued' || actor.state === 'running')
+              ? { ...actor, state: 'stopped' as const } : actor) }));
+        if (this.stopRequests.has(row.ref)) return viewOf(row);
       }
       return viewOf(row);
     });
@@ -173,12 +187,20 @@ export class TeachingRounds {
       ].join('\n');
       try {
         const outcome = await this.delegation.run({ role: 'assistant', parent, signal,
+          onChildId: async childId => {
+            row = await this.update(context, row, current => ({ ...current,
+              actors: setActor(current.actors, 'assistant', { state: 'running', childId }) }));
+            if (this.stopRequests.has(row.ref)) await this.interrupt(context, childId);
+          },
           task: assistantTask({ materials: row.data.materials, standard: row.data.standard, question }) });
         row = await this.update(context, row, current => ({ ...current, stage: 'completed',
           actors: setActor(current.actors, 'assistant', { state: 'completed', childId: outcome.childId, text: outcome.output }) }));
-      } catch (error) {
-        row = await this.update(context, row, current => ({ ...current,
-          actors: setActor(current.actors, 'assistant', { state: 'failed', detail: reason(error) }) }));
+      } catch {
+        row = await this.update(context, row, current => ({ ...current, stage: this.stopRequests.has(row.ref) ? 'stopped' : current.stage,
+          actors: current.actors.map(actor => actor.role === 'assistant'
+            ? { ...actor, state: this.stopRequests.has(row.ref) ? 'stopped' as const : 'failed' as const }
+            : this.stopRequests.has(row.ref) && (actor.state === 'queued' || actor.state === 'running')
+              ? { ...actor, state: 'stopped' as const } : actor) }));
       }
       return viewOf(row);
     });
@@ -192,13 +214,23 @@ export class TeachingRounds {
   async stop(context: MutationContext, ref: string): Promise<TeachingRoundView> {
     const row = this.row(context, ref);
     if (row.data.stage === 'completed' || row.data.stage === 'failed' || row.data.stage === 'stopped') return viewOf(row);
+    this.stopRequests.add(ref);
     const running = row.data.actors.filter(actor => (actor.state === 'running' || actor.state === 'queued') && actor.childId !== undefined);
-    const results = await Promise.allSettled(running.map(async actor =>
-      this.host.subagents.interrupt(SessionId(actor.childId!), { kind: 'user', parentSessionId: SessionId(context.sessionId!) })));
-    if (results.some(result => result.status === 'rejected')) throw rejected('有帮手未能停止，回合没有完整收止');
-    const next = await this.update(context, row, current => ({ ...current, stage: 'stopped',
-      actors: current.actors.map(actor => actor.state === 'running' || actor.state === 'queued' ? { ...actor, state: 'stopped' as const } : actor) }));
-    return viewOf(next);
+    const results = await Promise.allSettled(running.map(actor => this.interrupt(context, actor.childId!)));
+    if (results.some(result => result.status === 'rejected')) { this.stopRequests.delete(ref); throw rejected('有帮手未能停止，回合没有完整收止'); }
+    const job = this.tail.then(async () => {
+      const latest = this.row(context, ref);
+      if (latest.data.stage === 'completed' || latest.data.stage === 'failed' || latest.data.stage === 'stopped') return viewOf(latest);
+      const next = await this.update(context, latest, current => ({ ...current, stage: 'stopped',
+        actors: current.actors.map(actor => actor.state === 'running' || actor.state === 'queued' ? { ...actor, state: 'stopped' as const } : actor) }));
+      return viewOf(next);
+    }).finally(() => { this.stopRequests.delete(ref); });
+    this.tail = job.then(() => {}, () => {});
+    return job;
+  }
+
+  private async interrupt(context: HostContext, childId: string): Promise<void> {
+    await this.host.subagents.interrupt(SessionId(childId), { kind: 'user', parentSessionId: SessionId(context.sessionId!) });
   }
 }
 

@@ -212,12 +212,7 @@ export class RouteService {
     // skips the fingerprint. The same input therefore travels as the operation's
     // payload on both the creating and the replaying call.
     const payload: RouteRecord = { nodes: [node], layout: [] };
-    if (this.optional(ctx) === undefined) {
-      // The very first node of an empty axis has no parent to hang under.
-      assertParent([], id, node.parent);
-      return this.viewOf(await this.records.create(subContext(ctx, 'write'), ROUTE_ID, payload));
-    }
-    return this.mechanical(ctx, payload, row => {
+    const append = (row: RouteRecord): RouteRecord => {
       // Reaching here means this operation is new: an id already in the tree
       // belongs to another operation, and silently adopting it would fabricate
       // an effect this caller never asked for.
@@ -226,7 +221,19 @@ export class RouteService {
       // The layout rides along unchanged: a node edit is never a reason to lose
       // where the student really put the others.
       return { ...row, nodes: [...row.nodes, node] };
-    });
+    };
+    if (this.optional(ctx) === undefined) {
+      // The very first node of an empty axis has no parent to hang under.
+      assertParent([], id, node.parent);
+      try { return this.viewOf(await this.records.create(subContext(ctx, 'write'), ROUTE_ID, payload)); }
+      catch (error) {
+        // Another tab may have created the empty axis after our read. Continue
+        // against that row, just as a normal append would, instead of exposing
+        // the storage-level record_exists race to the caller.
+        if (codeOf(error) !== 'record_exists') throw error;
+      }
+    }
+    return this.mechanical(ctx, payload, append);
   }
 
   /**

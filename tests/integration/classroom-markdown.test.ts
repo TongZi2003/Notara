@@ -38,6 +38,11 @@ test('classroom Markdown tools create one material, append versions and preserve
   material = materials.find(item => item.materialId === material!.materialId);
   expect(material!.versions).toHaveLength(2);
 
+  value(await toolPrompt([{ name: 'read_markdown_material', arguments: {
+    materialId: material!.materialId, versionId: material!.versions[0]!.versionId,
+  } }]));
+  await waitIdle(client, lesson.sessionId);
+
   const stale = await toolPrompt([{ name: 'update_markdown_material', arguments: {
     materialId: material!.materialId, versionId: material!.versions[0]!.versionId, expectedVersion: 1, content: '覆盖较新的学生编辑',
   } }]);
@@ -48,4 +53,5 @@ test('classroom Markdown tools create one material, append versions and preserve
   const requests = await readFile(join(runtime.root, 'model-requests.jsonl'), 'utf8');
   expect(requests).toContain('create_markdown_material');
   expect(requests).toContain('update_markdown_material');
+  expect(requests).toContain(String.raw`\"versionId\":\"${material!.versions[0]!.versionId}\",\"revision\":1`);
 });

@@ -259,6 +259,16 @@ test('日历与日报同一份 readDay；配置/定时/重放只动设置行，�
   expect(zonedTimeToInstant('2026-09-12', '00:00', 'Asia/Shanghai')).toBe('2026-09-11T16:00:00.000Z');
 });
 
+test('日报设置行首次创建后的 ACK 丢失重放沿用同一操作指纹', async () => {
+  const fixture = await seed();
+  const ctx = learned('gen-first');
+  const query = { date: '2026-09-12', timeZone: 'Asia/Shanghai' };
+  const first = await fixture.reports.markGenerated(ctx, query);
+  const replay = await fixture.reports.markGenerated(ctx, query);
+  expect(replay).toEqual(first);
+  expect(fixture.reportStore.read(READ, DAILY_REPORT_REF).version).toBe(1);
+});
+
 test('读取失败如实抛出，不把不可用写成零活动', async () => {
   const fixture = await seed();
   const boom = new Error('ledger_unavailable');

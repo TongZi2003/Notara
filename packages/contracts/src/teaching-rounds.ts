@@ -49,7 +49,7 @@ export const TeachingRoundRecordSchema = z.object({
 }).strict();
 export type TeachingRoundRecord = z.infer<typeof TeachingRoundRecordSchema>;
 
-export const RoundActorViewSchema = RoundActorSchema.omit({ childId: true }).strict();
+export const RoundActorViewSchema = RoundActorSchema.omit({ childId: true, detail: true }).strict();
 export type RoundActorView = z.infer<typeof RoundActorViewSchema>;
 
 /** What a caller may see: the round without its standard and child ids. */

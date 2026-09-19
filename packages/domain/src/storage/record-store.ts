@@ -7,6 +7,7 @@ import { objectRef } from '../ids.ts';
 
 export function recordSchema(content: z.ZodType) {
   return z.object({
+    schemaVersion: z.number().int().positive().default(1),
     id: z.string().regex(/^[A-Za-z0-9_-]+$/), workspaceId: z.string().min(1),
     versions: z.array(z.object({ revision: z.number().int().positive(), content: z.json() }).strict()).min(1),
     operations: z.array(z.object({
@@ -29,6 +30,7 @@ export interface Saved<T> { ref: string; version: number; data: T; duplicate: bo
 export interface PreparedRecordChange<T = unknown> {
   kind: string; workspaceId: string; key: string; before: string | null; next: StoredRecord; result: Saved<T>;
 }
+export type RecordMigration = (row: StoredRecord, fromVersion: number) => StoredRecord;
 export class RecordError extends Error {
   readonly code: string;
   constructor(code: string) { super(code); this.code = code; this.name = 'RecordError'; }
@@ -51,11 +53,14 @@ export class RecordStore<S extends z.ZodType> {
   private creationTail: Promise<void> = Promise.resolve();
   private readonly table: KvTable<string, Stored>;
   private readonly content: S;
+  private readonly schemaVersion: number;
   readonly kind: string;
   readonly workspaceId: string;
   private readonly clock: Clock;
-  constructor(table: KvTable<string, Stored>, content: S, kind: string, workspaceId: string, clock: Clock) {
+  constructor(table: KvTable<string, Stored>, content: S, kind: string, workspaceId: string, clock: Clock, schemaVersion = 1) {
     this.table = table; this.content = content; this.kind = kind; this.workspaceId = workspaceId; this.clock = clock;
+    if (!Number.isInteger(schemaVersion) || schemaVersion < 1) throw new RecordError('record_schema_version_invalid');
+    this.schemaVersion = schemaVersion;
     this.schema = recordSchema(content);
   }
   private authorize(ctx: HostContext): void {
@@ -118,9 +123,9 @@ export class RecordStore<S extends z.ZodType> {
       return { operationId: op.id, target: ref, actor: op.actor, ...(op.sessionId ? { sessionId: op.sessionId } : {}), beforeRevision: op.before, afterRevision: op.after, changedFields, committedAt: op.at };
     });
   }
-  async create(ctx: MutationContext, id: string, input: unknown): Promise<Saved<z.output<S>>> {
+  async create(ctx: MutationContext, id: string, input: unknown, fingerprintInput: unknown = input): Promise<Saved<z.output<S>>> {
     MutationContextSchema.parse(ctx); this.authorize(ctx);
-    const ref = objectRef(this.kind, id), hash = fingerprint(input, ctx);
+    const ref = objectRef(this.kind, id), hash = fingerprint(fingerprintInput, ctx);
     // Native update needs an existing key. Only first insertion is serialized here;
     // the workspace owner separately excludes all other OS processes.
     const job = this.creationTail.then(async () => {
@@ -131,7 +136,7 @@ export class RecordStore<S extends z.ZodType> {
         if (!op || op.fingerprint !== hash) throw new RecordError('record_exists');
         return this.result(row, op.after, true);
       }
-      const row = this.schema.parse({ id, workspaceId: this.workspaceId, versions: [{ revision: 1, content: this.content.parse(input) }], operations: [{ id: ctx.operationId, fingerprint: hash, before: null, after: 1, actor: ctx.actor, ...(ctx.sessionId ? { sessionId: ctx.sessionId } : {}), at: this.clock.now() }] });
+      const row = this.schema.parse({ schemaVersion: this.schemaVersion, id, workspaceId: this.workspaceId, versions: [{ revision: 1, content: this.content.parse(input) }], operations: [{ id: ctx.operationId, fingerprint: hash, before: null, after: 1, actor: ctx.actor, ...(ctx.sessionId ? { sessionId: ctx.sessionId } : {}), at: this.clock.now() }] });
       await this.table.put(id, row);
       return this.result(row);
     });
@@ -150,7 +155,7 @@ export class RecordStore<S extends z.ZodType> {
       if (!op || op.fingerprint !== hash) throw new RecordError('record_exists');
       return { kind: this.kind, workspaceId: this.workspaceId, key, before: storedFingerprint(row), next: row, result: this.result(row, op.after, true) };
     }
-    const row = this.schema.parse({ id, workspaceId: this.workspaceId, versions: [{ revision: 1, content: this.content.parse(input) }],
+    const row = this.schema.parse({ schemaVersion: this.schemaVersion, id, workspaceId: this.workspaceId, versions: [{ revision: 1, content: this.content.parse(input) }],
       operations: [{ id: ctx.operationId, fingerprint: hash, before: null, after: 1, actor: ctx.actor, ...(ctx.sessionId ? { sessionId: ctx.sessionId } : {}), at: this.clock.now() }] });
     return { kind: this.kind, workspaceId: this.workspaceId, key, before: null, next: row, result: this.result(row) };
   }

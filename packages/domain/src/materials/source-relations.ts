@@ -12,6 +12,11 @@ export function sourceContains(a: MaterialContext, b: MaterialContext): boolean 
 function locatorRelation(a: SourceLocator, b: SourceLocator, contains: boolean): boolean {
   if (a.kind === 'text' && b.kind === 'text') return contains ? point(a.start, b.start) <= 0 && point(a.end, b.end) >= 0 : point(a.start, b.end) < 0 && point(b.start, a.end) < 0;
   if (a.kind === 'docx' && b.kind === 'docx') return a.part === b.part && a.blockId === b.blockId && (contains ? a.start <= b.start && a.end >= b.end : a.start < b.end && b.start < a.end);
+  if (a.kind === 'pdftext' && b.kind === 'pdftext' && a.page === b.page) {
+    const aStart = a.start ?? 0, bStart = b.start ?? 0;
+    const aEnd = a.end ?? Number.POSITIVE_INFINITY, bEnd = b.end ?? Number.POSITIVE_INFINITY;
+    return contains ? aStart <= bStart && aEnd >= bEnd : aStart < bEnd && bStart < aEnd;
+  }
   if ((a.kind === 'pdf' && b.kind === 'pdf' && a.page === b.page) || (a.kind === 'image' && b.kind === 'image')) {
     const x = rect(a.rect), y = rect(b.rect);
     return contains ? x[0] <= y[0] && x[1] <= y[1] && x[2] >= y[2] && x[3] >= y[3] : x[0] < y[2] && y[0] < x[2] && x[1] < y[3] && y[1] < x[3];

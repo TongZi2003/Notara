@@ -3,7 +3,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import { SessionId } from '@deepseek-ai/dsh-session';
 import type { HostContext } from '@studyforge/contracts';
 import type { RecordStore } from '@studyforge/domain/storage';
-import { SeminarStartSchema, type SeminarRecordSchema, type SeminarView, type SeminarRole } from '@studyforge/contracts/plugin-learning';
+import { SeminarStartSchema, SeminarViewSchema, type SeminarRecordSchema, type SeminarView, type SeminarRole } from '@studyforge/contracts/plugin-learning';
 import { z } from 'zod';
 import { rejected } from '../tools/learning-context.ts';
 const roles: Record<SeminarRole, { title: string; persona: string }> = {
@@ -24,7 +24,7 @@ export class Seminar {
     const rows = this.records.list(context).filter(row => row.data.sessionId === context.sessionId && row.data.id === id).slice(-12).reverse();
     return Promise.all(rows.map(async row => {
       const participants = await Promise.all(row.data.participants.map(async p => {
-        if (!p.childId) return p;
+        if (!p.childId) return { role: p.role, state: p.state, text: p.text };
         const state = catalog.entries.find(c => String(c.id) === p.childId);
         try {
           const observation = await this.host.sessionQuery.observeSession(SessionId(p.childId));
@@ -37,11 +37,11 @@ export class Seminar {
             for (const e of events) if (e.type === 'agent/inbox/spliced') { const queue = inbox[e.data.target]; queue.splice(e.data.start, e.data.removedCount ?? queue.length - e.data.start, ...e.data.inserted.map(() => 1)); }
             const pending = inbox['next-turn'].length + inbox['next-step'].length;
             const reason = end && (!start || end.seq > start.seq) ? end.data.reason.kind : undefined;
-            return { ...p, text: output, state: running ? 'running' as const : pending > 0 || !start && !!live ? 'queued' as const : reason === 'completed' ? 'completed' as const : reason === 'aborted' ? 'canceled' as const : !reason || reason === 'interrupted' ? 'interrupted' as const : 'failed' as const };
+            return { role: p.role, text: output, state: running ? 'running' as const : pending > 0 || !start && !!live ? 'queued' as const : reason === 'completed' ? 'completed' as const : reason === 'aborted' ? 'canceled' as const : !reason || reason === 'interrupted' ? 'interrupted' as const : 'failed' as const };
           } finally { observation[Symbol.dispose](); }
-        } catch { return { ...p, state: 'interrupted' as const, text: '这位帮手的记录暂时不可读，可稍后刷新。' }; }
+        } catch { return { role: p.role, state: 'interrupted' as const, text: '这位帮手的记录暂时不可读，可稍后刷新。' }; }
       }));
-      return { ref: row.ref, revision: row.version, topic: row.data.topic, participants };
+      return SeminarViewSchema.parse({ ref: row.ref, revision: row.version, topic: row.data.topic, participants });
     }));
   }
   start(context: HostContext, id: string, input: z.infer<typeof SeminarStartSchema>): Promise<SeminarView[]> {

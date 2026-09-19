@@ -98,7 +98,7 @@ async function open(root?: string) {
   };
   const routes = new RouteService(routeStore, native, clock, validators, lessons);
   cleanups.push(async () => { await owner.close(); await ctx.fiber.dispose(); });
-  return { dir, owner, routeStore, openings, routes, knownMaterials, knownRefs, lessonStore,
+  return { dir, owner, routeStore, openings, routes, native, validators, lessons, knownMaterials, knownRefs, lessonStore,
     lessonReads: () => lessonsReads, setOnOpen: (fn?: (ctx: HostContext) => Promise<void>) => { onOpen = fn; } };
 }
 
@@ -131,6 +131,35 @@ test('a planned node may carry ordered mixed materials, or none at all', async (
   expect(node.parent).toBe(plain.nodes[0]!.id);
   // Empty materials cannot name a default.
   await expect(routes.add(student('plan-bad', mixed.version), { title: '空却指默认', materials: { materials: [], initialIndex: 0 } })).rejects.toThrow();
+});
+
+test('two first route nodes racing to create the empty axis both survive', async () => {
+  const workspace = await open();
+  const { routeStore, native, validators, lessons, routes } = workspace;
+  let waiting = 0;
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const racingStore = {
+    workspaceId: routeStore.workspaceId,
+    read: routeStore.read.bind(routeStore),
+    updateCurrent: routeStore.updateCurrent.bind(routeStore),
+    create: async (ctx: Parameters<typeof routeStore.create>[0], id: string, input: unknown) => {
+      waiting++;
+      if (waiting === 2) release();
+      await gate;
+      return routeStore.create(ctx, id, input);
+    },
+  };
+  const first = new RouteService(racingStore, native, clock, validators, lessons);
+  const second = new RouteService(racingStore, native, clock, validators, lessons);
+  // The two services have separate read-before-create windows; the store gate
+  // forces both to observe the empty axis before either create is published.
+  const [a, b] = await Promise.all([
+    first.add(student('parallel-a'), { title: '并发甲' }),
+    second.add(student('parallel-b'), { title: '并发乙' }),
+  ]);
+  expect([...a.nodes, ...b.nodes].map(node => node.title)).toEqual(expect.arrayContaining(['并发甲', '并发乙']));
+  expect(routes.read(HOST).nodes).toHaveLength(2);
 });
 
 test('a route never stores a reference the workspace does not really hold', async () => {

@@ -35,8 +35,13 @@ export const PluginDocumentRecordSchema = z.object({ sessionId: z.string(), id: 
 export interface PluginDocumentView { revision: number; document: PluginDocument }
 export const SeminarRoleSchema = z.enum(['peer','critic','assistant']);
 export type SeminarRole = z.infer<typeof SeminarRoleSchema>;
+const SeminarParticipantRecordSchema = z.object({ role: SeminarRoleSchema, state: z.enum(['queued','running','completed','failed','canceled','interrupted']), childId: z.string().optional(), text: z.string().max(40000) }).strict();
 export const SeminarRecordSchema = z.object({ sessionId: z.string(), id: z.string(), digest: z.string(), topic: Title, materials: Text, standard: Text,
-  participants: z.array(z.object({ role: SeminarRoleSchema, state: z.enum(['queued','running','completed','failed','canceled','interrupted']), childId: z.string().optional(), text: z.string().max(40000) }).strict()).min(1).max(3),
+  participants: z.array(SeminarParticipantRecordSchema).min(1).max(3),
 }).strict();
-export interface SeminarView { ref: string; revision: number; topic: string; participants: z.infer<typeof SeminarRecordSchema>['participants'] }
+const SeminarParticipantViewSchema = SeminarParticipantRecordSchema.omit({ childId: true }).strict();
+export const SeminarViewSchema = z.object({ ref: z.string(), revision: z.number().int().nonnegative(), topic: Title,
+  participants: z.array(SeminarParticipantViewSchema).min(1).max(3),
+}).strict();
+export type SeminarView = z.infer<typeof SeminarViewSchema>;
 export const SeminarStartSchema = z.object({ topic: Title, materials: Text, standard: Text, roles: z.array(SeminarRoleSchema).min(1).max(3) }).strict().refine(v => new Set(v.roles).size === v.roles.length && (!v.roles.includes('assistant') || !!v.standard.trim()), 'assistant_requires_standard');

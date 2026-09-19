@@ -120,6 +120,12 @@ test('a restart keeps the same content, and the card has no second review ledger
   expect(read).toMatchObject({ version: 1, content: { title: '切线' }, history: [] });
 });
 
+test('topic edits appear in the authored-field projection', () => {
+  const before = { title: '函数', presentation: 'note' as const, front: '', sections: [], notes: '', sources: [], tags: [], links: [] };
+  const after = { ...before, topic: '数学/函数' };
+  expect(changedAuthorFields(before, after)).toContain('topic');
+});
+
 test('source-only and source-less cards are both legal, and an unreal source is refused before writing', async () => {
   const { cards, cardStore, materials } = await open();
   const book = await importBook(materials, 'book-1', '三角函数.md', 'text/markdown', encoded(STORY));

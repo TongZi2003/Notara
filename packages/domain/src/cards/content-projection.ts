@@ -80,7 +80,7 @@ export function changedTextFields(before: CardContent, after: CardContent): Auth
  */
 export function changedAuthorFields(before: CardContent, after: CardContent): string[] {
   const changed: string[] = [];
-  for (const field of ['title', 'presentation', 'front', 'notes', 'tags', 'sources', 'links', 'chapter'] as const) {
+  for (const field of ['title', 'presentation', 'front', 'notes', 'tags', 'sources', 'links', 'chapter', 'topic'] as const) {
     if (JSON.stringify(before[field] ?? null) !== JSON.stringify(after[field] ?? null)) changed.push(field);
   }
   const count = Math.max(before.sections.length, after.sections.length);

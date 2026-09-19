@@ -97,7 +97,8 @@ export function registerMaterialTools(ctx: Context): void {
     if (!version) throw rejected('该资料没有这个固定版本，先用list_materials或read_material确认versionId');
     if (version.mediaType !== 'text/markdown') throw rejected('这份资料没有Markdown版本，请改用read_material按原格式读取');
     const resolved = await ctx.studyforgeMaterialService.resolve(hostContext, { materialId: view.materialId, versionId: version.versionId });
-    return ClassroomMarkdownViewSchema.parse({ ref: 'material:' + view.materialId, materialId: view.materialId, versionId: version.versionId, revision: view.revision, title: view.title, content: await readFile(resolved.absolutePath, 'utf8'), source: { materialId: view.materialId, versionId: version.versionId }, references: version.sources ?? [] });
+    const revision = view.versions.findIndex(item => item.versionId === version.versionId) + 1;
+    return ClassroomMarkdownViewSchema.parse({ ref: 'material:' + view.materialId, materialId: view.materialId, versionId: version.versionId, revision, title: view.title, content: await readFile(resolved.absolutePath, 'utf8'), source: { materialId: view.materialId, versionId: version.versionId }, references: version.sources ?? [] });
   };
   ctx.effect(() => ctx.tools.register({ name: 'create_markdown_material', description: '在当前课堂资料空间创建一份 Markdown 讲义或教材章节。只保存明确请求的内容；返回真实资料身份和版本。保存不表示掌握，也不创建创作者会话。', parameters: toolSchema(ClassroomMarkdownCreateSchema), output: markdownOutput,
     async execute(args, execution) {

@@ -53,10 +53,21 @@ function ToolStep({ block, inspectCall, renderMessageImages, ctx }: {
   }
   let artifact: { ref: string; title: string } | undefined;
   if (name === 'draft_artifact' && state === 'ok') { try { const parsed = ArtifactViewSchema.safeParse(JSON.parse(resultRaw)); if (parsed.success) artifact = { ref: parsed.data.ref, title: parsed.data.manifest?.title ?? '课堂作品' }; } catch { /* incomplete result remains in details */ } }
+  const artifactCard = artifact && <button className="sf-artifact-card" data-testid="classroom-artifact" onClick={() => openCreation(ctx, artifact!.ref)}><strong>{artifact.title}</strong><span>预览与共同编辑 ↗</span></button>;
+  const children = block.subCalls.length > 0 && <div className="sf-tool-children">{block.subCalls.map(child =>
+    <ToolStep ctx={ctx} key={child.callId} block={child} inspectCall={inspectCall} renderMessageImages={renderMessageImages} />)}</div>;
+  if (!debug) return <div className="sf-tool-step" data-testid="tool-activity" data-tool-state={state}>
+    {artifactCard}
+    <div className="sf-tool-plain" data-testid="tool-activity-summary">
+      <span className="sf-tool-state" aria-hidden="true">{state === 'running' ? '◌' : state === 'ok' ? '✓' : state === 'error' ? '!' : '·'}</span>
+      <span>{toolDisplayCopy(name, state, raw, resultRaw)}</span>
+    </div>
+    {children}
+  </div>;
   const images: MessageImageSource[] = settled ? block.content.flatMap(part => part.type === 'image' && 'attachment' in part
     ? [{ attachment: part.attachment }] : []) : [];
   return <div className="sf-tool-step" data-testid="tool-activity" data-tool-state={state}>
-    {artifact && <button className="sf-artifact-card" data-testid="classroom-artifact" onClick={() => openCreation(ctx, artifact!.ref)}><strong>{artifact.title}</strong><span>预览与共同编辑 ↗</span></button>}
+    {artifactCard}
     <details open={open} onToggle={event => setOpen(event.currentTarget.open)}>
       <summary data-testid="tool-activity-summary">
         <span className="sf-tool-state" aria-hidden="true">{state === 'running' ? '◌' : state === 'ok' ? '✓' : state === 'error' ? '!' : '·'}</span>
@@ -72,7 +83,6 @@ function ToolStep({ block, inspectCall, renderMessageImages, ctx }: {
           : block.error ? JSON.stringify(block.error, null, 2) : '这次调用没有返回正文'}</pre></>}
       </div>}
     </details>
-    {block.subCalls.length > 0 && <div className="sf-tool-children">{block.subCalls.map(child =>
-      <ToolStep ctx={ctx} key={child.callId} block={child} inspectCall={inspectCall} renderMessageImages={renderMessageImages} />)}</div>}
+    {children}
   </div>;
 }

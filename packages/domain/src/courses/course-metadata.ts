@@ -1,8 +1,18 @@
 import { createHash } from 'node:crypto';
-import { CourseClosureSchema, CoursePatchSchema, type CourseClosure, type CourseMetadataData, type CourseMetadataSchema, type CourseView, type HostContext, type MutationContext } from '@studyforge/contracts';
+import { CourseClosureSchema, CourseMetadataSchema, CoursePatchSchema, type CourseClosure, type CourseMetadataData, type CourseView, type HostContext, type MutationContext } from '@studyforge/contracts';
 import type { HandoffPin } from '@studyforge/contracts/handoffs';
 import { LearningContextSchema, type LearningContext } from '@studyforge/contracts/courses';
-import { RecordError, type PreparedRecordChange, type RecordStore, type Saved } from '../storage/record-store.ts';
+import { z } from 'zod';
+import { RecordError, type PreparedRecordChange, type RecordMigration, type RecordStore, type Saved } from '../storage/record-store.ts';
+
+export const COURSE_METADATA_SCHEMA_VERSION = 2;
+export const migrateCourseMetadata: RecordMigration = (row, fromVersion) => {
+  if (fromVersion !== 1) throw new RecordError('course_schema_migration_missing');
+  return { ...row, schemaVersion: 2, versions: row.versions.map(version => {
+    const content = z.record(z.string(), z.json()).parse(version.content);
+    return { ...version, content: Object.prototype.hasOwnProperty.call(content, 'closure') ? content : { ...content, closure: null } };
+  }) };
+};
 
 /** The row a lesson has before anything teaching-specific was written for it. */
 function initialMetadata(sessionId: string): CourseMetadataData {

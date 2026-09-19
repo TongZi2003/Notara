@@ -7,13 +7,17 @@ import lockfile from 'proper-lockfile';
 import { mkdir, realpath } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { RecordStore, RecordError, recordSchema, storedFingerprint, type StoredRecord, type PreparedRecordChange } from '@studyforge/domain/storage';
+import { RecordStore, RecordError, recordSchema, storedFingerprint, type RecordMigration, type StoredRecord, type PreparedRecordChange } from '@studyforge/domain/storage';
 import type { Clock } from '@studyforge/domain/clock';
 
 const WorkspaceSnapshotSchema = z.object({ workspaceId: z.string().min(1),
   collections: z.record(z.string(), z.record(z.string(), recordSchema(z.json()))),
 }).strict();
 type WorkspaceSnapshot = z.infer<typeof WorkspaceSnapshotSchema>;
+export interface CollectionOptions {
+  readonly schemaVersion?: number;
+  readonly migrate?: RecordMigration;
+}
 
 /** One native atomic unit for related learning records. Individual schemas,
  * revisions and operations stay with RecordStore; bytes stay in materials/ and
@@ -48,14 +52,30 @@ export async function openWorkspaceRecords(ctx: Context, root: string, workspace
     return value;
   };
   return {
-    async collection<S extends z.ZodType>(kind: string, schema: S): Promise<RecordStore<S>> {
+    async collection<S extends z.ZodType>(kind: string, schema: S, options: CollectionOptions = {}): Promise<RecordStore<S>> {
       if (closed || !/^[a-z][a-z0-9_]*$/.test(kind)) throw new Error('Invalid or closed collection');
       if (opening.has(kind)) throw new RecordError('collection_already_open');
       opening.add(kind);
-      const table = await state(), validator = recordSchema(schema);
-      for (const [key, value] of Object.entries(snapshot(table).collections[kind] ?? {})) {
-        const parsed = validator.parse(value);
-        if (parsed.id !== key || parsed.workspaceId !== workspaceId) throw new RecordError('record_corrupt');
+      const table = await state(), validator = recordSchema(schema), targetVersion = options.schemaVersion ?? 1;
+      if (!Number.isInteger(targetVersion) || targetVersion < 1) throw new RecordError('record_schema_version_invalid');
+      const before = snapshot(table), original = before.collections[kind] ?? {}, migrated: Record<string, StoredRecord> = {};
+      let changed = false;
+      for (const [key, value] of Object.entries(original)) {
+        let parsed = recordSchema(z.json()).parse(value);
+        while (parsed.schemaVersion < targetVersion) {
+          if (!options.migrate) throw new RecordError('record_schema_migration_missing');
+          const next = options.migrate(parsed, parsed.schemaVersion);
+          if (next.schemaVersion !== parsed.schemaVersion + 1) throw new RecordError('record_schema_migration_invalid');
+          parsed = recordSchema(z.json()).parse(next);
+          changed = true;
+        }
+        if (parsed.schemaVersion > targetVersion) throw new RecordError('record_schema_newer');
+        const current = validator.parse(parsed);
+        if (current.id !== key || current.workspaceId !== workspaceId) throw new RecordError('record_corrupt');
+        migrated[key] = current;
+      }
+      if (changed) {
+        await table.update('workspace', row => ({ ...row, collections: { ...row.collections, [kind]: migrated } }));
       }
       schemas.set(kind, validator);
       const read = (): Record<string, StoredRecord> => snapshot(table).collections[kind] ?? {};
@@ -92,7 +112,7 @@ export async function openWorkspaceRecords(ctx: Context, root: string, workspace
           return deleted;
         },
       };
-      return new RecordStore(facade, schema, kind, workspaceId, clock);
+      return new RecordStore(facade, schema, kind, workspaceId, clock, targetVersion);
     },
     /** All preflighted records are compared and published by ONE native update.
      * A failed comparison or validator publishes none; an ack-loss retry uses

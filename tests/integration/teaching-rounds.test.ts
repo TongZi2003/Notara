@@ -21,6 +21,7 @@ import type { CardView } from '@studyforge/contracts/cards';
 import type { TeachingRoundView } from '@studyforge/contracts/teaching-rounds';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
+import { TeachingRounds } from '../../packages/host/src/teaching/rounds.ts';
 
 let runtime: IsolatedRuntime | undefined;
 afterEach(async () => { await runtime?.stop(); runtime = undefined; });
@@ -136,12 +137,55 @@ test('a prose-only problem helper leaves the round honestly failed and registers
   expect(rounds).toHaveLength(1);
   expect(rounds[0]).toMatchObject({ stage: 'failed' });
   const problem = rounds[0]!.actors.find(actor => actor.role === 'problem')!;
-  expect(problem.state).toBe('failed'); expect(problem.detail).toBeTruthy();
+  expect(problem.state).toBe('failed'); expect(problem.detail).toBeUndefined();
+  expect(JSON.stringify(rounds)).not.toContain('childId');
   expect(value(await client.rpc<CardView[]>('studyforgeLearning/cards', {}))).toEqual([]);
   // A failed round refuses the student's answer honestly.
   const refused = await client.rpc('studyforgeRounds/answer', { input: { sessionId, ref: rounds[0]!.ref, text: '任意作答' } });
   expect(refused).toMatchObject({ ok: false });
 }, 120_000);
+
+test('stopping while the problem child is running interrupts it and closes the round as stopped', async () => {
+  const context = { workspaceId: 'student-a', sessionId: 'lesson-a', actor: 'student' as const, purpose: 'learning' as const, operationId: 'open-round' };
+  const interrupts: string[] = [];
+  let registered!: () => void;
+  let rejectRun!: (error: Error) => void;
+  const childRegistered = new Promise<void>(resolve => { registered = resolve; });
+  const childRun = new Promise<never>((_resolve, reject) => { rejectRun = reject; });
+  let row: any = undefined;
+  const records: any = {
+    async create(_ctx: unknown, _id: string, input: unknown) {
+      row = { ref: 'teachinground:test', version: 1, data: input };
+      return { ...row, duplicate: false };
+    },
+    read() { return { ...row, duplicate: false }; },
+    async update(_ctx: unknown, ref: string, _input: unknown, transform: (data: unknown) => unknown) {
+      row = { ref, version: row.version + 1, data: transform(row.data) };
+      return { ...row, duplicate: false };
+    },
+    list() { return [{ ...row, duplicate: false }]; },
+  };
+  const delegation: any = {
+    async proposeProblems(input: { onChildId?: (childId: string) => Promise<void> }) {
+      await input.onChildId?.('child-problem');
+      registered();
+      await childRun;
+      return { role: 'problem', childId: 'child-problem', stopReason: 'completed', surface: [], cards: [] };
+    },
+  };
+  const host: any = {
+    sessionController: { resolveAgent: async () => ({ agent: {} }) },
+    subagents: { interrupt: async (childId: string) => { interrupts.push(String(childId)); rejectRun(new Error('interrupted')); } },
+  };
+  const rounds = new TeachingRounds(host, records, delegation);
+  const opening = rounds.open(context, { topic: '题目', materials: [MATERIAL], standard: STANDARD }, new AbortController().signal);
+  await childRegistered;
+  const stopped = await rounds.stop(context, 'teachinground:test');
+  await expect(opening).rejects.toThrow();
+  expect(interrupts).toEqual(['child-problem']);
+  expect(stopped.stage).toBe('stopped');
+  expect(stopped.actors.find(actor => actor.role === 'problem')?.state).toBe('stopped');
+});
 
 test('stopping an open round marks it stopped without faking completion', async () => {
   runtime = await startIsolated({ testModel: true });

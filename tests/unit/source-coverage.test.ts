@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import type { SourceAnchor } from '@studyforge/contracts/materials';
 import { sourceContains, sourceOverlaps, uniqueSources, unrefinedRanges } from '../../packages/domain/src/materials/source-relations.ts';
 const page = (p: number, rect?: [number, number, number, number]): SourceAnchor => ({ materialId: 'book', versionId: 'v1', locator: { kind: 'pdf', page: p, ...(rect ? { rect } : {}) } });
+const pdftext = (page: number, start?: number, end?: number): SourceAnchor => ({ materialId: 'book', versionId: 'v1', locator: { kind: 'pdftext', page, ...(start === undefined ? {} : { start, end }) } });
 test('coverage keeps exact versions and regions, deduplicates only the same position', () => {
   expect(sourceContains(page(12), page(12, [0, 0, .5, .5]))).toBe(true);
   expect(sourceContains(page(12, [0, 0, .5, .5]), page(12))).toBe(false);
@@ -19,4 +20,11 @@ test('text and Word positions use half-open ranges without filling gaps', () => 
     { kind: 'text', start: { line: 1, column: 0 }, end: { line: 2, column: 1 } },
     { kind: 'text', start: { line: 2, column: 3 }, end: { line: 3, column: 0 } },
   ]);
+});
+test('PDF text anchors compare page spans and whole-page reads', () => {
+  expect(sourceContains(pdftext(2), pdftext(2, 10, 20))).toBe(true);
+  expect(sourceContains(pdftext(2, 10, 20), pdftext(2))).toBe(false);
+  expect(sourceOverlaps(pdftext(2, 10, 20), pdftext(2, 19, 30))).toBe(true);
+  expect(sourceOverlaps(pdftext(2, 10, 20), pdftext(2, 20, 30))).toBe(false);
+  expect(sourceOverlaps(pdftext(2, 10, 20), pdftext(3, 10, 20))).toBe(false);
 });

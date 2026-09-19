@@ -13,7 +13,7 @@ import { openWorkspaceRecords } from './storage.ts';
 import { StudyForgeProbe } from './probe-service.ts';
 import { installExecutionAccess } from './access/context.ts';
 import { CourseMetadataSchema, type HostContext } from '@studyforge/contracts';
-import { CourseMetadata } from '@studyforge/domain/courses';
+import { CourseMetadata, COURSE_METADATA_SCHEMA_VERSION, migrateCourseMetadata } from '@studyforge/domain/courses';
 import { StudyForgeCourses } from './course-service.ts';
 import { MaterialRecordSchema } from '@studyforge/contracts/material-records';
 import { MaterialService } from '@studyforge/domain/materials';
@@ -144,7 +144,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ctx.effect(() => () => plugins.dispose());
     ctx.plugin(StudyForgePlugins);
 
-    const courseRecords = await owner.collection('course', CourseMetadataSchema);
+    const courseRecords = await owner.collection('course', CourseMetadataSchema, { schemaVersion: COURSE_METADATA_SCHEMA_VERSION, migrate: migrateCourseMetadata });
     const relations = await owner.collection('relation', LibraryRelationSchema);
     ctx.effect(() => ctx.reflect.provide('studyforgeRelations', relations));
     ctx.plugin(StudyForgeLibrary);

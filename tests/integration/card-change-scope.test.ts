@@ -19,7 +19,7 @@ test('an exact native revision pair attributes only this lesson edits and keeps 
   await records.create({ ...base, operationId: 'born' }, 'one', { content: { title: '同一卡', front: '第一行\n重复\n重复\n', sections: [{ heading: '答案', body: '隐藏原文' }] }, history: [] });
   await records.update({ ...base, sessionId: 'A', operationId: 'A1', expectedVersion: 1 }, 'card:one', { front: 'A' }, row => ({ ...row, content: { ...row.content, front: '第一行\n改一行\n重复\n' } }));
   await records.update({ ...base, sessionId: 'B', operationId: 'B1', expectedVersion: 2 }, 'card:one', { front: 'B' }, row => ({ ...row, content: { ...row.content, front: 'B课插入\n重复\n' } }));
-  await records.update({ ...base, sessionId: 'A', operationId: 'A2', expectedVersion: 3 }, 'card:one', { back: 'A' }, row => ({ ...row, content: { ...row.content, sections: [{ heading: '答案', body: '秘密答案已更新' }] } }));
+  await records.update({ ...base, sessionId: 'A', operationId: 'A2', expectedVersion: 3 }, 'card:one', { back: 'A', topic: '数学/函数' }, row => ({ ...row, content: { ...row.content, topic: '数学/函数', sections: [{ heading: '答案', body: '秘密答案已更新' }] } }));
   await records.update({ ...base, actor: 'student', operationId: 'outside', expectedVersion: 4 }, 'card:one', { tags: ['课外'] }, row => ({ ...row, content: { ...row.content, tags: ['课外'] } }));
   const before = records.read(base, 'card:one');
   const hidden = cardChanges(records, base, 'card:one', { sessionId: 'A' });
@@ -27,6 +27,7 @@ test('an exact native revision pair attributes only this lesson edits and keeps 
   expect(hidden.map(row => [row.operation.beforeRevision, row.operation.afterRevision])).toEqual([[1, 2], [3, 4]]);
   expect(hidden[0]?.fields.find(field => field.field === 'front')?.before).toBe('第一行\n重复\n重复\n');
   expect(hidden[1]?.hiddenBackChanged).toBe(true);
+  expect(hidden[1]?.metadata).toContain('topic');
   expect(JSON.stringify(hidden)).not.toContain('秘密答案'); expect(JSON.stringify(hidden)).not.toContain('隐藏原文');
   const revealed = cardChanges(records, base, 'card:one', { sessionId: 'A', showBack: true });
   expect(revealed[1]?.fields[0]?.before).toContain('隐藏原文'); expect(revealed[1]?.fields[0]?.after).toContain('秘密答案已更新');

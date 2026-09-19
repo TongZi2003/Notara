@@ -39,6 +39,10 @@ test('tool rows speak plainly until expanded and retain the native inspection ro
     await expect(row.getByTestId('tool-activity-summary')).not.toContainText('read_card');
   }
   await rows.last().getByTestId('tool-activity-summary').click();
+  await expect(rows.last().getByTestId('tool-activity-details')).toHaveCount(0);
+  // Raw arguments, results and the inspection route are debug-only.
+  await enableDebug(page);
+  await rows.last().getByTestId('tool-activity-summary').click();
   const details = rows.last().getByTestId('tool-activity-details');
   await expect(details).toContainText('read_card');
   await expect(details).toContainText('card:missing-fixture');
@@ -48,7 +52,6 @@ test('tool rows speak plainly until expanded and retain the native inspection ro
   await expect(details).toBeVisible();
   await page.screenshot({ path: info.outputPath('tool-details-mobile.png'), fullPage: true });
   // The inspection route opens the debug-gated native Trajectory view.
-  await enableDebug(page);
   await details.getByRole('button', { name: '查看工具定义与完整记录' }).click();
   await expect(page.getByRole('tab', { name: 'Trajectory', exact: true })).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('tab', { name: 'Chat', exact: true }).click();
