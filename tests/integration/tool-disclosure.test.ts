@@ -63,6 +63,20 @@ test('the classroom wire is constant: facades dispatch, direct names still work,
   console.log(JSON.stringify({ tools: initial.toolNames.length, schemaBytes: initial.toolSchemaBytes, dispatch: 'PASS', direct: 'PASS', restart: 'PASS', isolation: 'PASS' }));
 }, 90_000);
 
+test('malformed or empty facade arguments fail with transport attribution, not a field error', async () => {
+  const f = await fixture(), lesson = await f.create();
+  const malformed = await f.send(lesson, calls([{ name: 'find', arguments: { __malformed_arguments: '{"method":"materials","input":{"q":"数学' } }]));
+  const malformedResult = lastResult(malformed, 'find');
+  expect(malformedResult).toMatchObject({ isError: true });
+  const malformedText = JSON.stringify(malformedResult?.content);
+  expect(malformedText).toContain('未能通过解析');
+  expect(malformedText).toContain('切换模型');
+  const empty = await f.send(lesson, calls([{ name: 'find', arguments: {} }]));
+  const emptyResult = lastResult(empty, 'find');
+  expect(emptyResult).toMatchObject({ isError: true });
+  expect(JSON.stringify(emptyResult?.content)).toContain('参数在送达前丢失');
+}, 90_000);
+
 test('unknown facade methods and disallowed load_tools names fail without touching the wire', async () => {
   const f = await fixture(), lesson = await f.create();
   const initial = await f.send(lesson, '先看看有什么');

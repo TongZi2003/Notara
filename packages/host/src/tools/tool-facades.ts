@@ -29,6 +29,14 @@ const FACADE_DESCRIPTIONS: Record<string, string> = {
 
 const callShape = z.object({ method: z.string().min(1), input: z.unknown() }).strict();
 
+/** pi-ai tags tool calls whose argument payload never parsed; surface the real
+ * cause instead of a schema error so the model stops retrying formats. */
+function malformedRaw(args: unknown): string | undefined {
+  if (args === null || typeof args !== 'object' || Array.isArray(args)) return undefined;
+  const raw = (args as { __malformed_arguments?: unknown }).__malformed_arguments;
+  return typeof raw === 'string' ? raw.slice(0, 200) : undefined;
+}
+
 function innerOf(facade: string, args: unknown): string | undefined {
   return resolveFacadeTool(facade, args);
 }
@@ -91,6 +99,9 @@ export function registerFacadeTools(host: Context): void {
         presentationMeta: (args, value) => definition(args)?.output.presentationMeta?.(innerInput(args), value) ?? null,
       },
       async execute(args, execution) {
+        const malformed = malformedRaw(args);
+        if (malformed !== undefined) throw rejected(`${facade}的调用参数未能通过解析（原始片段：${malformed}）——是模型输出的工具参数格式与传输层不兼容，不是参数填错。请如实告知用户：当前模型可能无法正常使用课堂工具，建议切换模型后重试；不要再重复同一调用。`);
+        if (args === null || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).length === 0) throw rejected(`${facade}收到的调用参数为空。若你已在调用中填写了 method 与 input，说明参数在送达前丢失——当前模型可能与工具传输格式不兼容。请如实告知用户并建议切换模型，不要继续重复同一调用。`);
         const data = callShape.parse(args);
         const inner = innerOf(facade, data);
         if (!inner) throw rejected(`method=${data.method}不在${facade}的方法列表中；从该工具schema列出的method中选择`);
