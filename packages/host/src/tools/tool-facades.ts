@@ -23,7 +23,7 @@ const FACADE_DESCRIPTIONS: Record<string, string> = {
   board: '课堂工作台：列出与读取工作文档、更新文档、查看学生和教师在工作台上的写入轨迹，数学场景的读取、编辑、还原与计算。文档schema由读取结果给出。',
   classroom: '教室与同学：查看教室状态、向同学派发或追问任务、与学生共建世界书条目、调整情景亲密度。',
   stage: '课堂阶段：读取思维图阶段、原子推进当前阶段、沉淀已结束阶段的小结。',
-  delegate: '委派独立帮手：检索、命题、助教、同伴角色任务；返回真实childId后用send_message/interrupt_agent管理。',
+  delegate: '委派独立帮手：检索、命题、助教、同伴角色任务；返回真实childId后用send_message/interrupt_agent管理。帮手全部只读——产物以原话或受控登记返回，任何写入与提案只能由本会话提交，不要派帮手去保存或提案。',
   round: '多角色教学回合：命题→学生作答→同伴评审→助教勘误。open开一轮，answer把学生原话送入，correct推进勘误，read看状态，stop收止。学生在回合面板也可作答与求勘误，同一份记录。',
 };
 
