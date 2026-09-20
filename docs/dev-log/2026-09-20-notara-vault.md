@@ -31,6 +31,8 @@
 | 浏览器验收 | PASS | `npm run test:e2e -- tests/e2e/vault-panel.spec.ts`，1/1；隔离实例真实验证树、搜索、保存、刷新读回、反向链接、版本冲突保留草稿和对话引用，控制台无错误 |
 | 全量测试类型检查 | FAIL（既有） | `npm run typecheck:tests` 仍有 `teaching-rounds.test.ts`、`tool-disclosure.test.ts`、`journey.test.ts` 的 4 个既有类型错误；新增 vault 测试错误已清除 |
 
+全量运行也已实际执行：`npm run test:unit` 为 39 个文件、196/197 通过，唯一失败是 `tests/unit/board-activity.test.ts` 仍期待旧的 `+新条目` 文案；`npm run test:integration` 为 75 个文件、317/321 通过，失败为 `native-delegation.test.ts` 的结构化卡片等待、`teaching-rounds.test.ts` 的两项回合状态、以及 `tool-disclosure.test.ts` 仍期待已经从默认 wire 移出的 `board`。这些失败都不是 `@notara/vault` 的路径、Remote、面板或浏览器链路。
+
 ## 未完成边界
 
 当前是第一轮垂直切片。路线/复习只是从 frontmatter 和链接投影出来，还没有独立视图；Agent 专用写入 facade、外部 Obsidian vault 直连、任意 JavaScript 查询、Kanban/Excalidraw/Markmap 视图尚未加入。真实模型教学质量不由这轮资产层验证代替。
