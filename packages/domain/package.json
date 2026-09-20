@@ -135,6 +135,10 @@
     "./memory": {
       "types": "./lib/types/memory/memory-service.d.ts",
       "default": "./lib/types/memory/memory-service.js"
+    },
+    "./vault": {
+      "types": "./lib/types/vault/vault-kernel.d.ts",
+      "default": "./lib/types/vault/vault-kernel.js"
     }
   },
   "files": [
@@ -149,5 +153,6 @@
     "@deepseek-ai/dsh-storage-domain": "0.1.5-rc.2",
     "zod": "4.6.2",
     "@studyforge/contracts": "0.0.0"
+    ,"yaml": "2.9.0"
   }
 }

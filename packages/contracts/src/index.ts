@@ -26,6 +26,7 @@ export * from './handoffs.ts';
 export * from './tool-facades.ts';
 export * from './atlas.ts';
 export * from './teaching-rounds.ts';
+export * from './vault.ts';
 
 import { z } from 'zod';
 import { CardContentSchema, CardPatchSchema, CardRecordSchema, CardViewSchema,
