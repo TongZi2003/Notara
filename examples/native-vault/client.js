@@ -24957,78 +24957,257 @@
     }
   });
 
-  // examples/native-vault/client-source.ts
-  var VaultTaskWidget = class extends WidgetType {
-    constructor(checked, from, to, replacement) {
+  // examples/native-vault/frontmatter.js
+  function fail() {
+    throw new Error("vault_frontmatter_invalid");
+  }
+  function parseScalar(raw) {
+    const value = raw.trim();
+    if (value === "") return "";
+    if (value.startsWith('"') && value.endsWith('"') || value.startsWith("'") && value.endsWith("'")) return value.slice(1, -1);
+    if (value === "null" || value === "~") return null;
+    if (value === "true") return true;
+    if (value === "false") return false;
+    if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) return Number(value);
+    if (value.startsWith("[") && value.endsWith("]")) {
+      return value.slice(1, -1).split(",").map((item) => item.trim()).filter(Boolean).map(parseScalar).map((item) => {
+        if (typeof item !== "string") fail();
+        return item;
+      });
+    }
+    return value;
+  }
+  function parseFrontmatter(content2) {
+    if (!content2.startsWith("---\n") && !content2.startsWith("---\r\n")) return { frontmatter: {}, body: content2, range: null };
+    const match = content2.match(/^---\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/m);
+    if (!match) fail();
+    const frontmatter = {};
+    for (const line of match[1].split(/\r?\n/)) {
+      if (!line.trim() || line.trim().startsWith("#")) continue;
+      const separator = line.indexOf(":");
+      if (separator <= 0) fail();
+      const key = line.slice(0, separator).trim();
+      if (!/^[A-Za-z0-9_-]+$/.test(key) || Object.hasOwn(frontmatter, key)) fail();
+      Object.defineProperty(frontmatter, key, { value: parseScalar(line.slice(separator + 1)), enumerable: true });
+    }
+    return {
+      frontmatter,
+      body: content2.slice(match[0].length),
+      range: { from: 0, to: match[0].replace(/\r?\n$/, "").length }
+    };
+  }
+
+  // examples/native-vault/live-preview.js
+  var openPage = Facet.define({ combine: (handlers2) => handlers2[0] ?? (() => {
+  }) });
+  var wikiSyntax = {
+    defineNodes: ["VaultWikiLink"],
+    parseInline: [{
+      name: "VaultWikiLink",
+      before: "Link",
+      parse(cx, next, pos) {
+        if (next !== 91 || cx.char(pos + 1) !== 91) return -1;
+        const match = /^\[\[([^\]\n]+)\]\]/.exec(cx.slice(pos, cx.end));
+        return match ? cx.addElement(cx.elt("VaultWikiLink", pos, pos + match[0].length)) : -1;
+      }
+    }]
+  };
+  function previewFrontmatter(content2) {
+    try {
+      return parseFrontmatter(content2);
+    } catch {
+      return { frontmatter: {}, body: content2, range: null };
+    }
+  }
+  var PropertiesWidget = class extends WidgetType {
+    kind = "properties";
+    constructor(properties2) {
+      super();
+      this.properties = properties2;
+    }
+    eq(other) {
+      return JSON.stringify(this.properties) === JSON.stringify(other.properties);
+    }
+    toDOM(view) {
+      const root = document.createElement("section");
+      root.className = "cm-vault-properties";
+      root.setAttribute("aria-label", "\u9875\u9762\u5C5E\u6027");
+      const header = document.createElement("header"), title = document.createElement("strong"), edit = document.createElement("button");
+      title.textContent = "\u9875\u9762\u5C5E\u6027";
+      edit.type = "button";
+      edit.textContent = "\u7F16\u8F91\u5C5E\u6027";
+      edit.addEventListener("click", () => {
+        view.dispatch({ selection: { anchor: view.state.doc.line(2).from }, scrollIntoView: true });
+        view.focus();
+      });
+      header.append(title, edit);
+      root.append(header);
+      const fields = document.createElement("dl");
+      const labels = { type: "\u7C7B\u578B", status: "\u72B6\u6001", tags: "\u6807\u7B7E", title: "\u6807\u9898", date: "\u65E5\u671F", name: "\u540D\u79F0" };
+      for (const [key, value] of Object.entries(this.properties)) {
+        const label = document.createElement("dt"), cell = document.createElement("dd");
+        label.textContent = Object.hasOwn(labels, key) ? labels[key] : key;
+        label.title = key;
+        if (Array.isArray(value) && value.length) {
+          for (const item of value) {
+            const chip = document.createElement("span");
+            chip.className = "cm-vault-tag";
+            chip.textContent = item;
+            cell.append(chip);
+          }
+        } else cell.textContent = value === null || value === "" || Array.isArray(value) ? "\u2014" : String(value);
+        fields.append(label, cell);
+      }
+      if (!fields.childNodes.length) {
+        const empty = document.createElement("p");
+        empty.textContent = "\u6682\u65E0\u5C5E\u6027";
+        root.append(empty);
+      } else root.append(fields);
+      return root;
+    }
+    ignoreEvent() {
+      return true;
+    }
+  };
+  var WikiLinkWidget = class extends WidgetType {
+    kind = "wiki-link";
+    constructor(path, label) {
+      super();
+      this.path = path;
+      this.label = label;
+    }
+    eq(other) {
+      return this.path === other.path && this.label === other.label;
+    }
+    activate(view) {
+      view.state.facet(openPage)(this.path);
+    }
+    toDOM(view) {
+      const link = document.createElement("button");
+      link.type = "button";
+      link.className = "cm-vault-wikilink";
+      link.textContent = this.label;
+      link.title = `\u6253\u5F00 ${this.label}`;
+      link.addEventListener("mousedown", (event) => event.preventDefault());
+      link.addEventListener("click", () => this.activate(view));
+      return link;
+    }
+    ignoreEvent() {
+      return true;
+    }
+  };
+  var TaskWidget = class extends WidgetType {
+    kind = "task";
+    constructor(checked, from, to) {
       super();
       this.checked = checked;
       this.from = from;
       this.to = to;
-      this.replacement = replacement;
     }
     eq(other) {
-      return other.checked === this.checked && other.replacement === this.replacement;
+      return this.checked === other.checked && this.from === other.from && this.to === other.to;
+    }
+    activate(view) {
+      const current = view.state.sliceDoc(this.from, this.to);
+      if (!/^\[[ xX]\]$/.test(current)) return;
+      view.dispatch({ changes: { from: this.from, to: this.to, insert: this.checked ? "[ ]" : "[x]" }, userEvent: "input" });
     }
     toDOM(view) {
       const input = document.createElement("input");
       input.type = "checkbox";
       input.checked = this.checked;
       input.className = "cm-vault-task-checkbox";
+      input.setAttribute("aria-label", this.checked ? "\u6807\u4E3A\u672A\u5B8C\u6210" : "\u6807\u4E3A\u5DF2\u5B8C\u6210");
       input.addEventListener("mousedown", (event) => event.preventDefault());
-      input.addEventListener("change", () => view.dispatch({ changes: { from: this.from, to: this.to, insert: this.replacement }, userEvent: "input" }));
+      input.addEventListener("change", () => this.activate(view));
       return input;
     }
     ignoreEvent() {
       return true;
     }
   };
-  function buildVaultDecorations(view) {
-    const decorations2 = [];
-    const activeLine = view.state.doc.lineAt(view.state.selection.main.head).number;
-    for (let number2 = 1; number2 <= view.state.doc.lines; number2++) {
-      const line = view.state.doc.line(number2), text = line.text;
-      if (number2 === activeLine) continue;
-      const heading2 = text.match(/^(#{1,6}\s+)/);
-      if (heading2) {
-        decorations2.push(Decoration.replace({}).range(line.from, line.from + heading2[1].length));
-        decorations2.push(Decoration.mark({ class: "cm-vault-heading" }).range(line.from + heading2[1].length, line.to));
-      }
-      const task = text.match(/^(\s*)([-*+]\s+\[([ xX])\]\s+)/);
-      if (task) {
-        const from = line.from + task.index + task[1].length;
-        const to = from + task[2].length;
-        const replacement = task[2].replace(/\[([ xX])\]/, task[3].toLowerCase() === "x" ? "[x]" : "[ ]");
-        decorations2.push(Decoration.replace({ widget: new VaultTaskWidget(task[3].toLowerCase() === "x", from, to, replacement) }).range(from, to));
-      }
-      if (/^\s*```/.test(text)) decorations2.push(Decoration.mark({ class: "cm-vault-code-fence" }).range(line.from, line.to));
-      if (/^\s*(---|[A-Za-z][\w-]*:\s*)/.test(text)) decorations2.push(Decoration.mark({ class: "cm-vault-frontmatter" }).range(line.from, line.to));
-      for (const match of text.matchAll(/\[\[[^\]]+\]\]/g)) decorations2.push(Decoration.mark({ class: "cm-vault-wikilink" }).range(line.from + match.index, line.from + match.index + match[0].length));
-      for (const match of text.matchAll(/(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_)/g)) decorations2.push(Decoration.mark({ class: "cm-vault-emphasis" }).range(line.from + match.index, line.from + match.index + match[0].length));
+  function buildDecorations(state) {
+    const ranges = [], metadata = previewFrontmatter(state.doc.toString());
+    const hide = (from, to) => {
+      if (to > from) ranges.push(Decoration.replace({}).range(from, to));
+    };
+    const mark = (from, to, name2) => {
+      if (to > from) ranges.push(Decoration.mark({ class: name2 }).range(from, to));
+    };
+    const active = (from, to) => state.selection.ranges.some((selection) => state.doc.lineAt(selection.from).from <= to && state.doc.lineAt(selection.to).to >= from);
+    if (metadata.range) {
+      const { from, to } = metadata.range;
+      if (!state.selection.ranges.some((selection) => selection.from < to && selection.to >= from)) {
+        ranges.push(Decoration.replace({ block: true, widget: new PropertiesWidget(metadata.frontmatter) }).range(from, to));
+      } else mark(from, to, "cm-vault-frontmatter");
     }
-    return Decoration.set(decorations2, true);
+    syntaxTree(state).iterate({ enter(ref) {
+      const { name: name2, from, to, node } = ref;
+      if (metadata.range && from < metadata.range.to && name2 !== "Document") return false;
+      if (["FencedCode", "CodeBlock", "HTMLBlock", "Link", "Image"].includes(name2)) return false;
+      if (name2 === "InlineCode") {
+        if (!active(from, to)) {
+          mark(from, to, "cm-vault-inline-code");
+          for (let child = node.firstChild; child; child = child.nextSibling) if (child.name === "CodeMark") hide(child.from, child.to);
+        }
+        return false;
+      }
+      if (active(from, to)) return;
+      if (name2 === "VaultWikiLink") {
+        const raw = state.sliceDoc(from + 2, to - 2), [target, alias] = raw.split("|");
+        const path = target.split("#")[0].trim().replace(/^[.][/]/, "");
+        if (!path || path.startsWith("/") || path.includes("\\") || path.includes("\0") || /^[A-Za-z]:/.test(path) || path.split("/").some((part) => !part || part === "." || part === "..")) return false;
+        ranges.push(Decoration.replace({ widget: new WikiLinkWidget(/\.md$/i.test(path) ? path : `${path}.md`, alias?.trim() || target.trim()) }).range(from, to));
+        return false;
+      }
+      if (name2 === "StrongEmphasis") mark(from, to, "cm-vault-strong");
+      if (name2 === "Emphasis") mark(from, to, "cm-vault-emphasis");
+      if (name2 === "Strikethrough") mark(from, to, "cm-vault-strike");
+      if (/^(ATX|Setext)Heading[1-6]$/.test(name2)) {
+        mark(from, to, `cm-vault-heading cm-vault-h${name2.slice(-1)}`);
+      }
+      if (["EmphasisMark", "StrikethroughMark", "HeaderMark"].includes(name2)) hide(from, to);
+      if (name2 === "TaskMarker") ranges.push(Decoration.replace({ widget: new TaskWidget(state.sliceDoc(from, to).toLowerCase() === "[x]", from, to) }).range(from, to));
+    } });
+    return Decoration.set(ranges, true);
   }
-  var vaultLivePreview = ViewPlugin.fromClass(class {
-    constructor(view) {
-      this.decorations = buildVaultDecorations(view);
-    }
-    update(update) {
-      if (update.docChanged || update.selectionSet || update.viewportChanged) this.decorations = buildVaultDecorations(update.view);
-    }
-  }, { decorations: (plugin) => plugin.decorations });
-  var vaultTheme = EditorView.theme({
+  var vaultPreviewField = StateField.define({
+    create: buildDecorations,
+    update(value, transaction) {
+      return transaction.docChanged || transaction.selection || syntaxTree(transaction.startState) !== syntaxTree(transaction.state) ? buildDecorations(transaction.state) : value;
+    },
+    provide: (field) => EditorView.decorations.from(field)
+  });
+  var theme2 = EditorView.theme({
     "&": { backgroundColor: "transparent", color: "var(--dsw-alias-label-primary)", fontSize: "15px" },
     ".cm-content": { padding: "0 0 80px", lineHeight: "1.85", caretColor: "var(--dsw-alias-label-primary)" },
     ".cm-gutters": { display: "none" },
     ".cm-line": { padding: "0" },
-    ".cm-activeLine": { backgroundColor: "transparent" },
-    ".cm-vault-heading": { fontWeight: "650", fontSize: "1.25em" },
-    ".cm-vault-wikilink": { color: "var(--dsw-alias-label-link, var(--dsw-alias-label-primary))", textDecoration: "underline" },
+    ".cm-vault-heading": { fontWeight: "650" },
+    ".cm-vault-h1": { fontSize: "1.6em" },
+    ".cm-vault-h2": { fontSize: "1.35em" },
+    ".cm-vault-h3": { fontSize: "1.15em" },
+    ".cm-vault-strong": { fontWeight: "700" },
     ".cm-vault-emphasis": { fontStyle: "italic" },
-    ".cm-vault-code-fence": { color: "var(--dsw-alias-label-secondary)", fontFamily: "ui-monospace, SFMono-Regular, monospace" },
+    ".cm-vault-strike": { textDecoration: "line-through" },
+    ".cm-vault-inline-code": { fontFamily: "ui-monospace, SFMono-Regular, monospace", background: "var(--dsw-alias-bg-layer-2)", borderRadius: "3px", padding: "1px 3px" },
     ".cm-vault-frontmatter": { color: "var(--dsw-alias-label-secondary)", fontFamily: "ui-monospace, SFMono-Regular, monospace", fontSize: ".85em" },
-    ".cm-vault-task-checkbox": { width: "16px", height: "16px", margin: "0 8px 0 0", verticalAlign: "middle", accentColor: "var(--dsw-alias-interactive-bg-active)" },
+    ".cm-vault-wikilink": { color: "var(--dsw-alias-label-link, var(--dsw-alias-label-primary))", textDecoration: "underline", cursor: "pointer", border: "0", padding: "0", background: "none", font: "inherit" },
+    ".cm-vault-task-checkbox": { width: "16px", height: "16px", margin: "0 5px 0 0", verticalAlign: "middle", accentColor: "var(--dsw-alias-interactive-bg-active)" },
+    ".cm-vault-properties": { margin: "0 0 20px", padding: "12px 16px", border: "1px solid var(--dsw-alias-border-l1)", borderRadius: "6px", background: "var(--dsw-alias-bg-layer-2)", fontSize: "13px", whiteSpace: "normal" },
+    ".cm-vault-properties header": { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "10px" },
+    ".cm-vault-properties button": { border: "0", background: "transparent", color: "var(--dsw-alias-label-secondary)", cursor: "pointer", font: "inherit" },
+    ".cm-vault-properties dl": { display: "grid", gridTemplateColumns: "minmax(60px, 100px) minmax(0, 1fr)", gap: "8px 16px", margin: "0" },
+    ".cm-vault-properties dt": { color: "var(--dsw-alias-label-secondary)", overflowWrap: "anywhere" },
+    ".cm-vault-properties dd": { margin: "0", display: "flex", flexWrap: "wrap", gap: "6px", overflowWrap: "anywhere" },
+    ".cm-vault-tag": { border: "1px solid var(--dsw-alias-border-l2)", borderRadius: "4px", padding: "0 7px", background: "var(--dsw-alias-bg-layer-1)" },
     ".cm-scroller": { overflow: "visible" }
-  }, { dark: false });
+  });
+  function vaultPreview(onOpenPage) {
+    return [markdown({ base: markdownLanguage, extensions: wikiSyntax }), openPage.of(onOpenPage), vaultPreviewField, theme2, EditorState.allowMultipleSelections.of(true)];
+  }
+
+  // examples/native-vault/client-source.ts
   var VAULT_REFERENCE = "notara-vault";
   window.__ModuleLoader__.load({
     id: "@notara/vault-native",
@@ -25079,10 +25258,6 @@
         heading3: { fontSize: 16, lineHeight: 1.5, margin: "18px 0 8px" },
         paragraph: { margin: "8px 0", whiteSpace: "pre-wrap" },
         saveState: { color: "var(--dsw-alias-label-secondary)", fontSize: 12, marginLeft: "auto" },
-        meta: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginTop: 20 },
-        metaItem: { border: "1px solid var(--dsw-alias-border-l1)", borderRadius: 6, padding: "9px 11px", background: "var(--dsw-alias-bg-layer-2)" },
-        metaLabel: { display: "block", color: "var(--dsw-alias-label-secondary)", fontSize: 11, marginBottom: 4 },
-        metaValue: { fontSize: 13 },
         links: { display: "flex", flexWrap: "wrap", gap: 7, marginTop: 18 },
         link: { border: 0, background: "transparent", color: "var(--dsw-alias-label-link, var(--dsw-alias-label-primary))", cursor: "pointer", padding: 0, font: "inherit", fontSize: 13, textDecoration: "underline" },
         notice: { color: "var(--dsw-alias-label-secondary)", fontSize: 12, marginLeft: 4 },
@@ -25148,11 +25323,13 @@ ${content2}
         document.querySelector("[data-composer-input]")?.focus();
         return true;
       }
-      function CodeMirrorMarkdown({ content: content2, onChange, onSelectionChange }) {
+      function CodeMirrorMarkdown({ content: content2, onChange, onSelectionChange, onOpenPage }) {
         const host = useRef(null);
         const viewRef = useRef(null);
         const changeHandler = useRef(onChange);
         const selectionHandler = useRef(onSelectionChange);
+        const pageHandler = useRef(onOpenPage);
+        const synchronizing = useRef(false);
         useEffect(() => {
           changeHandler.current = onChange;
         }, [onChange]);
@@ -25160,20 +25337,24 @@ ${content2}
           selectionHandler.current = onSelectionChange;
         }, [onSelectionChange]);
         useEffect(() => {
+          pageHandler.current = onOpenPage;
+        }, [onOpenPage]);
+        useEffect(() => {
           if (!host.current) return void 0;
+          const text = EditorState.create({ doc: content2 }).doc;
+          const metadata = previewFrontmatter(text.toString());
           const state = EditorState.create({
-            doc: content2,
+            doc: text,
+            selection: { anchor: metadata.range ? Math.min(metadata.range.to + 1, text.length) : 0 },
             extensions: [
               history(),
               keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
               drawSelection(),
               EditorView.lineWrapping,
-              markdown({ base: markdownLanguage }),
               syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-              vaultLivePreview,
-              vaultTheme,
+              vaultPreview((path) => pageHandler.current(path)),
               EditorView.updateListener.of((update) => {
-                if (update.docChanged) changeHandler.current(update.state.doc.toString());
+                if (update.docChanged && !synchronizing.current) changeHandler.current(update.state.doc.toString());
                 if (update.docChanged || update.selectionSet) {
                   const range = update.state.selection.main;
                   selectionHandler.current(update.state.sliceDoc(range.from, range.to));
@@ -25187,7 +25368,19 @@ ${content2}
         }, []);
         useEffect(() => {
           const view = viewRef.current;
-          if (view && view.state.doc.toString() !== content2) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: content2 } });
+          if (view && view.state.doc.toString() !== content2.replace(/\r\n?/g, "\n")) {
+            synchronizing.current = true;
+            try {
+              const text = view.state.toText(content2), metadata = previewFrontmatter(text.toString());
+              view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: text },
+                selection: { anchor: metadata.range ? Math.min(metadata.range.to + 1, text.length) : 0 },
+                annotations: Transaction.addToHistory.of(false)
+              });
+            } finally {
+              synchronizing.current = false;
+            }
+          }
         }, [content2]);
         return React.createElement("div", { ref: host, style: STYLE.content, "aria-label": "Markdown Live Preview \u7F16\u8F91\u5668" });
       }
@@ -25243,6 +25436,7 @@ ${content2}
           setSelected(path);
           setDocument(read.value);
           setDraft(read.value.content);
+          setSelection("");
           setDirty(false);
           setBacklinks(links.ok ? links.value.incoming : []);
           setNotice("");
@@ -25308,6 +25502,10 @@ ${content2}
           if (!path || path === selected) return;
           if (dirty) {
             setNotice("\u5F53\u524D\u9875\u9762\u6709\u672A\u4FDD\u5B58\u4FEE\u6539\uFF0C\u8BF7\u5148\u4FDD\u5B58\u6216\u653E\u5F03\u3002");
+            return;
+          }
+          if (!files.some((file) => file.path === path)) {
+            setNotice(`\u8FD8\u6CA1\u6709\u8FD9\u4E2A\u9875\u9762\uFF1A${path}`);
             return;
           }
           setQuery("");
@@ -25427,20 +25625,14 @@ ${content2}
                     void save();
                   } }, saving ? "\u4FDD\u5B58\u4E2D\u2026" : "\u4FDD\u5B58"),
                   React.createElement("button", { style: STYLE.quiet, disabled: !dirty || saving, onClick: discard }, "\u653E\u5F03\u4FEE\u6539"),
+                  React.createElement("span", { style: STYLE.notice }, `\u4EFB\u52A1 ${document2.tasks.filter((task) => task.checked).length}/${document2.tasks.length}`),
                   React.createElement("span", { style: STYLE.saveState }, dirty ? "\u6709\u672A\u4FDD\u5B58\u4FEE\u6539" : `\u5DF2\u540C\u6B65 \xB7 ${document2.revision}`)
-                ),
-                React.createElement(
-                  "div",
-                  { style: STYLE.meta },
-                  React.createElement("div", { style: STYLE.metaItem }, React.createElement("span", { style: STYLE.metaLabel }, "\u7C7B\u578B"), React.createElement("span", { style: STYLE.metaValue }, document2.type || "\u672A\u6807\u6CE8")),
-                  React.createElement("div", { style: STYLE.metaItem }, React.createElement("span", { style: STYLE.metaLabel }, "\u72B6\u6001"), React.createElement("span", { style: STYLE.metaValue }, document2.status || "\u672A\u6807\u6CE8")),
-                  React.createElement("div", { style: STYLE.metaItem }, React.createElement("span", { style: STYLE.metaLabel }, "Task"), React.createElement("span", { style: STYLE.metaValue }, `${document2.tasks.filter((task) => task.checked).length}/${document2.tasks.length}`))
                 ),
                 React.createElement(CodeMirrorMarkdown, { key: document2.path, content: draft, onChange: (value) => {
                   setDraft(value);
-                  setDirty(true);
-                  setNotice("\u6709\u672A\u4FDD\u5B58\u4FEE\u6539");
-                }, onSelectionChange: setSelection }),
+                  setDirty(value !== document2.content.replace(/\r\n?/g, "\n"));
+                  setNotice("");
+                }, onSelectionChange: setSelection, onOpenPage: selectPage }),
                 React.createElement(
                   "section",
                   { style: STYLE.links },

@@ -1,69 +1,8 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { defaultHighlightStyle, highlightActiveLine, syntaxHighlighting } from '@codemirror/language';
-import { EditorState } from '@codemirror/state';
-import { Decoration, EditorView, ViewPlugin, WidgetType, drawSelection, keymap } from '@codemirror/view';
-
-class VaultTaskWidget extends WidgetType {
-  constructor(checked, from, to, replacement) { super(); this.checked = checked; this.from = from; this.to = to; this.replacement = replacement; }
-  eq(other) { return other.checked === this.checked && other.replacement === this.replacement; }
-  toDOM(view) {
-    const input = document.createElement('input');
-    input.type = 'checkbox'; input.checked = this.checked; input.className = 'cm-vault-task-checkbox';
-    input.addEventListener('mousedown', event => event.preventDefault());
-    input.addEventListener('change', () => view.dispatch({ changes: { from: this.from, to: this.to, insert: this.replacement }, userEvent: 'input' }));
-    return input;
-  }
-  ignoreEvent() { return true; }
-}
-
-function buildVaultDecorations(view) {
-  const decorations = [];
-  const activeLine = view.state.doc.lineAt(view.state.selection.main.head).number;
-  for (let number = 1; number <= view.state.doc.lines; number++) {
-    const line = view.state.doc.line(number), text = line.text;
-    if (number === activeLine) continue;
-    const heading = text.match(/^(#{1,6}\s+)/);
-    if (heading) {
-      decorations.push(Decoration.replace({}).range(line.from, line.from + heading[1].length));
-      decorations.push(Decoration.mark({ class: 'cm-vault-heading' }).range(line.from + heading[1].length, line.to));
-    }
-    const task = text.match(/^(\s*)([-*+]\s+\[([ xX])\]\s+)/);
-    if (task) {
-      const from = line.from + task.index + task[1].length;
-      const to = from + task[2].length;
-      const replacement = task[2].replace(/\[([ xX])\]/, task[3].toLowerCase() === 'x' ? '[x]' : '[ ]');
-      decorations.push(Decoration.replace({ widget: new VaultTaskWidget(task[3].toLowerCase() === 'x', from, to, replacement) }).range(from, to));
-    }
-    if (/^\s*```/.test(text)) decorations.push(Decoration.mark({ class: 'cm-vault-code-fence' }).range(line.from, line.to));
-    if (/^\s*(---|[A-Za-z][\w-]*:\s*)/.test(text)) decorations.push(Decoration.mark({ class: 'cm-vault-frontmatter' }).range(line.from, line.to));
-    for (const match of text.matchAll(/\[\[[^\]]+\]\]/g)) decorations.push(Decoration.mark({ class: 'cm-vault-wikilink' }).range(line.from + match.index, line.from + match.index + match[0].length));
-    for (const match of text.matchAll(/(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_)/g)) decorations.push(Decoration.mark({ class: 'cm-vault-emphasis' }).range(line.from + match.index, line.from + match.index + match[0].length));
-  }
-  return Decoration.set(decorations, true);
-}
-
-const vaultLivePreview = ViewPlugin.fromClass(class {
-  constructor(view) { this.decorations = buildVaultDecorations(view); }
-  update(update) {
-    if (update.docChanged || update.selectionSet || update.viewportChanged) this.decorations = buildVaultDecorations(update.view);
-  }
-}, { decorations: plugin => plugin.decorations });
-
-const vaultTheme = EditorView.theme({
-  '&': { backgroundColor: 'transparent', color: 'var(--dsw-alias-label-primary)', fontSize: '15px' },
-  '.cm-content': { padding: '0 0 80px', lineHeight: '1.85', caretColor: 'var(--dsw-alias-label-primary)' },
-  '.cm-gutters': { display: 'none' },
-  '.cm-line': { padding: '0' },
-  '.cm-activeLine': { backgroundColor: 'transparent' },
-  '.cm-vault-heading': { fontWeight: '650', fontSize: '1.25em' },
-  '.cm-vault-wikilink': { color: 'var(--dsw-alias-label-link, var(--dsw-alias-label-primary))', textDecoration: 'underline' },
-  '.cm-vault-emphasis': { fontStyle: 'italic' },
-  '.cm-vault-code-fence': { color: 'var(--dsw-alias-label-secondary)', fontFamily: 'ui-monospace, SFMono-Regular, monospace' },
-  '.cm-vault-frontmatter': { color: 'var(--dsw-alias-label-secondary)', fontFamily: 'ui-monospace, SFMono-Regular, monospace', fontSize: '.85em' },
-  '.cm-vault-task-checkbox': { width: '16px', height: '16px', margin: '0 8px 0 0', verticalAlign: 'middle', accentColor: 'var(--dsw-alias-interactive-bg-active)' },
-  '.cm-scroller': { overflow: 'visible' },
-}, { dark: false });
+import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { EditorState, Transaction } from '@codemirror/state';
+import { EditorView, drawSelection, keymap } from '@codemirror/view';
+import { previewFrontmatter, vaultPreview } from './live-preview.js';
 
 const VAULT_REFERENCE = 'notara-vault';
 
@@ -121,10 +60,6 @@ window.__ModuleLoader__.load({
       heading3: { fontSize: 16, lineHeight: 1.5, margin: '18px 0 8px' },
       paragraph: { margin: '8px 0', whiteSpace: 'pre-wrap' },
       saveState: { color: 'var(--dsw-alias-label-secondary)', fontSize: 12, marginLeft: 'auto' },
-      meta: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, marginTop: 20 },
-      metaItem: { border: '1px solid var(--dsw-alias-border-l1)', borderRadius: 6, padding: '9px 11px', background: 'var(--dsw-alias-bg-layer-2)' },
-      metaLabel: { display: 'block', color: 'var(--dsw-alias-label-secondary)', fontSize: 11, marginBottom: 4 },
-      metaValue: { fontSize: 13 },
       links: { display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 18 },
       link: { border: 0, background: 'transparent', color: 'var(--dsw-alias-label-link, var(--dsw-alias-label-primary))', cursor: 'pointer', padding: 0, font: 'inherit', fontSize: 13, textDecoration: 'underline' },
       notice: { color: 'var(--dsw-alias-label-secondary)', fontSize: 12, marginLeft: 4 },
@@ -176,28 +111,32 @@ window.__ModuleLoader__.load({
       return true;
     }
 
-    function CodeMirrorMarkdown({ content, onChange, onSelectionChange }) {
+    function CodeMirrorMarkdown({ content, onChange, onSelectionChange, onOpenPage }) {
       const host = useRef(null);
       const viewRef = useRef(null);
       const changeHandler = useRef(onChange);
       const selectionHandler = useRef(onSelectionChange);
+      const pageHandler = useRef(onOpenPage);
+      const synchronizing = useRef(false);
       useEffect(() => { changeHandler.current = onChange; }, [onChange]);
       useEffect(() => { selectionHandler.current = onSelectionChange; }, [onSelectionChange]);
+      useEffect(() => { pageHandler.current = onOpenPage; }, [onOpenPage]);
       useEffect(() => {
         if (!host.current) return undefined;
+        const text = EditorState.create({ doc: content }).doc;
+        const metadata = previewFrontmatter(text.toString());
         const state = EditorState.create({
-          doc: content,
+          doc: text,
+          selection: { anchor: metadata.range ? Math.min(metadata.range.to + 1, text.length) : 0 },
           extensions: [
             history(),
             keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
             drawSelection(),
             EditorView.lineWrapping,
-            markdown({ base: markdownLanguage }),
             syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-            vaultLivePreview,
-            vaultTheme,
+            vaultPreview(path => pageHandler.current(path)),
             EditorView.updateListener.of(update => {
-              if (update.docChanged) changeHandler.current(update.state.doc.toString());
+              if (update.docChanged && !synchronizing.current) changeHandler.current(update.state.doc.toString());
               if (update.docChanged || update.selectionSet) {
                 const range = update.state.selection.main;
                 selectionHandler.current(update.state.sliceDoc(range.from, range.to));
@@ -211,7 +150,17 @@ window.__ModuleLoader__.load({
       }, []);
       useEffect(() => {
         const view = viewRef.current;
-        if (view && view.state.doc.toString() !== content) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: content } });
+        if (view && view.state.doc.toString() !== content.replace(/\r\n?/g, '\n')) {
+          synchronizing.current = true;
+          try {
+            const text = view.state.toText(content), metadata = previewFrontmatter(text.toString());
+            view.dispatch({
+              changes: { from: 0, to: view.state.doc.length, insert: text },
+              selection: { anchor: metadata.range ? Math.min(metadata.range.to + 1, text.length) : 0 },
+              annotations: Transaction.addToHistory.of(false),
+            });
+          } finally { synchronizing.current = false; }
+        }
       }, [content]);
       return React.createElement('div', { ref: host, style: STYLE.content, 'aria-label': 'Markdown Live Preview 编辑器' });
     }
@@ -258,7 +207,7 @@ window.__ModuleLoader__.load({
         if (!path) return;
         const [read, links] = await Promise.all([vault.read({ path }), vault.links({ path })]);
         if (!read.ok) { setNotice('页面暂时无法读取。'); return; }
-        setSelected(path); setDocument(read.value); setDraft(read.value.content); setDirty(false); setBacklinks(links.ok ? links.value.incoming : []); setNotice('');
+        setSelected(path); setDocument(read.value); setDraft(read.value.content); setSelection(''); setDirty(false); setBacklinks(links.ok ? links.value.incoming : []); setNotice('');
       }, [vault]);
 
       useEffect(() => { void refresh(); }, []);
@@ -294,6 +243,7 @@ window.__ModuleLoader__.load({
       const selectPage = path => {
         if (!path || path === selected) return;
         if (dirty) { setNotice('当前页面有未保存修改，请先保存或放弃。'); return; }
+        if (!files.some(file => file.path === path)) { setNotice(`还没有这个页面：${path}`); return; }
         setQuery(''); setHits([]); setSelected(path);
       };
       const runSearch = async value => {
@@ -361,14 +311,10 @@ window.__ModuleLoader__.load({
                 React.createElement('button', { style: STYLE.quiet, disabled: dirty || !selection.trim(), onClick: () => bringIntoConversation(selection) }, '带入所选内容'),
                 React.createElement('button', { style: STYLE.quiet, disabled: !dirty || saving, onClick: () => { void save(); } }, saving ? '保存中…' : '保存'),
                 React.createElement('button', { style: STYLE.quiet, disabled: !dirty || saving, onClick: discard }, '放弃修改'),
+                React.createElement('span', { style: STYLE.notice }, `任务 ${document.tasks.filter(task => task.checked).length}/${document.tasks.length}`),
                 React.createElement('span', { style: STYLE.saveState }, dirty ? '有未保存修改' : `已同步 · ${document.revision}`),
               ),
-              React.createElement('div', { style: STYLE.meta },
-                React.createElement('div', { style: STYLE.metaItem }, React.createElement('span', { style: STYLE.metaLabel }, '类型'), React.createElement('span', { style: STYLE.metaValue }, document.type || '未标注')),
-                React.createElement('div', { style: STYLE.metaItem }, React.createElement('span', { style: STYLE.metaLabel }, '状态'), React.createElement('span', { style: STYLE.metaValue }, document.status || '未标注')),
-                React.createElement('div', { style: STYLE.metaItem }, React.createElement('span', { style: STYLE.metaLabel }, 'Task'), React.createElement('span', { style: STYLE.metaValue }, `${document.tasks.filter(task => task.checked).length}/${document.tasks.length}`)),
-              ),
-              React.createElement(CodeMirrorMarkdown, { key: document.path, content: draft, onChange: value => { setDraft(value); setDirty(true); setNotice('有未保存修改'); }, onSelectionChange: setSelection }),
+              React.createElement(CodeMirrorMarkdown, { key: document.path, content: draft, onChange: value => { setDraft(value); setDirty(value !== document.content.replace(/\r\n?/g, '\n')); setNotice(''); }, onSelectionChange: setSelection, onOpenPage: selectPage }),
               React.createElement('section', { style: STYLE.links },
                 document.links.map(path => React.createElement('button', { key: `out:${path}`, style: STYLE.link, onClick: () => selectFromResult(path) }, `→ ${path}`)),
                 backlinks.map(path => React.createElement('button', { key: `in:${path}`, style: STYLE.link, onClick: () => selectFromResult(path) }, `← ${path}`)),

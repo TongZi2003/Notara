@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, lstat, realpath, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { parseFrontmatter } from './frontmatter.js';
 
 const WIKI_LINK = /\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g;
 const HEADING = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
@@ -11,39 +12,6 @@ const comparePath = (left, right) => left < right ? -1 : left > right ? 1 : 0;
 
 function fail(code) {
   throw new Error(code);
-}
-
-function parseScalar(raw) {
-  const value = raw.trim();
-  if (value === '') return '';
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) return value.slice(1, -1);
-  if (value === 'null' || value === '~') return null;
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) return Number(value);
-  if (value.startsWith('[') && value.endsWith(']')) {
-    return value.slice(1, -1).split(',').map(item => item.trim()).filter(Boolean).map(parseScalar).map(item => {
-      if (typeof item !== 'string') fail('vault_frontmatter_invalid');
-      return item;
-    });
-  }
-  return value;
-}
-
-function parseFrontmatter(content) {
-  if (!content.startsWith('---\n') && !content.startsWith('---\r\n')) return { frontmatter: {}, body: content };
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
-  if (!match) fail('vault_frontmatter_invalid');
-  const frontmatter = {};
-  for (const line of match[1].split(/\r?\n/)) {
-    if (!line.trim() || line.trim().startsWith('#')) continue;
-    const separator = line.indexOf(':');
-    if (separator <= 0) fail('vault_frontmatter_invalid');
-    const key = line.slice(0, separator).trim();
-    if (!/^[A-Za-z0-9_-]+$/.test(key) || Object.hasOwn(frontmatter, key)) fail('vault_frontmatter_invalid');
-    frontmatter[key] = parseScalar(line.slice(separator + 1));
-  }
-  return { frontmatter, body: content.slice(match[0].length) };
 }
 
 function canonicalLink(raw) {
