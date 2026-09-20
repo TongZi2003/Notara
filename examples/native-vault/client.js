@@ -71,14 +71,49 @@ window.__ModuleLoader__.load({
       );
     }
 
+    const TAB_ID = '@notara/vault-native';
+
+    function TabBody() {
+      return React.createElement(App);
+    }
+
+    function TabTitle({ useTabInfo }) {
+      const { tab } = useTabInfo();
+      return React.createElement('span', null, tab.title);
+    }
+
     return {
-      inject: ['slots'],
+      inject: ['slots', 'sidebarRightTabs'],
       apply(ctx) {
         console.info('notara-vault-native: apply');
-        const slots = ctx.get('slots');
-        if (!slots) { console.error('notara-vault-native: slots unavailable'); return; }
-        if (!slots) return;
-        ctx.effect(() => slots.register({ name: 'root', priority: -20 }, () => React.createElement(App)));
+
+        ctx.effect(() => ctx.sidebarRightTabs.register({
+          id: TAB_ID,
+          kind: 'vault',
+          priority: 'extension',
+          title: () => 'Notara Vault',
+          guide: [{
+            order: 20,
+            title: () => '资产库',
+            description: () => '浏览和编辑 Markdown 资产',
+          }],
+        }), 'notara-vault-native: tab type');
+
+        ctx.effect(() => ctx.slots.inject(
+          'sidebar.right.pane.tab',
+          () => ctx.slots.register({
+            name: 'sidebar.right.pane.tab',
+            key: TAB_ID,
+          }, TabBody),
+        ), 'notara-vault-native: tab body');
+
+        ctx.effect(() => ctx.slots.inject(
+          'sidebar.right.pane.tab.title',
+          () => ctx.slots.register({
+            name: 'sidebar.right.pane.tab.title',
+            key: TAB_ID,
+          }, TabTitle),
+        ), 'notara-vault-native: tab title');
       },
     };
   },
