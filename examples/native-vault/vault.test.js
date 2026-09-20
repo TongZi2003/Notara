@@ -188,6 +188,8 @@ test('classifies common media assets and round-trips locators in Markdown embeds
   assert.equal(embedTarget('资料/讲义.pdf', { kind: 'pdf-page', page: 3 }), '![[资料/讲义.pdf#page=3]]');
   assert.deepEqual(parseMediaTarget('资料/讲义.pdf#page=3'), { path: '资料/讲义.pdf', locator: { kind: 'pdf-page', page: 3 } });
   assert.deepEqual(parseMediaTarget('视频/课堂.mp4#t=1200,4500'), { path: '视频/课堂.mp4', locator: { kind: 'video-time', startMs: 1200, endMs: 4500 } });
+  assert.deepEqual(parseMediaTarget('图片/图.png#rect=10,20,300,180'), { path: '图片/图.png', locator: { kind: 'image-region', rect: [10, 20, 300, 180] } });
+  assert.deepEqual(parseMediaTarget('页面/说明.html#anchor=目标段落'), { path: '页面/说明.html', locator: { kind: 'html-range', anchor: '目标段落' } });
 });
 
 test('lists, reads and revision-saves binary assets beside Markdown pages', async () => {
