@@ -128,3 +128,26 @@ test('declares strict client codecs for the native Remote contribution', async (
   assert.doesNotMatch(source, /mode: 'src-json'/);
   assert.match(source, /schema: strictJsonSchema/);
 });
+
+test('seeds missing built-in templates into _templates without indexing them as pages', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-vault-template-root-'));
+  const bundled = await mkdtemp(join(tmpdir(), 'notara-vault-template-bundle-'));
+  try {
+    await writeFile(join(bundled, 'lesson.md'), `---\nname: 备课页\ntype: lesson\n---\n# {{title}}\n`);
+    await writeFile(join(bundled, 'route.md'), `---\nname: 路线页\ntype: route\n---\n# {{title}}\n`);
+    const store = createVaultStore(root, bundled);
+    const templates = await store.templates();
+    assert.deepEqual(templates.map(item => [item.path, item.title, item.type]), [
+      ['lesson.md', '备课页', 'lesson'],
+      ['route.md', '路线页', 'route'],
+    ]);
+    assert.deepEqual((await store.list()).files, []);
+    await writeFile(join(root, '_templates', 'lesson.md'), `---\nname: 用户版备课页\ntype: lesson\n---\n# {{title}}\n`);
+    assert.equal((await store.templates()).find(item => item.path === 'lesson.md').title, '用户版备课页');
+  } finally {
+    await Promise.all([
+      rm(root, { recursive: true, force: true }),
+      rm(bundled, { recursive: true, force: true }),
+    ]);
+  }
+});

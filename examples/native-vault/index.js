@@ -1,5 +1,6 @@
 import { TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createVaultStore, safeRelativePath } from './vault.js';
 
 const REMOTE_METHOD_DESCRIPTOR = '@deepseek-ai/dsh-typert-protocol/remote-methods';
@@ -53,7 +54,7 @@ function valuesInput(value) {
 export class NotaraVaultRemote extends TypertRemoteService {
   constructor(ctx) {
     super(ctx, 'notaraVault');
-    this.store = createVaultStore(join(process.cwd(), 'vault'));
+    this.store = createVaultStore(join(process.cwd(), 'vault'), fileURLToPath(new URL('./templates/', import.meta.url)));
   }
 
   async list(input) {

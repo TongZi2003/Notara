@@ -218,7 +218,7 @@ async function rejectSymlinkPath(root, target) {
   }
 }
 
-export function createVaultStore(root) {
+export function createVaultStore(root, templateRoot) {
   const rootPath = resolve(root);
 
   async function ensureRoot() {
@@ -255,6 +255,32 @@ export function createVaultStore(root) {
   async function files(includeTemplates = false) {
     await ensureRoot();
     return walk(rootPath, '', includeTemplates);
+  }
+
+  async function seedTemplates() {
+    if (!templateRoot) return;
+    const bundledRoot = resolve(templateRoot);
+    let entries;
+    try { entries = await readdir(bundledRoot, { withFileTypes: true }); }
+    catch (error) { if (error instanceof Error && error.code === 'ENOENT') return; throw error; }
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.toLowerCase().endsWith('.md')) continue;
+      const name = safeRelativePath(entry.name), destination = await target(`_templates/${name}`, true);
+      try {
+        await lstat(destination);
+        continue;
+      } catch (error) {
+        if (!(error instanceof Error) || error.code !== 'ENOENT') throw error;
+      }
+      const content = await readFile(join(bundledRoot, entry.name), 'utf8');
+      const temporary = `${destination}.notara-template-${process.pid}-${randomUUID()}`;
+      try {
+        await writeFile(temporary, content, 'utf8');
+        await rename(temporary, destination);
+      } finally {
+        await unlink(temporary).catch(() => undefined);
+      }
+    }
   }
 
   async function readDocument(path) {
@@ -312,15 +338,20 @@ export function createVaultStore(root) {
       return { outgoing: document.links, incoming: backlinks.get(document.path) ?? [] };
     },
     async templates() {
+      await seedTemplates();
       const paths = await files(true), result = [];
       for (const path of paths.filter(item => item.startsWith('_templates/'))) {
         const content = await readFile(await target(path), 'utf8');
         const document = parseMarkdownDocument(path.slice('_templates/'.length), content, revisionFor(content));
-        result.push({ path: path.slice('_templates/'.length), title: document.title, content: document.content });
+        const title = typeof document.frontmatter.name === 'string' && document.frontmatter.name.trim()
+          ? document.frontmatter.name.trim()
+          : document.title;
+        result.push({ path: path.slice('_templates/'.length), title, type: document.type, content: document.content });
       }
       return result;
     },
     async createFromTemplate(templatePath, path, values, expectedRevision = null) {
+      await seedTemplates();
       const template = safeRelativePath(templatePath);
       if (!template.toLowerCase().endsWith('.md')) fail('vault_template_not_found');
       let content;

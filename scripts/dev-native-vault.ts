@@ -10,7 +10,6 @@ const root = await mkdtemp(join(tmpdir(), 'notara-vault-native-'));
 const home = join(root, 'home'), workspace = join(root, 'workspace');
 await Promise.all([mkdir(home, { recursive: true }), mkdir(workspace, { recursive: true })]);
 await Promise.all([
-  mkdir(join(workspace, 'vault/_templates'), { recursive: true }),
   mkdir(join(workspace, 'vault/路线'), { recursive: true }),
   mkdir(join(workspace, 'vault/知识'), { recursive: true }),
 ]);
@@ -43,18 +42,6 @@ tags: [math, vector]
 - [x] 看过一个例题
 
 [[路线/向量路线]]
-`),
-  writeFile(join(workspace, 'vault/_templates/lesson.md'), `---
-type: lesson
-status: draft
----
-# {{title}}
-
-创建日期：{{date}}
-
-## 目标
-- [ ] 写下这节课要解决的问题
-- [ ] 记录一个可验证的练习
 `),
 ]);
 await mkdir(join(workspace, 'node_modules/@notara'), { recursive: true });

@@ -3,6 +3,7 @@
   "version": "0.2.1",
   "type": "module",
   "main": "index.js",
+  "files": ["index.js", "client.js", "vault.js", "templates"],
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
