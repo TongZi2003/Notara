@@ -2,7 +2,7 @@ window.__ModuleLoader__.load({
   id: '@notara/vault-native',
   factory: (require) => {
     const React = require('react');
-    const { useCallback, useEffect, useMemo, useState } = React;
+    const { useCallback, useEffect, useMemo, useRef, useState } = React;
 
     // DSH's browser Remote API only mounts strict codecs. The Host remains the
     // authoritative validator for every field; this client codec checks the
@@ -51,6 +51,9 @@ window.__ModuleLoader__.load({
       heading2: { fontSize: 19, lineHeight: 1.4, margin: '24px 0 10px' },
       heading3: { fontSize: 16, lineHeight: 1.5, margin: '18px 0 8px' },
       paragraph: { margin: '8px 0', whiteSpace: 'pre-wrap' },
+      rawLine: { margin: '7px 0', padding: '3px 7px', borderLeft: '2px solid var(--dsw-alias-interactive-bg-active)', background: 'var(--dsw-alias-bg-layer-2)', whiteSpace: 'pre-wrap', outline: 'none', fontFamily: 'ui-monospace, SFMono-Regular, monospace', fontSize: 14 },
+      frontmatterLine: { margin: 0, color: 'var(--dsw-alias-label-secondary)', whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, SFMono-Regular, monospace', fontSize: 12 },
+      saveState: { color: 'var(--dsw-alias-label-secondary)', fontSize: 12, marginLeft: 'auto' },
       task: { display: 'flex', alignItems: 'flex-start', gap: 8, margin: '5px 0' },
       checkbox: { width: 16, height: 16, marginTop: 5, accentColor: 'var(--dsw-alias-interactive-bg-active)' },
       meta: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, marginTop: 20 },
@@ -84,24 +87,61 @@ window.__ModuleLoader__.load({
       );
     }
 
-    function MarkdownProjection({ document, onToggle, onOpen }) {
-      const lines = document.content.split(/\r?\n/);
-      return React.createElement('div', { style: STYLE.content }, lines.map((line, index) => {
-        const heading = line.match(/^(#{1,3})\s+(.+?)\s*#*\s*$/);
-        if (heading) return React.createElement(`h${heading[1].length}`, { key: index, style: STYLE[`heading${heading[1].length}`] }, heading[2]);
-        const task = isTask(line);
-        if (task) return React.createElement('label', { key: index, style: STYLE.task },
-          React.createElement('input', { type: 'checkbox', style: STYLE.checkbox, checked: task[2].toLowerCase() === 'x', onChange: event => onToggle(index + 1, event.target.checked) }),
-          React.createElement('span', null, task[3]),
-        );
-        if (!line.trim() || line.startsWith('---')) return React.createElement('div', { key: index, style: { height: 8 } });
-        const linked = wikiPath(line);
-        return React.createElement('p', { key: index, style: STYLE.paragraph }, linked
-          ? line.split(/(\[\[[^\]]+\]\])/g).map((part, partIndex) => part.startsWith('[[')
-            ? React.createElement('button', { key: partIndex, style: STYLE.link, onClick: () => onOpen(wikiPath(part)) }, part)
-            : part)
-          : line);
-      }));
+    function PreviewLine({ line, index, onToggle, onOpen }) {
+      const heading = line.match(/^(#{1,3})\s+(.+?)\s*#*\s*$/);
+      if (heading) return React.createElement(`h${heading[1].length}`, { style: STYLE[`heading${heading[1].length}`] }, heading[2]);
+      const task = isTask(line);
+      if (task) return React.createElement('label', { style: STYLE.task },
+        React.createElement('input', { type: 'checkbox', style: STYLE.checkbox, checked: task[2].toLowerCase() === 'x', onChange: event => onToggle(index, event.target.checked) }),
+        React.createElement('span', null, task[3]),
+      );
+      if (!line.trim()) return React.createElement('div', { style: { height: 8 } });
+      if (line.startsWith('---') || /^\w[\w-]*:\s*/.test(line)) return React.createElement('div', { style: STYLE.frontmatterLine }, line);
+      const linked = wikiPath(line);
+      return React.createElement('p', { style: STYLE.paragraph }, linked
+        ? line.split(/(\[\[[^\]]+\]\])/g).map((part, partIndex) => part.startsWith('[[')
+          ? React.createElement('button', { key: partIndex, style: STYLE.link, onClick: () => onOpen(wikiPath(part)) }, part)
+          : part)
+        : line);
+    }
+
+    function EditableLine({ value, onChange, onBlur }) {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (ref.current && ref.current.textContent !== value) ref.current.textContent = value;
+      }, [value]);
+      return React.createElement('div', {
+        ref,
+        contentEditable: true,
+        suppressContentEditableWarning: true,
+        style: STYLE.rawLine,
+        onInput: event => onChange(event.currentTarget.textContent ?? ''),
+        onBlur,
+        role: 'textbox',
+        'aria-label': 'Markdown 行编辑器',
+      }, value);
+    }
+
+    function LiveMarkdown({ content, onChange, onOpen }) {
+      const [lines, setLines] = useState(() => content.split(/\r?\n/));
+      const [activeLine, setActiveLine] = useState(-1);
+      useEffect(() => {
+        const next = content.split(/\r?\n/);
+        if (next.join('\n') !== lines.join('\n')) setLines(next);
+      }, [content]);
+      const updateLine = (index, value) => {
+        const next = [...lines];
+        next[index] = value;
+        setLines(next);
+        onChange(next.join('\n'));
+      };
+      const toggleLine = (index, checked) => {
+        const current = lines[index] ?? '';
+        updateLine(index, current.replace(/\[([ xX])\]/, checked ? '[x]' : '[ ]'));
+      };
+      return React.createElement('div', { style: STYLE.content }, lines.map((line, index) => activeLine === index
+        ? React.createElement(EditableLine, { key: index, value: line, onChange: value => updateLine(index, value), onBlur: () => setActiveLine(-1) })
+        : React.createElement('div', { key: index, onClick: () => setActiveLine(index), title: '点击编辑这一行' }, React.createElement(PreviewLine, { line, index, onToggle: toggleLine, onOpen }))));
     }
 
     function App({ ctx }) {
@@ -110,6 +150,9 @@ window.__ModuleLoader__.load({
       const [tree, setTree] = useState({ name: '', children: [] });
       const [selected, setSelected] = useState('');
       const [document, setDocument] = useState(undefined);
+      const [draft, setDraft] = useState('');
+      const [dirty, setDirty] = useState(false);
+      const [saving, setSaving] = useState(false);
       const [backlinks, setBacklinks] = useState([]);
       const [templates, setTemplates] = useState([]);
       const [query, setQuery] = useState('');
@@ -132,7 +175,7 @@ window.__ModuleLoader__.load({
         if (!path) return;
         const [read, links] = await Promise.all([vault.read({ path }), vault.links({ path })]);
         if (!read.ok) { setNotice('页面暂时无法读取。'); return; }
-        setSelected(path); setDocument(read.value); setBacklinks(links.ok ? links.value.incoming : []); setNotice('');
+        setSelected(path); setDocument(read.value); setDraft(read.value.content); setDirty(false); setBacklinks(links.ok ? links.value.incoming : []); setNotice('');
       }, [vault]);
 
       useEffect(() => { void refresh(); }, []);
@@ -140,26 +183,39 @@ window.__ModuleLoader__.load({
       useEffect(() => { void vault.templates({}).then(result => { if (result.ok) { setTemplates(result.value); if (!templatePath) setTemplatePath(result.value[0]?.path || ''); } }); }, []);
 
       const shownFiles = useMemo(() => query.trim() ? hits : files, [files, hits, query]);
+      const selectPage = path => {
+        if (!path || path === selected) return;
+        if (dirty) { setNotice('当前页面有未保存修改，请先保存或放弃。'); return; }
+        setQuery(''); setHits([]); setSelected(path);
+      };
       const runSearch = async value => {
         setQuery(value);
         if (!value.trim()) { setHits([]); return; }
         const result = await vault.search({ query: value, limit: 50 });
         if (result.ok) setHits(result.value);
       };
-      const toggle = async (line, checked) => {
-        if (!document) return;
-        const result = await vault.toggleTask({ path: document.path, line, checked, expectedRevision: document.revision });
-        if (result.ok) { setDocument(result.value); await refresh(result.value.path); }
-        else setNotice('页面已经被别人改过，请重新打开后再试。');
+      const save = async () => {
+        if (!document || !dirty || saving) return;
+        setSaving(true);
+        try {
+          const result = await vault.save({ path: document.path, content: draft, expectedRevision: document.revision });
+          if (result.ok) {
+            setDocument(result.value); setDraft(result.value.content); setDirty(false); setNotice('已保存');
+            await refresh(result.value.path);
+          } else setNotice('页面已经被别人改过，请刷新后决定保留哪一版。');
+        } catch { setNotice('保存失败，当前修改仍保留在页面中。'); }
+        setSaving(false);
       };
+      const discard = () => { if (document) { setDraft(document.content); setDirty(false); setNotice('已放弃未保存修改'); } };
       const create = async event => {
         event.preventDefault();
+        if (dirty) { setNotice('当前页面有未保存修改，请先保存或放弃。'); return; }
         if (!templatePath || !newPath.trim()) return;
         const result = await vault.createFromTemplate({ templatePath, path: newPath.trim(), values: { title: newTitle.trim() || '新页面', date: new Date().toISOString().slice(0, 10) }, expectedRevision: null });
         if (result.ok) { setNewPath('路线/新页面.md'); await refresh(result.value.path); setSelected(result.value.path); }
         else setNotice('创建失败：目标页面可能已经存在。');
       };
-      const selectFromResult = path => { setQuery(''); setHits([]); setSelected(path); };
+      const selectFromResult = path => selectPage(path);
 
       return React.createElement('div', { style: STYLE.page },
         React.createElement('header', { style: STYLE.top },
@@ -171,7 +227,7 @@ window.__ModuleLoader__.load({
           React.createElement('aside', { style: STYLE.rail },
             React.createElement('div', { style: STYLE.section }, 'Markdown Vault'),
             React.createElement('input', { style: STYLE.search, placeholder: '搜索标题、内容或路径…', value: query, onChange: event => { void runSearch(event.target.value); } }),
-            query.trim() ? shownFiles.map(item => React.createElement('button', { key: item.path, style: buttonStyle(item.path === selected), onClick: () => selectFromResult(item.path) }, item.path)) : React.createElement(Tree, { node: tree, selected, onSelect: setSelected }),
+            query.trim() ? shownFiles.map(item => React.createElement('button', { key: item.path, style: buttonStyle(item.path === selected), onClick: () => selectFromResult(item.path) }, item.path)) : React.createElement(Tree, { node: tree, selected, onSelect: selectPage }),
             React.createElement('div', { style: STYLE.template },
               React.createElement('div', { style: STYLE.section }, '从模板新建'),
               React.createElement('select', { style: STYLE.templateInput, value: templatePath, onChange: event => setTemplatePath(event.target.value) }, templates.map(item => React.createElement('option', { key: item.path, value: item.path }, item.title || item.path))),
@@ -186,14 +242,16 @@ window.__ModuleLoader__.load({
               React.createElement('div', { style: STYLE.path }, document.path),
               React.createElement('div', { style: STYLE.toolbar },
                 React.createElement('button', { style: STYLE.quiet, onClick: () => { void refresh(document.path); void open(document.path); } }, '刷新'),
-                React.createElement('span', { style: STYLE.notice }, `revision ${document.revision}`),
+                React.createElement('button', { style: STYLE.quiet, disabled: !dirty || saving, onClick: () => { void save(); } }, saving ? '保存中…' : '保存'),
+                React.createElement('button', { style: STYLE.quiet, disabled: !dirty || saving, onClick: discard }, '放弃修改'),
+                React.createElement('span', { style: STYLE.saveState }, dirty ? '有未保存修改' : `已同步 · ${document.revision}`),
               ),
               React.createElement('div', { style: STYLE.meta },
                 React.createElement('div', { style: STYLE.metaItem }, React.createElement('span', { style: STYLE.metaLabel }, '类型'), React.createElement('span', { style: STYLE.metaValue }, document.type || '未标注')),
                 React.createElement('div', { style: STYLE.metaItem }, React.createElement('span', { style: STYLE.metaLabel }, '状态'), React.createElement('span', { style: STYLE.metaValue }, document.status || '未标注')),
                 React.createElement('div', { style: STYLE.metaItem }, React.createElement('span', { style: STYLE.metaLabel }, 'Task'), React.createElement('span', { style: STYLE.metaValue }, `${document.tasks.filter(task => task.checked).length}/${document.tasks.length}`)),
               ),
-              React.createElement(MarkdownProjection, { document, onToggle: toggle, onOpen: selectFromResult }),
+              React.createElement(LiveMarkdown, { content: draft, onChange: value => { setDraft(value); setDirty(true); setNotice('有未保存修改'); }, onOpen: selectFromResult }),
               React.createElement('section', { style: STYLE.links },
                 document.links.map(path => React.createElement('button', { key: `out:${path}`, style: STYLE.link, onClick: () => selectFromResult(path) }, `→ ${path}`)),
                 backlinks.map(path => React.createElement('button', { key: `in:${path}`, style: STYLE.link, onClick: () => selectFromResult(path) }, `← ${path}`)),

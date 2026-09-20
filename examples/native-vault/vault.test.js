@@ -151,3 +151,11 @@ test('seeds missing built-in templates into _templates without indexing them as 
     ]);
   }
 });
+
+test('uses an inline Live Preview editor instead of a split textarea preview', async () => {
+  const source = await readFile(new URL('./client.js', import.meta.url), 'utf8');
+  assert.match(source, /function LiveMarkdown/);
+  assert.match(source, /contentEditable: true/);
+  assert.doesNotMatch(source, /<textarea/);
+  assert.doesNotMatch(source, /Live preview/);
+});
