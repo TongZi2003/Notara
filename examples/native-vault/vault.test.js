@@ -160,3 +160,19 @@ test('uses an inline Live Preview editor instead of a split textarea preview', a
   assert.doesNotMatch(source, /contentEditable/);
   assert.doesNotMatch(source, /<textarea/);
 });
+
+test('bridges vault pages and selections into the native conversation reference codec', async () => {
+  const source = await readFile(new URL('./client-source.ts', import.meta.url), 'utf8');
+  assert.match(source, /const VAULT_REFERENCE = 'notara-vault'/);
+  assert.match(source, /insertReference\(/);
+  assert.match(source, /async serialize\(ref\)/);
+  assert.match(source, /openView\('chat', ''\)/);
+  assert.match(source, /selection/);
+});
+
+test('refreshes external vault changes without overwriting an unsaved editor draft', async () => {
+  const source = await readFile(new URL('./client-source.ts', import.meta.url), 'utf8');
+  assert.match(source, /setInterval\(syncExternal/);
+  assert.match(source, /当前页面在外部发生变化/);
+  assert.match(source, /页面已从文件刷新/);
+});

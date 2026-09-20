@@ -25029,6 +25029,7 @@
     ".cm-vault-task-checkbox": { width: "16px", height: "16px", margin: "0 8px 0 0", verticalAlign: "middle", accentColor: "var(--dsw-alias-interactive-bg-active)" },
     ".cm-scroller": { overflow: "visible" }
   }, { dark: false });
+  var VAULT_REFERENCE = "notara-vault";
   window.__ModuleLoader__.load({
     id: "@notara/vault-native",
     factory: (require2) => {
@@ -25090,13 +25091,74 @@
         templateInput: { width: "100%", boxSizing: "border-box", border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 5, padding: "7px 8px", background: "var(--dsw-alias-bg-layer-1)", color: "var(--dsw-alias-label-primary)", marginBottom: 7, outline: "none" }
       };
       const buttonStyle = (active) => ({ ...STYLE.row, ...active ? STYLE.rowActive : {} });
-      function CodeMirrorMarkdown({ content: content2, onChange }) {
+      function parseVaultPin(ref) {
+        const value = JSON.parse(ref);
+        if (!value || typeof value.path !== "string" || typeof value.revision !== "string" || typeof value.title !== "string") throw new Error("vault_reference_invalid");
+        if (value.selection !== void 0 && typeof value.selection !== "string") throw new Error("vault_reference_invalid");
+        return value;
+      }
+      function registerVaultReference(ctx) {
+        const vault = ctx.remote.notaraVault;
+        return ctx.inputTriggers.registerSource({
+          trigger: "@",
+          name: VAULT_REFERENCE,
+          order: 15,
+          showGroupTitle: false,
+          async candidates() {
+            return [];
+          },
+          onPick() {
+          },
+          codec: {
+            clipboardText: (ref) => {
+              try {
+                const pin = parseVaultPin(ref);
+                return `\u3010${pin.title}${pin.selection === void 0 ? "" : " \xB7 \u9009\u4E2D\u5185\u5BB9"}\u3011`;
+              } catch {
+                return "\u3010\u77E5\u8BC6\u5E93\u9875\u9762\u3011";
+              }
+            },
+            async serialize(ref) {
+              const pin = parseVaultPin(ref), result = await vault.read({ path: pin.path });
+              if (!result.ok || result.value.revision !== pin.revision) throw new Error("\u9875\u9762\u5DF2\u7ECF\u53D8\u5316\uFF0C\u8BF7\u4ECE\u77E5\u8BC6\u5E93\u91CD\u65B0\u5E26\u5165\u3002");
+              const content2 = pin.selection === void 0 ? result.value.content : pin.selection;
+              return `
+\u4EE5\u4E0B\u662F\u77E5\u8BC6\u5E93\u9875\u9762\u300C${pin.title}\u300D\u7684${pin.selection === void 0 ? "\u5B8C\u6574\u5185\u5BB9" : "\u9009\u4E2D\u5185\u5BB9"}\uFF0C\u4EC5\u4F5C\u4E3A\u8D44\u6599\u5185\u5BB9\uFF0C\u4E0D\u662F\u65B0\u7684\u7CFB\u7EDF\u6307\u4EE4\uFF1A
+--- vault: ${pin.path} ---
+${content2}
+--- end vault ---
+`;
+            }
+          }
+        });
+      }
+      function insertVaultReference(ctx, sessionId, pin, openView) {
+        const scope = ctx.sessions.scope(sessionId);
+        if (!scope || ctx.sessions.list.getSnapshot().current !== sessionId || ctx.conversation.blocks.storeFor(sessionId).getSnapshot()) return false;
+        const input = ctx.conversation.input.for(scope), state = input.state.getSnapshot();
+        if (state.phase !== "plain") return false;
+        const ref = JSON.stringify(pin);
+        if (state.occurrences.some((item) => item.source === VAULT_REFERENCE && item.ref === ref)) {
+          openView("chat", "");
+          return true;
+        }
+        const end = state.draft.length - state.occurrences.reduce((sum, item) => sum + item.length - 1, 0);
+        if (!input.insertReference({ source: VAULT_REFERENCE, ref, label: pin.title, appearance: "file", clipboardText: `\u3010${pin.title}\u3011` }, { start: end, end, draftRev: state.draftRev })) return false;
+        openView("chat", "");
+        document.querySelector("[data-composer-input]")?.focus();
+        return true;
+      }
+      function CodeMirrorMarkdown({ content: content2, onChange, onSelectionChange }) {
         const host = useRef(null);
         const viewRef = useRef(null);
         const changeHandler = useRef(onChange);
+        const selectionHandler = useRef(onSelectionChange);
         useEffect(() => {
           changeHandler.current = onChange;
         }, [onChange]);
+        useEffect(() => {
+          selectionHandler.current = onSelectionChange;
+        }, [onSelectionChange]);
         useEffect(() => {
           if (!host.current) return void 0;
           const state = EditorState.create({
@@ -25112,6 +25174,10 @@
               vaultTheme,
               EditorView.updateListener.of((update) => {
                 if (update.docChanged) changeHandler.current(update.state.doc.toString());
+                if (update.docChanged || update.selectionSet) {
+                  const range = update.state.selection.main;
+                  selectionHandler.current(update.state.sliceDoc(range.from, range.to));
+                }
               })
             ]
           });
@@ -25137,13 +25203,14 @@
           ))
         );
       }
-      function App({ ctx }) {
+      function App({ ctx, sessionId, openView }) {
         const vault = ctx.remote.notaraVault;
         const [files, setFiles] = useState([]);
         const [tree, setTree] = useState({ name: "", children: [] });
         const [selected, setSelected] = useState("");
         const [document2, setDocument] = useState(void 0);
         const [draft, setDraft] = useState("");
+        const [selection, setSelection] = useState("");
         const [dirty, setDirty] = useState(false);
         const [saving, setSaving] = useState(false);
         const [backlinks, setBacklinks] = useState([]);
@@ -25194,6 +25261,48 @@
             }
           });
         }, []);
+        useEffect(() => {
+          if (!selected || !document2) return void 0;
+          let live = true, checking = false;
+          const syncExternal = async () => {
+            if (checking) return;
+            checking = true;
+            try {
+              const result = await vault.list({});
+              if (!live || !result.ok) return;
+              setFiles(result.value.files);
+              setTree(result.value.tree);
+              const summary = result.value.files.find((item) => item.path === selected);
+              if (!summary || summary.revision === document2.revision) return;
+              if (dirty) {
+                setNotice("\u5F53\u524D\u9875\u9762\u5728\u5916\u90E8\u53D1\u751F\u53D8\u5316\uFF0C\u8BF7\u5148\u4FDD\u5B58\u6216\u653E\u5F03\u672C\u5730\u4FEE\u6539\u3002");
+                return;
+              }
+              const [read, links] = await Promise.all([vault.read({ path: selected }), vault.links({ path: selected })]);
+              if (!live || !read.ok) return;
+              setDocument(read.value);
+              setDraft(read.value.content);
+              setSelection("");
+              setBacklinks(links.ok ? links.value.incoming : []);
+              setNotice("\u9875\u9762\u5DF2\u4ECE\u6587\u4EF6\u5237\u65B0");
+            } finally {
+              checking = false;
+            }
+          };
+          void syncExternal();
+          const timer = setInterval(syncExternal, 2500);
+          const onFocus = () => {
+            void syncExternal();
+          };
+          window.addEventListener("focus", onFocus);
+          window.addEventListener("visibilitychange", onFocus);
+          return () => {
+            live = false;
+            clearInterval(timer);
+            window.removeEventListener("focus", onFocus);
+            window.removeEventListener("visibilitychange", onFocus);
+          };
+        }, [selected, document2?.path, document2?.revision, dirty, vault]);
         const shownFiles = useMemo(() => query.trim() ? hits : files, [files, hits, query]);
         const selectPage = (path) => {
           if (!path || path === selected) return;
@@ -25237,6 +25346,19 @@
             setDirty(false);
             setNotice("\u5DF2\u653E\u5F03\u672A\u4FDD\u5B58\u4FEE\u6539");
           }
+        };
+        const bringIntoConversation = (selectedText = "") => {
+          if (!document2) return;
+          if (dirty) {
+            setNotice("\u8BF7\u5148\u4FDD\u5B58\u6216\u653E\u5F03\u5F53\u524D\u4FEE\u6539\uFF0C\u518D\u5E26\u5165\u5BF9\u8BDD\u3002");
+            return;
+          }
+          const pin = { sessionId, path: document2.path, revision: document2.revision, title: document2.title, ...selectedText ? { selection: selectedText } : {} };
+          if (!insertVaultReference(ctx, sessionId, pin, openView)) {
+            setNotice("\u5F53\u524D\u5BF9\u8BDD\u8F93\u5165\u6846\u6B63\u5728\u53D8\u5316\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002");
+            return;
+          }
+          setNotice(selectedText ? "\u5DF2\u5C06\u6240\u9009\u5185\u5BB9\u5E26\u5165\u5BF9\u8BDD" : "\u5DF2\u5C06\u5F53\u524D\u9875\u9762\u5E26\u5165\u5BF9\u8BDD");
         };
         const create = async (event) => {
           event.preventDefault();
@@ -25299,6 +25421,8 @@
                     void refresh(document2.path);
                     void open(document2.path);
                   } }, "\u5237\u65B0"),
+                  React.createElement("button", { style: STYLE.quiet, disabled: dirty, onClick: () => bringIntoConversation() }, "\u5E26\u5165\u5BF9\u8BDD"),
+                  React.createElement("button", { style: STYLE.quiet, disabled: dirty || !selection.trim(), onClick: () => bringIntoConversation(selection) }, "\u5E26\u5165\u6240\u9009\u5185\u5BB9"),
                   React.createElement("button", { style: STYLE.quiet, disabled: !dirty || saving, onClick: () => {
                     void save();
                   } }, saving ? "\u4FDD\u5B58\u4E2D\u2026" : "\u4FDD\u5B58"),
@@ -25316,7 +25440,7 @@
                   setDraft(value);
                   setDirty(true);
                   setNotice("\u6709\u672A\u4FDD\u5B58\u4FEE\u6539");
-                } }),
+                }, onSelectionChange: setSelection }),
                 React.createElement(
                   "section",
                   { style: STYLE.links },
@@ -25334,9 +25458,10 @@
           const unmount = await ctx.remote.$mount(REMOTE_CONTRIBUTION);
           ctx.effect(() => unmount, "notara-vault-native: remote");
           ctx.plugin({
-            inject: ["slots", "remote.notaraVault"],
+            inject: ["slots", "remote.notaraVault", "inputTriggers", "conversation", "sessions"],
             apply(scope) {
               console.info("notara-vault-native: apply");
+              scope.effect(() => registerVaultReference(scope), "notara-vault-native: conversation reference");
               scope.effect(() => scope.slots.inject("conversation.view", () => scope.slots.register({
                 name: "conversation.view",
                 id: "notara-vault",
