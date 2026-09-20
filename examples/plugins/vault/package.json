@@ -1,0 +1,19 @@
+{
+  "name": "@notara/vault",
+  "version": "0.1.0",
+  "description": "Notara 的 Markdown 资产层与文件引用 Skill。",
+  "files": ["skill.md", "README.md"],
+  "notara": {
+    "apiVersion": 1,
+    "title": "资产库",
+    "description": "在 Harness 画布中浏览和引用 Markdown 资产。",
+    "skills": [
+      {
+        "id": "vault-authoring",
+        "title": "整理 Markdown 资产",
+        "description": "在用户指定的资产文件内做小范围、可审阅的 Markdown 修改。",
+        "entry": "skill.md"
+      }
+    ]
+  }
+}

@@ -19,3 +19,4 @@ declare module '*/teaching.css' {}
 declare module '*/classroom.css' {}
 declare module '*/entity-reference.css' {}
 declare module '*/rounds-panel.css' {}
+declare module '*/vault.css' {}

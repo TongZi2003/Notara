@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { VIEWS, dockView, leaves, removeView, resizeTree, readLayout, geometry, type SplitTree } from '../../packages/client/src/classroom/workspace-layout.ts';
-describe('three independent workspace views', () => {
+describe('independent workspace views', () => {
   it('keeps experimental rounds out of the default view registry', () => {
-    expect(VIEWS).toEqual(['chat', 'thoughts', 'materials']);
+    expect(VIEWS).toEqual(['chat', 'thoughts', 'materials', 'vault']);
   });
   it('moves every view to every edge without duplication or losing its siblings', () => {
     for (const moving of VIEWS) for (const target of VIEWS) for (const edge of ['left', 'right', 'top', 'bottom'] as const) {
-      const seed: SplitTree = { axis: 'x', ratio: .5, a: 'chat', b: { axis: 'y', ratio: .5, a: 'thoughts', b: 'materials' } };
+      const seed: SplitTree = { axis: 'x', ratio: .5, a: 'chat', b: { axis: 'y', ratio: .5, a: 'thoughts', b: { axis: 'x', ratio: .5, a: 'materials', b: 'vault' } } };
       const tree = dockView(seed, moving, target, edge);
       expect(leaves(tree).sort()).toEqual([...VIEWS].sort());
       const { panes } = geometry(tree, { x: 0, y: 0, width: 1200, height: 800 });
