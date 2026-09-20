@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+await import('./build-native-vault.ts');
+
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const root = await mkdtemp(join(tmpdir(), 'notara-vault-native-'));
 const home = join(root, 'home'), workspace = join(root, 'workspace');

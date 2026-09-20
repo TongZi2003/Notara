@@ -8,10 +8,10 @@
 
 - `examples/native-vault/vault.js`：新增 Markdown frontmatter、标题、heading、Wiki link、Task 解析；路径安全校验；文件树、全文搜索、frontmatter 查询、反向链接和 revision hash；模板投影、模板实例化、Task 切换和 revision CAS 原子写入。
 - `examples/native-vault/index.js`：新增独立 `notaraVault` Host Remote。Vault 根目录固定为当前 DSH workspace 下的 `vault/`；`_templates/` 不进入普通文件树和搜索；Remote 边界手动执行输入校验。插件不依赖旧 StudyForge Host、RecordStore 或旧 Notara 代码。
-- `examples/native-vault/client.js`：通过 DSH 原生 `conversation.view` 注册「资产」，从 Host 读取真实 Markdown 文件；提供文件树、搜索、页面投影、双向链接、Task 切换和模板新建。没有 textarea、Live Preview 或对话带入入口。
+- `examples/native-vault/client.js`：通过 DSH 原生 `conversation.view` 注册「资产」，从 Host 读取真实 Markdown 文件；提供文件树、搜索、页面投影、双向链接、Task 切换、模板新建和 CodeMirror Live Preview 编辑器。对话带入仍未接入。
 - `scripts/dev-native-vault.ts`：隔离 workspace 预置两页 Markdown 和一个模板，启动全新的 DSH Web 实例。
 - `examples/native-vault/templates/`：新增 `lesson.md`、`source.md`、`card.md` 和 `route.md` 四个文件模板；模板本身使用 frontmatter 的 `name/type` 描述，生成结果仍是普通 Markdown 页面。
-- `examples/native-vault/package.json`：插件版本升至 `0.2.1`，声明 Remote 协议依赖和模板文件。
+- `examples/native-vault/package.json`：插件版本升至 `0.2.2`，声明 Remote 协议依赖和模板文件。
 
 ## 验证
 
@@ -34,5 +34,5 @@
 
 - 5. Live Preview 编辑器：后续单独设计编辑模型、渲染和光标/选区同步。
 - 6. DSH 对话桥接：后续单独设计资产引用、对话带入、Agent 修改后的刷新和权限边界。
-- 5 已完成第一版：页面内容按行做融合式投影，默认显示渲染结果，点击一行才切换为 `contentEditable` Markdown 源码；保存仍走当前页面 revision CAS。没有再引入分栏 textarea 预览。
+- 5 已完成 CodeMirror 版本：使用 Lezer Markdown 语法树、光标感知装饰、标题/Task/Wiki 链接/frontmatter/代码围栏样式、Task checkbox widget、撤销重做和原文保存；客户端 bundle 由 `scripts/build-native-vault.ts` 生成。
 - 6 仍未实现：对话引用、选区带入和 Agent 修改后的刷新继续单独设计。

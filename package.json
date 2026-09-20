@@ -16,6 +16,7 @@
     "typecheck": "tsc --build",
     "check:contracts": "tsx scripts/check-contracts.ts",
     "build": "tsx scripts/build.ts",
+    "build:native-vault": "tsx scripts/build-native-vault.ts",
     "generate:remotes": "tsx scripts/generate-remotes.ts",
     "dev:isolated": "tsx scripts/dev-isolated.ts",
     "trial": "tsx scripts/trial.ts",
@@ -26,6 +27,12 @@
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "devDependencies": {
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/language": "6.12.4",
+    "@codemirror/state": "6.7.5",
+    "@codemirror/view": "6.43.12",
+    "@lezer/highlight": "1.2.3",
     "@deepseek-ai/cordis": "4.0.2",
     "@deepseek-ai/cordis-plugin-group": "1.0.2",
     "@deepseek-ai/cordis-plugin-include": "1.0.7",

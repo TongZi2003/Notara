@@ -123,7 +123,7 @@ test('stores Markdown as the only source of truth and uses revision guarded atom
 });
 
 test('declares strict client codecs for the native Remote contribution', async () => {
-  const source = await readFile(new URL('./client.js', import.meta.url), 'utf8');
+  const source = await readFile(new URL('./client-source.ts', import.meta.url), 'utf8');
   assert.match(source, /mode: 'strict'/);
   assert.doesNotMatch(source, /mode: 'src-json'/);
   assert.match(source, /schema: strictJsonSchema/);
@@ -153,9 +153,10 @@ test('seeds missing built-in templates into _templates without indexing them as 
 });
 
 test('uses an inline Live Preview editor instead of a split textarea preview', async () => {
-  const source = await readFile(new URL('./client.js', import.meta.url), 'utf8');
-  assert.match(source, /function LiveMarkdown/);
-  assert.match(source, /contentEditable: true/);
+  const source = await readFile(new URL('./client-source.ts', import.meta.url), 'utf8');
+  assert.match(source, /CodeMirrorMarkdown/);
+  assert.match(source, /EditorState\.create/);
+  assert.match(source, /@codemirror/);
+  assert.doesNotMatch(source, /contentEditable/);
   assert.doesNotMatch(source, /<textarea/);
-  assert.doesNotMatch(source, /Live preview/);
 });
