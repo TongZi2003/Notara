@@ -5,6 +5,7 @@ import { createVaultStore, safeRelativePath } from './vault.js';
 
 const REMOTE_METHOD_DESCRIPTOR = '@deepseek-ai/dsh-typert-protocol/remote-methods';
 const MAX_CONTENT_LENGTH = 2_000_000;
+const MAX_ASSET_BASE64_LENGTH = 70_000_000;
 
 function fail(code) {
   throw new Error(code);
@@ -67,10 +68,20 @@ export class NotaraVaultRemote extends TypertRemoteService {
     return this.store.read(pathInput(data.path));
   }
 
+  async readAsset(input) {
+    const data = exactInput(input, ['path']);
+    return this.store.readAsset(pathInput(data.path));
+  }
+
   async save(input) {
     const data = exactInput(input, ['path', 'content', 'expectedRevision']);
     const content = stringInput(data.content, 'content', MAX_CONTENT_LENGTH);
     return this.store.save(pathInput(data.path), content, expectedRevision(data.expectedRevision));
+  }
+
+  async saveAsset(input) {
+    const data = exactInput(input, ['path', 'dataBase64', 'mime', 'expectedRevision']);
+    return this.store.saveAsset(pathInput(data.path), stringInput(data.dataBase64, 'asset_data', MAX_ASSET_BASE64_LENGTH), stringInput(data.mime, 'mime', 200), expectedRevision(data.expectedRevision));
   }
 
   async search(input) {
@@ -120,7 +131,7 @@ Object.defineProperty(NotaraVaultRemote.prototype, REMOTE_METHOD_DESCRIPTOR, {
   configurable: true,
   value: Object.freeze({
     version: 1,
-    methods: Object.freeze(['list', 'read', 'save', 'search', 'query', 'links', 'templates', 'createFromTemplate', 'tasks', 'toggleTask'].map(method => Object.freeze({ method, invocation: Object.freeze({ kind: 'direct' }) }))),
+    methods: Object.freeze(['list', 'read', 'readAsset', 'save', 'saveAsset', 'search', 'query', 'links', 'templates', 'createFromTemplate', 'tasks', 'toggleTask'].map(method => Object.freeze({ method, invocation: Object.freeze({ kind: 'direct' }) }))),
   }),
 });
 

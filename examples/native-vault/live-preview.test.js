@@ -4,10 +4,10 @@ import { EditorSelection, EditorState } from '@codemirror/state';
 
 const preview = await import('./live-preview.js');
 const source = '---\ntype: note\nstatus: draft\ntags: [math, vector]\n---\n# 向量\n\n[[路线/向量路线]]\n';
-function state(doc = source, onOpenPage = () => {}) {
+function state(doc = source, onOpenPage = () => {}, assets = {}) {
   assert.equal(typeof preview.vaultPreview, 'function', 'semantic Live Preview must be installed');
   const text = EditorState.create({ doc }).doc;
-  return EditorState.create({ doc: text, selection: { anchor: text.length }, extensions: preview.vaultPreview(onOpenPage) });
+  return EditorState.create({ doc: text, selection: { anchor: text.length }, extensions: preview.vaultPreview(onOpenPage, assets) });
 }
 function decorations(value) {
   const result = [];
@@ -74,4 +74,12 @@ test('task widget toggles the Markdown marker and rebinds positions after text m
   assert.equal(widget.eq(moved), false);
   moved.activate({ state: value, dispatch: transaction => { value = value.update(transaction).state; } });
   assert.equal(value.doc.toString(), '前言\n\n- [ ] 学习\n');
+});
+
+test('media embeds become typed preview widgets and preserve PDF page locators', () => {
+  const asset = { path: '资料/讲义.pdf', assetKind: 'pdf', mime: 'application/pdf', revision: 'r1', title: '讲义', dataUrl: 'data:application/pdf;base64,AA==' };
+  const value = state('![[资料/讲义.pdf#page=3]]\n', () => {}, { [asset.path]: asset });
+  const widget = decorations(value).find(item => item.widget?.kind === 'media-embed')?.widget;
+  assert.equal(widget.asset, asset);
+  assert.deepEqual(widget.locator, { kind: 'pdf-page', page: 3 });
 });

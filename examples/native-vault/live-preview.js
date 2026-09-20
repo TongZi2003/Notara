@@ -3,11 +3,20 @@ import { syntaxTree } from '@codemirror/language';
 import { EditorState, Facet, StateField } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import { parseFrontmatter } from './frontmatter.js';
+import { parseMediaTarget } from './media.js';
 
 const openPage = Facet.define({ combine: handlers => handlers[0] ?? (() => {}) });
+const mediaAssets = Facet.define({ combine: values => values[0] ?? {} });
 const wikiSyntax = {
-  defineNodes: ['VaultWikiLink'],
+  defineNodes: ['VaultMediaEmbed', 'VaultWikiLink'],
   parseInline: [{
+    name: 'VaultMediaEmbed', before: 'Image',
+    parse(cx, next, pos) {
+      if (next !== 33 || cx.char(pos + 1) !== 91 || cx.char(pos + 2) !== 91) return -1;
+      const match = /^!\[\[([^\]\n]+)\]\]/.exec(cx.slice(pos, cx.end));
+      return match ? cx.addElement(cx.elt('VaultMediaEmbed', pos, pos + match[0].length)) : -1;
+    },
+  }, {
     name: 'VaultWikiLink', before: 'Link',
     parse(cx, next, pos) {
       if (next !== 91 || cx.char(pos + 1) !== 91) return -1;
@@ -73,6 +82,26 @@ class WikiLinkWidget extends WidgetType {
   ignoreEvent() { return true; }
 }
 
+class MediaEmbedWidget extends WidgetType {
+  kind = 'media-embed';
+  constructor(asset, locator) { super(); this.asset = asset; this.locator = locator; }
+  eq(other) { return this.asset?.revision === other.asset?.revision && JSON.stringify(this.locator) === JSON.stringify(other.locator); }
+  toDOM() {
+    const asset = this.asset, root = document.createElement('div');
+    root.className = 'cm-vault-media-embed';
+    if (!asset) { root.textContent = '媒体加载中…'; return root; }
+    const source = asset.assetKind === 'pdf' && this.locator?.kind === 'pdf-page' ? `${asset.dataUrl}#page=${this.locator.page}` : asset.dataUrl;
+    if (asset.assetKind === 'pdf') { const object = document.createElement('object'); object.type = asset.mime; object.data = source; object.style.width = '100%'; object.style.height = '420px'; root.append(object); }
+    else if (asset.assetKind === 'image') { const image = document.createElement('img'); image.src = source; image.alt = asset.title; image.style.maxWidth = '100%'; root.append(image); }
+    else if (asset.assetKind === 'video') { const video = document.createElement('video'); video.src = source; video.controls = true; video.style.maxWidth = '100%'; root.append(video); }
+    else if (asset.assetKind === 'audio') { const audio = document.createElement('audio'); audio.src = source; audio.controls = true; root.append(audio); }
+    else if (asset.assetKind === 'html') { const frame = document.createElement('iframe'); frame.src = source; frame.sandbox = ''; frame.title = asset.title; frame.style.width = '100%'; frame.style.height = '420px'; frame.style.border = '0'; root.append(frame); }
+    else root.textContent = `无法预览 ${asset.title}`;
+    return root;
+  }
+  ignoreEvent() { return true; }
+}
+
 class TaskWidget extends WidgetType {
   kind = 'task';
   constructor(checked, from, to) { super(); this.checked = checked; this.from = from; this.to = to; }
@@ -124,6 +153,11 @@ function buildDecorations(state) {
       ranges.push(Decoration.replace({ widget: new WikiLinkWidget(/\.md$/i.test(path) ? path : `${path}.md`, alias?.trim() || target.trim()) }).range(from, to));
       return false;
     }
+    if (name === 'VaultMediaEmbed') {
+      const target = parseMediaTarget(state.sliceDoc(from + 3, to - 2)), asset = state.facet(mediaAssets)[target.path];
+      ranges.push(Decoration.replace({ widget: new MediaEmbedWidget(asset, target.locator) }).range(from, to));
+      return false;
+    }
     if (name === 'StrongEmphasis') mark(from, to, 'cm-vault-strong');
     if (name === 'Emphasis') mark(from, to, 'cm-vault-emphasis');
     if (name === 'Strikethrough') mark(from, to, 'cm-vault-strike');
@@ -173,6 +207,6 @@ const theme = EditorView.theme({
   '.cm-scroller': { overflow: 'visible' },
 });
 
-export function vaultPreview(onOpenPage) {
-  return [markdown({ base: markdownLanguage, extensions: wikiSyntax }), openPage.of(onOpenPage), vaultPreviewField, theme, EditorState.allowMultipleSelections.of(true)];
+export function vaultPreview(onOpenPage, assets = {}) {
+  return [markdown({ base: markdownLanguage, extensions: wikiSyntax }), openPage.of(onOpenPage), mediaAssets.of(assets), vaultPreviewField, theme, EditorState.allowMultipleSelections.of(true)];
 }

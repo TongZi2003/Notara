@@ -14,6 +14,7 @@ await Promise.all([mkdir(home, { recursive: true }), mkdir(workspace, { recursiv
 await Promise.all([
   mkdir(join(workspace, 'vault/路线'), { recursive: true }),
   mkdir(join(workspace, 'vault/知识'), { recursive: true }),
+  mkdir(join(workspace, 'vault/媒体'), { recursive: true }),
 ]);
 await Promise.all([
   writeFile(join(workspace, 'vault/路线/向量路线.md'), `---
@@ -45,6 +46,8 @@ tags: [math, vector]
 
 [[路线/向量路线]]
 `),
+  writeFile(join(workspace, 'vault/媒体/说明.html'), '<!doctype html><meta charset="utf-8"><style>body{font:16px system-ui;padding:24px;color:#243}</style><h1>Vault 媒体示例</h1><p>HTML 文件以沙箱预览，可以复制 <code>![[媒体/说明.html]]</code> 嵌入到 Markdown。</p>'),
+  writeFile(join(workspace, 'vault/媒体/色板.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="240"><rect width="640" height="240" fill="#eef2ff"/><circle cx="150" cy="120" r="70" fill="#6370ff"/><circle cx="320" cy="120" r="70" fill="#ffb45c"/><circle cx="490" cy="120" r="70" fill="#55c79a"/></svg>'),
 ]);
 await mkdir(join(workspace, 'node_modules/@notara'), { recursive: true });
 await symlink(join(project, 'examples/native-vault'), join(workspace, 'node_modules/@notara/vault-native'));

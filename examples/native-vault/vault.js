@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, lstat, realpath, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { parseFrontmatter } from './frontmatter.js';
+import { mediaForPath } from './media.js';
 
 const WIKI_LINK = /\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g;
 const HEADING = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
@@ -29,6 +31,10 @@ export function safeRelativePath(value) {
 
 export function revisionFor(content) {
   return createHash('sha256').update(content, 'utf8').digest('hex').slice(0, 24);
+}
+
+function revisionForBytes(bytes) {
+  return createHash('sha256').update(bytes).digest('hex').slice(0, 24);
 }
 
 export function parseMarkdownDocument(path, content, revision = revisionFor(content)) {
@@ -64,6 +70,7 @@ export function parseMarkdownDocument(path, content, revision = revisionFor(cont
 export function summarizeDocument(document) {
   const tags = Array.isArray(document.frontmatter.tags) ? document.frontmatter.tags.filter(item => typeof item === 'string') : [];
   return {
+    kind: 'page',
     path: document.path,
     title: document.title,
     type: document.type,
@@ -86,7 +93,7 @@ export function projectTree(documents) {
       const last = index === parts.length - 1;
       let child = node.children.find(item => item.name === part);
       if (!child) {
-        child = last ? { name: part, path: document.path, children: [] } : { name: part, children: [] };
+        child = last ? { name: part, path: document.path, ...(document.kind ? { kind: document.kind } : {}), children: [] } : { name: part, children: [] };
         node.children.push(child);
       }
       node = child;
@@ -215,7 +222,7 @@ export function createVaultStore(root, templateRoot) {
       if (entry.isSymbolicLink() || (!includeTemplates && prefix === '' && entry.name === '_templates')) continue;
       const absolute = join(directory, entry.name), path = prefix ? `${prefix}/${entry.name}` : entry.name;
       if (entry.isDirectory()) result.push(...await walk(absolute, path, includeTemplates));
-      else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) result.push(path);
+      else if (entry.isFile()) result.push(path);
     }
     return result;
   }
@@ -223,6 +230,14 @@ export function createVaultStore(root, templateRoot) {
   async function files(includeTemplates = false) {
     await ensureRoot();
     return walk(rootPath, '', includeTemplates);
+  }
+
+  async function pagePaths() {
+    return (await files()).filter(path => path.toLowerCase().endsWith('.md'));
+  }
+
+  async function assetPaths() {
+    return (await files()).filter(path => !path.toLowerCase().endsWith('.md'));
   }
 
   async function seedTemplates() {
@@ -251,6 +266,48 @@ export function createVaultStore(root, templateRoot) {
     }
   }
 
+  async function assetSummary(path) {
+    const value = safeRelativePath(path);
+    if (value.toLowerCase().endsWith('.md') || value.startsWith('_templates/')) fail('vault_asset_required');
+    try {
+      const bytes = await readFile(await target(value));
+      const media = mediaForPath(value);
+      return { path: value, title: basename(value), kind: 'asset', assetKind: media.kind, mime: media.mime, extension: media.extension, size: bytes.byteLength, revision: revisionForBytes(bytes) };
+    } catch (error) {
+      if (error instanceof Error && error.code === 'ENOENT') fail('vault_file_not_found');
+      throw error;
+    }
+  }
+
+  async function readAsset(path) {
+    const summary = await assetSummary(path), bytes = await readFile(await target(summary.path));
+    return { ...summary, dataUrl: `data:${summary.mime};base64,${bytes.toString('base64')}` };
+  }
+
+  function decodeAsset(dataBase64) {
+    if (typeof dataBase64 !== 'string' || dataBase64.length % 4 === 1 || !/^[A-Za-z0-9+/]*={0,2}$/.test(dataBase64)) fail('vault_asset_data_invalid');
+    const bytes = Buffer.from(dataBase64, 'base64');
+    if (bytes.toString('base64') !== dataBase64) fail('vault_asset_data_invalid');
+    if (bytes.byteLength > 50 * 1024 * 1024) fail('vault_asset_too_large');
+    return bytes;
+  }
+
+  async function saveAsset(path, dataBase64, mime, expectedRevision) {
+    const value = safeRelativePath(path);
+    if (value.toLowerCase().endsWith('.md') || value.startsWith('_templates/')) fail('vault_asset_required');
+    const media = mediaForPath(value), actualMime = mime || media.mime;
+    if (media.kind !== 'file' && actualMime !== media.mime) fail('vault_asset_mime_invalid');
+    const bytes = decodeAsset(dataBase64), absolute = await target(value, true);
+    let current = null;
+    try { current = revisionForBytes(await readFile(absolute)); }
+    catch (error) { if (!(error instanceof Error) || error.code !== 'ENOENT') throw error; }
+    if (current !== expectedRevision) fail('vault_revision_conflict');
+    const temporary = `${absolute}.notara-asset-${process.pid}-${randomUUID()}`;
+    try { await writeFile(temporary, bytes); await rename(temporary, absolute); }
+    finally { await unlink(temporary).catch(() => undefined); }
+    return readAsset(value);
+  }
+
   async function readDocument(path) {
     const value = safeRelativePath(path);
     if (!value.toLowerCase().endsWith('.md') || value.startsWith('_templates/')) fail('vault_markdown_required');
@@ -265,7 +322,13 @@ export function createVaultStore(root, templateRoot) {
 
   async function scan() {
     const result = [];
-    for (const path of await files()) result.push(await readDocument(path));
+    for (const path of await pagePaths()) result.push(await readDocument(path));
+    return result;
+  }
+
+  async function scanAssets() {
+    const result = [];
+    for (const path of await assetPaths()) result.push(await assetSummary(path));
     return result;
   }
 
@@ -294,11 +357,14 @@ export function createVaultStore(root, templateRoot) {
 
   return {
     async list(prefix) {
-      const documents = await scan(), value = prefix ? safeRelativePath(prefix) : undefined;
-      return { files: documents.filter(document => !value || document.path === value || document.path.startsWith(`${value}/`)).map(summarizeDocument), tree: projectTree(documents) };
+      const documents = await scan(), assets = await scanAssets(), value = prefix ? safeRelativePath(prefix) : undefined;
+      const entries = [...documents.map(summarizeDocument), ...assets];
+      return { files: entries.filter(document => !value || document.path === value || document.path.startsWith(`${value}/`)), tree: projectTree(entries) };
     },
     read: readDocument,
+    readAsset,
     save: saveDocument,
+    saveAsset,
     async search(query, limit) { return searchDocuments(await scan(), query, limit); },
     async query(where, limit) { return queryDocuments(await scan(), where, limit); },
     async links(path) {

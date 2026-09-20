@@ -16,6 +16,7 @@ import {
   searchDocuments,
   toggleTaskContent,
 } from './vault.js';
+import { embedTarget, mediaForPath, parseMediaTarget } from './media.js';
 
 const lesson = `---
 type: lesson
@@ -127,6 +128,8 @@ test('declares strict client codecs for the native Remote contribution', async (
   assert.match(source, /mode: 'strict'/);
   assert.doesNotMatch(source, /mode: 'src-json'/);
   assert.match(source, /schema: strictJsonSchema/);
+  assert.match(source, /readAsset/);
+  assert.match(source, /saveAsset/);
 });
 
 test('seeds missing built-in templates into _templates without indexing them as pages', async () => {
@@ -175,4 +178,38 @@ test('refreshes external vault changes without overwriting an unsaved editor dra
   assert.match(source, /setInterval\(syncExternal/);
   assert.match(source, /当前页面在外部发生变化/);
   assert.match(source, /页面已从文件刷新/);
+});
+
+test('classifies common media assets and round-trips locators in Markdown embeds', () => {
+  assert.deepEqual(mediaForPath('资料/讲义.pdf'), { kind: 'pdf', mime: 'application/pdf', extension: 'pdf' });
+  assert.deepEqual(mediaForPath('图片/图.png'), { kind: 'image', mime: 'image/png', extension: 'png' });
+  assert.deepEqual(mediaForPath('页面/说明.html'), { kind: 'html', mime: 'text/html', extension: 'html' });
+  assert.deepEqual(mediaForPath('视频/课堂.mp4'), { kind: 'video', mime: 'video/mp4', extension: 'mp4' });
+  assert.equal(embedTarget('资料/讲义.pdf', { kind: 'pdf-page', page: 3 }), '![[资料/讲义.pdf#page=3]]');
+  assert.deepEqual(parseMediaTarget('资料/讲义.pdf#page=3'), { path: '资料/讲义.pdf', locator: { kind: 'pdf-page', page: 3 } });
+  assert.deepEqual(parseMediaTarget('视频/课堂.mp4#t=1200,4500'), { path: '视频/课堂.mp4', locator: { kind: 'video-time', startMs: 1200, endMs: 4500 } });
+});
+
+test('lists, reads and revision-saves binary assets beside Markdown pages', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-vault-assets-'));
+  try {
+    await writeFile(join(root, '讲义.pdf'), Buffer.from('%PDF-asset'));
+    await writeFile(join(root, '图.png'), Buffer.from([137, 80, 78, 71]));
+    await writeFile(join(root, '说明.html'), '<h1>说明</h1>');
+    await writeFile(join(root, '课堂.md'), '# 课堂\n');
+    const store = createVaultStore(root);
+    const listed = await store.list();
+    assert.deepEqual(listed.files.map(item => [item.path, item.kind]), [
+      ['课堂.md', 'page'], ['图.png', 'asset'], ['讲义.pdf', 'asset'], ['说明.html', 'asset'],
+    ]);
+    const pdf = await store.readAsset('讲义.pdf');
+    assert.equal(pdf.assetKind, 'pdf');
+    assert.equal(pdf.mime, 'application/pdf');
+    assert.match(pdf.dataUrl, /^data:application\/pdf;base64,/);
+    const saved = await store.saveAsset('新资料.html', Buffer.from('<h1>新资料</h1>').toString('base64'), 'text/html', null);
+    assert.equal(saved.assetKind, 'html');
+    await assert.rejects(() => store.saveAsset('新资料.html', Buffer.from('冲突').toString('base64'), 'text/html', null), /vault_revision_conflict/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
