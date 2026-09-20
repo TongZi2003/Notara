@@ -4,6 +4,15 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const { useCallback, useEffect, useMemo, useState } = React;
 
+    // DSH's browser Remote API only mounts strict codecs. The Host remains the
+    // authoritative validator for every field; this client codec checks the
+    // transport envelope and leaves the detailed contract at that boundary.
+    const strictJsonSchema = {
+      parse(value) {
+        if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Remote input must be an object');
+        return value;
+      },
+    };
     const REMOTE_METHODS = ['list', 'read', 'save', 'search', 'query', 'links', 'templates', 'createFromTemplate', 'tasks', 'toggleTask'];
     const REMOTE_CONTRIBUTION = {
       package: '@notara/vault-native',
@@ -13,8 +22,8 @@ window.__ModuleLoader__.load({
         namespace: 'notaraVault',
         method,
         invocation: { kind: 'direct' },
-        parameters: [{ name: 'input', wire: 'input', source: 'json', codec: { mode: 'src-json' } }],
-        result: { mode: 'src-json' },
+        parameters: [{ name: 'input', wire: 'input', source: 'json', codec: { mode: 'strict', typeSymbol: '@notara/vault-native#JsonObject', schema: strictJsonSchema } }],
+        result: { mode: 'strict', typeSymbol: '@notara/vault-native#JsonValue', schema: strictJsonSchema },
       })),
     };
 

@@ -121,3 +121,10 @@ test('stores Markdown as the only source of truth and uses revision guarded atom
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('declares strict client codecs for the native Remote contribution', async () => {
+  const source = await readFile(new URL('./client.js', import.meta.url), 'utf8');
+  assert.match(source, /mode: 'strict'/);
+  assert.doesNotMatch(source, /mode: 'src-json'/);
+  assert.match(source, /schema: strictJsonSchema/);
+});
