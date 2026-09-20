@@ -5,12 +5,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { MarkdownBody } from '../cards/MarkdownBody.tsx';
 import './vault.css';
 
-function treeRows(node: VaultTreeNode, depth = 0): React.JSX.Element[] {
+function treeRows(node: VaultTreeNode, onPick: (path: string) => void, depth = 0): React.JSX.Element[] {
   return node.children.flatMap(child => [
-    <button key={child.path ?? `${depth}:${child.name}`} className="sf-vault-tree-item" style={{ paddingLeft: 12 + depth * 14 }} data-path={child.path}>
+    <button type="button" key={child.path ?? `${depth}:${child.name}`} className="sf-vault-tree-item" style={{ paddingLeft: 12 + depth * 14 }} data-path={child.path} onClick={() => { if (child.path) onPick(child.path); }}>
       <span aria-hidden="true">{child.path ? '·' : '▸'}</span>{child.name.replace(/\.md$/i, '')}
     </button>,
-    ...(child.children.length ? treeRows(child, depth + 1) : []),
+    ...(child.children.length ? treeRows(child, onPick, depth + 1) : []),
   ]);
 }
 
@@ -32,13 +32,13 @@ export function registerVaultReference(ctx: Context): void {
 }
 
 export function VaultPanel({ ctx, sessionId }: { ctx: Context; sessionId: string }): React.JSX.Element {
-  const [files, setFiles] = useState<VaultSummary[]>([]), [selected, setSelected] = useState<string>(), [document, setDocument] = useState<VaultDocument>(), [draft, setDraft] = useState('');
+  const [files, setFiles] = useState<VaultSummary[]>([]), [tree, setTree] = useState<VaultTreeNode>({ name: '', children: [] }), [selected, setSelected] = useState<string>(), [document, setDocument] = useState<VaultDocument>(), [draft, setDraft] = useState('');
   const [backlinks, setBacklinks] = useState<string[]>([]), [query, setQuery] = useState(''), [hits, setHits] = useState<VaultSearchHit[]>([]), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [refresh, setRefresh] = useState(0);
 
   const loadList = useCallback(async (): Promise<void> => {
     const result = await ctx.remote.studyforgeVault.list({});
     if (!result.ok) { setNotice('资产文件树暂时无法读取。'); return; }
-    setFiles(result.value.files); setSelected(current => current && result.value.files.some(item => item.path === current) ? current : result.value.files[0]?.path);
+    setFiles(result.value.files); setTree(result.value.tree); setSelected(current => current && result.value.files.some(item => item.path === current) ? current : result.value.files[0]?.path);
   }, [ctx]);
   useEffect(() => { void loadList().catch(() => setNotice('资产文件树暂时无法读取。')); }, [loadList, refresh]);
   useEffect(() => {
@@ -75,15 +75,13 @@ export function VaultPanel({ ctx, sessionId }: { ctx: Context; sessionId: string
     const inserted = input.insertReference({ source: 'notara-vault', ref: JSON.stringify({ path: document.path, revision: document.revision, title: document.title }), label: document.title, clipboardText: '【' + document.title + '】' }, { start: end, end, draftRev: state.draftRev });
     setNotice(inserted ? '已带入当前对话。' : '草稿正在变化，请再试一次。');
   };
-  const tree: VaultTreeNode = { name: '', children: [] };
-  for (const file of files) { const parts = file.path.split('/'); let node = tree; parts.forEach((part, index) => { let child = node.children.find(item => item.name === part); if (!child) { child = { name: part, children: [] }; node.children.push(child); } node = child; if (index === parts.length - 1) node.path = file.path; }); }
   return <aside className="sf-vault-panel" data-testid="vault-panel">
     <header className="sf-vault-header"><strong>资产</strong><button type="button" aria-label="刷新资产" onClick={() => setRefresh(value => value + 1)}>↻</button></header>
     <div className="sf-vault-search"><input aria-label="搜索资产" placeholder="搜索文件内容…" value={query} onChange={event => { void runSearch(event.target.value); }} /></div>
     {notice && <p className="sf-vault-notice" role="status">{notice}</p>}
     <div className="sf-vault-body">
       <nav className="sf-vault-tree" data-testid="vault-tree" aria-label="资产文件树">
-        {query.trim() ? hits.map(hit => <button type="button" key={hit.path} className="sf-vault-tree-item" data-path={hit.path} onClick={() => { setSelected(hit.path); setQuery(''); setHits([]); }}><span>·</span>{hit.title}</button>) : treeRows(tree).map((row, index) => <span key={index} onClick={() => { const path = row.props['data-path']; if (path) setSelected(path); }}>{row}</span>)}
+        {query.trim() ? hits.map(hit => <button type="button" key={hit.path} className="sf-vault-tree-item" data-path={hit.path} onClick={() => { setSelected(hit.path); setQuery(''); setHits([]); }}><span>·</span>{hit.title}</button>) : treeRows(tree, setSelected)}
         {!files.length && <p className="sf-vault-empty">还没有 Markdown 资产。</p>}
       </nav>
       <section className="sf-vault-document" data-testid="vault-document">

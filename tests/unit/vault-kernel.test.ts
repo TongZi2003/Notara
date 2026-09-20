@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildBacklinks, parseMarkdownDocument, projectTree, queryDocuments, revisionFor, safeRelativePath, searchDocuments } from '../../packages/domain/src/vault/vault-kernel.ts';
+import { buildBacklinks, parseMarkdownDocument, projectTree, queryDocuments, revisionFor, safeRelativePath, searchDocuments, summarizeDocument } from '../../packages/domain/src/vault/vault-kernel.ts';
 
 const source = `---\ntype: card\ntags: [向量, algebra]\nlearned: false\nmastery: 2\n---\n# 向量基础\n\n见 [[资料/点积]] 和 [[路线/第一课|第一课]]。\n\n- [ ] 写出定义\n- [x] 看过例题\n`;
 
@@ -28,7 +28,7 @@ describe('vault markdown kernel', () => {
   test('projects backlinks and a deterministic tree', () => {
     const first = parseMarkdownDocument('卡片/向量.md', source), second = parseMarkdownDocument('资料/点积.md', '# 点积\n\n[[卡片/向量]]');
     expect(buildBacklinks([first, second]).get('资料/点积')).toEqual(['卡片/向量.md']);
-    expect(projectTree([first, second]).children.map(item => item.name)).toEqual(['卡片', '资料']);
+    expect(projectTree([summarizeDocument(first), summarizeDocument(second)]).children.map(item => item.name)).toEqual(['卡片', '资料']);
     expect(revisionFor(source)).toBe(revisionFor(source));
     expect(revisionFor(source)).not.toBe(revisionFor(source + '!'));
   });
