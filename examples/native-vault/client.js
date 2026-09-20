@@ -10,25 +10,25 @@ window.__ModuleLoader__.load({
       { path: '卡片/定义域.md', body: '# 定义域\n\n先找表达式中每个运算的限制，再取这些限制的交集。\n\n- [ ] 能说出限制来自哪里\n- [ ] 能检查端点' },
     ];
     const STYLE = {
-      page: { minHeight: '100vh', background: '#f4f1e8', color: '#292821', fontFamily: 'ui-sans-serif, system-ui, sans-serif', display: 'flex', flexDirection: 'column' },
-      top: { height: 58, flex: 'none', display: 'flex', alignItems: 'center', gap: 18, padding: '0 28px', borderBottom: '1px solid #d8d0bd', background: '#fbfaf5' },
-      brand: { fontSize: 18, letterSpacing: '.04em', color: '#274b72', fontWeight: 650 },
-      badge: { fontSize: 11, color: '#7d786a', border: '1px solid #d8d0bd', borderRadius: 99, padding: '4px 9px' },
-      hint: { marginLeft: 'auto', color: '#8b877d', fontSize: 12 },
+      page: { height: '100%', minHeight: 0, background: 'var(--dsw-alias-bg-base)', color: 'var(--dsw-alias-label-primary)', fontFamily: 'var(--dsw-font-family, ui-sans-serif, system-ui, sans-serif)', display: 'flex', flexDirection: 'column' },
+      top: { height: 52, flex: 'none', display: 'flex', alignItems: 'center', gap: 14, padding: '0 20px', borderBottom: '1px solid var(--dsw-alias-border-l1)', background: 'var(--dsw-alias-bg-layer-1)' },
+      brand: { fontSize: 16, letterSpacing: '.02em', color: 'var(--dsw-alias-label-primary)', fontWeight: 650 },
+      badge: { fontSize: 11, color: 'var(--dsw-alias-label-secondary)', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 99, padding: '3px 8px' },
+      hint: { marginLeft: 'auto', color: 'var(--dsw-alias-label-secondary)', fontSize: 12 },
       body: { display: 'grid', gridTemplateColumns: '260px minmax(0, 1fr)', minHeight: 0, flex: 1 },
-      rail: { background: '#ebe7dc', borderRight: '1px solid #d8d0bd', padding: '18px 12px', overflow: 'auto' },
-      section: { fontSize: 11, color: '#918b7c', letterSpacing: '.08em', textTransform: 'uppercase', padding: '3px 10px 10px' },
-      row: { width: '100%', boxSizing: 'border-box', textAlign: 'left', border: 0, background: 'transparent', color: '#3a3932', padding: '9px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 13 },
-      rowActive: { background: '#d8e1ea', color: '#1c4a74', fontWeight: 600 },
-      main: { minWidth: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(300px, 42%)', background: '#fbfaf5' },
-      editor: { minWidth: 0, padding: '34px 42px', overflow: 'auto' },
-      title: { fontFamily: 'Georgia, serif', fontSize: 30, fontWeight: 500, margin: 0, color: '#244e78' },
-      path: { color: '#958f80', fontSize: 12, marginTop: 8 },
-      textarea: { width: '100%', minHeight: 470, boxSizing: 'border-box', marginTop: 30, padding: 16, resize: 'vertical', border: '1px solid #d8d0bd', borderRadius: 7, background: '#fffef9', color: '#37352f', font: '14px/1.75 ui-monospace, SFMono-Regular, monospace', outline: 'none' },
-      preview: { borderLeft: '1px solid #d8d0bd', padding: '34px 34px', overflow: 'auto', background: '#fffef9' },
-      previewLabel: { color: '#958f80', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 24 },
-      previewText: { whiteSpace: 'pre-wrap', font: '15px/1.85 Georgia, serif', color: '#3f3c34' },
-      search: { width: '100%', boxSizing: 'border-box', border: '1px solid #d8d0bd', borderRadius: 6, padding: '8px 10px', background: '#f8f5ec', marginBottom: 18, outline: 'none' },
+      rail: { background: 'var(--dsw-alias-bg-layer-2)', borderRight: '1px solid var(--dsw-alias-border-l1)', padding: '16px 12px', overflow: 'auto' },
+      section: { fontSize: 11, color: 'var(--dsw-alias-label-secondary)', letterSpacing: '.08em', textTransform: 'uppercase', padding: '3px 10px 10px' },
+      row: { width: '100%', boxSizing: 'border-box', textAlign: 'left', border: 0, background: 'transparent', color: 'var(--dsw-alias-label-primary)', padding: '9px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 13 },
+      rowActive: { background: 'var(--dsw-alias-interactive-bg-active)', color: 'var(--dsw-alias-label-primary)', fontWeight: 600 },
+      main: { minWidth: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(300px, 42%)', background: 'var(--dsw-alias-bg-layer-1)' },
+      editor: { minWidth: 0, padding: '28px 34px', overflow: 'auto' },
+      title: { fontSize: 26, fontWeight: 600, margin: 0, color: 'var(--dsw-alias-label-primary)' },
+      path: { color: 'var(--dsw-alias-label-secondary)', fontSize: 12, marginTop: 8 },
+      textarea: { width: '100%', minHeight: 420, boxSizing: 'border-box', marginTop: 24, padding: 14, resize: 'vertical', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 6, background: 'var(--dsw-specific-input-major, var(--dsw-alias-bg-layer-1))', color: 'var(--dsw-alias-label-primary)', font: '14px/1.75 ui-monospace, SFMono-Regular, monospace', outline: 'none' },
+      preview: { borderLeft: '1px solid var(--dsw-alias-border-l1)', padding: '28px 28px', overflow: 'auto', background: 'var(--dsw-alias-bg-layer-2)' },
+      previewLabel: { color: 'var(--dsw-alias-label-secondary)', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 20 },
+      previewText: { whiteSpace: 'pre-wrap', font: '15px/1.85 var(--dsw-font-family, ui-sans-serif, system-ui, sans-serif)', color: 'var(--dsw-alias-label-primary)' },
+      search: { width: '100%', boxSizing: 'border-box', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 6, padding: '8px 10px', background: 'var(--dsw-specific-input-major, var(--dsw-alias-bg-layer-1))', color: 'var(--dsw-alias-label-primary)', marginBottom: 18, outline: 'none' },
     };
     const load = () => { try { return JSON.parse(localStorage.getItem('notara-vault-native:v1') || 'null') || SEED; } catch { return SEED; } };
     const save = (docs) => localStorage.setItem('notara-vault-native:v1', JSON.stringify(docs));
@@ -71,49 +71,18 @@ window.__ModuleLoader__.load({
       );
     }
 
-    const TAB_ID = '@notara/vault-native';
-
-    function TabBody() {
-      return React.createElement(App);
-    }
-
-    function TabTitle({ useTabInfo }) {
-      const { tab } = useTabInfo();
-      return React.createElement('span', null, tab.title);
-    }
+    const VIEW_ID = 'notara-vault';
 
     return {
-      inject: ['slots', 'sidebarRightTabs'],
+      inject: ['slots'],
       apply(ctx) {
         console.info('notara-vault-native: apply');
-
-        ctx.effect(() => ctx.sidebarRightTabs.register({
-          id: TAB_ID,
-          kind: 'vault',
-          priority: 'extension',
-          title: () => 'Notara Vault',
-          guide: [{
-            order: 20,
-            title: () => '资产库',
-            description: () => '浏览和编辑 Markdown 资产',
-          }],
-        }), 'notara-vault-native: tab type');
-
-        ctx.effect(() => ctx.slots.inject(
-          'sidebar.right.pane.tab',
-          () => ctx.slots.register({
-            name: 'sidebar.right.pane.tab',
-            key: TAB_ID,
-          }, TabBody),
-        ), 'notara-vault-native: tab body');
-
-        ctx.effect(() => ctx.slots.inject(
-          'sidebar.right.pane.tab.title',
-          () => ctx.slots.register({
-            name: 'sidebar.right.pane.tab.title',
-            key: TAB_ID,
-          }, TabTitle),
-        ), 'notara-vault-native: tab title');
+        ctx.effect(() => ctx.slots.inject('conversation.view', () => ctx.slots.register({
+          name: 'conversation.view',
+          id: VIEW_ID,
+          order: 20,
+          label: () => '资产',
+        }, App)), 'notara-vault-native: conversation view');
       },
     };
   },
