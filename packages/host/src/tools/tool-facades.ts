@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { JsonSchemaNode, ToolDefinition } from '@deepseek-ai/dsh-tools';
 import { z } from 'zod';
-import { TOOL_FACADES, resolveFacadeTool } from '@studyforge/contracts/tool-facades';
+import { defaultFacadeMethods, TOOL_FACADES, resolveFacadeTool } from '@studyforge/contracts/tool-facades';
 import { rejected } from './learning-context.ts';
 
 /**
@@ -52,8 +52,11 @@ export function facadeMethodText(host: Context): string {
     'tools里是常驻的全部能力，不再按需加载：每个门面工具用method选具体操作、input填该操作的完整参数，参数形状以该方法自身的schema为准。下面按门面列出method及用途说明（括号内是内部实现名，直呼同样有效）。',
   ];
   for (const [facade, methods] of Object.entries(TOOL_FACADES)) {
+    const allowed = new Set(defaultFacadeMethods(facade));
+    if (allowed.size === 0) continue;
     const rows: string[] = [];
     for (const [method, inner] of Object.entries(methods)) {
+      if (!allowed.has(method)) continue;
       const def = host.tools.get(inner);
       const summary = def?.description.split(/[。；\n]/u)[0]?.replace(/\s+/gu, ' ').trim() ?? '';
       rows.push(`- ${method}（${inner}）— ${summary}`);

@@ -29,7 +29,7 @@ import { assertSupportedJsonSchema } from '@deepseek-ai/dsh-tools';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { SessionCreateValue, SessionListValue, SessionPage } from '@deepseek-ai/dsh-api-session-controller';
 import type { CourseView } from '@studyforge/contracts/courses';
-import { TOOL_FACADES } from '@studyforge/contracts/tool-facades';
+import { DEFAULT_CLASSROOM_FACADE_METHODS, DEFAULT_CLASSROOM_FACADE_NAMES, TOOL_FACADES } from '@studyforge/contracts/tool-facades';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 
@@ -40,7 +40,7 @@ function value<T>(result: RemoteResult<T>): T { if (!result.ok) throw new Error(
 interface AssembleTool { name: string; description: string; parameters: Record<string, unknown>; }
 
 /** The constant classroom wire: every facade plus the builtin capability set. */
-const facadeNames = Object.keys(TOOL_FACADES);
+const facadeNames = [...DEFAULT_CLASSROOM_FACADE_NAMES];
 const wrappedNames: ReadonlySet<string> = new Set(Object.values(TOOL_FACADES).flatMap(methods => Object.values(methods)));
 
 /** Every schema node reachable through the structural keywords the subset keeps. */
@@ -98,6 +98,8 @@ test('every assembled tool the model received has an object root and a native-co
   const names = assembled.map(tool => tool.name);
   expect(new Set(names).size, 'tool names must stay unique').toBe(names.length);
   for (const facade of facadeNames) expect(names).toContain(facade);
+  expect(names).not.toContain('board');
+  expect(names).not.toContain('round');
   for (const name of names) {
     expect(wrappedNames.has(name), `wrapped tool ${name} leaked onto the wire`).toBe(false);
     expect(name).not.toBe('load_tools');
@@ -105,6 +107,12 @@ test('every assembled tool the model received has an object root and a native-co
   // Wrapped parameters keep their contract: the propose facade's card branch
   // embeds propose_card's own three-way union under `input`, verbatim.
   const propose = assembled.find(tool => tool.name === 'propose')!;
+  const facadeBranches = (propose.parameters.oneOf as Record<string, unknown>[]).map(branch =>
+    (branch.properties as Record<string, { const?: string }>).method?.const,
+  );
+  expect(facadeBranches).toEqual(DEFAULT_CLASSROOM_FACADE_METHODS.propose);
+  expect(facadeBranches).not.toContain('classmate');
+  expect(facadeBranches).not.toContain('teaching');
   const cardBranch = (propose.parameters.oneOf as Record<string, unknown>[]).find(branch =>
     (branch.properties as Record<string, { const?: string }>).method?.const === 'card')!;
   const cardInput = (cardBranch.properties as Record<string, Record<string, unknown>>).input!;

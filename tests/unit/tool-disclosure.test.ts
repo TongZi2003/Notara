@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Session, SessionId } from '@deepseek-ai/dsh-session';
 import { ToolCallId, createToolResultMessage, type ToolSchema } from '@deepseek-ai/dsh-llm';
-import { TOOL_FACADES, resolveFacadeTool } from '@studyforge/contracts/tool-facades';
+import { DEFAULT_CLASSROOM_FACADE_METHODS, TOOL_FACADES, resolveFacadeTool } from '@studyforge/contracts/tool-facades';
 import { classroomToolCatalogue, retainedTools } from '../../packages/host/src/tools/tool-disclosure.ts';
 
 const tool = (name: string): ToolSchema => ({ name, description: '读取课程路线。完整说明不应塞进简短目录。', parameters: { type: 'object', properties: { hidden_parameter: { type: 'string' } } } });
@@ -29,6 +29,16 @@ describe('constant classroom tool surface', () => {
   it('keeps every wrapped tool name unique across facades', () => {
     const inner = Object.values(TOOL_FACADES).flatMap(methods => Object.values(methods));
     expect(new Set(inner).size).toBe(inner.length);
+  });
+  it('keeps the default classroom surface focused on core learning capabilities', () => {
+    expect(DEFAULT_CLASSROOM_FACADE_METHODS).not.toHaveProperty('board');
+    expect(DEFAULT_CLASSROOM_FACADE_METHODS).not.toHaveProperty('round');
+    expect(DEFAULT_CLASSROOM_FACADE_METHODS.delegate).not.toContain('problem');
+    expect(DEFAULT_CLASSROOM_FACADE_METHODS.find).toContain('plans');
+    expect(DEFAULT_CLASSROOM_FACADE_METHODS.open).toContain('route');
+    expect(DEFAULT_CLASSROOM_FACADE_METHODS.stage).toContain('read');
+    const methods = Object.entries(DEFAULT_CLASSROOM_FACADE_METHODS).flatMap(([facade, names]) => names.map(name => `${facade}:${name}`));
+    expect(new Set(methods).size).toBe(methods.length);
   });
   it('only accepts completed native loader results, not arguments, failed results or unmatched metadata', () => {
     const session = Session.create(SessionId('load-test'));

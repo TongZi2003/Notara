@@ -105,6 +105,34 @@ export const TOOL_FACADES = {
   },
 } as const satisfies Record<string, Record<string, string>>;
 
+/**
+ * The default classroom surface is deliberately smaller than the Host
+ * registry. Keep the complete TOOL_FACADES map for replay and direct Host
+ * execution, but only describe these methods to the ordinary teacher model.
+ * Experimental workbenches and multi-role rounds are opt-in surfaces.
+ */
+export const DEFAULT_CLASSROOM_FACADE_METHODS = {
+  find: ['materials', 'cards', 'sets', 'plans', 'learning', 'memory', 'evidence'],
+  open: ['material', 'region', 'content', 'card', 'cards', 'method', 'memory', 'set', 'plan', 'route', 'skeleton', 'atlas', 'lesson', 'journey', 'handoff', 'markdown', 'teaching'],
+  note: ['memory', 'memory_revise', 'method', 'method_revise', 'goal', 'thought'],
+  update: ['card', 'markdown'],
+  record: ['review', 'cards', 'cite'],
+  propose: ['card', 'review', 'set', 'plan', 'route', 'skeleton', 'atlas', 'lesson_settings', 'handoff'],
+  create: ['material', 'import', 'artifact'],
+  classroom: ['read', 'ask', 'continue', 'context', 'intimacy'],
+  stage: ['read', 'advance', 'summarize'],
+  delegate: ['search', 'assistant', 'peer', 'routes'],
+} as const satisfies {
+  readonly [K in keyof typeof TOOL_FACADES]?: readonly (keyof typeof TOOL_FACADES[K])[];
+};
+
+export const DEFAULT_CLASSROOM_FACADE_NAMES: readonly string[] = Object.keys(DEFAULT_CLASSROOM_FACADE_METHODS);
+
+export function defaultFacadeMethods(facade: string): readonly string[] {
+  const configured = (DEFAULT_CLASSROOM_FACADE_METHODS as Record<string, readonly string[] | undefined>)[facade];
+  return configured ?? [];
+}
+
 export type ToolFacadeName = keyof typeof TOOL_FACADES;
 export const TOOL_FACADE_NAMES: ReadonlySet<string> = new Set(Object.keys(TOOL_FACADES));
 

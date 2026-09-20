@@ -4,7 +4,7 @@ import type { ToolSchema } from '@deepseek-ai/dsh-llm';
 import type { SessionEvent } from '@deepseek-ai/dsh-session';
 import type { PromptAssembly } from '@deepseek-ai/dsh-system-prompt';
 import { z } from 'zod';
-import { TOOL_FACADE_NAMES } from '@studyforge/contracts/tool-facades';
+import { DEFAULT_CLASSROOM_FACADE_NAMES, defaultFacadeMethods, TOOL_FACADE_NAMES } from '@studyforge/contracts/tool-facades';
 import { toolSchema } from './tool-schema.ts';
 import { rejected } from './learning-context.ts';
 import { facadeMethodText } from './tool-facades.ts';
@@ -13,7 +13,7 @@ import { facadeMethodText } from './tool-facades.ts';
  * The classroom wire is constant — facade verbs plus the builtin capability set —
  * so the tools array never changes mid-lesson and the request prefix stays cached.
  * Every wrapped tool remains registered and callable under its exact name. */
-export const CLASSROOM_WIRE_TOOLS = [...TOOL_FACADE_NAMES,
+export const CLASSROOM_WIRE_TOOLS = [...DEFAULT_CLASSROOM_FACADE_NAMES,
   'read', 'read_image', 'glob', 'grep', 'web_search', 'web_fetch', 'skill',
   'subagent', 'send_message', 'interrupt_agent', 'list_subagent_models'] as const;
 const wire = new Set<string>(CLASSROOM_WIRE_TOOLS);
@@ -23,6 +23,14 @@ const loadOutput = z.object({ loaded: z.array(z.string()), available: z.literal(
 
 export function classroomToolCatalogue(tools: readonly ToolSchema[], diagnose: boolean): ToolSchema[] {
   return tools.filter(tool => !unavailable.has(tool.name) && (tool.name !== 'register_cards' || diagnose));
+}
+
+function projectFacadeTool(tool: ToolSchema): ToolSchema {
+  if (!TOOL_FACADE_NAMES.has(tool.name)) return tool;
+  const allowed = new Set(defaultFacadeMethods(tool.name));
+  const parameters = tool.parameters as { oneOf?: readonly { properties?: { method?: { const?: unknown } } }[] };
+  if (!Array.isArray(parameters.oneOf)) return tool;
+  return { ...tool, parameters: { ...parameters, oneOf: parameters.oneOf.filter(branch => allowed.has(String(branch.properties?.method?.const))) } };
 }
 
 /** Kept for the compatibility loader and for history consumers that still see
@@ -88,7 +96,7 @@ export function installToolDisclosure(host: Context, owns: (agent: Agent | undef
     ? '只有主课堂按需加载工具；独立帮手和制作会话保持各自的工具范围。' : undefined));
   return (assembly, agent) => owns(agent)
     ? { ...assembly,
-        tools: assembly.tools.filter(tool => wire.has(tool.name)),
+        tools: assembly.tools.filter(tool => wire.has(tool.name)).map(projectFacadeTool),
         sections: [...assembly.sections, { name: 'studyforge:tool-methods', text: facadeMethodText(host) }] }
     : { ...assembly, tools: assembly.tools.filter(tool => tool.name !== 'load_tools' && !TOOL_FACADE_NAMES.has(tool.name)) };
 }

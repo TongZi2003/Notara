@@ -125,7 +125,7 @@
 | `send_message` | 给直接子任务继续发消息；子任务可回父任务 | 忙时插入，空闲时启动下一轮；仅确认送达 |
 | `interrupt_agent` | 请求停止后台任务的当前回合 | 保留任务供后续继续；已完成者为no-op |
 
-51是注册总数，不是每次发送给主课堂的接口数量。教学方式改变默认行为，不强制加载整组工具；诊断专用register_cards仍受原有用途限制。加载subagent或delegate_search时会同时提供send_message/interrupt_agent，以保持后台任务可追问、可停止。制作会话及帮手工具范围不受主课堂展示裁剪影响。当前课堂不开放任意shell/run_code。
+注册总数不是每次发送给主课堂的接口数量。默认课堂只投影知识库、对话内路线图、世界书、只读子智能体和完整路线规划；`board.*`、`round.*`、`delegate_problem`及其他实验工作台不进入默认 schema。加载subagent或delegate_search时会同时提供send_message/interrupt_agent，以保持后台任务可追问、可停止。制作会话及帮手工具范围不受主课堂展示裁剪影响。当前课堂不开放任意shell/run_code。
 
 ## 4. 功能对应关系
 

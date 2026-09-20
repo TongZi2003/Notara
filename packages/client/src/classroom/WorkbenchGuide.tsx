@@ -1,5 +1,4 @@
 import { WorkbenchIcon } from '../plugins/WorkbenchIcon.tsx';
-import type { WorkbenchChoice } from '@studyforge/contracts/plugins';
 import type { WorkspaceView } from './workspace-layout.ts';
 
 const essentials = [
@@ -9,8 +8,8 @@ const essentials = [
 ] as const;
 
 /** A launch surface only: entries still use the existing view registry and docking action. */
-export function WorkbenchGuide({ extensions, onOpen }: {
-  extensions: readonly WorkbenchChoice[]; onOpen: (view: WorkspaceView) => void;
+export function WorkbenchGuide({ onOpen }: {
+  onOpen: (view: WorkspaceView) => void;
 }): React.JSX.Element {
   return <section className="sf-workbench-guide" aria-label="工作台导览">
     <header className="sf-guide-head"><h1>工作台导览</h1><p>对话、思路与资料，可以独立打开，也可以并排使用。</p></header>
@@ -21,13 +20,5 @@ export function WorkbenchGuide({ extensions, onOpen }: {
         <span className="sf-guide-description">{item.description}</span>
       </button>)}
     </div>
-    {extensions.length > 0 && <section className="sf-guide-extensions" aria-label="插件工作台">
-      <h2>插件工作台</h2>
-      <div className="sf-guide-plugin-list">{extensions.map(item => <button type="button" key={item.id} className="sf-guide-plugin" aria-label={'打开' + item.title} title={item.description} onClick={() => onOpen(item.id as WorkspaceView)}>
-        <span className="sf-guide-plugin-icon"><WorkbenchIcon title={item.title} /></span>
-        <span className="sf-guide-plugin-copy"><span className="sf-guide-title">{item.title}</span><span className="sf-guide-description">{item.description}</span></span>
-        <span className="sf-guide-arrow" aria-hidden="true">↗</span>
-      </button>)}</div>
-    </section>}
   </section>;
 }
