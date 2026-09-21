@@ -42,6 +42,7 @@ export function revisionForBytes(bytes) {
 export function mediaLocatorSuffix(locator) {
   if (!locator) return '';
   if (locator.kind === 'pdf-page') return `#page=${encodeURIComponent(locator.page)}`;
+  if (locator.kind === 'pdf-region') return `#page=${encodeURIComponent(locator.page)}&rect=${locator.rect.map(value => encodeURIComponent(value)).join(',')}`;
   if (locator.kind === 'video-time') return `#t=${encodeURIComponent(locator.startMs)}${locator.endMs === undefined ? '' : `,${encodeURIComponent(locator.endMs)}`}`;
   if (locator.kind === 'image-region') return `#rect=${locator.rect.map(value => encodeURIComponent(value)).join(',')}`;
   if (locator.kind === 'html-range' && locator.anchor) return `#anchor=${encodeURIComponent(locator.anchor)}`;
@@ -57,8 +58,14 @@ export function parseMediaTarget(target) {
   const path = separator < 0 ? target : target.slice(0, separator);
   const fragment = separator < 0 ? '' : target.slice(separator + 1);
   if (!fragment) return { path, locator: undefined };
-  const [key, raw] = fragment.split('=', 2);
-  if (key === 'page' && /^\d+$/.test(raw ?? '')) return { path, locator: { kind: 'pdf-page', page: Number(raw) } };
+  const params = new URLSearchParams(fragment);
+  const key = fragment.includes('=') ? fragment.slice(0, fragment.indexOf('=')) : fragment;
+  const raw = params.get(key) ?? '';
+  if (key === 'page' && /^\d+$/.test(raw)) {
+    const rect = params.get('rect')?.split(',').map(Number);
+    if (rect?.length === 4 && rect.every(value => Number.isFinite(value))) return { path, locator: { kind: 'pdf-region', page: Number(raw), rect } };
+    return { path, locator: { kind: 'pdf-page', page: Number(raw) } };
+  }
   if (key === 't') {
     const [start, end] = (raw ?? '').split(',');
     if (/^\d+$/.test(start ?? '') && (end === undefined || /^\d+$/.test(end))) return { path, locator: { kind: 'video-time', startMs: Number(start), ...(end === undefined ? {} : { endMs: Number(end) }) } };

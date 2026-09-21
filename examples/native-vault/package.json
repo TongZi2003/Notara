@@ -1,9 +1,9 @@
 {
   "name": "@notara/vault-native",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "type": "module",
   "main": "index.js",
-  "files": ["index.js", "client.js", "vault.js", "frontmatter.js", "media.js", "templates"],
+  "files": ["index.js", "client.js", "vault.js", "frontmatter.js", "media.js", "pdf.js", "templates"],
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",

@@ -19,6 +19,9 @@ function fail(code) {
 function canonicalLink(raw) {
   const value = raw.trim().replaceAll('\\', '/').replace(/^\.\//, '');
   if (!value || value.startsWith('/') || value.split('/').some(part => part === '..' || part === '.')) return undefined;
+  // An embed of a media asset is a preview reference, not a page link — never
+  // canonicalize it into a phantom `<asset>.md`.
+  if (mediaForPath(value).kind !== 'file') return undefined;
   return value.toLowerCase().endsWith('.md') ? value : `${value}.md`;
 }
 

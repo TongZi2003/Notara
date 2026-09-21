@@ -17,6 +17,7 @@ import {
   toggleTaskContent,
 } from './vault.js';
 import { embedTarget, mediaForPath, parseMediaTarget } from './media.js';
+import { buildPdfCardContent, cardPathFor, quoteFromItems } from './pdf.js';
 
 const lesson = `---
 type: lesson
@@ -187,9 +188,13 @@ test('classifies common media assets and round-trips locators in Markdown embeds
   assert.deepEqual(mediaForPath('视频/课堂.mp4'), { kind: 'video', mime: 'video/mp4', extension: 'mp4' });
   assert.equal(embedTarget('资料/讲义.pdf', { kind: 'pdf-page', page: 3 }), '![[资料/讲义.pdf#page=3]]');
   assert.deepEqual(parseMediaTarget('资料/讲义.pdf#page=3'), { path: '资料/讲义.pdf', locator: { kind: 'pdf-page', page: 3 } });
+  assert.equal(embedTarget('资料/讲义.pdf', { kind: 'pdf-region', page: 3, rect: [0.1, 0.2, 0.4, 0.3] }), '![[资料/讲义.pdf#page=3&rect=0.1,0.2,0.4,0.3]]');
+  assert.deepEqual(parseMediaTarget('资料/讲义.pdf#page=3&rect=0.1,0.2,0.4,0.3'), { path: '资料/讲义.pdf', locator: { kind: 'pdf-region', page: 3, rect: [0.1, 0.2, 0.4, 0.3] } });
   assert.deepEqual(parseMediaTarget('视频/课堂.mp4#t=1200,4500'), { path: '视频/课堂.mp4', locator: { kind: 'video-time', startMs: 1200, endMs: 4500 } });
   assert.deepEqual(parseMediaTarget('图片/图.png#rect=10,20,300,180'), { path: '图片/图.png', locator: { kind: 'image-region', rect: [10, 20, 300, 180] } });
   assert.deepEqual(parseMediaTarget('页面/说明.html#anchor=目标段落'), { path: '页面/说明.html', locator: { kind: 'html-range', anchor: '目标段落' } });
+  const withEmbed = parseMarkdownDocument('页面/摘记.md', '# 摘记\n\n看图 ![[媒体/图.png#rect=0,0,1,1]] 和 [[知识/向量]]。\n');
+  assert.deepEqual(withEmbed.links, ['知识/向量.md']);
 });
 
 test('lists, reads and revision-saves binary assets beside Markdown pages', async () => {
@@ -214,4 +219,59 @@ test('lists, reads and revision-saves binary assets beside Markdown pages', asyn
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test('falls back from Markdown read errors to the media reader without crashing the view', async () => {
+  const source = await readFile(new URL('./client-source.ts', import.meta.url), 'utf8');
+  assert.match(source, /try \{\s*read = await vault\.read\(\{ path \}\)/);
+  assert.match(source, /try \{\s*media = await vault\.readAsset\(\{ path \}\)/);
+});
+
+test('writes a PDF region into a normal Markdown card without creating a PDF annotation entity', () => {
+  const content = buildPdfCardContent('---\ntemplate: true\nname: 知识卡片\ntype: card\n---\n# {{title}}\n\n## 结论\n', {
+    title: '基底的几何意义',
+    date: '2026-09-21',
+    source: '媒体/向量讲义.pdf',
+    revision: 'pdf-revision-1',
+    page: 2,
+    rect: [0.125, 0.2, 0.5, 0.25],
+    quote: 'A basis gives a coordinate language.',
+  });
+  assert.match(content, /# 基底的几何意义/);
+  assert.match(content, /媒体\/向量讲义\.pdf/);
+  assert.match(content, /pdf-revision-1/);
+  assert.match(content, /第 2 页/);
+  assert.match(content, /!\[\[媒体\/向量讲义\.pdf#page=2&rect=0\.125,0\.2,0\.5,0\.25\]\]/);
+  assert.match(content, /> A basis gives a coordinate language\./);
+  assert.doesNotMatch(content, /^template:/m);
+  assert.doesNotMatch(content, /^name:/m);
+  assert.equal(cardPathFor('基底的几何意义'), '卡片/基底的几何意义.md');
+});
+
+test('uses a dedicated PDF reader with a drawable selection layer', async () => {
+  const source = await readFile(new URL('./client-source.ts', import.meta.url), 'utf8');
+  assert.match(source, /getDocument\(/);
+  assert.match(source, /TextLayer/);
+  assert.match(source, /onPointerDown/);
+  assert.match(source, /pdfSelectLayer/);
+  assert.match(source, /提取为 Markdown 卡片/);
+  assert.doesNotMatch(source, /createElement\('object'/);
+});
+
+test('collects the text a PDF rectangle selection covers, in reading order', () => {
+  const items = [
+    { rect: [0.05, 0.10, 0.60, 0.03], str: 'Vector foundations' },
+    { rect: [0.05, 0.16, 0.55, 0.02], str: 'A basis gives' },
+    { rect: [0.60, 0.16, 0.30, 0.02], str: 'a coordinate language.' },
+    { rect: [0.05, 0.50, 0.50, 0.02], str: 'Unrelated footnote' },
+  ];
+  const quote = quoteFromItems(items, [0.04, 0.08, 0.90, 0.12]);
+  assert.match(quote, /Vector foundations/);
+  assert.match(quote, /A basis gives/);
+  assert.match(quote, /a coordinate language\./);
+  assert.doesNotMatch(quote, /Unrelated footnote/);
+  assert.equal(quoteFromItems(items, [0.80, 0.80, 0.10, 0.10]), '');
+  assert.equal(quoteFromItems(items, [0.04, 0.15, 0.20, 0.04]).trim(), 'A basis gives');
+  assert.equal(quoteFromItems(undefined, [0, 0, 1, 1]), '');
+  assert.equal(quoteFromItems(items, 'bad'), '');
 });

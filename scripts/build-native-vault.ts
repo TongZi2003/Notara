@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const result = await build({
@@ -11,6 +11,9 @@ const result = await build({
   external: ['react'],
   legalComments: 'none',
   write: false,
+  plugins: [{ name: 'local-pdf-worker', setup(builder) {
+    builder.onLoad({ filter: /pdf\.worker(?:\.min)?\.mjs$/ }, async args => ({ contents: await readFile(args.path, 'utf8'), loader: 'text' }));
+  } }],
 });
 
 const outputFile = result.outputFiles[0];
