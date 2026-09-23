@@ -9,6 +9,11 @@ const patches = [
   {
     path: 'lib/client.js', sha: '930c10a9bed1094e7bca6242276c22ba7020fd58bac47d70a0fef174544508ef',
     replacements: [
+      // The hidden native right sidebar extends beyond the frame. `hidden`
+      // makes that outer frame programmatically scrollable: focusing a graph
+      // node or navigating an editor can pan the entire app into the offscreen
+      // column. Only the inner panes should scroll; the shell is a clip frame.
+      ['grid-template-rows:100%;display:grid;position:relative;overflow:hidden', 'grid-template-rows:100%;display:grid;position:relative;overflow:clip'],
       ['clampWidth(sidebar, 264, 420)', 'clampWidth(sidebar, 196, 420)'],
       ['layoutInfo.sidebar === 0 ? 280 : layoutInfo.sidebar', 'layoutInfo.sidebar === 0 ? layoutInfo.sidebarDefault : layoutInfo.sidebar'],
       ['sidebar: 280,', 'sidebar: 280,\n\t\t\t\t\t\tsidebarDefault: 280,'],
@@ -30,16 +35,19 @@ const sha = (text: string): string => createHash('sha256').update(text).digest('
 for (const patch of patches) {
   const path = new URL('../node_modules/@deepseek-ai/dsh-client-ui-layout/' + patch.path, import.meta.url);
   const source = readFileSync(path, 'utf8');
+  let original = source;
   if (sha(source) !== patch.sha) {
     let reversed = source;
     for (const [before, after] of [...patch.replacements].reverse()) reversed = reversed.replace(after, before);
     if (sha(reversed) !== patch.sha) throw new Error('Unknown DSH layout artifact; review notebook geometry patch: ' + patch.path);
-    continue;
+    original = reversed;
   }
-  let result = source;
+  // Rebuild from the verified upstream artifact so older patch revisions also
+  // acquire newly added replacements. Re-running an up-to-date patch is a no-op.
+  let result = original;
   for (const [before, after] of patch.replacements) {
     if (result.split(before).length !== 2) throw new Error('DSH layout patch anchor changed: ' + patch.path);
     result = result.replace(before, after);
   }
-  writeFileSync(path, result);
+  if (result !== source) writeFileSync(path, result);
 }

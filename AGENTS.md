@@ -8,6 +8,24 @@
 - Node 下限为 `>=24.0.0`；本机验证使用 Node `v24.13.0`。
 - 旧 StudyForge 产品基线只作为 `docs/migration/` 中记录的历史行为来源，不是运行时依赖；不要读取本机绝对路径来替代仓库内证据。
 - `docs/migration/` 保存当前迁移合同、Notara 规格和验收边界；`docs/runtime/`、`docs/ui/` 与 `docs/evidence/` 保存实现、运行和验证记录。
+- `examples/native-vault` 是文件事实源上的独立教学组合，教学资源在 `resources/vault-teaching/`。教学设置、剧本绑定与小结操作身份使用原生 session 的 `notara/*` 扩展事件；写入必须用 `appendTeachingEvent` 和 `ignorable` 信封。`scripts/patch-session-extension.ts` 是 rc.2 的必要写侧接缝，不修改已知事件词表或绕过持久化读校验。
+- Native Vault 0.14.0 教室支持题目研究员、课时备课员、核验员、通用工作员、出题员五种工作预设；教师用 `ask_worker` 经原生 one-shot spawn 独立运行。`worker-catalog.js` 是预设身份/工具能力共同来源；公共规则、当前预设和至多4个选定学科/教法 Skill 分层组装。每预设独立模型/推理/预算/none或read工具配置，默认继承已有solver路由，否则仅精确匹配已接入的 `gpt-5.6-sol`，不静默切父模型。默认界面仅状态，用户主动查看时打开原生只读子记录。
+- Native Vault 0.14.0 学科关注按需分为数学、物理、化学、计算机、语文、英语，保留 `subject-science/subject-humanities` 作为未细分领域兜底。manifest 是唯一资源登记，主教师按实际内容选读并通过 `ask_worker.skills` 显式交接；`subjects` 标签不自动注入学科正文，不改变权限。书籍拆解与课程编排共用五角色，课程可来自上传、网络或无预置资料；任务式剧本模板仅精确升级旧内置文本，保留自定义模板与既有剧本。构建后的 `examples/native-vault/teaching/` 优先于源目录，验证前先构建并确认副本一致。
+- Native Vault 0.14.1 的“学生理解”保留有证据的认知演变：早先不完备/错误认识、转折、提示程度及后来实际表现；补充新阶段不以最终正确结论覆盖旧认识，不补编缺失过程。诊断通过原生文件检索按需召回相关卡片、画像、锦囊和小结，联合后续修正、成功表现与情境差异，不将旧错直接当当前状态，也不把同一经历的多个引用重复计数。详细记录归卡片，画像/锦囊仍为两类长期教学记忆；并发诊断调度尚未实现。
+- Native Vault 0.14.2 的输入框“指令”合并原生 command/skill 来源，仍按会话预设和 userInvocable 过滤。中文名称及 `menu: more` 折叠分组来自同一教学 manifest；默认展示常用学习功能，教法、学科关注和辅助工作流在“更多技能”中，搜索覆盖全部可用项。折叠只刷新菜单，不改草稿；选择技能仍插入真实调用名，发送时由原生机制加载。`scripts/patch-input-source-filter.ts` 与 `scripts/patch-skill-menu.ts` 是锁定 rc.2 的可逆、摘要校验接缝。
+- Native Vault 0.10.0 剧本是单份 Markdown：公共 `##` 阶段与就近 `<details>` 教师参考，默认折叠。`lesson-script.js` 是编辑器折叠与模型阶段目录的共同解析入口；开课只注入导航，`lesson-outline` / `lesson-section` 通过真实 revision 读取阶段，不注入历史截断正文，也不承诺完整历史版本。`source` 为原书结构、`topic` 为教学专题，均无复习生命周期；PDF 来源引用保留页/区域和 revision。主教师负责课程总框架与正式写回，课时备课员按一节课的显式材料独立完善。
+- Native Vault 0.11.0 路线以 `stage`、`pathway`、`prerequisites` 区分阶段、主线/补练/拓展与知识先修；`brief` 仅保存在同文件的路线节点正文块，不能复制到 frontmatter。`route-outline` 给真实身份和版本，`revise-route` 在单次 CAS 中局部更新未来课程、保留已绑定课堂与完整修订日志。排课/开课不得改写规划正文。先修不自动锁课，有小结不等于掌握；本课背景只加载当前节点规划（超过6000字符整段延后原生读取）。
+- Native Vault 0.12.0 新卡、锦囊与共性专题使用页头 tags 和“内容/参考理解/学生理解”三段。题卡原则上一题一卡，原题正文可检索，原文参考答案保留并作为依据；补充解法与疑点分开标明，学生理解无真实表达时留空。同类题以 `parent` 挂在无复习周期的 `topic` 下。只升级与旧内置模板内容一致的模板，不批量重写已有卡片或自定义模板。
+- 拆书由主教师略读、确认范围并列语义单元清单；知识型课本以 `ask_worker preset=general` 独立研究知识单元为主线，解释动机、条件、依赖、例证与边界，题目用 `problem` 保留完整题面、原解和推导。主教师轻量审阅、保存并归纳知识联系与共性父节点。备课由主教师给框架后逐课交 `lesson`；小测/变式交 `exercise`，具体疑点交 `review`，知识研究或纯证据整理交 `general`，按任务交完整知识卡或证据报告。每任务生成上限默认32768，配置可独立调整；默认高推理但预算不保证正确性。`sources` 最多4个真实PDF embed，Host按revision读原图并交接。none无工具，read仅原生read/glob/grep/read_image，仍继承原生权限；没有写入/Bash/嵌套委派。对话里的Vault产物在资产分屏打开，不走原生侧栏预览。
+- Native Vault 工作员非法JSON/字段返回定位反馈；同一输入、相同任务材料与有效配置下的预算耗尽任务禁止原样重跑，缩小任务、用户新输入或配置变化可再尝试；失败与待核对状态不得在后续摘要中变成已核验。当前每课堂同时一个后台任务。旧 `notara/solver-*` 事件只读兼容，新配置/任务写 `notara/worker-*` ignorable事件，不重写旧日志。预览支持同行 `<details><summary>`，卡片/专题/锦囊的“参考理解”（兼容“教师理解”）默认折叠，折叠不改写Markdown。
+- Native Vault 0.12.3 支持教室的 `notara.classroom.view` 子槽，由工作区声明并交给 `ClassroomView` 渲染。可选原生插件 `examples/pixel-classroom` 提供像素视图，和列表共用课堂状态、原生 `SessionSnapshot.running`、查看分析/停止/设置操作；不新增顶层分页或子代理生命周期。实时模式不显示模拟播放或用量，原版 Pixel Agents 引擎与 MIT 素材保持独立来源记录。
+- Native Vault 0.14.3 以 `assessments[{ability,outcome}]` 与 `note` 记录具体能力及认知工作归属；三态为 demonstrated/needs_practice/not_observed，不按提示次数减分。存在实际困难才降档；无困难但有未知只记历史，不改原排期；全部得到证据支持且已经到期才升档，提前成功不推迟到期。首次有效评估从第1档开始，1/3/7/16/35天不变。`mastery` 仅为复习档位，`learned` 表示已开始复习；旧passed历史只读保留，新写拒绝旧格式。仅type:card参与，当前状态与历史在同一Markdown原子写入，日期/身份由Host绑定，日历是文件投影；不复用旧数据库账本。`VAULT_REMOTE_METHODS` 是独立插件Host/client的共同方法清单。
+- Native Vault 0.14.4 的课堂规则要求主教师在一道题讨论收束、转入下一题前记录一次本轮评估。复用本题题卡，缺卡时按模板与真实题面建卡；有认知变化先补正文“学生理解”，再取最新revision记录评估。纯讲解无学生表现记not_observed，不凭听过启动复习。收束由教师按语义判断，不是逐消息自动hook；正文与评估是分别核对回执的两次写入，评估和排期本身仍在同文件一次CAS完成。
+- Native Vault 0.14.5 的 `material-search` 通过查询意图展开、原生检索与正文语义判断找卡片，可交只读 `general` 独立整理；不是向量索引。`teaching-reflection` 反思教学判断，将必要更新分流至小结、画像、锦囊或路线，内置 Skill 先给修订建议，不就地改快照；当前教学预设没有个人文件 Skill 自动发现。`learning-review` 综合近期进展、兴趣与目标给下一步方向，按已知授权目录跨集取证，不宣称全局发现或统一复习。找卡片/学习复盘直接展示，教学反思折叠到更多技能；三者按需加载，归档反思并入已有小结。
+- Native Vault 0.9.0 的单文件删除走 Vault `.trash` 回收站，可恢复但不覆盖同名文件；所有点目录不进入资产、搜索和图谱投影。PDF 图层与矩形批注保存在 `.notara/pdf-annotations/`，绑定 PDF revision；区域引用卡片保留原版图像、页码、矩形和可选标注引用，不把逐页文字层直接拆成卡片。原 PDF 改版后不得把旧标注自动当作新版位置。
+- Native Vault 教师仅保留 `set_teaching_settings`、`open_learning_lesson`、`save_lesson_summary`、`ask_worker` 四个专用模型工具；普通文件读写和搜索用 DSH 原生工具，确定性复习/排课/PDF 辅助走 `vault-cli.js`。CLI 与 UI 共用 IO 和文件计算；Host 通过原生 `shellEnv` 注入 `DSH_NOTARA_*`，不得让模型填写执行身份。0.11.2 起教学 `write/edit` 与课堂写工具默认请求批准，原生 `danger-full-access` 覆盖这层额外要求；原生 deny/ask 和工作员工具范围限制仍保留。Bash 完全沿用原生沙箱与审批决定，不做命令字符串“只读”猜测，也不额外统一审批。每次 Bash 的 `description` 按 Skill 用 `[notara:<intent>] 中文说明` 标记用途，0.8.2 在原生工具 slot 中将用途显示为小字折叠行，点击展开命令与输出，普通返回不另显示状态；未标记的调用沿用原生展示。标记不是权限或执行成功依据。
+
+- Native Vault 0.14.7 的评估要求当前实际困难证据；缺少步骤展示不等于失败，已纠正的历史错误不冒充当前困难。常驻规则、按需 Skill 与 CLI help 同步约束；有真实认知变化先保存题卡正文，再按最新 revision 记评估，分别核对回执。教学小结保存即为教学归档，默认保留原生会话继续交流；只有用户明确从会话列表收起时才调用原生归档。
 
 ## 工作约定
 
@@ -34,7 +52,9 @@
 
 - 只用本仓库 lockfile 中的脚本和依赖，不使用会隐式拉取版本的全局 CLI 或 `npx`。
 - 所有运行和 E2E 使用 `scripts/dev-isolated.ts` 的临时 `DSH_HOME`、临时课堂目录和随机端口；不启动、停止或修改其他 checkout、共享端口和真实用户目录。
-- 隔离实例是全新空环境：没有用户的插件、课堂和学习数据。报告时写明这是隔离实例与其实际数据根；用户明确要求真实 `~/.dsh` 或既有数据时才换启动方式，并把所用的数据根写进报告。
+- 用户明确要求长期试用时，使用同一入口导出的 `startVaultPersistent` / `npm run vault`，默认 `~/.notara/vault-runtime`、端口 `57093`；停止不删除数据，已有目录不重新播种。`npm run vault:open` 使用当前进程有效的登录链接；新浏览器首次登录不能只给去掉 token 的 origin。测试该生命周期仍使用临时目录和首次随机端口。未经用户授权不迁移实际数据。
+- Vault 启动器给 DSH 子进程设置 64 KiB HTTP 请求头上限：浏览器会跨端口发送同一主机的历史登录 Cookie，Node 默认 16 KiB 可能在进入鉴权前返回 431。该上限不改变原生认证和 Host/Origin 校验；排查时区分 401、431 与浏览器侧错误，不只依赖 HTTP handler 日志判断请求是否到达。
+- 隔离实例只含脚本指定的合成资料，没有用户的插件、课堂和学习数据。Native Vault 使用实例内插件快照，其他构建不得热更新正在验收的实例。报告时写明这是隔离实例与其实际数据根；用户明确要求真实 `~/.dsh` 或既有数据时才换启动方式，并把所用的数据根写进报告。
 - 启动与验收前先确认实例归属：本机常同时存在其他 checkout 的实例和上次遗留的旧实例。操作浏览器或汇报地址前，先核实目标进程实际监听的 URL，不在旧实例上验证新改动。
 - `.runtime/`、`node_modules/`、`dist/`、`lib/`、测试结果和凭据是本机产物，不提交。
 - 不读取或提交 API key、认证 token、真实用户学习数据或完整私密课堂记录。

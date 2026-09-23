@@ -1,11 +1,12 @@
 {
   "name": "@notara/vault-native",
-  "version": "0.2.6",
+  "version": "0.14.7",
   "type": "module",
   "main": "index.js",
-  "files": ["index.js", "client.js", "vault.js", "frontmatter.js", "media.js", "pdf.js", "templates"],
+  "files": ["index.js", "client.js", "vault.js", "frontmatter.js", "media.js", "pdf.js", "pdf-annotations.js", "graph.js", "templates", "teaching", "presets", "teacher.js", "teaching-context.js", "teaching-catalog.js", "teaching-state.js", "teaching-runtime.js", "solver-runtime.js", "worker-catalog.js", "solver-policy.js", "solver-sources.js", "agent-tools.js", "agent-io.js", "agent-media.js", "learning-data.js", "lesson-data.js", "lesson-script.js", "route-plan.js", "review-data.js", "review-runtime.js", "calendar-data.js", "remote-client.js", "vault-cli.js", "file-operations.js"],
   "exports": {
     ".": "./index.js",
+    "./teacher": "./teacher.js",
     "./client": "./client.js",
     "./package.json": "./package.json"
   },
@@ -17,6 +18,11 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/dsh-typert-protocol": "0.1.5-rc.2"
+    "@deepseek-ai/dsh-typert-protocol": "0.1.5-rc.2",
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-fs-local": "0.1.5-rc.2",
+    "pdfjs-dist": "6.3.289",
+    "sharp": "0.35.4",
+    "@napi-rs/canvas": "1.0.9"
   }
 }

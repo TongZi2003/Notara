@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
+import { VAULT_REMOTE_METHODS } from './remote-client.js';
 
 import {
   buildBacklinks,
@@ -129,8 +130,9 @@ test('declares strict client codecs for the native Remote contribution', async (
   assert.match(source, /mode: 'strict'/);
   assert.doesNotMatch(source, /mode: 'src-json'/);
   assert.match(source, /schema: strictJsonSchema/);
-  assert.match(source, /readAsset/);
-  assert.match(source, /saveAsset/);
+  assert.ok(VAULT_REMOTE_METHODS.includes('readAsset'));
+  assert.ok(VAULT_REMOTE_METHODS.includes('saveAsset'));
+  assert.match(source, /const REMOTE_METHODS = VAULT_REMOTE_METHODS/);
 });
 
 test('seeds missing built-in templates into _templates without indexing them as pages', async () => {
@@ -175,7 +177,7 @@ test('bridges vault pages and selections into the native conversation reference 
 });
 
 test('refreshes external vault changes without overwriting an unsaved editor draft', async () => {
-  const source = await readFile(new URL('./client-source.ts', import.meta.url), 'utf8');
+  const source = await readFile(new URL('./assets-client.js', import.meta.url), 'utf8');
   assert.match(source, /setInterval\(syncExternal/);
   assert.match(source, /当前页面在外部发生变化/);
   assert.match(source, /页面已从文件刷新/);
@@ -222,12 +224,12 @@ test('lists, reads and revision-saves binary assets beside Markdown pages', asyn
 });
 
 test('falls back from Markdown read errors to the media reader without crashing the view', async () => {
-  const source = await readFile(new URL('./client-source.ts', import.meta.url), 'utf8');
+  const source = await readFile(new URL('./assets-client.js', import.meta.url), 'utf8');
   assert.match(source, /try \{\s*read = await vault\.read\(\{ path \}\)/);
   assert.match(source, /try \{\s*media = await vault\.readAsset\(\{ path \}\)/);
 });
 
-test('writes a PDF region into a normal Markdown card without creating a PDF annotation entity', () => {
+test('writes a visual PDF region and annotation reference without copying extracted text', () => {
   const content = buildPdfCardContent('---\ntemplate: true\nname: 知识卡片\ntype: card\n---\n# {{title}}\n\n## 结论\n', {
     title: '基底的几何意义',
     date: '2026-09-21',
@@ -236,13 +238,16 @@ test('writes a PDF region into a normal Markdown card without creating a PDF ann
     page: 2,
     rect: [0.125, 0.2, 0.5, 0.25],
     quote: 'A basis gives a coordinate language.',
+    annotationId: 'annotation-1',
+    note: '核对原页中的公式。',
   });
   assert.match(content, /# 基底的几何意义/);
   assert.match(content, /媒体\/向量讲义\.pdf/);
   assert.match(content, /pdf-revision-1/);
   assert.match(content, /第 2 页/);
-  assert.match(content, /!\[\[媒体\/向量讲义\.pdf#page=2&rect=0\.125,0\.2,0\.5,0\.25\]\]/);
-  assert.match(content, /> A basis gives a coordinate language\./);
+  assert.match(content, /!\[\[媒体\/向量讲义\.pdf#page=2&rect=0\.125,0\.2,0\.5,0\.25&annotation=annotation-1&revision=pdf-revision-1\]\]/);
+  assert.doesNotMatch(content, /A basis gives/);
+  assert.match(content, /核对原页中的公式/);
   assert.doesNotMatch(content, /^template:/m);
   assert.doesNotMatch(content, /^name:/m);
   assert.equal(cardPathFor('基底的几何意义'), '卡片/基底的几何意义.md');
@@ -251,10 +256,10 @@ test('writes a PDF region into a normal Markdown card without creating a PDF ann
 test('uses a dedicated PDF reader with a drawable selection layer', async () => {
   const source = await readFile(new URL('./client-source.ts', import.meta.url), 'utf8');
   assert.match(source, /getDocument\(/);
-  assert.match(source, /TextLayer/);
+  assert.doesNotMatch(source, /new TextLayer/);
   assert.match(source, /onPointerDown/);
   assert.match(source, /pdfSelectLayer/);
-  assert.match(source, /提取为 Markdown 卡片/);
+  assert.match(source, /创建区域引用卡片/);
   assert.doesNotMatch(source, /createElement\('object'/);
 });
 

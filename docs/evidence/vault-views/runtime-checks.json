@@ -1,0 +1,185 @@
+[
+  {
+    "test": "keeps narrow graph details inside the native viewport",
+    "name": "layout",
+    "value": [
+      {
+        "tag": "ASIDE",
+        "className": "nv-graph-pane",
+        "left": 280,
+        "width": 310,
+        "scrollWidth": 310,
+        "scrollLeft": 0,
+        "overflowX": "auto"
+      },
+      {
+        "tag": "DIV",
+        "className": "nv-graph-layout",
+        "left": 280,
+        "width": 310,
+        "scrollWidth": 310,
+        "scrollLeft": 0,
+        "overflowX": "hidden"
+      },
+      {
+        "tag": "DIV",
+        "className": "nv-views",
+        "left": 280,
+        "width": 310,
+        "scrollWidth": 310,
+        "scrollLeft": 0,
+        "overflowX": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "",
+        "left": 0,
+        "width": 0,
+        "scrollWidth": 0,
+        "scrollLeft": 0,
+        "overflowX": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "wSkVaW_viewArea",
+        "left": 280,
+        "width": 310,
+        "scrollWidth": 310,
+        "scrollLeft": 0,
+        "overflowX": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "",
+        "left": 0,
+        "width": 0,
+        "scrollWidth": 0,
+        "scrollLeft": 0,
+        "overflowX": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "wSkVaW_scrollBody",
+        "left": 280,
+        "width": 310,
+        "scrollWidth": 310,
+        "scrollLeft": 0,
+        "overflowX": "auto"
+      },
+      {
+        "tag": "DIV",
+        "className": "wSkVaW_body",
+        "left": 280,
+        "width": 320,
+        "scrollWidth": 543,
+        "scrollLeft": 0,
+        "overflowX": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "wSkVaW_root",
+        "left": 280,
+        "width": 320,
+        "scrollWidth": 543,
+        "scrollLeft": 0,
+        "overflowX": "clip"
+      },
+      {
+        "tag": "DIV",
+        "className": "",
+        "left": 0,
+        "width": 0,
+        "scrollWidth": 0,
+        "scrollLeft": 0,
+        "overflowX": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "",
+        "left": 0,
+        "width": 0,
+        "scrollWidth": 0,
+        "scrollLeft": 0,
+        "overflowX": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "",
+        "left": 0,
+        "width": 0,
+        "scrollWidth": 0,
+        "scrollLeft": 0,
+        "overflowX": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "pI_x6G_centerCol",
+        "left": 280,
+        "width": 320,
+        "scrollWidth": 320,
+        "scrollLeft": 0,
+        "overflowX": "hidden"
+      },
+      {
+        "tag": "DIV",
+        "className": "pI_x6G_frame",
+        "left": 0,
+        "width": 600,
+        "scrollWidth": 600,
+        "scrollLeft": 0,
+        "overflowX": "clip"
+      },
+      {
+        "tag": "DIV",
+        "className": "",
+        "left": 0,
+        "width": 0,
+        "scrollWidth": 0,
+        "scrollLeft": 0,
+        "overflowX": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "",
+        "left": 0,
+        "width": 600,
+        "scrollWidth": 600,
+        "scrollLeft": 0,
+        "overflowX": "visible"
+      },
+      {
+        "tag": "BODY",
+        "className": "",
+        "left": 0,
+        "width": 600,
+        "scrollWidth": 600,
+        "scrollLeft": 0,
+        "overflowX": "visible"
+      },
+      {
+        "tag": "HTML",
+        "className": "",
+        "left": 0,
+        "width": 600,
+        "scrollWidth": 600,
+        "scrollLeft": 0,
+        "overflowX": "visible"
+      }
+    ]
+  },
+  {
+    "test": "vault views derive relationships, navigate sources and split cards",
+    "name": "isolated-runtime",
+    "value": {
+      "root": "/var/folders/6m/q0d3bw_55vl_r7px9ktfj33w0000gn/T/notara-vault-native-PKIjv5",
+      "workspace": "/var/folders/6m/q0d3bw_55vl_r7px9ktfj33w0000gn/T/notara-vault-native-PKIjv5/workspace",
+      "url": "http://127.0.0.1:63682",
+      "node": "v24.13.0"
+    }
+  },
+  {
+    "test": "vault views derive relationships, navigate sources and split cards",
+    "name": "console-errors",
+    "value": []
+  }
+]

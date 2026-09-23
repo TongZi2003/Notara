@@ -4,12 +4,16 @@ name: 知识卡片
 type: card
 status: draft
 tags: []
+learned: false
+mastery: 0
+interval: null
+last_review: null
+next_review: null
 ---
 # {{title}}
 
-## 结论
+## 内容
 
-## 解释
+## 参考理解
 
-## 例子
-
+## 学生理解

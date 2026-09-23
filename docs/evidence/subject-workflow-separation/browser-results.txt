@@ -1,0 +1,43 @@
+
+Running 2 tests using 1 worker
+
+(node:97545) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Verified rc.2 Session.append ignorable envelope passthrough
+native-vault client: 5458299 bytes
+  ✓  1 tests/e2e/native-vault-fold.spec.ts:12:1 › teacher material folds by default in the reading surfaces and still opens on demand (13.9s)
+  ✘  2 tests/e2e/native-vault-subjects.spec.ts:6:1 › subject resources are discoverable and a new task-based lesson keeps teacher references folded (27.2s)
+
+
+  1) tests/e2e/native-vault-subjects.spec.ts:6:1 › subject resources are discoverable and a new task-based lesson keeps teacher references folded
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByLabel('Markdown Live Preview 编辑器')
+    Expected substring: "数组入门"
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" getByLabel('Markdown Live Preview 编辑器') with timeout 15000ms
+      - waiting for getByLabel('Markdown Live Preview 编辑器')
+
+
+      45 |     await notes.nth(1).locator('summary').click();
+      46 |     await page.reload();
+    > 47 |     await expect(page.getByLabel('Markdown Live Preview 编辑器')).toContainText('数组入门');
+         |                                                                ^
+      48 |     expect(await page.locator('.cm-vault-teacher').evaluateAll(elements => elements.length > 0 && elements.every(el => !(el as HTMLDetailsElement).open))).toBe(true);
+      49 |     expect(errors).toEqual([]);
+      50 |   } finally {
+        at /Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/tests/e2e/native-vault-subjects.spec.ts:47:64
+
+    attachment #1: isolated-runtime (text/plain) ───────────────────────────────────────────────────
+    /var/folders/6m/q0d3bw_55vl_r7px9ktfj33w0000gn/T/notara-vault-native-8OPQSr
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/native-vault-subjects-subj-584a2-s-teacher-references-folded/error-context.md
+
+  1 failed
+    tests/e2e/native-vault-subjects.spec.ts:6:1 › subject resources are discoverable and a new task-based lesson keeps teacher references folded
+  1 passed (43.0s)

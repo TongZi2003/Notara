@@ -1,0 +1,10 @@
+
+Running 1 test using 1 worker
+
+(node:28060) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Verified rc.2 Session.append ignorable envelope passthrough
+native-vault client: 5462055 bytes
+  ✓  1 tests/e2e/native-vault-review.spec.ts:8:1 › ability observations survive reload, keep unknown distinct, and do not inflate same-day review (8.4s)
+
+  1 passed (9.1s)

@@ -1,0 +1,130 @@
+{
+  "status": "not_run_missing_isolated_credentials",
+  "provenance": "All excerpts are synthetic test fixtures, not student data or textbook quotations.",
+  "pilotOrder": [
+    "math-distill",
+    "computing-lesson"
+  ],
+  "cases": [
+    {
+      "id": "math-distill",
+      "subject": "math",
+      "request": "请只拆解这段合成材料，研究其中的知识单元与题目，保存能独立阅读的卡片，并解释它们之间的联系。没有学生作答，学生理解留空。\n\n合成教材：等差数列满足 a(n+1)-a(n)=d。由逐次累加得 a(n)=a(1)+(n-1)d，n≥1。习题：a(1)=2,d=3，求a(5)并说明依据。原文参考答案：14；a(5)=2+4×3。",
+      "review": [
+        "知识卡解释为何逐次累加产生通项",
+        "一题一卡，保留题干和原答案",
+        "检查n≥1而非只抄公式"
+      ]
+    },
+    {
+      "id": "math-lesson",
+      "subject": "math",
+      "request": "请准备一节围绕“等差数列的定义、通项的由来与使用条件”的入门课，按实际任务组织单份Markdown剧本并保存，教师参考折叠。可参考以下合成材料，也可以构造并标明新的教学例子。\n\n合成教材：等差数列满足 a(n+1)-a(n)=d。由逐次累加得 a(n)=a(1)+(n-1)d，n≥1。习题：a(1)=2,d=3，求a(5)并说明依据。原文参考答案：14；a(5)=2+4×3。",
+      "review": [
+        "知识卡解释为何逐次累加产生通项",
+        "一题一卡，保留题干和原答案",
+        "检查n≥1而非只抄公式"
+      ]
+    },
+    {
+      "id": "physics-distill",
+      "subject": "physics",
+      "request": "请只拆解这段合成材料，研究其中的知识单元与题目，保存能独立阅读的卡片，并解释它们之间的联系。没有学生作答，学生理解留空。\n\n合成教材：在惯性参考系中，研究质量不变的小车，忽略摩擦，沿轨道的合力F与加速度a满足F=ma。实验记录：m=2kg；F/N为0、2、4，对应a/(m/s²)为0、1、2。习题：合力为6N时预测a。原文参考答案：3m/s²，前提为上述模型仍适用。",
+      "review": [
+        "知识卡保留对象惯性系忽略摩擦质量不变",
+        "数据和单位完整",
+        "原题预测不冒充新增实测值"
+      ]
+    },
+    {
+      "id": "physics-lesson",
+      "subject": "physics",
+      "request": "请准备一节围绕“合力与加速度的联系及模型假设”的入门课，按实际任务组织单份Markdown剧本并保存，教师参考折叠。可参考以下合成材料，也可以构造并标明新的教学例子。\n\n合成教材：在惯性参考系中，研究质量不变的小车，忽略摩擦，沿轨道的合力F与加速度a满足F=ma。实验记录：m=2kg；F/N为0、2、4，对应a/(m/s²)为0、1、2。习题：合力为6N时预测a。原文参考答案：3m/s²，前提为上述模型仍适用。",
+      "review": [
+        "知识卡保留对象惯性系忽略摩擦质量不变",
+        "数据和单位完整",
+        "原题预测不冒充新增实测值"
+      ]
+    },
+    {
+      "id": "chemistry-distill",
+      "subject": "chemistry",
+      "request": "请只拆解这段合成材料，研究其中的知识单元与题目，保存能独立阅读的卡片，并解释它们之间的联系。没有学生作答，学生理解留空。\n\n合成教材：讨论碳酸钙与稀盐酸。方程式CaCO3+2HCl→CaCl2+H2O+CO2↑。记录：向样品加入稀盐酸，出现气泡。未记录气体检验。习题：仅凭气泡能否确定气体为CO2？原文参考答案：不能，仅有气泡不足以识别气体，需要进一步检验。",
+      "review": [
+        "保留稀盐酸和实际观察",
+        "不伪造澄清石灰水实验",
+        "方程式与实测鉴别证据区分"
+      ]
+    },
+    {
+      "id": "chemistry-lesson",
+      "subject": "chemistry",
+      "request": "请准备一节围绕“区分反应模型、实验观察与证据推断”的入门课，按实际任务组织单份Markdown剧本并保存，教师参考折叠。可参考以下合成材料，也可以构造并标明新的教学例子。\n\n合成教材：讨论碳酸钙与稀盐酸。方程式CaCO3+2HCl→CaCl2+H2O+CO2↑。记录：向样品加入稀盐酸，出现气泡。未记录气体检验。习题：仅凭气泡能否确定气体为CO2？原文参考答案：不能，仅有气泡不足以识别气体，需要进一步检验。",
+      "review": [
+        "保留稀盐酸和实际观察",
+        "不伪造澄清石灰水实验",
+        "方程式与实测鉴别证据区分"
+      ]
+    },
+    {
+      "id": "computing-distill",
+      "subject": "computing",
+      "request": "请只拆解这段合成材料，研究其中的知识单元与题目，保存能独立阅读的卡片，并解释它们之间的联系。没有学生作答，学生理解留空。\n\n合成教材：C17中int a[3]={2,4,6};定义含3个int元素的数组。有效下标是0、1、2。示例：for(int i=0;i<3;i++) printf(\"%d \",a[i]);，需stdio.h和main环境。练习：把循环条件改为i<=3有什么问题？原文参考答案：访问a[3]越界，行为未定义，不能指定其必然输出。",
+      "review": [
+        "知识卡保留C17代码上下文",
+        "不为未定义行为编造固定结果",
+        "测试设计覆盖边界，运行结果单列"
+      ]
+    },
+    {
+      "id": "computing-lesson",
+      "subject": "computing",
+      "request": "请准备一节围绕“C数组的下标、值和边界，学生已学变量与循环”的入门课，按实际任务组织单份Markdown剧本并保存，教师参考折叠。没有教材可提供；可以构造代码示例与测试点，需区分静态分析和实际运行。",
+      "review": [
+        "知识卡保留C17代码上下文",
+        "不为未定义行为编造固定结果",
+        "测试设计覆盖边界，运行结果单列"
+      ]
+    },
+    {
+      "id": "chinese-distill",
+      "subject": "chinese",
+      "request": "请只拆解这段合成材料，研究其中的知识单元与题目，保存能独立阅读的卡片，并解释它们之间的联系。没有学生作答，学生理解留空。\n\n合成短文：雨停了，父亲仍把伞递给我。我说天已经晴了。他看看远处的云，只说，带着吧。我走出巷口，又回头看了一眼。阅读任务：末句回头可能表达什么？参考解读一：察觉父亲的关怀，回望回应。参考解读二：对父亲的叮嘱仍有疑惑，回望寻求确认。两种解读均须结合前文说明。知识说明：叙事细节可以形成未明说的情感，但推断不能脱离语境。",
+      "review": [
+        "保留完整短文与阅读任务",
+        "两种原解保留，不强制唯一",
+        "区分文本明确陈述和合理推断"
+      ]
+    },
+    {
+      "id": "chinese-lesson",
+      "subject": "chinese",
+      "request": "请准备一节围绕“用文本细节支持阅读解释”的入门课，按实际任务组织单份Markdown剧本并保存，教师参考折叠。可参考以下合成材料，也可以构造并标明新的教学例子。\n\n合成短文：雨停了，父亲仍把伞递给我。我说天已经晴了。他看看远处的云，只说，带着吧。我走出巷口，又回头看了一眼。阅读任务：末句回头可能表达什么？参考解读一：察觉父亲的关怀，回望回应。参考解读二：对父亲的叮嘱仍有疑惑，回望寻求确认。两种解读均须结合前文说明。知识说明：叙事细节可以形成未明说的情感，但推断不能脱离语境。",
+      "review": [
+        "保留完整短文与阅读任务",
+        "两种原解保留，不强制唯一",
+        "区分文本明确陈述和合理推断"
+      ]
+    },
+    {
+      "id": "english-distill",
+      "subject": "english",
+      "request": "请只拆解这段合成材料，研究其中的知识单元与题目，保存能独立阅读的卡片，并解释它们之间的联系。没有学生作答，学生理解留空。\n\nSynthetic textbook: At a café, 'Could I have some water, please?' and 'Can I have some water, please?' can both request water politely; could often adds tentativeness. Task: You are a guest and would like more water. Write a suitable request. Reference answers: 'Could I have some more water, please?' / 'May I have some more water, please?' Context and register matter. No audio is provided.",
+      "review": [
+        "保留咖啡馆或做客语境",
+        "接受合适的其他请求表达",
+        "无音频不评价发音"
+      ]
+    },
+    {
+      "id": "english-lesson",
+      "subject": "english",
+      "request": "请准备一节围绕“英语请求表达的形式、意义与场合”的入门课，按实际任务组织单份Markdown剧本并保存，教师参考折叠。可参考以下合成材料，也可以构造并标明新的教学例子。\n\nSynthetic textbook: At a café, 'Could I have some water, please?' and 'Can I have some water, please?' can both request water politely; could often adds tentativeness. Task: You are a guest and would like more water. Write a suitable request. Reference answers: 'Could I have some more water, please?' / 'May I have some more water, please?' Context and register matter. No audio is provided.",
+      "review": [
+        "保留咖啡馆或做客语境",
+        "接受合适的其他请求表达",
+        "无音频不评价发音"
+      ]
+    }
+  ]
+}

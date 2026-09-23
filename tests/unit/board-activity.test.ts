@@ -46,11 +46,14 @@ test('non-math documents fall back to field-level diffs with Chinese labels', ()
   expect(summarizeDocumentChange(before, before)).toBe('内容未变');
 });
 
-test('worldbook diffs use the same generic summarizer', () => {
+test('worldbook diffs report entry counts without disclosing gated titles or bodies', () => {
   const book = (entries: unknown[]) => ({ entries });
   const text = summarizeWorldbookChange(book([{ title: '角色', body: 'x' }]) as never, book([{ title: '角色', body: 'x' }, { title: '新条目', body: 'y' }]) as never);
-  expect(text).toContain('条目');
-  expect(text).toContain('+新条目');
+  expect(text).toBe('条目 +1');
+  expect(text).not.toContain('新条目');
+  expect(text).not.toContain('角色');
+  expect(summarizeWorldbookChange(book([{ title: '秘密', body: '旧内容' }]) as never, book([{ title: '秘密', body: '新内容' }]) as never)).toBe('修改条目');
+  expect(summarizeWorldbookChange(book([{ title: '秘密', body: '内容' }]) as never, book([]) as never)).toBe('条目 -1');
 });
 
 test('activity entries accept optional revision/labels and cap label count', () => {

@@ -6,8 +6,10 @@ import './patch-layout.ts';
 import './patch-sidebar.ts';
 import './patch-steering-display.ts';
 import './patch-input-source-filter.ts';
+import './patch-skill-menu.ts';
 import './patch-tool-args.ts';
 import './patch-entity-links.ts';
+import './patch-session-extension.ts';
 import { stripConversationSeams, applyConversationSeams } from './patch-conversation-views.ts';
 
 const project = join(dirname(fileURLToPath(import.meta.url)), '..');

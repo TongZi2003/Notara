@@ -9,6 +9,19 @@ const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // Directory links need no privilege on Windows only as junctions; 'dir' stays elsewhere.
 const dirLink = process.platform === 'win32' ? 'junction' as const : 'dir' as const;
 
+// Keep the standalone Vault on the common isolated-runtime entry point.
+export type { VaultOptions, VaultRuntime } from './dev-native-vault.ts';
+export async function startVaultIsolated(options: import('./dev-native-vault.ts').VaultOptions = {}): Promise<import('./dev-native-vault.ts').VaultRuntime> {
+  const vault = await import('./dev-native-vault.ts');
+  return vault.startVaultIsolated(options);
+}
+
+/** Explicit long-lived Vault entry; tests still pass a temporary root. */
+export async function startVaultPersistent(root: string, options: import('./dev-native-vault.ts').VaultPersistentOptions = {}): Promise<import('./dev-native-vault.ts').VaultRuntime> {
+  const vault = await import('./dev-native-vault.ts');
+  return vault.startVaultPersistent(root, options);
+}
+
 export interface IsolatedRuntime {
   readonly authUrl: string;
   readonly root: string;

@@ -1,0 +1,76 @@
+[
+  {
+    "id": "@notara/vault-native@0.4.0",
+    "name": "@notara/vault-native",
+    "version": "0.4.0",
+    "size": 961353,
+    "unpackedSize": 4412368,
+    "shasum": "1e0e4822095f0f5419fafc5548e1ba24bfae7f6d",
+    "integrity": "sha512-262VeqjhPu29s3cac3U4BU//i8M66yhAHu931C+14RCChbpsSVyTEJnew0B6zxbUX3iyD60tbBK8tHERAsZtWg==",
+    "filename": "notara-vault-native-0.4.0.tgz",
+    "files": [
+      {
+        "path": "client.js",
+        "size": 4355300,
+        "mode": 420
+      },
+      {
+        "path": "frontmatter.js",
+        "size": 1694,
+        "mode": 420
+      },
+      {
+        "path": "graph.js",
+        "size": 22476,
+        "mode": 420
+      },
+      {
+        "path": "index.js",
+        "size": 5580,
+        "mode": 420
+      },
+      {
+        "path": "media.js",
+        "size": 3835,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 582,
+        "mode": 420
+      },
+      {
+        "path": "pdf.js",
+        "size": 3445,
+        "mode": 420
+      },
+      {
+        "path": "templates/card.md",
+        "size": 122,
+        "mode": 420
+      },
+      {
+        "path": "templates/lesson.md",
+        "size": 225,
+        "mode": 420
+      },
+      {
+        "path": "templates/route.md",
+        "size": 137,
+        "mode": 420
+      },
+      {
+        "path": "templates/source.md",
+        "size": 127,
+        "mode": 420
+      },
+      {
+        "path": "vault.js",
+        "size": 18845,
+        "mode": 420
+      }
+    ],
+    "entryCount": 12,
+    "bundled": []
+  }
+]

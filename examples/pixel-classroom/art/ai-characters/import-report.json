@@ -1,0 +1,67 @@
+{
+  "deepseek": {
+    "sourceWidth": 1354,
+    "sourceHeight": 1161,
+    "rowCuts": [
+      0,
+      417,
+      786,
+      1161
+    ],
+    "scale": 0.07731958762886598,
+    "frames": 21,
+    "profileFlipped": true
+  },
+  "gpt": {
+    "sourceWidth": 1355,
+    "sourceHeight": 1161,
+    "rowCuts": [
+      0,
+      430,
+      801,
+      1161
+    ],
+    "scale": 0.07731958762886598,
+    "frames": 21,
+    "profileFlipped": false
+  },
+  "claude": {
+    "sourceWidth": 1355,
+    "sourceHeight": 1161,
+    "rowCuts": [
+      0,
+      392,
+      756,
+      1161
+    ],
+    "scale": 0.07731958762886598,
+    "frames": 21,
+    "profileFlipped": false
+  },
+  "kimi": {
+    "sourceWidth": 1355,
+    "sourceHeight": 1161,
+    "rowCuts": [
+      0,
+      411,
+      784,
+      1161
+    ],
+    "scale": 0.07731958762886598,
+    "frames": 21,
+    "profileFlipped": false
+  },
+  "glm": {
+    "sourceWidth": 1354,
+    "sourceHeight": 1161,
+    "rowCuts": [
+      0,
+      426,
+      800,
+      1161
+    ],
+    "scale": 0.07731958762886598,
+    "frames": 21,
+    "profileFlipped": false
+  }
+}

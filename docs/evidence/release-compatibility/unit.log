@@ -1,0 +1,52 @@
+
+ RUN  v4.0.18 /Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH
+
+ ✓ |unit| tests/unit/math-scene.test.ts (6 tests) 28ms
+ ✓ |unit| tests/unit/review-occurrence.test.ts (21 tests) 65ms
+ ✓ |unit| tests/unit/docx-index-v2.test.ts (16 tests) 65ms
+ ✓ |unit| tests/unit/day-activity.test.ts (2 tests) 23ms
+ ✓ |unit| tests/unit/thought-stages.test.ts (2 tests) 19ms
+ ✓ |unit| tests/unit/entity-reference.test.ts (4 tests) 40ms
+ ✓ |unit| tests/unit/worldbook.test.ts (5 tests) 14ms
+ ✓ |unit| tests/unit/board-activity.test.ts (6 tests) 10ms
+ ✓ |unit| tests/unit/lesson-deck.test.ts (6 tests) 14ms
+ ✓ |unit| tests/unit/contracts-v2.test.ts (14 tests) 65ms
+ ✓ |unit| tests/unit/seven-plugins.test.ts (3 tests) 35ms
+ ✓ |unit| tests/unit/evidence-binding.test.ts (7 tests) 18ms
+ ✓ |unit| tests/unit/tool-disclosure.test.ts (6 tests) 22ms
+ ✓ |unit| tests/unit/math-edits.test.ts (3 tests) 22ms
+ ✓ |unit| tests/unit/entity-reference-focus.test.ts (2 tests) 3ms
+ ✓ |unit| tests/unit/source-context-codec.test.ts (3 tests) 9ms
+ ✓ |unit| tests/unit/delegation-route.test.ts (2 tests) 31ms
+ ✓ |unit| tests/unit/workspace-layout.test.ts (4 tests) 10ms
+ ✓ |unit| tests/unit/teaching-contract.test.ts (4 tests) 10ms
+ ✓ |unit| tests/unit/classroom.test.ts (6 tests) 17ms
+ ✓ |unit| tests/unit/plugin-contract.test.ts (2 tests) 5ms
+ ✓ |unit| tests/unit/classroom-markdown-contract.test.ts (2 tests) 14ms
+ ✓ |unit| tests/unit/skill-menu-patch.test.ts (2 tests) 5ms
+ ✓ |unit| tests/unit/tool-copy.test.ts (8 tests) 7ms
+ ✓ |unit| tests/unit/appearance.test.ts (2 tests) 4ms
+ ✓ |unit| tests/unit/conversation-frames.test.ts (4 tests) 9ms
+ ✓ |unit| tests/unit/mindmap-projection.test.ts (10 tests) 9ms
+ ✓ |unit| tests/unit/entity-reference-markdown.test.ts (2 tests) 8ms
+ ✓ |unit| tests/unit/book-task.test.ts (3 tests) 6ms
+ ✓ |unit| tests/unit/source-coverage.test.ts (3 tests) 4ms
+ ✓ |unit| tests/unit/library-catalog.test.ts (4 tests) 4ms
+ ✓ |unit| tests/unit/journey.test.ts (9 tests) 5ms
+ ✓ |unit| tests/unit/plugin-skill-labels.test.ts (1 test) 2ms
+ ✓ |unit| tests/unit/lesson-pane-request.test.ts (1 test) 4ms
+ ✓ |unit| tests/unit/math-selection.test.ts (1 test) 3ms
+ ✓ |unit| tests/unit/plan-authoring-defaults.test.ts (5 tests) 529ms
+ ✓ |unit| tests/unit/card-discovery.test.ts (5 tests) 11ms
+ ✓ |unit| tests/unit/lesson-card-version-projection.test.ts (1 test) 3ms
+ ✓ |unit| tests/unit/tool-schema.test.ts (5 tests) 685ms
+   ✓ every StudyForge registrar emits the enforced native subset and no `type` beside `oneOf`  455ms
+ ✓ |unit| tests/unit/math-compute.test.ts (3 tests) 3604ms
+   ✓ Cortex evaluates scene parameters, differentiates and solves without sharing assignments  2145ms
+   ✓ graph syntax and LaTeX have the same mathematical meaning  1112ms
+   ✓ finite complex results are distinct from undefined real arithmetic  345ms
+
+ Test Files  40 passed (40)
+      Tests  195 passed (195)
+   Start at  14:37:29
+   Duration  4.07s (transform 4.09s, setup 0ms, import 12.77s, tests 5.44s, environment 4ms)

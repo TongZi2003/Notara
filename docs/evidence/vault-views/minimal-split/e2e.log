@@ -1,0 +1,12 @@
+
+Running 4 tests using 1 worker
+
+(node:64537) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+native-vault client: 4355300 bytes
+  ✓  1 tests/e2e/native-vault-layout.spec.ts:13:1 › keeps narrow vault views, the collapsed file rail and the 新建页面 dialog inside the native viewport (10.7s)
+  ✓  2 tests/e2e/native-vault-minimal.spec.ts:6:1 › minimal assets, local graph and native split panes keep file and conversation context (10.8s)
+  ✓  3 tests/e2e/native-vault-pdf.spec.ts:27:3 › native vault PDF reader › opens a PDF in the assets view, selects a region, and extracts a Markdown card (4.4s)
+  ✓  4 tests/e2e/native-vault-views.spec.ts:21:1 › vault views keep file facts, node-centred graph details and one chat mount (42.5s)
+
+  4 passed (1.2m)

@@ -1,0 +1,25 @@
+{
+  "version": "0.14.5",
+  "resourceCount": 23,
+  "resourceContextAndLifecycleTestsPassed": 17,
+  "hostAssemblyIntegrationTestsPassed": 1,
+  "nativeInvocations": ["notara-material-search", "notara-teaching-reflection", "notara-learning-review"],
+  "isolatedBrowser": {
+    "origin": "http://127.0.0.1:63985",
+    "commonEntriesVisible": true,
+    "teacherReflectionCollapsedByDefault": true,
+    "chineseReviewQueryFoundEntry": true,
+    "selectionOnlyUpdatedDraft": true,
+    "unexpectedModelRequests": 0,
+    "consoleErrors": 0
+  },
+  "persistentRuntime": {
+    "origin": "http://127.0.0.1:57093",
+    "installedResourcesMatch": true,
+    "sessionsPreserved": 7,
+    "newMenuVisible": true,
+    "consoleErrors": 0
+  },
+  "realModelTeachingQuality": "NOT RUN",
+  "personalSkillAutoDiscovery": "NOT IMPLEMENTED"
+}

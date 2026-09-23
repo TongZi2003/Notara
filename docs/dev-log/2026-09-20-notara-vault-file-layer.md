@@ -19,7 +19,7 @@
 - 内置四模板首次访问时只补齐缺失的 `vault/_templates/` 文件；用户已经修改的模板不会被覆盖，也不会出现在普通文件树和页面查询中。
 - `node --check examples/native-vault/index.js examples/native-vault/vault.js examples/native-vault/client.js`：PASS。
 - Node 24 直接加载 `NotaraVaultRemote`：10 个 Remote marker 均被 Gateway 协议识别；临时 workspace 读取、反向链接和 Task 写入 PASS。
-- 隔离 DSH Web 实例已启动：`http://127.0.0.1:56772/?token=4MYx2ypOcVGZ3Fk4M12asentAJ-KP3iF3othQWZ1ZaQ`。通过带 token 的 HTTP 请求确认服务返回 200；浏览器交互留给用户验收。
+- 隔离 DSH Web 实例已启动：`http://127.0.0.1:56772/`。通过带 token 的 HTTP 请求确认服务返回 200；浏览器交互留给用户验收。
 
 ### Remote 接线回归
 
@@ -28,7 +28,7 @@
 - `node --test examples/native-vault/vault.test.js`：8/8 PASS。
 - 模板回归后：`node --test examples/native-vault/vault.test.js` 9/9 PASS。
 - Node 模拟 DSH Client `$mount`：10 个 Remote 均通过 strict codec 和 `schema.parse()`。
-- 修复后的隔离实例：`http://127.0.0.1:51830/?token=s_DRQZdLwix-5Le6r9RyBHjeKSQSzmybCSeN35lDtMY`，带 token HTTP 返回 200。
+- 修复后的隔离实例：`http://127.0.0.1:51830/`，带 token HTTP 返回 200。
 
 ## 未完成
 

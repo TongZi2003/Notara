@@ -1,0 +1,16 @@
+
+ RUN  v4.0.18 /Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH
+
+stdout | tests/integration/native-vault-review.test.ts > native teacher loads the assessment Skill and writes scoped ability evidence through Bash
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-review.test.ts > native teacher loads the assessment Skill and writes scoped ability evidence through Bash
+native-vault client: 5462055 bytes
+
+ ✓ |integration| tests/integration/native-vault-review.test.ts (1 test) 6612ms
+   ✓ native teacher loads the assessment Skill and writes scoped ability evidence through Bash  6612ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  09:22:40
+   Duration  6.75s (transform 81ms, setup 0ms, import 62ms, tests 6.61s, environment 0ms)

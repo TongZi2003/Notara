@@ -1,0 +1,41 @@
+
+Running 1 test using 1 worker
+
+(node:26086) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Verified rc.2 Session.append ignorable envelope passthrough
+native-vault client: 5461612 bytes
+  ✘  1 tests/e2e/native-vault-review.spec.ts:8:1 › ability observations survive reload, keep unknown distinct, and do not inflate same-day review (21.9s)
+
+
+  1) tests/e2e/native-vault-review.spec.ts:8:1 › ability observations survive reload, keep unknown distinct, and do not inflate same-day review
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '间隔复习', exact: true })
+
+
+      16 |   const openReview = async () => {
+      17 |     await page.getByRole('tab', { name: '日历', exact: true }).click();
+    > 18 |     await page.getByRole('button', { name: '间隔复习', exact: true }).click();
+         |                                                                   ^
+      19 |     await page.getByRole('button', { name: /^全部 \d/ }).click();
+      20 |     await page.locator('.nv-review-row').filter({ hasText: '选法' }).click();
+      21 |     await expect(page.getByRole('heading', { name: '选法', exact: true })).toBeVisible();
+        at openReview (/Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/tests/e2e/native-vault-review.spec.ts:18:67)
+        at /Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/tests/e2e/native-vault-review.spec.ts:30:5
+
+    attachment #1: isolated-root (text/plain) ──────────────────────────────────────────────────────
+    /var/folders/6m/q0d3bw_55vl_r7px9ktfj33w0000gn/T/notara-vault-native-t8cIY7
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: runtime-log (text/plain) ────────────────────────────────────────────────────────
+    (node:26124) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/native-vault-review-abilit-8506a-not-inflate-same-day-review/error-context.md
+
+  1 failed
+    tests/e2e/native-vault-review.spec.ts:8:1 › ability observations survive reload, keep unknown distinct, and do not inflate same-day review

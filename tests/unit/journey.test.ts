@@ -14,14 +14,15 @@ const handoff = (over: Partial<HandoffView> = {}): HandoffView => ({
 });
 const saved = <T>(ref: string, data: T, version = 1): Saved<T> => ({ ref, version, data, duplicate: false });
 const card = (review?: { nextDue: string }): Saved<CardRecord> => saved(`card:c_${Math.random()}`, {
-  content: { title: '卡', body: 'b', sources: [], links: [], tags: [], kind: 'normal' },
+  content: { title: '卡', front: 'b', sections: [], notes: '', sources: [], links: [], tags: [], presentation: 'note' },
   history: [], ...(review ? { review: { lastAccessed: '2026-09-01', nextDue: review.nextDue, reviewCount: 1 } } : {}),
-} as CardRecord);
+});
+const memoryEvidence: MemoryView['basis']['current'] = [{ sessionId: 's_1', messageId: 'm_1', occurredAt: '2026-09-01T10:00:00.000Z', source: 'student_statement', quote: 'observation' }];
 const memory = (kind: string, title?: string): MemoryView => ({
   ref: `memory:m_${kind}_${title ?? 'x'}`, revision: 1,
   content: { kind, ...(title ? { title } : {}), body: 'observation' },
-  history: [{ kind, body: 'o', basis: ['E1'] }], basis: { current: ['E1'], prior: [] },
-} as MemoryView);
+  history: [{ kind, body: 'o', basis: memoryEvidence }], basis: { current: memoryEvidence, prior: [] },
+});
 const knowledge = (title: string): Saved<KnowledgeRecord> => saved(`knowledge:k_${title}`, {
   content: { title, body: 'b', tags: [], links: [] }, publicSources: [],
 });

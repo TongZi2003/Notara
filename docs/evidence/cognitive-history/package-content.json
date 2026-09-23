@@ -1,0 +1,376 @@
+[
+  {
+    "id": "@notara/vault-native@0.14.1",
+    "name": "@notara/vault-native",
+    "version": "0.14.1",
+    "size": 1538229,
+    "unpackedSize": 5972540,
+    "shasum": "50b21363fe4c408da73b8444bf9da93e43ee5845",
+    "integrity": "sha512-lkx+hd20UUEApvXY9QgCljSQ09Jdv6IIuOAOK5/jGSWzLYl/QvXOvIAVjjWFxliKZ6lriGSjNjoBm9lQHdujaw==",
+    "filename": "notara-vault-native-0.14.1.tgz",
+    "files": [
+      {
+        "path": "agent-io.js",
+        "size": 7947,
+        "mode": 420
+      },
+      {
+        "path": "agent-media.js",
+        "size": 9809,
+        "mode": 420
+      },
+      {
+        "path": "agent-tools.js",
+        "size": 5044,
+        "mode": 420
+      },
+      {
+        "path": "calendar-data.js",
+        "size": 4244,
+        "mode": 420
+      },
+      {
+        "path": "client.js",
+        "size": 5458299,
+        "mode": 420
+      },
+      {
+        "path": "file-operations.js",
+        "size": 17149,
+        "mode": 420
+      },
+      {
+        "path": "frontmatter.js",
+        "size": 5066,
+        "mode": 420
+      },
+      {
+        "path": "graph.js",
+        "size": 33974,
+        "mode": 420
+      },
+      {
+        "path": "index.js",
+        "size": 14310,
+        "mode": 420
+      },
+      {
+        "path": "learning-data.js",
+        "size": 9933,
+        "mode": 420
+      },
+      {
+        "path": "lesson-data.js",
+        "size": 26987,
+        "mode": 420
+      },
+      {
+        "path": "lesson-script.js",
+        "size": 11986,
+        "mode": 420
+      },
+      {
+        "path": "media.js",
+        "size": 7057,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 1258,
+        "mode": 420
+      },
+      {
+        "path": "pdf-annotations.js",
+        "size": 19254,
+        "mode": 420
+      },
+      {
+        "path": "pdf.js",
+        "size": 4573,
+        "mode": 420
+      },
+      {
+        "path": "presets/notara-teacher/agent.cordis.yml",
+        "size": 1032,
+        "mode": 420
+      },
+      {
+        "path": "presets/notara-teacher/preset.yml",
+        "size": 105,
+        "mode": 420
+      },
+      {
+        "path": "remote-client.js",
+        "size": 3173,
+        "mode": 420
+      },
+      {
+        "path": "review-data.js",
+        "size": 19656,
+        "mode": 420
+      },
+      {
+        "path": "review-runtime.js",
+        "size": 4568,
+        "mode": 420
+      },
+      {
+        "path": "route-plan.js",
+        "size": 12432,
+        "mode": 420
+      },
+      {
+        "path": "solver-policy.js",
+        "size": 613,
+        "mode": 420
+      },
+      {
+        "path": "solver-runtime.js",
+        "size": 23006,
+        "mode": 420
+      },
+      {
+        "path": "solver-sources.js",
+        "size": 2828,
+        "mode": 420
+      },
+      {
+        "path": "teacher.js",
+        "size": 963,
+        "mode": 420
+      },
+      {
+        "path": "teaching-catalog.js",
+        "size": 1188,
+        "mode": 420
+      },
+      {
+        "path": "teaching-context.js",
+        "size": 18673,
+        "mode": 420
+      },
+      {
+        "path": "teaching-runtime.js",
+        "size": 24831,
+        "mode": 420
+      },
+      {
+        "path": "teaching-state.js",
+        "size": 12906,
+        "mode": 420
+      },
+      {
+        "path": "teaching/base.md",
+        "size": 4630,
+        "mode": 420
+      },
+      {
+        "path": "teaching/examples/iterated-sequences.md",
+        "size": 13398,
+        "mode": 420
+      },
+      {
+        "path": "teaching/manifest.json",
+        "size": 4706,
+        "mode": 420
+      },
+      {
+        "path": "teaching/persona.md",
+        "size": 1272,
+        "mode": 420
+      },
+      {
+        "path": "teaching/presets/feynman.md",
+        "size": 639,
+        "mode": 420
+      },
+      {
+        "path": "teaching/presets/lecture.md",
+        "size": 585,
+        "mode": 420
+      },
+      {
+        "path": "teaching/presets/socratic.md",
+        "size": 795,
+        "mode": 420
+      },
+      {
+        "path": "teaching/presets/structural.md",
+        "size": 729,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/essay-review.md",
+        "size": 876,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/lesson-preparation.md",
+        "size": 9342,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/markdown-handout.md",
+        "size": 1175,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/material-outline.md",
+        "size": 7618,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/material-search.md",
+        "size": 2542,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/method-distillation.md",
+        "size": 5591,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/route-planning.md",
+        "size": 6382,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/subject-chemistry.md",
+        "size": 1469,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/subject-chinese.md",
+        "size": 1537,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/subject-computing.md",
+        "size": 1697,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/subject-english.md",
+        "size": 1511,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/subject-humanities.md",
+        "size": 1495,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/subject-math.md",
+        "size": 2647,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/subject-physics.md",
+        "size": 1586,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/subject-science.md",
+        "size": 1615,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/vault-workflow.md",
+        "size": 16891,
+        "mode": 420
+      },
+      {
+        "path": "teaching/skills/worker-orchestration.md",
+        "size": 6511,
+        "mode": 420
+      },
+      {
+        "path": "teaching/workers/base.md",
+        "size": 5615,
+        "mode": 420
+      },
+      {
+        "path": "teaching/workers/exercise.md",
+        "size": 2642,
+        "mode": 420
+      },
+      {
+        "path": "teaching/workers/general.md",
+        "size": 1837,
+        "mode": 420
+      },
+      {
+        "path": "teaching/workers/lesson.md",
+        "size": 2832,
+        "mode": 420
+      },
+      {
+        "path": "teaching/workers/problem.md",
+        "size": 2157,
+        "mode": 420
+      },
+      {
+        "path": "teaching/workers/review.md",
+        "size": 1587,
+        "mode": 420
+      },
+      {
+        "path": "templates/card.md",
+        "size": 210,
+        "mode": 420
+      },
+      {
+        "path": "templates/insight.md",
+        "size": 169,
+        "mode": 420
+      },
+      {
+        "path": "templates/learner-profile.md",
+        "size": 298,
+        "mode": 420
+      },
+      {
+        "path": "templates/lesson-script.md",
+        "size": 1745,
+        "mode": 420
+      },
+      {
+        "path": "templates/lesson.md",
+        "size": 1661,
+        "mode": 420
+      },
+      {
+        "path": "templates/route.md",
+        "size": 781,
+        "mode": 420
+      },
+      {
+        "path": "templates/source.md",
+        "size": 1083,
+        "mode": 420
+      },
+      {
+        "path": "templates/topic.md",
+        "size": 134,
+        "mode": 420
+      },
+      {
+        "path": "vault-cli.js",
+        "size": 47080,
+        "mode": 420
+      },
+      {
+        "path": "vault.js",
+        "size": 41577,
+        "mode": 420
+      },
+      {
+        "path": "worker-catalog.js",
+        "size": 1029,
+        "mode": 420
+      }
+    ],
+    "entryCount": 72,
+    "bundled": []
+  }
+]

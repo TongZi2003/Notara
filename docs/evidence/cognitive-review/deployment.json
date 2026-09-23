@@ -1,0 +1,14 @@
+{
+  "origin": "http://127.0.0.1:57093",
+  "root": "/Users/yangrundong/.notara/vault-runtime",
+  "version": "0.14.3",
+  "pid": 28289,
+  "parentPid": 28287,
+  "count": 7,
+  "running": 0,
+  "identityHash": "fc70f2c5a3d9eb510837f3f941a02048657c63fece6a003a85810a45b99c9776",
+  "sessionIdentitiesPreserved": true,
+  "installedFilesMatch": true,
+  "backup": "/Users/yangrundong/.notara/vault-runtime/pre-cognitive-review-1790100812997",
+  "execSession": 20396
+}

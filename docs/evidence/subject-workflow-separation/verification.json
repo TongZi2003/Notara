@@ -1,0 +1,50 @@
+{
+  "nativeVaultVersion": "0.14.0",
+  "node": "v24.19.0",
+  "unit": {
+    "status": "PASS",
+    "passed": 54,
+    "failed": 0
+  },
+  "integration": {
+    "status": "PASS",
+    "passed": 15,
+    "finalTargetedRetest": 1,
+    "syntheticModel": true
+  },
+  "browser": {
+    "status": "PASS",
+    "scenariosCovered": 2,
+    "firstPass": 1,
+    "firstFail": 1,
+    "targetedRetestPassed": 1,
+    "finalSnapshotRetest": {
+      "status": "PASS",
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "rootTypecheck": {
+    "status": "PASS",
+    "exitCode": 0
+  },
+  "testsTypecheck": {
+    "status": "FAIL",
+    "exitCode": 2,
+    "existingErrors": 5,
+    "affectedUnmodifiedFiles": [
+      "tests/integration/teaching-rounds.test.ts",
+      "tests/integration/tool-disclosure.test.ts",
+      "tests/unit/journey.test.ts"
+    ]
+  },
+  "liveTeaching": {
+    "status": "BLOCKED",
+    "reason": "No credentials provided to the isolated test environment",
+    "scenariosPrepared": 12,
+    "realModelCalls": 0
+  },
+  "studentLearningEffect": {
+    "status": "NOT_RUN"
+  }
+}

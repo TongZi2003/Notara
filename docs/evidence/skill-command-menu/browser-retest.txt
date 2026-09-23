@@ -1,0 +1,10 @@
+
+Running 1 test using 1 worker
+
+(node:17020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Verified rc.2 Session.append ignorable envelope passthrough
+native-vault client: 5458299 bytes
+  ✓  1 tests/e2e/native-vault-command-skills.spec.ts:6:1 › the command button discovers teaching Skills and picks through the native invocation without sending the draft (9.5s)
+
+  1 passed (10.5s)

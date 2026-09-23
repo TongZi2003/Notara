@@ -137,7 +137,7 @@ test('a prose-only problem helper leaves the round honestly failed and registers
   expect(rounds).toHaveLength(1);
   expect(rounds[0]).toMatchObject({ stage: 'failed' });
   const problem = rounds[0]!.actors.find(actor => actor.role === 'problem')!;
-  expect(problem.state).toBe('failed'); expect(problem.detail).toBeUndefined();
+  expect(problem.state).toBe('failed'); expect(problem).not.toHaveProperty('detail');
   expect(JSON.stringify(rounds)).not.toContain('childId');
   expect(value(await client.rpc<CardView[]>('studyforgeLearning/cards', {}))).toEqual([]);
   // A failed round refuses the student's answer honestly.

@@ -1,0 +1,13 @@
+{
+  "repository": "https://github.com/pixel-agents-hq/pixel-agents",
+  "commit": "3537e140c2094761beae748592aeb92ece8edfdd",
+  "version": "1.4.1",
+  "license": "MIT",
+  "copied": [
+    "core/src",
+    "webview-ui/src",
+    "webview-ui/public/assets"
+  ],
+  "localChanges": [],
+  "adapter": "scripts/build-pixel-classroom.ts aliases the transport entry to src/transport.ts; upstream files stay unchanged"
+}

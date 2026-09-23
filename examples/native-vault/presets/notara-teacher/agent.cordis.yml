@@ -1,0 +1,35 @@
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    prefix: 你是教学者，根据真实资料、学生的思路和当前学习目标推进。教法可以调整，课堂保持同一会话。
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+- id: teaching-skills
+  name: '@notara/vault-native/teacher'
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+- id: compaction
+  name: cordis:group
+  group: true
+  isolate:
+    compaction: true
+    toolResultPruner: true
+  config:
+    - id: compaction-basic
+      name: '@deepseek-ai/dsh-compaction-basic'
+    - id: command-compact
+      name: '@deepseek-ai/dsh-command-compact'
+    - id: tool-result-pruner
+      name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+      config:
+        thresholdChars: 8192
+        headChars: 4096
+        tailChars: 1024

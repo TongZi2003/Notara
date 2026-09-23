@@ -1,0 +1,16 @@
+
+ RUN  v4.0.18 /Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH
+
+stdout | tests/integration/native-vault-solver.test.ts > 六科与旧领域关注只进入显式选择的知识工作员请求
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-solver.test.ts > 六科与旧领域关注只进入显式选择的知识工作员请求
+native-vault client: 5458299 bytes
+
+ ✓ |integration| tests/integration/native-vault-solver.test.ts (15 tests | 14 skipped) 8204ms
+   ✓ 六科与旧领域关注只进入显式选择的知识工作员请求  8203ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed | 14 skipped (15)
+   Start at  00:07:23
+   Duration  8.38s (transform 86ms, setup 0ms, import 91ms, tests 8.20s, environment 0ms)

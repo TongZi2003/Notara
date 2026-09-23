@@ -1,0 +1,47 @@
+{
+  "stats": {
+    "startTime": "2026-09-22T14:31:16.618Z",
+    "duration": 52573.748999999996,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "suites": [
+    {
+      "title": "native-vault-classroom.spec.ts",
+      "specs": [
+        {
+          "title": "五种工作预设独立保存配置，列表与像素共用真实出题任务",
+          "ok": true,
+          "tests": [
+            {
+              "status": "expected",
+              "results": [
+                {
+                  "status": "passed",
+                  "duration": 30567
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "解题默认不内联解答：任务可查看分析并打开原生一次性只读子会话，取消不留迟到结果",
+          "ok": true,
+          "tests": [
+            {
+              "status": "expected",
+              "results": [
+                {
+                  "status": "passed",
+                  "duration": 20876
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "origin": "http://127.0.0.1:64880",
+  "mode": "live",
+  "boot": "ready",
+  "role": "teacher",
+  "skin": "deepseek",
+  "skinChoices": 5,
+  "reloadVerified": {
+    "role": "review",
+    "skin": "kimi"
+  },
+  "consoleErrors": 0
+}

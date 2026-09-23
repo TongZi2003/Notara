@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "version": "0.14.1",
+  "root": "/Users/yangrundong/.notara/vault-runtime",
+  "origin": "http://127.0.0.1:57093",
+  "pid": 12149,
+  "parentPid": 12147,
+  "sessionCount": 7,
+  "sameSessionIdentities": true,
+  "running": 0,
+  "snapshot": "/Users/yangrundong/.notara/vault-runtime/vault-plugin-0.14.1",
+  "backup": "/Users/yangrundong/.notara/vault-runtime/pre-cognitive-history-1790096281631111000",
+  "verifiedAt": "2026-09-22T16:59:32.540Z"
+}

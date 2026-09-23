@@ -1,0 +1,36 @@
+{
+  "origin": "http://127.0.0.1:64383",
+  "archivedAtCheck": true,
+  "summaryIsTeachingArchive": true,
+  "summaryPath": "备课/因式分解解二次方程入门.md",
+  "standaloneSummaryCount": 0,
+  "originalSessionReused": true,
+  "nextLessonBoundToPrevious": true,
+  "continuation": "- 已按学生的要求（「下次可从根的正负情况不同的整数根方程继续」）在路线中新增补练节点「根的正负不同的整数根方程（10分钟补练）」，备课页 `备课/因式分解解二次方程-符号变式.md` 已写好并绑定。\n- 该课入口：他本课自己指出「积正且和正，两个数都取正」。本课三道题都落在 $c>0$、$b<0$，$\\Delta$ 都为 $1$；常数项为负（两数异号）或 $b>0$（两数同为负）的符号判断**本课没有观察**，不能据本课推断他会或不会。\n- 补练课的独立题是 $x^2+2x-8=0$；只有它在无提示下完成且解集写全，才算取得那次课的独立证据。若符号判断只在提示后成立，下次补同结构变式；若把 $x^2+5x+6$ 写成 $(x-2)(x-3)$，单独练「因式内常数之和等于一次项系数」。\n- 本课未涉及：首项系数不为 $1$、没有整数根、重根、判别式。不能据本课推断这些情形。\n\n**本次归档说明**：本段小结由老师按学生要求修正标题层级（「下次从这里继续」改为标准二级标题）并以归档方式更新，正文内容与上一版一致，未新增或删改事实记录。",
+  "cards": [
+    {
+      "path": "卡片/因式分解解二次方程-x²-3x+2=0.md",
+      "learned": false,
+      "mastery": 0,
+      "nextReview": null,
+      "historyCount": 2,
+      "studentUnderstanding": 853
+    },
+    {
+      "path": "卡片/因式分解解二次方程-x²-5x+6=0.md",
+      "learned": true,
+      "mastery": 1,
+      "nextReview": "2026-09-24",
+      "historyCount": 1,
+      "studentUnderstanding": 0
+    },
+    {
+      "path": "卡片/因式分解解二次方程-x²-7x+12=0.md",
+      "learned": true,
+      "mastery": 1,
+      "nextReview": "2026-09-24",
+      "historyCount": 1,
+      "studentUnderstanding": 908
+    }
+  ]
+}

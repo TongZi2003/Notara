@@ -1,0 +1,15 @@
+✔ Socratic elicitation can demonstrate cognition; early and same-day successes do not extend review (3.701708ms)
+✔ unobserved ability is neither failure nor a fresh schedule, including a mixed observation (1.082709ms)
+✔ only observed difficulty lowers the tier; other unknown abilities do not hide that evidence (0.632375ms)
+✔ assessment contract rejects missing, ambiguous and invented outcome fields (0.508125ms)
+✔ same evaluation retries are idempotent; changing cognition under the same identity conflicts (0.218416ms)
+✔ legacy pass/fail history stays literal, and new history-only evaluations can be undone (1.407458ms)
+✔ calendar preserves unknown and mixed observations instead of displaying them as failure (11.822375ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 77.289959

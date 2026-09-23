@@ -1,0 +1,37 @@
+✔ teaching tools register native validated schemas and require approval for writes (4.42175ms)
+✔ read-only subagents cannot write teaching facts even through a callable tool (0.832875ms)
+✔ file writes request approval but ordinary Bash keeps the native decision (3.658833ms)
+✔ native full access overrides teaching write approval without weakening native denials (2.0625ms)
+✔ Socratic elicitation can demonstrate cognition; early and same-day successes do not extend review (2.79925ms)
+✔ unobserved ability is neither failure nor a fresh schedule, including a mixed observation (1.159042ms)
+✔ only observed difficulty lowers the tier; other unknown abilities do not hide that evidence (0.597708ms)
+✔ assessment contract rejects missing, ambiguous and invented outcome fields (0.544083ms)
+✔ same evaluation retries are idempotent; changing cognition under the same identity conflicts (0.22975ms)
+✔ legacy pass/fail history stays literal, and new history-only evaluations can be undone (11.831042ms)
+✔ corrupt history stays explicit and cannot be silently overwritten or assigned new evidence (0.261125ms)
+✔ calendar preserves unknown and mixed observations instead of displaying them as failure (0.270375ms)
+✔ the active teaching bundle is fresh, complete and has no retired leftover files (25.847ms)
+✔ the real teacher Skill provider lists distinct locators and retrieves each selected resource (1.806209ms)
+✔ retired document tools have no hidden compatibility dispatcher (4.619833ms)
+✔ archived lesson summary appends to its script without creating a second document (16.2055ms)
+✔ free lesson summary creates an independent material and is indexed once (13.227042ms)
+✔ old save retries never overwrite a newer summary, and archive retry only archives (18.832791ms)
+✔ the lesson summary request queues one real class turn and hides nothing (0.936375ms)
+✔ new student input during preparation keeps the class open and permits a retry (6.656583ms)
+✔ clearing a cross-set script binding keeps the existing summary at its original source (15.34025ms)
+✔ a missing independent summary re-enters the actual summary request instead of an archive dead end (15.070042ms)
+✔ help is self-describing and never needs a workspace or stdin (61.948167ms)
+✔ the schema rejects identity and unknown fields before touching any file (90.313167ms)
+✔ without a bound environment a command fails instead of guessing a root (30.767333ms)
+✔ standalone --workspace is the only explicit path, and records as actor self (111.111208ms)
+✔ CLI records unknown without a schedule, preserves evidence, enforces CAS and supports undo (166.623583ms)
+✔ oversized stdin is refused without reading the workspace (27.695458ms)
+✔ assessment errors identify the repair field and Unicode note limits match the writer (84.023708ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 615.493709

@@ -1,0 +1,15 @@
+{
+  "origin": "http://127.0.0.1:57093",
+  "root": "/Users/yangrundong/.notara/vault-runtime",
+  "version": "0.14.2",
+  "pid": 20732,
+  "parentPid": 20722,
+  "count": 7,
+  "running": 0,
+  "identityHash": "fc70f2c5a3d9eb510837f3f941a02048657c63fece6a003a85810a45b99c9776",
+  "sessionIdentitiesPreserved": true,
+  "common": 7,
+  "more": 14,
+  "backup": "/Users/yangrundong/.notara/vault-runtime/pre-skill-menu-1790098543443",
+  "execSession": 39041
+}

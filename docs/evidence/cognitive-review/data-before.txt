@@ -1,0 +1,132 @@
+✖ Socratic elicitation can demonstrate cognition; early and same-day successes do not extend review (1.387166ms)
+✖ unobserved ability is neither failure nor a fresh schedule, including a mixed observation (0.711ms)
+✖ only observed difficulty lowers the tier; other unknown abilities do not hide that evidence (0.155583ms)
+✖ assessment contract rejects missing, ambiguous and invented outcome fields (0.444708ms)
+✖ same evaluation retries are idempotent; changing cognition under the same identity conflicts (0.090709ms)
+✖ legacy pass/fail history stays literal, and new history-only evaluations can be undone (0.181ms)
+✖ calendar preserves unknown and mixed observations instead of displaying them as failure (0.077792ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 0
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58.902875
+
+✖ failing tests:
+
+test at examples/native-vault/review-data.test.js:17:1
+✖ Socratic elicitation can demonstrate cognition; early and same-day successes do not extend review (1.387166ms)
+  Error: review_request_invalid
+      at fail (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:51:30)
+      at passedFlag (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:155:3)
+      at evaluationRequest (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:270:13)
+      at recordReviewContent (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:312:17)
+      at record (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:14:39)
+      at TestContext.<anonymous> (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:19:17)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+
+test at examples/native-vault/review-data.test.js:32:1
+✖ unobserved ability is neither failure nor a fresh schedule, including a mixed observation (0.711ms)
+  Error: review_request_invalid
+      at fail (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:51:30)
+      at passedFlag (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:155:3)
+      at evaluationRequest (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:270:13)
+      at recordReviewContent (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:312:17)
+      at record (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:14:39)
+      at TestContext.<anonymous> (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:35:19)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+
+test at examples/native-vault/review-data.test.js:45:1
+✖ only observed difficulty lowers the tier; other unknown abilities do not hide that evidence (0.155583ms)
+  Error: review_request_invalid
+      at fail (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:51:30)
+      at passedFlag (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:155:3)
+      at evaluationRequest (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:270:13)
+      at recordReviewContent (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:312:17)
+      at record (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:14:39)
+      at TestContext.<anonymous> (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:46:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+
+test at examples/native-vault/review-data.test.js:53:1
+✖ assessment contract rejects missing, ambiguous and invented outcome fields (0.444708ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /review_assessments_invalid/. Input:
+
+  'Error: review_request_invalid'
+
+      at TestContext.<anonymous> (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:55:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: review_request_invalid
+        at fail (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:51:30)
+        at passedFlag (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:155:3)
+        at evaluationRequest (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:270:13)
+        at recordReviewContent (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:312:17)
+        at record (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:14:39)
+        at file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:55:25
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:55:12)
+        at Test.runInAsyncScope (node:async_hooks:227:14),
+    expected: /review_assessments_invalid/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at examples/native-vault/review-data.test.js:61:1
+✖ same evaluation retries are idempotent; changing cognition under the same identity conflicts (0.090709ms)
+  Error: review_request_invalid
+      at fail (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:51:30)
+      at passedFlag (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:155:3)
+      at evaluationRequest (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:270:13)
+      at recordReviewContent (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:312:17)
+      at record (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:14:39)
+      at TestContext.<anonymous> (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:63:17)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+
+test at examples/native-vault/review-data.test.js:68:1
+✖ legacy pass/fail history stays literal, and new history-only evaluations can be undone (0.181ms)
+  Error: review_request_invalid
+      at fail (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:51:30)
+      at passedFlag (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:155:3)
+      at evaluationRequest (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:270:13)
+      at recordReviewContent (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:312:17)
+      at record (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:14:39)
+      at TestContext.<anonymous> (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:73:17)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+
+test at examples/native-vault/review-data.test.js:85:1
+✖ calendar preserves unknown and mixed observations instead of displaying them as failure (0.077792ms)
+  Error: review_request_invalid
+      at fail (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:51:30)
+      at passedFlag (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:155:3)
+      at evaluationRequest (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:270:13)
+      at recordReviewContent (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.js:312:17)
+      at record (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:14:39)
+      at TestContext.<anonymous> (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/review-data.test.js:87:17)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)

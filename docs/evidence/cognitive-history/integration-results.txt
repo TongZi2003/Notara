@@ -1,0 +1,20 @@
+
+ RUN  v4.0.18 /Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH
+
+stdout | tests/integration/native-vault-teaching.test.ts > 教学设置进入真实装配请求，同课切教法改变下一次请求，重启冷恢复且不串普通课
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-teaching.test.ts > 教学设置进入真实装配请求，同课切教法改变下一次请求，重启冷恢复且不串普通课
+native-vault client: 5458299 bytes
+
+ ✓ |integration| tests/integration/native-vault-teaching.test.ts (5 tests) 37819ms
+   ✓ 教学设置进入真实装配请求，同课切教法改变下一次请求，重启冷恢复且不串普通课  12226ms
+   ✓ 原生 glob/grep/read 与 pdf-page 命令行进入装配请求，且不整库注入  6211ms
+   ✓ 完全权限覆盖教学写入审批，PDF Bash 读取与真实落盘不再自动拒绝  5834ms
+   ✓ 原生 write/edit 走原生批准与版本 CAS：允许落盘、拒绝不落盘、外部修改后旧版本写入失败  6044ms
+   ✓ 路线开课复用同一会话、交错时绑定真实前课，小结落点与原生归档可核对  7503ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  00:56:32
+   Duration  37.96s (transform 72ms, setup 0ms, import 61ms, tests 37.82s, environment 0ms)

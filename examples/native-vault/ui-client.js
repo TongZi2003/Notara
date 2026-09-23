@@ -1,0 +1,44 @@
+export const UI_CSS = `
+.nv-workspace{display:flex;flex-direction:column;height:100%;min-height:0;min-width:0;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);font:13px var(--dsw-font-family,system-ui)}
+.nv-bar{display:flex;align-items:center;gap:5px;min-height:40px;padding:0 10px;border-bottom:1px solid var(--dsw-alias-border-l1);flex:none;min-width:0}
+.nv-icon{display:inline-flex;align-items:center;justify-content:center;flex:none;width:30px;height:30px;border:0;border-radius:5px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
+.nv-icon:hover,.nv-icon[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.nv-icon:disabled{opacity:.35;cursor:default}.nv-icon:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary)}
+.nv-workspace-tabs{display:flex;gap:2px;align-items:center;min-width:0;overflow:auto}.nv-workspace-tabs button{border:0;border-radius:5px;background:transparent;color:var(--dsw-alias-label-secondary);padding:6px 12px;white-space:nowrap;cursor:pointer}.nv-workspace-tabs button[aria-selected=true]{background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-primary)}
+.nv-panes{position:relative;display:grid;flex:1;min-height:0;min-width:0;overflow:clip}.nv-pane{min-width:0;min-height:0;overflow:clip;display:flex;flex-direction:column}.nv-pane-content{flex:1;min-height:0;min-width:0;overflow:clip}.nv-pane-content>div{height:100%}.nv-split-handle{background:var(--dsw-alias-border-l1);cursor:col-resize;touch-action:none}.nv-split-handle:hover{background:var(--dsw-alias-state-business-primary)}
+.nv-popover{position:relative}.nv-popover-panel{position:absolute;right:0;top:34px;z-index:30;min-width:180px;display:grid;padding:5px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);box-shadow:0 8px 24px #0002}.nv-popover-panel button{background:transparent;border:0;color:inherit;text-align:left;padding:8px 10px;cursor:pointer;border-radius:4px}.nv-popover-panel button:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.nv-menu{position:absolute;z-index:30;display:grid;gap:3px;width:210px;padding:6px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);box-shadow:0 8px 24px #0002}.nv-menu button{text-align:left;border:0}.nv-menu button:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.nv-dialog{position:fixed;inset:0;z-index:80;background:#0004;display:grid;place-items:center}.nv-dialog>section{background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);padding:20px;border-radius:10px;width:min(420px,calc(100vw - 40px));box-sizing:border-box}.nv-dialog h2{font-size:16px;margin:0}.nv-dialog label{display:block;margin-top:14px}.nv-dialog input,.nv-dialog select{margin-top:6px}.nv-file-rail{width:210px;flex:none;overflow:auto;border-right:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2)}.nv-file-rail details>summary{cursor:pointer;padding:7px 12px;color:var(--dsw-alias-label-secondary)}
+.nv-asset-body{flex:1;min-height:0;display:flex;overflow:clip}.nv-document{flex:1;min-width:0;overflow:auto}.nv-document article{max-width:900px;padding:24px clamp(18px,4cqw,48px) 60px;margin:auto}.nv-breadcrumb{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:12px;margin-right:auto}.nv-notice{padding:5px 14px;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.nv-document-pdf{overflow:hidden}.nv-document-pdf article{max-width:none;height:100%;padding:0;margin:0}.nv-pdf-body{display:flex;flex:1;min-height:0;overflow:hidden}.nv-pdf-annotations{width:250px;flex:none;box-sizing:border-box;overflow:auto;padding:12px;border-left:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);font-size:13px}.nv-pdf-annotations button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}
+@container(max-width:600px){.nv-pdf-body{flex-direction:column}.nv-pdf-annotations{width:100%;max-height:38%;border-left:0;border-top:1px solid var(--dsw-alias-border-l1)}}
+.nv-assets{container-type:inline-size}.nv-assets .cm-editor{outline:none}.nv-assets .cm-content{padding-top:0}.nv-assets .cm-scroller{overflow:visible}.nv-assets .cm-line{overflow-wrap:anywhere}.nv-assets .nv-extract{max-width:600px;margin:16px auto;padding:16px 0;border-top:1px solid var(--dsw-alias-border-l1)}.nv-extract label{display:block;margin:10px 0}.nv-extract textarea{min-height:140px;resize:vertical}.nv-extract input,.nv-extract textarea,.nv-extract select{width:100%}
+@container(max-width:500px){.nv-file-rail{width:170px}.nv-document article{padding:18px 16px 40px}}
+@media(max-width:760px){.nv-panes[data-nv-split]{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr) 5px minmax(0,1fr)!important}.nv-panes[data-nv-split]>.nv-pane{grid-column:1!important;grid-row:var(--nv-row)!important}.nv-panes[data-nv-split]>.nv-split-handle{grid-column:1!important;grid-row:2!important;cursor:row-resize}.nv-workspace-tabs button{padding:6px 8px}}
+`;
+
+const paths = {
+  plus:'M12 5v14M5 12h14', search:'M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0', more:'M5 12h.01M12 12h.01M19 12h.01',
+  close:'m6 6 12 12M18 6 6 18', sidebar:'M9 3v18M4 3h16v18H4z', split:'M12 3v18M3 3h18v18H3z', swap:'M4 8h16m-4-4 4 4-4 4M20 16H4m4-4-4 4 4 4',
+  chat:'M21 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 19 0Z', graph:'M12 5 5 19m7-14 7 14M5 19h14M10 3h4v4h-4zM3 17h4v4H3zM17 17h4v4h-4z',
+  upload:'M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5', save:'M19 21H5l-2-2V3h15l3 3v13zM7 3v6h10V3M7 21v-8h10v8', refresh:'M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 6M4 12l2 6a7 7 0 0 0 12-1',
+  copy:'M8 8h13v13H8zM16 8V3H3v13h5', extract:'M4 3h16v18H4zM8 7h8M8 11h8M8 15h4', left:'m15 5-7 7 7 7', right:'m9 5 7 7-7 7', minus:'M5 12h14', fit:'M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5', target:'M12 2v4M12 18v4M2 12h4M18 12h4M19 12a7 7 0 1 1-14 0 7 7 0 0 1 14 0', filter:'M3 4h18l-7 8v7l-4 2v-9z', book:'M3 4h7l2 2 2-2h7v16h-7l-2 2-2-2H3z',
+  sliders:'M4 8h9M17 8h3M4 16h3M11 16h9M15 5v6M7 13v6', log:'M5 4h14v16H5zM8 9h8M8 13h8M8 17h5',
+  calendar:'M4 5h16v16H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2',
+  trash:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7', layers:'M12 3 2 8l10 5 10-5-10-5ZM2 12l10 5 10-5M2 16l10 5 10-5',
+};
+export function createVaultUI(React) {
+  const h = React.createElement;
+  function Icon({ name }) { return h('svg', { width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.6,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':true },h('path',{d:paths[name] ?? paths.more})); }
+  function IconButton({ icon, label, ...props }) { return h('button',{type:'button',className:'nv-icon',title:label,'aria-label':label,...props},h(Icon,{name:icon})); }
+  function Menu({ label='更多操作', items }) {
+    const [open,setOpen] = React.useState(false), root=React.useRef(null);
+    React.useEffect(()=>{if(!open)return; const dismiss=e=>{if(!root.current?.contains(e.target))setOpen(false);};const key=e=>{if(e.key==='Escape')setOpen(false);};window.addEventListener('pointerdown',dismiss);window.addEventListener('keydown',key);return()=>{window.removeEventListener('pointerdown',dismiss);window.removeEventListener('keydown',key);};},[open]);
+    return h('div',{className:'nv-popover',ref:root},h(IconButton,{icon:'more',label,'aria-expanded':open,'aria-haspopup':'menu',onClick:()=>setOpen(v=>!v)}),open&&h('div',{className:'nv-popover-panel',role:'menu'},items.filter(Boolean).map(item=>h('button',{key:item.label,role:'menuitem',disabled:item.disabled,onClick:()=>{setOpen(false);item.run();}},item.label))));
+  }
+  function Dialog({title,onClose,children}) {
+    const ref=React.useRef(null);
+    React.useEffect(()=>{const before=document.activeElement;ref.current?.querySelector('input,button,select')?.focus();return()=>before?.focus?.();},[]);
+    return h('div',{className:'nv-dialog',onPointerDown:e=>{if(e.target===e.currentTarget)onClose();},onKeyDown:e=>{if(e.key==='Escape')onClose();if(e.key==='Tab'){const all=[...ref.current.querySelectorAll('button:not(:disabled),input,select,textarea')];if(e.shiftKey&&document.activeElement===all[0]){e.preventDefault();all.at(-1)?.focus();}else if(!e.shiftKey&&document.activeElement===all.at(-1)){e.preventDefault();all[0]?.focus();}}}},h('section',{ref,role:'dialog','aria-modal':true,'aria-label':title,style:{maxHeight:'calc(100dvh - 40px)',overflowY:'auto'}},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},h('h2',null,title),h(IconButton,{label:'关闭',icon:'close',onClick:onClose})),children));
+  }
+  return { Icon, IconButton, Menu, Dialog };
+}

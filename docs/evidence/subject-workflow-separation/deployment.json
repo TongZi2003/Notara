@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "version": "0.14.0",
+  "subjectResources": 8,
+  "origin": "http://127.0.0.1:57093",
+  "root": "/Users/yangrundong/.notara/vault-runtime",
+  "sessionCount": 7,
+  "sameSessionIdentities": true,
+  "runningSessions": 0,
+  "pid": 1269,
+  "parentPid": 1260,
+  "snapshot": "/Users/yangrundong/.notara/vault-runtime/vault-plugin-0.14.0",
+  "backup": "/Users/yangrundong/.notara/vault-runtime/pre-subject-workflow-1790093425728680000",
+  "verifiedAt": "2026-09-22T16:12:10.465Z"
+}

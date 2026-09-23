@@ -1,0 +1,10 @@
+✔ the active teaching bundle is fresh, complete and has no retired leftover files (8.389583ms)
+✔ the real teacher Skill provider lists distinct locators and retrieves each selected resource (1.581417ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 53.579459

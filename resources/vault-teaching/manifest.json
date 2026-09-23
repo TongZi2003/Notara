@@ -1,0 +1,30 @@
+{
+  "default": "socratic",
+  "choices": [
+    { "id": "socratic", "menu": "more", "title": "苏格拉底", "description": "从学生能动手的一小步开始，一次一个问题，观察他的独立表现。", "file": "presets/socratic.md" },
+    { "id": "feynman", "menu": "more", "title": "费曼法", "description": "先让学生用自己的话讲清楚，再一起找出解释里的缺口。", "file": "presets/feynman.md" },
+    { "id": "lecture", "menu": "more", "title": "讲解式", "description": "先讲清结构与完整例子，再用独立任务检验理解。", "file": "presets/lecture.md" },
+    { "id": "structural", "menu": "more", "title": "结构分析", "description": "先看清条件、目标与不变关系，再决定表示和方法。", "file": "presets/structural.md" }
+  ],
+  "skills": [
+    { "id": "worker-orchestration", "menu": "more", "title": "后台任务编排", "description": "需要独立研究知识单元或题目、完善课时、出题、核验或整理证据时使用；按本次任务选择工作员及学科关注。", "file": "skills/worker-orchestration.md" },
+    { "id": "vault-workflow", "menu": "more", "title": "Vault 工作流", "description": "目录与文件规范、原生读取/写入、复习与日历本地命令行的入口和典型用法。", "file": "skills/vault-workflow.md" },
+    { "id": "material-search", "title": "找卡片与资料", "description": "按自然语言描述、题目结构、方法选择或学习经历找卡片和资料；展开检索线索，精读候选并解释相关性。", "file": "skills/material-search.md" },
+    { "id": "material-outline", "title": "书籍拆解与资料整理", "description": "需要按选定范围拆解课本、讲义或其他材料，研究知识单元与题目并建立知识联系时使用；不要求先备课。", "file": "skills/material-outline.md" },
+    { "id": "essay-review", "title": "作文批改", "description": "读实际作文，定位问题、给反馈并保留学生的观点和声音。", "file": "skills/essay-review.md" },
+    { "id": "markdown-handout", "title": "讲义整理", "description": "把已核对的内容整理成可编辑的 Markdown 讲义并写回。", "file": "skills/markdown-handout.md" },
+    { "id": "method-distillation", "title": "学习经历与方法整理", "description": "记录学生理解的认知演变、综合过往错误与修正、整理可复用方法经历为锦囊时使用。", "file": "skills/method-distillation.md" },
+    { "id": "teaching-reflection", "menu": "more", "title": "教学反思与沉淀", "description": "老师三省吾身：回看教学判断、引导与学生实际表现，沉淀到小结、画像、锦囊或路线；必要时提出教学规则修订建议。", "file": "skills/teaching-reflection.md" },
+    { "id": "learning-review", "title": "学习复盘与建议", "description": "回顾近期学习，可跨已授权学习集综合进展、困难、兴趣与目标，提出值得优先学习的板块、方向和下一步任务。", "file": "skills/learning-review.md" },
+    { "id": "lesson-preparation", "title": "备课", "description": "用户要求按学习目标或资料准备一节课时使用；可用已有材料、网络资料或现场构造的学习任务。", "file": "skills/lesson-preparation.md" },
+    { "id": "route-planning", "title": "路线规划", "description": "需要从学习目标规划多节课、专题训练或调整未来课程时使用，不要求预先拥有教材。", "file": "skills/route-planning.md" },
+    { "id": "subject-math", "menu": "more", "title": "数学关注", "description": "拆解或编排数学内容时使用：定义与条件、证明依赖、方法发现、结构识别与适用边界。", "file": "skills/subject-math.md" },
+    { "id": "subject-physics", "menu": "more", "title": "物理关注", "description": "拆解或编排物理内容时使用：研究对象、过程、模型假设、图像数据、守恒前提与近似边界。", "file": "skills/subject-physics.md" },
+    { "id": "subject-chemistry", "menu": "more", "title": "化学关注", "description": "拆解或编排化学内容时使用：结构与性质、反应条件、实验操作、现象与证据。", "file": "skills/subject-chemistry.md" },
+    { "id": "subject-computing", "menu": "more", "title": "计算机关注", "description": "学习语言特性、编程或算法时使用：语义与状态、离散表示、正确性、复杂度和测试依据。", "file": "skills/subject-computing.md" },
+    { "id": "subject-chinese", "menu": "more", "title": "语文关注", "description": "阅读、文言、写作及语文资料拆解时使用：语境、文本依据、篇章组织和表达效果。", "file": "skills/subject-chinese.md" },
+    { "id": "subject-english", "menu": "more", "title": "英语关注", "description": "英语阅读、语法、词汇、写作及有音频的听说任务中使用：形式、意义、语用与交际目标。", "file": "skills/subject-english.md" },
+    { "id": "subject-science", "menu": "more", "title": "其他自然科学与综合探究", "description": "生物等尚未细分的自然科学或综合探究中使用；物理、化学优先选各自关注 Skill。", "file": "skills/subject-science.md" },
+    { "id": "subject-humanities", "menu": "more", "title": "其他人文与语言学习", "description": "历史、其他人文与语言内容中使用；语文、英语优先选各自关注 Skill。", "file": "skills/subject-humanities.md" }
+  ]
+}

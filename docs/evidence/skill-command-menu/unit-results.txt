@@ -1,0 +1,9 @@
+
+ RUN  v4.0.18 /Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH
+
+ ✓ |unit| tests/unit/skill-menu-patch.test.ts (2 tests) 3ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  01:20:06
+   Duration  107ms (transform 21ms, setup 0ms, import 29ms, tests 3ms, environment 0ms)

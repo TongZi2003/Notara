@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type { SessionCreateValue, SessionListValue } from '@deepseek-ai/dsh-api-session-controller';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import type { ContentBlock } from '@deepseek-ai/dsh-llm';
+import { DEFAULT_CLASSROOM_FACADE_NAMES } from '../../packages/contracts/src/tool-facades.ts';
 import { startIsolated, type IsolatedRuntime } from '../../scripts/dev-isolated.ts';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 let runtime: IsolatedRuntime | undefined;
@@ -20,7 +21,7 @@ const lastResult = (row: Request, name?: string) => {
   if (!name) return blocks.filter(b => b.type === 'tool-result').at(-1);
   const call = blocks.findLast(b => b.type === 'tool-call' && b.name === name);
   if (call?.type !== 'tool-call') throw new Error(`missing ${name} call`);
-  return blocks.find(b => b.type === 'tool-result' && b.toolCallId === call.id);
+  return blocks.filter(b => b.type === 'tool-result').find(b => b.toolCallId === call.id);
 };
 async function fixture() {
   runtime = await startIsolated({ testModel: true });
@@ -36,13 +37,11 @@ async function fixture() {
   return { create, send, restart: async () => { await runtime!.restart(); client = await connectRuntime(runtime!); } };
 }
 
-const FACADES = ['find', 'open', 'note', 'update', 'record', 'propose', 'create', 'board', 'classroom', 'stage', 'delegate'];
-
 test('the classroom wire is constant: facades dispatch, direct names still work, and load_tools is a receipt', async () => {
   const f = await fixture(), lesson = await f.create();
   const initial = await f.send(lesson, '先讨论今天的问题');
-  for (const name of [...FACADES, 'read', 'web_search', 'subagent', 'send_message', 'interrupt_agent']) expect(initial.toolNames).toContain(name);
-  for (const name of ['load_tools', 'read_route', 'propose_route', 'register_cards', 'write', 'run_code']) expect(initial.toolNames).not.toContain(name);
+  for (const name of [...DEFAULT_CLASSROOM_FACADE_NAMES, 'read', 'web_search', 'subagent', 'send_message', 'interrupt_agent']) expect(initial.toolNames).toContain(name);
+  for (const name of ['board', 'load_tools', 'read_route', 'propose_route', 'register_cards', 'write', 'run_code']) expect(initial.toolNames).not.toContain(name);
   // The static method reference lists inner names so direct calls remain discoverable.
   expect(system(initial)).toContain('read_route');
   expect(system(initial)).toContain('propose_route');

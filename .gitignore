@@ -23,3 +23,4 @@ coverage/
 # Session scratch (debug scripts, stray logs); evidence logs under docs/ stay tracked
 /zz-*.mts
 /*.log
+/examples/native-vault/teaching/

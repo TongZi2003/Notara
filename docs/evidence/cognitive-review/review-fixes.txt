@@ -1,0 +1,21 @@
+✔ Socratic elicitation can demonstrate cognition; early and same-day successes do not extend review (2.542458ms)
+✔ unobserved ability is neither failure nor a fresh schedule, including a mixed observation (0.893959ms)
+✔ only observed difficulty lowers the tier; other unknown abilities do not hide that evidence (0.246208ms)
+✔ assessment contract rejects missing, ambiguous and invented outcome fields (1.074541ms)
+✔ same evaluation retries are idempotent; changing cognition under the same identity conflicts (0.400625ms)
+✔ legacy pass/fail history stays literal, and new history-only evaluations can be undone (0.603375ms)
+✔ calendar preserves unknown and mixed observations instead of displaying them as failure (9.505041ms)
+✔ help is self-describing and never needs a workspace or stdin (70.943417ms)
+✔ the schema rejects identity and unknown fields before touching any file (101.705541ms)
+✔ without a bound environment a command fails instead of guessing a root (33.599916ms)
+✔ standalone --workspace is the only explicit path, and records as actor self (121.2815ms)
+✔ CLI records unknown without a schedule, preserves evidence, enforces CAS and supports undo (193.780458ms)
+✔ oversized stdin is refused without reading the workspace (33.872958ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 595.085667

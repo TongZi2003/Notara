@@ -1,0 +1,256 @@
+
+ RUN  v4.0.18 /Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH
+
+ ✓ |integration| tests/integration/teaching-rounds.test.ts (4 tests) 25357ms
+   ✓ a round runs problem→answer→peer→assistant with the standard visible only to the assistant  8337ms
+   ✓ a prose-only problem helper leaves the round honestly failed and registers no card  7614ms
+   ✓ stopping an open round marks it stopped without faking completion  9403ms
+stdout | tests/integration/tool-disclosure.test.ts > the classroom wire is constant: facades dispatch, direct names still work, and load_tools is a receipt
+{"tools":20,"schemaBytes":110542,"dispatch":"PASS","direct":"PASS","restart":"PASS","isolation":"PASS"}
+
+ ✓ |integration| tests/integration/tool-disclosure.test.ts (3 tests) 30168ms
+   ✓ the classroom wire is constant: facades dispatch, direct names still work, and load_tools is a receipt  15185ms
+   ✓ malformed or empty facade arguments fail with transport attribution, not a field error  7155ms
+   ✓ unknown facade methods and disallowed load_tools names fail without touching the wire  7827ms
+stdout | tests/integration/native-vault-solver.test.ts > 五预设真实请求使用独立人格与配置；只读工作员能读资料但不能写入或继续派工
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-solver.test.ts > 五预设真实请求使用独立人格与配置；只读工作员能读资料但不能写入或继续派工
+native-vault client: 5462663 bytes
+
+ ✓ |integration| tests/integration/native-delegation.test.ts (7 tests) 56669ms
+   ✓ a real lesson delegates to native helpers that never receive its conversation  8385ms
+   ✓ the real native search child can read its fixed material through the product access boundary  8095ms
+   ✓ structured output from a native problem child is registered once as the same ordinary unlearned card  9407ms
+   ✓ the delegate facade enumerates the deployment real model routes for the teacher  7652ms
+   ✓ a delegation route runs its child under a different model than the lesson  7853ms
+   ✓ a prose-only problem child is refused by the Host and registers no card  7151ms
+   ✓ a progressively loaded background search can be followed up and stopped, while its child cannot load teacher tools  8126ms
+ ✓ |integration| tests/integration/native-course.test.ts (6 tests) 75588ms
+   ✓ native identity adoption and metadata failure/retry preserve one classroom through a Host restart  13837ms
+   ✓ metadata patch cannot close a classroom, forge title or attach another workspace  8618ms
+   ✓ native prompt idempotency and accepted evidence survive restart without a second input ledger  14818ms
+   ✓ an explicit native title during generation remains durable after completion and restart  13202ms
+   ✓ an explicit native title after generation remains durable after completion and restart  12790ms
+   ✓ an explicit native title native-after generation remains durable after completion and restart  12322ms
+ ✓ |integration| tests/integration/native-vault-solver.test.ts (15 tests) 108264ms
+   ✓ 五预设真实请求使用独立人格与配置；只读工作员能读资料但不能写入或继续派工  6937ms
+   ✓ 六科与旧领域关注只进入显式选择的知识工作员请求  6989ms
+   ✓ 原生参数解析失败能定位JSON错误，修正后只启动一个独立draft任务  6873ms
+   ✓ 解题请求实际收到原页图像与独立预算；原文件变更后拒绝旧引用  7080ms
+   ✓ 教室 RPC 只投影双角色、模型清单与任务状态；解题者工具只挂教学会话  6160ms
+   ✓ 解题者是零工具独立 spawn：默认用 gpt-5.6-sol，父私密上下文不进子，结果回父且投影不含解答  6026ms
+   ✓ 解题者路由按教室配置生效；没有匹配模型时明确失败且不静默降级  5506ms
+   ✓ 原生中断取消：任务终结、没有成功解答回到教师、迟到结果不再投递  8340ms
+   ✓ 重启后教室配置与解题者路由冷恢复，新任务仍走配置的模型与推理等级  10357ms
+   ✓ 同名模型挂在两个 provider 上时教室不替教师猜，明确配置后仍可工作  5670ms
+   ✓ 取消后同一学生输入不会被自动重跑，新用户消息才重新允许派发  5648ms
+   ✓ solverTask 把一次分析绑定到父会话与真实一次性子会话；投影只报可检查性，不暴露 child  6044ms
+   ✓ solverTask 属于本课：外课会话不能借另一个会话的 taskId 读到它的绑定  6833ms
+   ✓ 任务运行中即可查看分析，取消后停止且不留迟到结果  8704ms
+   ✓ 冷重启后已完成任务的 solverTask 绑定仍可查到，且不会退回教室投影  11097ms
+stdout | tests/integration/native-vault-teaching.test.ts > 教学设置进入真实装配请求，同课切教法改变下一次请求，重启冷恢复且不串普通课
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-teaching.test.ts > 教学设置进入真实装配请求，同课切教法改变下一次请求，重启冷恢复且不串普通课
+native-vault client: 5462663 bytes
+
+ ✓ |integration| tests/integration/classroom-plugin.test.ts (4 tests) 58054ms
+   ✓ teacher-spawned classmates are isolated, public replies return once, private work stays private and continuation survives restart  18085ms
+   ✓ upgrading the worldbook preserves user entries, adds classroom defaults and rejects stale edits  14249ms
+   ✓ situational fields reach the classmate persona and runtime intimacy gates worldbook entries  8983ms
+   ✓ periodic and successful note events reach the teacher once and do not count generated turns  16736ms
+ ✓ |integration| tests/integration/native-vault-teaching.test.ts (5 tests) 41775ms
+   ✓ 教学设置进入真实装配请求，同课切教法改变下一次请求，重启冷恢复且不串普通课  13040ms
+   ✓ 原生 glob/grep/read 与 pdf-page 命令行进入装配请求，且不整库注入  6959ms
+   ✓ 完全权限覆盖教学写入审批，PDF Bash 读取与真实落盘不再自动拒绝  7123ms
+   ✓ 原生 write/edit 走原生批准与版本 CAS：允许落盘、拒绝不落盘、外部修改后旧版本写入失败  7333ms
+   ✓ 路线开课复用同一会话、交错时绑定真实前课，小结落点与原生归档可核对  7320ms
+ ✓ |integration| tests/integration/content-history.test.ts (2 tests) 37018ms
+   ✓ 100-page import, exact adopted pages, read coverage, pending refinement and old versions remain separate  26921ms
+   ✓ content scout can opt into this card activity without receiving another card or global learner memory  10096ms
+ ✓ |integration| tests/integration/material-chunk-upload.test.ts (3 tests) 34350ms
+   ✓ chunked import publishes the assembled bytes and dedups a retried operation  18158ms
+   ✓ chunked version append lands as the next immutable version  8798ms
+   ✓ chunk session refuses oversize, out-of-order, overrun and stale ids honestly  7394ms
+ ✓ |integration| tests/integration/plugin-workbench.test.ts (2 tests) 33403ms
+   ✓ native skill cache refreshes, workbenches pin versions and saved notes outlive uninstall  16508ms
+   ✓ trusted native plugins load with Cordis and failed upgrades restore the current version  16895ms
+ ✓ |integration| tests/integration/teaching-current.test.ts (3 tests) 33546ms
+   ✓ teacher lesson settings are a proposal over the exact observed current lesson, then the student confirms  8501ms
+   ✓ configured teaching choices change the actual next native request and survive restart  15828ms
+   ✓ a saved-result followup retains teacher tools and can read back without a new student turn  9216ms
+ ✓ |integration| tests/integration/card-batch-confirmation.test.ts (2 tests) 33270ms
+   ✓ one native batch survives restart, saves only the displayed selection once, and delivers one combined receipt  25130ms
+   ✓ a node breakdown binds every card in the single batch to its frozen chapter and source  8140ms
+ ✓ |integration| tests/integration/native-route-binding.test.ts (3 tests) 33289ms
+   ✓ routeLessons reads the workspace lessons without writing; bindNativeLesson binds one exactly once  15819ms
+   ✓ a nested registered workspace inside the acting workspace is foreign, not adopted  8426ms
+   ✓ a lesson of an unrelated workspace is refused and never becomes a lesson  9043ms
+ ✓ |integration| tests/integration/native-usage.test.ts (2 tests) 28057ms
+   ✓ native stream/final replacement and retry totals remain full-session facts; missing buckets stay unavailable  17701ms
+   ✓ native exact model selection applies to the next request; unlisted routes are not rejected by the catalog  10355ms
+ ✓ |integration| tests/integration/native-organization.test.ts (3 tests) 36581ms
+   ✓ one native route proposal can confirm a tree of new nodes without model-written persistent ids  9438ms
+   ✓ the organisation surface stores only real references and opens one native lesson per planned node  9344ms
+   ✓ two planned nodes open concurrently into two lessons and both bindings survive a Host restart  17797ms
+ ✓ |integration| tests/integration/material-native.test.ts (2 tests) 27618ms
+   ✓ authenticated material import/read needs no Session, and native file addresses retain the exact version  17774ms
+   ✓ read_material sends the real crop as a native image attachment into the next model request  9844ms
+ ✓ |integration| tests/integration/guided-learning.test.ts (2 tests) 33579ms
+   ✓ a confirmed diagnosis binds a route, opens once and survives restart without another learning ledger  24060ms
+   ✓ a free lesson can still plan directly and cannot forge a diagnosis binding  9518ms
+ ✓ |integration| tests/integration/artifact-install.test.ts (2 tests) 30612ms
+   ✓ installation pins bytes, publishes handouts atomically, rejects stale changes and removes disabled skill entries  21350ms
+   ✓ installed subject text stays pinned in an existing lesson when the creator publishes a later version  9262ms
+ ✓ |integration| tests/integration/teaching-overrides.test.ts (3 tests) 26941ms
+   ✓ the teaching tree exposes every bundled file; save, conflict and reset stay versioned  7707ms
+   ✓ an override reaches the system prompt, the task skill and the delegation persona  9185ms
+   ✓ propose_teaching creates a student-confirmed proposal that writes the override  10047ms
+ ✓ |integration| tests/integration/memory-evidence-binding.test.ts (3 tests) 26831ms
+   ✓ omitted evidenceRefs binds the student message that opened the turn  8464ms
+   ✓ explicit aliases still cite an earlier turn, not the current window  9186ms
+   ✓ a receipt-opened turn still binds the most recent student utterance  9180ms
+ ✓ |integration| tests/integration/entity-references.test.ts (1 test) 18533ms
+   ✓ real stored references preserve old cards, knowledge, sections and source ranges after update and restart without learning writes  18533ms
+ ✓ |integration| tests/integration/classroom-trace.test.ts (2 tests) 26285ms
+   ✓ thought nodes bind actual messages, edits survive restart, cycles fail and native forks do not duplicate inherited nodes  17861ms
+   ✓ explicit stage advancement creates half-open frames and keeps route data separate  8423ms
+ ✓ |integration| tests/integration/seven-plugins.test.ts (1 test) 20120ms
+   ✓ seven packages install, teacher board updates reach documents and true independent seminar children can be followed  20120ms
+ ✓ |integration| tests/integration/native-learning.test.ts (1 test) 16463ms
+   ✓ student creation, native teacher edits, conflicts, actual learning and restart share the same card  16462ms
+ ✓ |integration| tests/integration/native-source-context.test.ts (1 test) 16416ms
+   ✓ native accepted source context retains v1 across version updates and restart; source text is not the student answer  16415ms
+ ✓ |integration| tests/integration/math-engine.test.ts (1 test) 20940ms
+   ✓ native math tools preserve shared 2D/3D edits, reject stale projections and restore explicit versions  20940ms
+ ✓ |integration| tests/integration/skeleton-confirmation-stale.test.ts (2 tests) 21633ms
+   ✓ after saving a skeleton, a stale teacher proposal is rejected until it rereads the directory  11496ms
+   ✓ a directory created after a proposal is a definite conflict, then explicit recheck and confirmation save once  10136ms
+ ✓ |integration| tests/integration/native-confirmation.test.ts (1 test) 19684ms
+   ✓ native proposal survives restart, confirmation saves once and its plugin receipt never becomes student evidence  19683ms
+ ✓ |integration| tests/integration/math-thoughtmap.test.ts (1 test) 21624ms
+   ✓ math document round-trip, successful note stages, summaries, conflicts and restart use the same records  21623ms
+ ✓ |integration| tests/integration/creation-workspace.test.ts (1 test) 18899ms
+   ✓ creator owns one native session and file; retries, stale student saves and native file writes preserve ownership  18898ms
+stdout | tests/integration/native-vault-persistent.test.ts > persistent Vault keeps its origin, browser login, settings, files and classroom across process starts
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-persistent.test.ts > persistent Vault keeps its origin, browser login, settings, files and classroom across process starts
+native-vault client: 5462663 bytes
+
+ ✓ |integration| tests/integration/memory-index.test.ts (2 tests) 18747ms
+   ✓ saved memories appear in the next turn system prompt as a dedup index  10084ms
+   ✓ knowledge index and learning goal appear in the next turn system prompt  8662ms
+ ✓ |integration| tests/integration/native-vault-persistent.test.ts (1 test) 20454ms
+   ✓ persistent Vault keeps its origin, browser login, settings, files and classroom across process starts  20453ms
+ ✓ |integration| tests/integration/classroom-pin-migration.test.ts (1 test) 17096ms
+   ✓ retired built-in worldbook pins migrate to classroom, preserve user content and stop migrating after the transition  17096ms
+ ✓ |integration| tests/integration/card-discovery-tools.test.ts (1 test) 19039ms
+   ✓ native discovery is read-only and batch reads bind each card version, preserving real conflicts  19038ms
+ ✓ |integration| tests/integration/plugin-learning.test.ts (1 test) 20681ms
+   ✓ worldbook background is opt-in, editable, bounded and survives plugin removal; HTML drafts obey permissions and CAS  20680ms
+ ✓ |integration| tests/integration/classroom-creation.test.ts (1 test) 20566ms
+   ✓ classroom creator shares validated files with AI, preserves concurrent edits and installs through the plugin pipeline  20565ms
+ ✓ |integration| tests/integration/plugins-install.test.ts (1 test) 20784ms
+   ✓ external package installs independently, updates atomically, disables and survives restart  20783ms
+ ✓ |integration| tests/integration/classroom-avatar.test.ts (1 test) 19830ms
+   ✓ local avatars normalize, persist with creator roles, survive restart and never embed image bytes in the classroom document  19828ms
+ ✓ |integration| tests/integration/atomic-records.test.ts (4 tests) 11838ms
+   ✓ SIGKILL before atomic publication never splits the card and its skeleton  5920ms
+   ✓ SIGKILL after atomic publication never splits the card and its skeleton  5769ms
+ ✓ |integration| tests/integration/subject-teaching.test.ts (1 test) 16053ms
+   ✓ lesson subjects inherit the set, override independently, clear and restore without changing pedagogy or another lesson  16053ms
+ ✓ |integration| tests/integration/journey.test.ts (1 test) 9396ms
+   ✓ read_journey reads every past lesson result so the next one continues seamlessly  9396ms
+ ✓ |integration| tests/integration/storage-v2.test.ts (6 tests) 11809ms
+   ✓ real process dies before publication; retry has one effect  5747ms
+   ✓ real process dies after publication; retry has one effect  5765ms
+ ✓ |integration| tests/integration/classmate-role.test.ts (1 test) 11260ms
+   ✓ propose_classmate freezes the role; confirmation appends it at the frozen baseline  11259ms
+ ✓ |integration| tests/integration/classroom-markdown.test.ts (1 test) 11063ms
+   ✓ classroom Markdown tools create one material, append versions and preserve a stale writer  11062ms
+ ✓ |integration| tests/integration/library-coauthoring.test.ts (1 test) 9024ms
+   ✓ coauthoring preserves old originals, retries exact writes and manages relations independently  9023ms
+ ✓ |integration| tests/integration/board-activity.test.ts (1 test) 9829ms
+   ✓ board writes record labelled activity, the activity tool reads it, and the teacher prompt sees it  9828ms
+ ✓ |integration| tests/integration/task-skills.test.ts (1 test) 8565ms
+   ✓ task skills use the native provider and slash invocation injects the same instructions  8565ms
+ ✓ |integration| tests/integration/plugin-legacy.test.ts (1 test) 9029ms
+   ✓ legacy publication can unregister and restore the same snapshot without deleting its source  9028ms
+stdout | tests/integration/native-vault-memory.test.ts > 教学记忆：L0 只给入口，native glob/grep/read 逐步读正文，跨集与版本往返真实可核对
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-memory.test.ts > 教学记忆：L0 只给入口，native glob/grep/read 逐步读正文，跨集与版本往返真实可核对
+native-vault client: 5462663 bytes
+
+ ✓ |integration| tests/integration/book-breakdown-quotes.test.ts (1 test) 9272ms
+   ✓ quoted chapter sources start both directory and card tasks, preserving quotes only in the frozen reference  9271ms
+ ✓ |integration| tests/integration/native-vault-memory.test.ts (1 test) 8489ms
+   ✓ 教学记忆：L0 只给入口，native glob/grep/read 逐步读正文，跨集与版本往返真实可核对  8488ms
+stdout | tests/integration/native-vault-reflection-skills.test.ts > search, teacher reflection and learning review load through native Skill invocation on demand
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-reflection-skills.test.ts > search, teacher reflection and learning review load through native Skill invocation on demand
+native-vault client: 5462663 bytes
+
+ ✓ |integration| tests/integration/access-binding.test.ts (7 tests) 10969ms
+   ✓ real native Remote authorizes read, readAll, readRelated and stat using the native session identity  10540ms
+ ✓ |integration| tests/integration/native-vault-reflection-skills.test.ts (1 test) 9569ms
+   ✓ search, teacher reflection and learning review load through native Skill invocation on demand  9568ms
+stdout | tests/integration/native-vault-review.test.ts > native teacher loads the assessment Skill and writes scoped ability evidence through Bash
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-review.test.ts > native teacher loads the assessment Skill and writes scoped ability evidence through Bash
+native-vault client: 5462663 bytes
+
+ ✓ |integration| tests/integration/native-vault-review.test.ts (1 test) 9248ms
+   ✓ native teacher loads the assessment Skill and writes scoped ability evidence through Bash  9246ms
+stdout | tests/integration/native-vault-browser-auth.test.ts > browser login tolerates accumulated localhost cookies without bypassing authentication
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-browser-auth.test.ts > browser login tolerates accumulated localhost cookies without bypassing authentication
+native-vault client: 5462663 bytes
+
+stdout | tests/integration/tool-schema-projection.test.ts > every assembled tool the model received has an object root and a native-compliant registration
+{"tools":20,"schemaBytes":110542,"projectedObjectUnionRoots":["classroom","create","delegate","find","note","open","propose","record","stage","update"],"plainObjectRoots":10,"names":["classroom","create","delegate","find","glob","grep","interrupt_agent","note","open","propose","read","read_image","record","send_message","skill","stage","subagent","update","web_fetch","web_search"],"nestedUntypedObjectUnionPaths":["create.oneOf[0].properties.input.properties.references.items.properties.locator","create.oneOf[2].properties.input.properties.references.items.properties.locator","open.oneOf[0].properties.input.properties.source.properties.locator","open.oneOf[1].properties.input.properties.source.properties.locator","propose.oneOf[0].properties.input","propose.oneOf[0].properties.input.oneOf[0].properties.sources.items.properties.locator","propose.oneOf[0].properties.input.oneOf[1].properties.cards.items.properties.sources.items.properties.locator","propose.oneOf[2].properties.input","propose.oneOf[3].properties.input","propose.oneOf[3].properties.input.oneOf[0].properties.content","propose.oneOf[3].properties.input.oneOf[0].properties.content.oneOf[0].properties.entries.items.properties.sources.items.properties.locator","propose.oneOf[3].properties.input.oneOf[1].properties.patch.properties.entries.items.properties.sources.items.properties.locator","propose.oneOf[4].properties.input","propose.oneOf[4].properties.input.oneOf[0].properties.nodes.items.properties.materials.properties.materials.items","propose.oneOf[4].properties.input.oneOf[0].properties.nodes.items.properties.materials.properties.materials.items.oneOf[0].properties.source.properties.locator","propose.oneOf[4].properties.input.oneOf[1].properties.patch.properties.materials.properties.materials.items","propose.oneOf[4].properties.input.oneOf[1].properties.patch.properties.materials.properties.materials.items.oneOf[0].properties.source.properties.locator","propose.oneOf[5].properties.input.properties.change.properties.nodes.items.properties.sources.items.properties.locator","propose.oneOf[6].properties.input.properties.change.properties.nodes.items.properties.sources.items.properties.locator","propose.oneOf[7].properties.input.properties.lessonMaterials.properties.materials.items","propose.oneOf[7].properties.input.properties.lessonMaterials.properties.materials.items.oneOf[0].properties.source.properties.locator","propose.oneOf[8].properties.input","record.oneOf[1].properties.input.properties.cards.items.properties.sources.items.properties.locator","record.oneOf[2].properties.input.properties.sources.items.properties.locator","update.oneOf[0].properties.input.properties.patch.properties.sources.items.properties.locator"]}
+
+ ✓ |integration| tests/integration/tool-schema-projection.test.ts (1 test) 11639ms
+   ✓ every assembled tool the model received has an object root and a native-compliant registration  11638ms
+ ✓ |integration| tests/integration/day-projection.test.ts (11 tests) 1216ms
+ ✓ |integration| tests/integration/mixed-route.test.ts (19 tests) 757ms
+ ✓ |integration| tests/integration/native-close.test.ts (9 tests) 782ms
+ ✓ |integration| tests/integration/native-vault-browser-auth.test.ts (1 test) 6803ms
+   ✓ browser login tolerates accumulated localhost cookies without bypassing authentication  6802ms
+ ✓ |integration| tests/integration/confirmation-v2.test.ts (11 tests) 814ms
+ ✓ |integration| tests/integration/set-policy-v2.test.ts (10 tests) 807ms
+ ✓ |integration| tests/integration/atlas.test.ts (14 tests) 740ms
+ ✓ |integration| tests/integration/card-content-v2.test.ts (13 tests) 539ms
+ ✓ |integration| tests/integration/assistant-boundaries.test.ts (6 tests) 629ms
+ ✓ |integration| tests/integration/knowledge-identity.test.ts (9 tests) 415ms
+ ✓ |integration| tests/integration/chapter-deriver.test.ts (11 tests) 458ms
+ ✓ |integration| tests/integration/output-projection.test.ts (10 tests) 418ms
+ ✓ |integration| tests/integration/skeleton.test.ts (10 tests) 564ms
+ ✓ |integration| tests/integration/book-exploration.test.ts (6 tests) 480ms
+ ✓ |integration| tests/integration/notebook-fonts.test.ts (4 tests) 709ms
+   ✓ serves every allowlisted face with the real bytes and a cacheable font response  307ms
+ ✓ |integration| tests/integration/native-capability-wiring.test.ts (7 tests) 388ms
+ ✓ |integration| tests/integration/plan-target-skeleton.test.ts (4 tests) 409ms
+ ✓ |integration| tests/integration/material-version.test.ts (8 tests) 483ms
+ ✓ |integration| tests/integration/memory-v2.test.ts (8 tests) 399ms
+ ✓ |integration| tests/integration/close-handoff-v2.test.ts (7 tests) 401ms
+ ✓ |integration| tests/integration/global-learning-search.test.ts (4 tests) 273ms
+ ✓ |integration| tests/integration/search-sources.test.ts (6 tests) 297ms
+ ✓ |integration| tests/integration/native-input-evidence.test.ts (4 tests) 201ms
+ ✓ |integration| tests/integration/mixed-deck.test.ts (5 tests) 250ms
+ ✓ |integration| tests/integration/review-transaction.test.ts (3 tests) 174ms
+ ✓ |integration| tests/integration/course-state.test.ts (3 tests) 139ms
+ ✓ |integration| tests/integration/material-read-region.test.ts (3 tests) 106ms
+ ✓ |integration| tests/integration/card-change-scope.test.ts (7 tests) 88ms
+ ✓ |integration| tests/integration/record-migration.test.ts (1 test) 67ms
+ ✓ |integration| tests/integration/pdftext-anchor.test.ts (3 tests) 79ms
+
+ Test Files  84 passed (84)
+      Tests  344 passed (344)
+   Start at  14:37:06
+   Duration  687.40s (transform 1.45s, setup 0ms, import 11.78s, tests 1355.70s, environment 6ms)

@@ -1,0 +1,20 @@
+{
+  "name": "@notara/pixel-classroom",
+  "version": "0.4.0",
+  "type": "module",
+  "main": "index.js",
+  "description": "Pixel Agents view for the native DSH classroom",
+  "files": ["index.js", "client.js", "dist", "README.md", "upstream/LICENSE", "upstream/provenance.json"],
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-ui-slots"]
+    }
+  }
+}

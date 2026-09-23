@@ -92,7 +92,10 @@ export function installTeaching(host: Context, catalog: TeachingCatalog): void {
   // Some native composition plugins register local tools after spawn's inherited
   // filter. Helpers may see only this material-first union; each delegation role
   // narrows it further before its child starts.
-  const helperAllowed = new Set(['web_search', 'web_fetch', 'list_materials', 'read_material', 'preview_region', 'search_learning', 'read_content', 'list_sets', 'read_set', 'read_skeleton', 'read_method', 'send_message']);
+  // The native structured-result tool is registered locally after spawn's
+  // inherited filter. It only returns a value to the parent; excluding it here
+  // makes outputSchema tasks impossible without adding any safety boundary.
+  const helperAllowed = new Set(['structured_output', 'web_search', 'web_fetch', 'list_materials', 'read_material', 'preview_region', 'search_learning', 'read_content', 'list_sets', 'read_set', 'read_skeleton', 'read_method', 'send_message']);
   const helper = (agent: Agent | undefined): boolean => !!agent && agent.session.header.origin === 'subagent'
     && (host.sessionProjections.snapshot(agent.session, ['agentPreset']).values.agentPreset ?? agent.session.header.agentPreset) === 'studyforge-learning';
   const owns = (agent: Agent | undefined): agent is Agent => !!agent

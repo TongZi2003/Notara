@@ -1,0 +1,13 @@
+{
+  "origin": "http://127.0.0.1:57093",
+  "root": "/Users/yangrundong/.notara/vault-runtime",
+  "version": "0.14.4",
+  "pid": 45687,
+  "parentPid": 45672,
+  "count": 7,
+  "running": 0,
+  "sessionIdentitiesPreserved": true,
+  "installedResourcesMatch": true,
+  "backup": "/Users/yangrundong/.notara/vault-runtime/pre-question-close-review-1790126714108",
+  "execSession": 40462
+}

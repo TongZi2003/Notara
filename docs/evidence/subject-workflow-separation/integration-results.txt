@@ -1,0 +1,30 @@
+
+ RUN  v4.0.18 /Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH
+
+stdout | tests/integration/native-vault-solver.test.ts > 五预设真实请求使用独立人格与配置；只读工作员能读资料但不能写入或继续派工
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-solver.test.ts > 五预设真实请求使用独立人格与配置；只读工作员能读资料但不能写入或继续派工
+native-vault client: 5458299 bytes
+
+ ✓ |integration| tests/integration/native-vault-solver.test.ts (15 tests) 113050ms
+   ✓ 五预设真实请求使用独立人格与配置；只读工作员能读资料但不能写入或继续派工  6988ms
+   ✓ 六科与旧领域关注只进入显式选择的知识工作员请求  7216ms
+   ✓ 原生参数解析失败能定位JSON错误，修正后只启动一个独立draft任务  6078ms
+   ✓ 解题请求实际收到原页图像与独立预算；原文件变更后拒绝旧引用  6020ms
+   ✓ 教室 RPC 只投影双角色、模型清单与任务状态；解题者工具只挂教学会话  5934ms
+   ✓ 解题者是零工具独立 spawn：默认用 gpt-5.6-sol，父私密上下文不进子，结果回父且投影不含解答  6262ms
+   ✓ 解题者路由按教室配置生效；没有匹配模型时明确失败且不静默降级  5889ms
+   ✓ 原生中断取消：任务终结、没有成功解答回到教师、迟到结果不再投递  8689ms
+   ✓ 重启后教室配置与解题者路由冷恢复，新任务仍走配置的模型与推理等级  13104ms
+   ✓ 同名模型挂在两个 provider 上时教室不替教师猜，明确配置后仍可工作  6425ms
+   ✓ 取消后同一学生输入不会被自动重跑，新用户消息才重新允许派发  7016ms
+   ✓ solverTask 把一次分析绑定到父会话与真实一次性子会话；投影只报可检查性，不暴露 child  6501ms
+   ✓ solverTask 属于本课：外课会话不能借另一个会话的 taskId 读到它的绑定  6181ms
+   ✓ 任务运行中即可查看分析，取消后停止且不留迟到结果  9110ms
+   ✓ 冷重启后已完成任务的 solverTask 绑定仍可查到，且不会退回教室投影  11635ms
+
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+   Start at  23:58:48
+   Duration  113.24s (transform 98ms, setup 0ms, import 101ms, tests 113.05s, environment 0ms)

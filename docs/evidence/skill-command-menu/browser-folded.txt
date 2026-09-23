@@ -1,0 +1,42 @@
+
+Running 2 tests using 1 worker
+
+(node:19551) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Verified rc.2 Session.append ignorable envelope passthrough
+native-vault client: 5458299 bytes
+  ✘  1 tests/e2e/native-vault-command-skills.spec.ts:6:1 › the command button discovers teaching Skills and picks through the native invocation without sending the draft (23.6s)
+(node:19645) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Verified rc.2 Session.append ignorable envelope passthrough
+native-vault client: 5458299 bytes
+  ✓  2 tests/e2e/native-vault-subjects.spec.ts:6:1 › subject resources are discoverable and a new task-based lesson keeps teacher references folded (11.9s)
+
+
+  1) tests/e2e/native-vault-command-skills.spec.ts:6:1 › the command button discovers teaching Skills and picks through the native invocation without sending the draft
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByText('普通助手菜单检查', { exact: true })
+
+
+      74 |     await harness.rename(plain, '普通助手菜单检查');
+      75 |     await page.reload();
+    > 76 |     await page.getByText('普通助手菜单检查', { exact: true }).click();
+         |                                                       ^
+      77 |     await page.getByRole('button', { name: /^(指令|Commands)$/ }).click();
+      78 |     await expect(menu.getByRole('option').first()).toBeVisible();
+      79 |     await expect(menu.getByRole('status')).toHaveCount(0);
+        at /Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/tests/e2e/native-vault-command-skills.spec.ts:76:55
+
+    attachment #2: isolated-runtime-log (text/plain) ───────────────────────────────────────────────
+    (node:19581) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    dsh: all_proxy names a SOCKS proxy, which is not supported; connecting directly for that scheme — set an http:// or https:// proxy URL i...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/native-vault-command-skill-548ac-n-without-sending-the-draft/error-context.md
+
+  1 failed
+    tests/e2e/native-vault-command-skills.spec.ts:6:1 › the command button discovers teaching Skills and picks through the native invocation without sending the draft
+  1 passed (37.3s)

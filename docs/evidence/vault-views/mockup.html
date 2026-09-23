@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>Notara Vault 视图设计稿</title>
+<style>
+  /* —— 沿用 DSH notebook 主题令牌（packages/client/src/theme/notebook.css）—— */
+  :root {
+    --nb-page:#f6f1e3; --nb-desk:#e9e2cf; --nb-paper:#efe7d2; --nb-hi:#fdfaf1; --nb-slip:#fbf8ee;
+    --nb-ink:#3a3531; --nb-pen:#26437c; --nb-pencil:#756e61; --nb-seal:#c93a2e;
+    --nb-rule:#d9d2bd; --nb-rule-hi:#b9b19c;
+    --nb-slip-shadow:0 1px 1px #3c321a29,0 6px 14px #3c321a21;
+    --nb-page-shadow:0 1px 0 #3c321a0d,0 12px 32px #3c321a24;
+    --nb-grid:linear-gradient(color-mix(in srgb,var(--nb-rule) 60%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--nb-rule) 60%,transparent) 1px,transparent 1px);
+    --nb-lines:repeating-linear-gradient(transparent,transparent 31px,var(--nb-rule) 31px,var(--nb-rule) 32px);
+    --hand:"Kaiti SC","STKaiti","Xingkai SC",cursive;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--nb-desk); color: var(--nb-ink); font: 13px/1.65 "PingFang SC","SF Pro Text",system-ui; padding: 30px 34px; }
+  h1 { font: 400 26px/1.3 var(--hand); color: var(--nb-pen); margin-bottom: 4px; }
+  h2 { font: 400 19px/1.4 var(--hand); color: var(--nb-pen); margin: 38px 0 10px; letter-spacing: .01em; }
+  .sub { color: var(--nb-pencil); margin-bottom: 18px; }
+  .frame { border: 1px solid var(--nb-rule-hi); border-radius: 10px; background: var(--nb-page); padding: 16px; margin-bottom: 16px; box-shadow: var(--nb-page-shadow); }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; color: var(--nb-pencil); font-size: 12px; margin-top: 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 7px; }
+  code { background: var(--nb-paper); padding: 0 4px; border-radius: 3px; font-size: 12px; }
+  /* ===== 三栏总览 ===== */
+  .cols { display: grid; grid-template-columns: 46px 236px 1fr 300px; gap: 0; height: 430px; border: 1px solid var(--nb-rule-hi); border-radius: 8px; overflow: hidden; }
+  .rail { background: var(--nb-paper); border-right: 1px solid var(--nb-rule-hi); padding: 12px 0; }
+  .rail-item { width: 30px; height: 30px; border-radius: 8px; border: 1.5px solid var(--nb-rule-hi); margin: 0 auto 12px; }
+  .rail-item.on { border-color: var(--nb-pen); background: color-mix(in srgb, var(--nb-pen) 12%, transparent); }
+  .chat { background: var(--nb-page); background-image: var(--nb-lines); border-right: 1px solid var(--nb-rule-hi); padding: 12px 10px; }
+  .chat-msg { background: var(--nb-slip); border: 1px solid var(--nb-rule); border-radius: 7px; padding: 6px 9px; margin-bottom: 9px; font-size: 12px; box-shadow: var(--nb-slip-shadow); }
+  .chat-msg.ai { border-left: 3px solid var(--nb-pen); }
+  .main { padding: 10px 12px; display: flex; flex-direction: column; }
+  .reader { border-left: 1px solid var(--nb-rule-hi); background: var(--nb-page); padding: 10px; }
+  .tabs { display: flex; gap: 2px; margin-bottom: 10px; border-bottom: 1px solid var(--nb-rule-hi); }
+  .tab { padding: 4px 14px; color: var(--nb-pencil); font-size: 12.5px; border-radius: 6px 6px 0 0; border: 1px solid transparent; border-bottom: 0; }
+  .tab.on { color: var(--nb-pen); background: var(--nb-slip); border-color: var(--nb-rule-hi); font-weight: 600; }
+  .cap { position: absolute; font-size: 10.5px; color: var(--nb-pencil); }
+  /* ===== 图谱（Obsidian 风格点线力导图） ===== */
+  .board { position: relative; height: 640px; border: 1px solid var(--nb-rule-hi); border-radius: 8px; background-color: var(--nb-page); background-image: var(--nb-grid); background-size: 30px 30px; overflow: hidden; }
+  .board svg.edges { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .n { position: absolute; transform: translate(-50%,-50%); text-align: center; cursor: default; }
+  .n i { display: block; margin: 0 auto; border-radius: 50%; box-sizing: border-box; }
+  .n.root i { width: 22px; height: 22px; background: var(--nb-pen); box-shadow: 0 0 0 3px color-mix(in srgb, var(--nb-pen) 22%, transparent); }
+  .n.mid i { width: 15px; height: 15px; background: var(--nb-pen); border: 3.5px solid var(--nb-page); outline: 2px solid var(--nb-pen); }
+  .n.leaf i { width: 13px; height: 13px; background: var(--nb-page); border: 2.5px solid var(--nb-pen); }
+  .n.orphan i { width: 13px; height: 13px; background: var(--nb-page); border: 2.5px dashed var(--nb-pencil); }
+  .n u { display: inline-block; margin-top: 5px; font-size: 11px; color: var(--nb-ink); text-decoration: none; background: color-mix(in srgb, var(--nb-page) 82%, transparent); padding: 0 5px; border-radius: 3px; white-space: nowrap; }
+  .n.sel u { color: var(--nb-pen); font-weight: 700; }
+  .n.sel i { outline: 3px solid color-mix(in srgb, var(--nb-pen) 45%, transparent); }
+  .n .tagk { font-size: 9px; color: var(--nb-pencil); }
+  .ctx { position: absolute; background: var(--nb-hi); border: 1px solid var(--nb-rule-hi); border-radius: 8px; padding: 5px; min-width: 186px; box-shadow: var(--nb-page-shadow); z-index: 6; }
+  .ctx div { padding: 6px 10px; border-radius: 5px; font-size: 12.5px; }
+  .ctx .hl { background: var(--nb-pen); color: var(--nb-hi); }
+  .ctx .sep { height: 1px; background: var(--nb-rule); margin: 4px 6px; padding: 0; }
+  .ctx .mut { color: var(--nb-pencil); }
+  .detail { position: absolute; right: 0; top: 0; bottom: 0; width: 240px; background: var(--nb-paper); border-left: 1px solid var(--nb-rule-hi); padding: 13px; z-index: 5; }
+  .detail h3 { font-size: 13px; margin-bottom: 7px; }
+  .detail .kv { font-size: 11.5px; color: var(--nb-pencil); margin: 3px 0; word-break: break-all; }
+  .detail .kv b { color: var(--nb-ink); font-weight: 600; }
+  .detail .act { display: block; width: 100%; margin-top: 8px; padding: 6px; border: 1px solid var(--nb-rule-hi); border-radius: 6px; background: var(--nb-slip); color: var(--nb-pen); font-size: 12px; text-align: center; }
+  .detail .act.pri { background: var(--nb-pen); color: var(--nb-hi); border-color: var(--nb-pen); }
+  /* ===== 卡片库 ===== */
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .kcard { background: var(--nb-slip); border: 1px solid var(--nb-rule); border-left: 3px solid var(--c-card, #4d7a5f); border-radius: 7px; padding: 10px 12px; box-shadow: var(--nb-slip-shadow); }
+  .kcard .q { color: var(--nb-pencil); font-size: 11.5px; border-left: 2px solid var(--nb-rule-hi); padding-left: 8px; margin: 7px 0; font-style: italic; }
+  .kcard .src { font-size: 10.5px; color: var(--nb-pen); }
+  .bar { display: flex; gap: 8px; align-items: center; background: var(--nb-slip); border: 1px solid var(--nb-rule-hi); border-radius: 7px; padding: 6px 12px; margin-bottom: 10px; font-size: 12.5px; }
+  .bar .btn { border: 1px solid var(--nb-rule-hi); border-radius: 5px; padding: 2px 10px; color: var(--nb-pen); background: var(--nb-hi); }
+  /* ===== 阅读器 ===== */
+  .page { background: #fdfcf7; border: 1px solid var(--nb-rule); border-radius: 3px; height: 280px; color: #33363b; padding: 28px 30px; position: relative; box-shadow: var(--nb-page-shadow); font-family: Georgia, serif; }
+  .page .sel { position: absolute; border: 2px solid var(--nb-pen); background: #26437c14; border-radius: 2px; }
+  /* ===== 表格 ===== */
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  td, th { border: 1px solid var(--nb-rule); padding: 8px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--nb-paper); color: var(--nb-pen); font-weight: 600; }
+  .note { color: var(--nb-pencil); font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>Notara Vault — 图谱 / 卡片库 / 阅读器</h1>
+<div class="sub">图谱参照 Obsidian 关系图谱：点 + 直线 + 标签的力导向布局。节点图例按<b>图内角色</b>分：● 原书（根）· ◐ 中间节点（有父有子）· ○ 叶子卡片 · 虚线空心 = 孤立点。文件类型不再占图例——类型徽章挪进节点详情。</div>
+
+<!-- ================= ① 三栏总览 ================= -->
+<h2>① 整体：对话｜图谱｜阅读器 三栏</h2>
+<div class="frame">
+  <div class="cols">
+    <div class="rail">
+      <div class="rail-item"></div><div class="rail-item on"></div><div class="rail-item"></div><div class="rail-item"></div>
+    </div>
+    <div class="chat">
+      <div class="chat-msg ai">这是向量讲义第 1 页的重点…</div>
+      <div class="chat-msg">把这段拆成卡片</div>
+      <div class="chat-msg ai">已提取到「向量讲义 · 第 1 页」 <span style="color:var(--nb-pen)">↗</span></div>
+      <div class="cap" style="bottom:8px;left:10px">① 对话栏（DSH 原生，可折叠）</div>
+    </div>
+    <div class="main">
+      <div class="tabs">
+        <div class="tab">资产</div><div class="tab on">图谱</div><div class="tab">卡片</div><div class="tab">阅读器</div>
+      </div>
+      <div class="board" style="height:340px;background-size:24px 24px">
+        <svg class="edges" viewBox="0 0 460 340" preserveAspectRatio="none">
+          <line x1="120" y1="90" x2="230" y2="140" stroke="#26437c" stroke-width="1.4" opacity=".55"/>
+          <line x1="120" y1="90" x2="215" y2="240" stroke="#26437c" stroke-width="1.4" opacity=".55"/>
+          <line x1="230" y1="140" x2="345" y2="105" stroke="#26437c" stroke-width="1.4" opacity=".55"/>
+          <line x1="110" y1="285" x2="215" y2="240" stroke="#26437c" stroke-width="1.4" opacity=".55"/>
+          <line x1="330" y1="265" x2="355" y2="200" stroke="#756e61" stroke-width="1" stroke-dasharray="2 4" opacity=".55"/>
+        </svg>
+        <div class="n root" style="left:120px;top:88px"><i></i><u>向量讲义.pdf</u></div>
+        <div class="n mid" style="left:230px;top:140px"><i></i><u>讲义·第1页</u></div>
+        <div class="n leaf" style="left:345px;top:103px"><i></i><u>坐标语言</u></div>
+        <div class="n leaf" style="left:215px;top:240px"><i></i><u>讲义·第2页</u></div>
+        <div class="n root" style="left:110px;top:287px"><i></i><u>向量.md</u></div>
+        <div class="n root" style="left:330px;top:268px"><i></i><u>向量路线.md</u></div>
+        <div class="n leaf" style="left:355px;top:198px"><i></i><u>基底摘记</u></div>
+        <div class="n orphan" style="left:395px;top:290px"><i></i><u>色板.svg</u></div>
+        <div class="cap" style="left:10px;bottom:8px">② 图谱 board：点线力导图（Obsidian 式），角色图例见下</div>
+      </div>
+    </div>
+    <div class="reader">
+      <div class="bar" style="margin-bottom:8px"><span class="btn">‹</span> 1/2 <span class="btn">›</span><span class="btn" style="margin-left:auto">提取为卡片</span></div>
+      <div class="page" style="height:300px;padding:22px">
+        <b style="font-size:15px">Vector foundations</b>
+        <div class="sel" style="left:18px;top:56px;width:82%;height:56px"></div>
+        <div class="cap" style="bottom:8px;left:10px;color:var(--nb-pencil)">③ 阅读器 pane：框选落成当前节点子卡片</div>
+      </div>
+    </div>
+  </div>
+  <div class="legend">
+    <span class="chip"><i style="display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--nb-pen)"></i> 原书（根节点：PDF/MD/媒体，未被拆出）</span>
+    <span class="chip"><i style="display:inline-block;width:13px;height:13px;border-radius:50%;background:var(--nb-pen);border:3px solid var(--nb-page);outline:1.5px solid var(--nb-pen)"></i> 中间卡片（有父有子）</span>
+    <span class="chip"><i style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--nb-page);border:2px solid var(--nb-pen)"></i> 叶子卡片</span>
+    <span class="chip"><i style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--nb-page);border:2px dashed var(--nb-pencil)"></i> 孤立点（无引用无拆分）</span>
+    <span class="chip"><span style="color:var(--nb-pen)">──</span> 拆分边</span>
+    <span class="chip"><span style="color:var(--nb-pencil)">┄┄</span> wiki 引用边</span>
+  </div>
+</div>
+
+<!-- ================= ② 图谱大图 ================= -->
+<h2>② 图谱 board 全尺寸 —— 力导向布局 + 右键拆分</h2>
+<div class="frame">
+  <div class="board">
+    <svg class="edges" viewBox="0 0 920 640" preserveAspectRatio="none">
+      <!-- 拆分边（实线，钢笔蓝） -->
+      <line x1="300" y1="200" x2="470" y2="150" stroke="#26437c" stroke-width="1.6" opacity=".5"/>
+      <line x1="300" y1="200" x2="455" y2="290" stroke="#26437c" stroke-width="1.6" opacity=".5"/>
+      <line x1="470" y1="150" x2="640" y2="110" stroke="#26437c" stroke-width="1.6" opacity=".5"/>
+      <line x1="200" y1="420" x2="360" y2="470" stroke="#26437c" stroke-width="1.6" opacity=".5"/>
+      <line x1="560" y1="400" x2="640" y2="330" stroke="#26437c" stroke-width="1.6" opacity=".5"/>
+      <!-- wiki 引用边（细点线，铅笔灰） -->
+      <line x1="560" y1="530" x2="200" y2="420" stroke="#756e61" stroke-width="1" stroke-dasharray="2 5" opacity=".55"/>
+      <line x1="120" y1="560" x2="200" y2="420" stroke="#756e61" stroke-width="1" stroke-dasharray="2 5" opacity=".4"/>
+      <!-- 悬停高亮示例：讲义→第1页 邻边 -->
+      <line x1="300" y1="200" x2="470" y2="150" stroke="#c93a2e" stroke-width="2.2" opacity=".85"/>
+    </svg>
+
+    <!-- 根节点（原书） -->
+    <div class="n root" style="left:300px;top:200px"><i></i><u>向量讲义.pdf<span class="tagk"><br>PDF · 2页</span></u></div>
+    <div class="n root" style="left:200px;top:420px"><i></i><u>向量.md<span class="tagk"><br>知识/ · note</span></u></div>
+    <div class="n root" style="left:560px;top:400px"><i></i><u>微积分讲义.pdf<span class="tagk"><br>媒体/ · 14页</span></u></div>
+    <div class="n root" style="left:560px;top:530px"><i></i><u>向量路线.md</u></div>
+    <div class="n root" style="left:120px;top:560px"><i></i><u>资料索引.md</u></div>
+    <!-- 中间节点 -->
+    <div class="n mid sel" style="left:470px;top:150px"><i></i><u>向量讲义·第1页<span class="tagk"><br>有 1 张子卡</span></u></div>
+    <div class="n mid" style="left:640px;top:330px"><i></i><u>微积分·定义章<span class="tagk"><br>有 2 张子卡</span></u></div>
+    <!-- 叶子 -->
+    <div class="n leaf" style="left:640px;top:106px"><i></i><u>坐标语言</u></div>
+    <div class="n leaf" style="left:455px;top:290px"><i></i><u>讲义·第2页</u></div>
+    <div class="n leaf" style="left:360px;top:470px"><i></i><u>基底摘记</u></div>
+    <div class="n leaf" style="left:770px;top:290px"><i></i><u>极限定义</u></div>
+    <div class="n leaf" style="left:760px;top:375px"><i></i><u>导数几何</u></div>
+    <!-- 孤立点 -->
+    <div class="n orphan" style="left:830px;top:520px"><i></i><u>色板.svg</u></div>
+    <div class="n orphan" style="left:820px;top:190px"><i></i><u>说明.html</u></div>
+    <div class="n orphan" style="left:700px;top:570px"><i></i><u>卡片模板</u></div>
+
+    <!-- 右键菜单（开在 PDF 根节点上） -->
+    <div class="ctx" style="left:318px;top:226px">
+      <div class="hl">▣ 进阅读器框选拆分</div>
+      <div>按页拆成卡片</div>
+      <div class="sep"></div>
+      <div>查看原始资产详情</div>
+      <div class="mut">在资产页中定位</div>
+    </div>
+
+    <!-- 详情 pane -->
+    <div class="detail">
+      <h3>向量讲义 · 第 1 页</h3>
+      <div class="kv"><b>角色</b> 中间卡片（有父有子）</div>
+      <div class="kv"><b>来源</b> 媒体/向量讲义.pdf</div>
+      <div class="kv"><b>页码</b> 第 1 页</div>
+      <div class="kv"><b>选区</b> [0.06,0.06,0.84,0.14]</div>
+      <div class="kv"><b>摘录</b> “A basis gives a coordinate language.”</div>
+      <div class="kv"><b>子卡片</b> 坐标语言 ×1</div>
+      <div class="act pri">打开卡片</div>
+      <div class="act">继续拆分此节点</div>
+      <div class="act">跳回 PDF 原文位置</div>
+    </div>
+    <div class="cap" style="left:10px;bottom:8px">实现：~150 行迷你力导向（斥力+弹簧+向心，requestAnimationFrame），零依赖；悬停节点高亮一阶邻居（红色示例边）</div>
+  </div>
+  <div class="legend">
+    <span class="chip"><b>点击</b> 节点 → 右侧详情</span>
+    <span class="chip"><b>双击</b> → 打开（PDF 进阅读器 / md 进编辑器）</span>
+    <span class="chip"><b>右键</b> → 拆分菜单</span>
+    <span class="chip"><b>拖节点</b> 固定位置 · <b>拖空白</b> 平移 · <b>滚轮</b> 缩放</span>
+    <span class="chip"><b>悬停</b> 高亮一阶邻居</span>
+  </div>
+</div>
+
+<!-- ================= ③ 卡片库 ================= -->
+<h2>③ 卡片库视图</h2>
+<div class="frame">
+  <div class="tabs"><div class="tab">资产</div><div class="tab">图谱</div><div class="tab on">卡片</div><div class="tab">阅读器</div></div>
+  <div class="bar">🔍 搜索卡片…　<span class="btn">来源：全部 ▾</span><span class="btn">按层级分组</span><span style="margin-left:auto;color:var(--nb-pencil)">5 张卡片</span></div>
+  <div class="cards">
+    <div class="kcard"><b>向量讲义 · 第 1 页</b><div class="q">“A basis gives a coordinate language. Drag a rectangle to…”</div><div class="src">↩ 媒体/向量讲义.pdf · p1</div></div>
+    <div class="kcard"><b>向量讲义 · 第 2 页</b><div class="q">“The same vector has algebraic and geometric views.”</div><div class="src">↩ 媒体/向量讲义.pdf · p2</div></div>
+    <div class="kcard"><b>基底摘记</b><div class="q">“能解释基底的作用…”</div><div class="src">↩ 知识/向量.md · §关键联系</div></div>
+    <div class="kcard"><b>坐标语言</b><div class="q">“（二级拆分自第 1 页卡片）”</div><div class="src">↩ 卡片/向量讲义·第1页.md</div></div>
+    <div class="kcard"><b>微积分 · 定义章</b><div class="q">“（中间节点，有 2 张子卡）”</div><div class="src">↩ 媒体/微积分讲义.pdf · p3-8</div></div>
+  </div>
+  <div class="legend"><span class="chip">点击卡片 → 打开该 md；<b>↩ 来源</b> 跳回图谱节点或原文位置</span></div>
+</div>
+
+<!-- ================= ④ 阅读器视图 ================= -->
+<h2>④ 阅读器独立视图</h2>
+<div class="frame">
+  <div class="tabs"><div class="tab">资产</div><div class="tab">图谱</div><div class="tab">卡片</div><div class="tab on">阅读器</div></div>
+  <div class="bar"><b>向量讲义.pdf</b><span class="btn">‹</span> 1 / 2 <span class="btn">›</span><span class="btn">−</span> 100% <span class="btn">＋</span><span class="btn">适应宽度</span><span class="btn" style="margin-left:auto">提取为卡片</span></div>
+  <div class="page">
+    <b style="font-size:16px">Vector foundations</b>
+    <p style="margin-top:12px;font-size:13.5px">A basis gives a coordinate language.</p>
+    <div class="sel" style="left:26px;top:72px;width:70%;height:52px"></div>
+  </div>
+  <div class="legend"><span class="chip">带参打开：<code>阅读器?path=媒体/向量讲义.pdf#page=2</code>——图谱双击、卡片「跳回原文」、资产页都路由进来</span></div>
+</div>
+
+<!-- ================= ⑤ 数据模型 ================= -->
+<h2>⑤ 节点角色与边的推导（全部派生自文件事实）</h2>
+<div class="frame">
+  <table>
+    <tr><th style="width:150px">图内角色</th><th>判定规则</th><th>图例</th></tr>
+    <tr><td><b>原书（根）</b></td><td>vault 里的 PDF / md / 媒体文件，没有被任何卡片当来源</td><td>实心大圆 + 光晕</td></tr>
+    <tr><td><b>中间卡片</b></td><td>本身是卡片（有 embed 来源 或 <code>parent:</code>），且被 ≥1 张卡当父级</td><td>实心小圆 + 描边环</td></tr>
+    <tr><td><b>叶子卡片</b></td><td>是卡片但无人引用它为父级</td><td>空心圆</td></tr>
+    <tr><td><b>孤立点</b></td><td>没有任何边的文件</td><td>虚线空心圆（灰色）</td></tr>
+  </table>
+  <table style="margin-top:10px">
+    <tr><th>边</th><th>存储位置</th><th>线型</th></tr>
+    <tr><td><b>拆分边</b>（原书→卡片 / 卡片→子卡片）</td><td>卡片正文 <code>![[…#page&rect]]</code> embed + frontmatter <code>parent:</code></td><td>钢笔蓝实线</td></tr>
+    <tr><td><b>引用边</b>（md→md）</td><td><code>[[wiki]]</code>（已有 links 解析）</td><td>铅笔灰点线</td></tr>
+  </table>
+</div>
+
+<!-- ================= ⑥ 任务拆分 ================= -->
+<h2>⑥ 任务拆分</h2>
+<div class="frame">
+  <table>
+    <tr><th style="width:52px">编号</th><th style="width:170px">任务</th><th>内容</th><th style="width:130px">依赖</th></tr>
+    <tr><td><b>T1</b></td><td>图谱 board 视图</td><td>「图谱」view；扫 vault 派生节点/边；<b>迷你力导向</b>（斥力+弹簧+向心，~150 行零依赖）；角色图例、悬停高亮邻居、点击详情、右键菜单、拖拽/缩放</td><td>—</td></tr>
+    <tr><td><b>T2</b></td><td>阅读器独立视图 + pane 复用</td><td>PdfReader 抽成带 <code>path#page</code> 参数的独立 view；图谱详情 pane 复用同一组件</td><td>T1</td></tr>
+    <tr><td><b>T3</b></td><td>层级拆分</td><td>PDF→框选拆卡；md→anchor 摘卡；卡片→子卡片写 <code>parent:</code>；图谱实时刷新角色</td><td>T1+T2</td></tr>
+    <tr><td><b>T4</b></td><td>卡片库视图</td><td>扫 <code>type:card</code> md → 网格 + 来源/层级过滤 + 跳回来源</td><td>—（可并行）</td></tr>
+    <tr><td><b>T5</b></td><td>三栏拼装</td><td>图谱内部 board│详情 pane 宽度拖拽；对话栏折叠交给 DSH 原生</td><td>T1+T2</td></tr>
+  </table>
+</div>
+
+</body>
+</html>
