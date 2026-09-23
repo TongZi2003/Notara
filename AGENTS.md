@@ -23,9 +23,13 @@
 - Native Vault 0.14.4 的课堂规则要求主教师在一道题讨论收束、转入下一题前记录一次本轮评估。复用本题题卡，缺卡时按模板与真实题面建卡；有认知变化先补正文“学生理解”，再取最新revision记录评估。纯讲解无学生表现记not_observed，不凭听过启动复习。收束由教师按语义判断，不是逐消息自动hook；正文与评估是分别核对回执的两次写入，评估和排期本身仍在同文件一次CAS完成。
 - Native Vault 0.14.5 的 `material-search` 通过查询意图展开、原生检索与正文语义判断找卡片，可交只读 `general` 独立整理；不是向量索引。`teaching-reflection` 反思教学判断，将必要更新分流至小结、画像、锦囊或路线，内置 Skill 先给修订建议，不就地改快照；当前教学预设没有个人文件 Skill 自动发现。`learning-review` 综合近期进展、兴趣与目标给下一步方向，按已知授权目录跨集取证，不宣称全局发现或统一复习。找卡片/学习复盘直接展示，教学反思折叠到更多技能；三者按需加载，归档反思并入已有小结。
 - Native Vault 0.9.0 的单文件删除走 Vault `.trash` 回收站，可恢复但不覆盖同名文件；所有点目录不进入资产、搜索和图谱投影。PDF 图层与矩形批注保存在 `.notara/pdf-annotations/`，绑定 PDF revision；区域引用卡片保留原版图像、页码、矩形和可选标注引用，不把逐页文字层直接拆成卡片。原 PDF 改版后不得把旧标注自动当作新版位置。
-- Native Vault 教师仅保留 `set_teaching_settings`、`open_learning_lesson`、`save_lesson_summary`、`ask_worker` 四个专用模型工具；普通文件读写和搜索用 DSH 原生工具，确定性复习/排课/PDF 辅助走 `vault-cli.js`。CLI 与 UI 共用 IO 和文件计算；Host 通过原生 `shellEnv` 注入 `DSH_NOTARA_*`，不得让模型填写执行身份。0.11.2 起教学 `write/edit` 与课堂写工具默认请求批准，原生 `danger-full-access` 覆盖这层额外要求；原生 deny/ask 和工作员工具范围限制仍保留。Bash 完全沿用原生沙箱与审批决定，不做命令字符串“只读”猜测，也不额外统一审批。每次 Bash 的 `description` 按 Skill 用 `[notara:<intent>] 中文说明` 标记用途，0.8.2 在原生工具 slot 中将用途显示为小字折叠行，点击展开命令与输出，普通返回不另显示状态；未标记的调用沿用原生展示。标记不是权限或执行成功依据。
+- Native Vault 教师仅保留 `set_teaching_settings`、`open_learning_lesson`、`save_lesson_summary`、`ask_worker` 四个专用模型工具；主教师普通文件读写和搜索统一用 DSH 原生 Bash，确定性复习/排课/PDF 辅助走 `vault-cli.js`。CLI 与 UI 共用 IO 和文件计算；Host 通过原生 `shellEnv` 注入 `DSH_NOTARA_*`，不得让模型填写执行身份。0.14.8 起主教师不再暴露或接受 `read/write/edit/glob/grep`；课堂写工具默认请求批准，原生 `danger-full-access` 覆盖这层额外要求；原生 deny/ask 和工作员工具范围限制仍保留。Bash 完全沿用原生沙箱与审批决定，不做命令字符串“只读”猜测，也不额外统一审批。每次 Bash 的 `description` 按 Skill 用 `[notara:<intent>] 中文说明` 标记用途，0.8.2 在原生工具 slot 中将用途显示为小字折叠行，点击展开命令与输出，普通返回不另显示状态；未标记的调用沿用原生展示。标记不是权限或执行成功依据。
 
 - Native Vault 0.14.7 的评估要求当前实际困难证据；缺少步骤展示不等于失败，已纠正的历史错误不冒充当前困难。常驻规则、按需 Skill 与 CLI help 同步约束；有真实认知变化先保存题卡正文，再按最新 revision 记评估，分别核对回执。教学小结保存即为教学归档，默认保留原生会话继续交流；只有用户明确从会话列表收起时才调用原生归档。
+
+- Native Vault 0.14.8 主教师可组合 ls/rg/grep/sed 读取资料；CLI `write-batch` 用一批独立 create/edit 操作保存Markdown，create不覆盖、edit唯一原文匹配后按当前revision走原生CAS，部分失败逐文件返回。任意shell写入不自动获得这层保护，Bash权限仍由原生机制决定。只读子代理保留原生read/glob/grep/read_image，不因主教师缩减工具面获得Bash写入能力。
+
+- Native Vault 0.14.8 老师人格在本课教学设置、工作员人格在各预设的教室设置中独立保存，上限4000字符。老师空白恢复默认大肥鱼；工作员空白只用任务职责，省略配置字段保持原值。`persona.js` 是纯文本装配，身份风格不改工具/权限/交付边界，也不按模型名自动猜人格。首次介绍应出现在最终可见答复，不仅是被折叠的工具进度。
 
 ## 工作约定
 

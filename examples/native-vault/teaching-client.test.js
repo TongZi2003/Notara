@@ -42,8 +42,25 @@ test('保存只发送改动过的字段，清空与恢复默认都有明确表�
   assert.equal(settingsPatch(settings(), { ...settingsDraft(settings()), subjects: Array.from({ length: 13 }, (_, index) => `科目${index}`).join('、') }).patch, null);
 });
 
+test('老师人格留空用默认形象，只有真的改动才发送', () => {
+  const base = settings({ persona: '你是一位严格的数学老师。' });
+  assert.equal(settingsDraft(base).persona, '你是一位严格的数学老师。');
+  assert.deepEqual(settingsPatch(base, settingsDraft(base)), { patch: {}, error: '' });
+  // 空白就是默认形象，而不是一段看不见的自定义人格。
+  assert.deepEqual(settingsPatch(base, { ...settingsDraft(base), persona: '   ' }), { patch: { persona: '' }, error: '' });
+  assert.deepEqual(settingsPatch(base, { ...settingsDraft(base), persona: '  你是体育老师。 ' }), { patch: { persona: '你是体育老师。' }, error: '' });
+  const tooLong = settingsPatch(base, { ...settingsDraft(base), persona: '字'.repeat(4001) });
+  assert.equal(tooLong.patch, null);
+  assert.match(tooLong.error, /4000/);
+  const fresh = settings();
+  assert.equal(settingsDraft(fresh).persona, '');
+  assert.deepEqual(settingsPatch(fresh, settingsDraft(fresh)), { patch: {}, error: '' });
+  // 升级前保存的草稿没有这一项：保存别的字段不会顺手清掉已保存的人格。
+  assert.deepEqual(settingsPatch(base, { ...settingsDraft(base), persona: undefined }), { patch: {}, error: '' });
+});
+
 test('清空恢复 Host 默认，而不是伪造一个教法 id', () => {
-  assert.deepEqual(clearedPatch(), { teachingRef: null, learningGoal: null, temporaryInstructions: '', subjects: [] });
+  assert.deepEqual(clearedPatch(), { teachingRef: null, learningGoal: null, temporaryInstructions: '', subjects: [], persona: '' });
 });
 
 const routeNode = (id, extra = {}) => ({ id, title: `第 ${id} 课`, routePath: '路线/圆锥.md', routeRevision: 'rev-1', parent: null, scriptPath: null, sessionId: null, summary: null, ...extra });

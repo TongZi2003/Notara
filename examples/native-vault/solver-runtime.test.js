@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Session } from '@deepseek-ai/dsh-session';
+import { updateTeachingSettings } from './teaching-state.js';
 const module = await import('./solver-runtime.js').catch(() => ({}));
 
 function setup({ models = ['gpt-5.6-sol'], start } = {}) {
@@ -176,4 +177,40 @@ test('changing the configured budget allows a new attempt without overriding the
   await assert.rejects(solver.ask(request, { ...exec, callId: 'changed-budget' }), /solver_budget_exhausted/);
   assert.equal(calls.length, 2);
   assert.equal(calls[1].request.agentOptions.maxTokens, 49152);
+});
+
+test('每位工作员的人格独立保存与回读，空白只用任务角色，不继承老师的教学人格', async () => {
+  const { solver, session, exec, calls } = setup();
+  // 老师自己的教学人格与工作员无关：它只影响主课堂，不流进后台角色。
+  updateTeachingSettings(session, { persona: '我是大肥鱼，说话温暖，偶尔俏皮。' }, 0);
+  const route = { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'high' };
+  assert.deepEqual((await solver.read({ sessionId: session.id })).workers.map(row => row.persona), ['', '', '', '', '']);
+  await solver.configure({ preset: 'problem', tools: 'none', persona: '  说话简短，偶尔用比喻。  ', sessionId: session.id, expectedRevision: 0, route });
+  await solver.configure({ preset: 'review', tools: 'read', sessionId: session.id, expectedRevision: 1, route });
+  const restored = await new module.NotaraSolver(solver.ctx, solver.teaching).read({ sessionId: session.id });
+  assert.equal(restored.workers.find(row => row.id === 'problem').persona, '说话简短，偶尔用比喻。');
+  assert.equal(restored.workers.find(row => row.id === 'review').persona, '', '另一位工作员保持只用任务角色');
+
+  await solver.ask({ preset: 'problem', goal: '独立研究一道完整题目' }, exec);
+  assert.match(calls[0].request.persona, /## 独立人格/);
+  assert.match(calls[0].request.persona, /说话简短，偶尔用比喻。/);
+  assert.doesNotMatch(calls[0].request.persona, /大肥鱼/);
+  // 人格不扩权：none 仍然没有任何工具。
+  assert.deepEqual(calls[0].request.toolFilter, { allow: [] });
+  await solver.ask({ preset: 'review', goal: '核对这一步推导' }, { ...exec, callId: 'review-once' });
+  assert.match(calls[1].request.persona, /工作员共同规则/);
+  assert.doesNotMatch(calls[1].request.persona, /说话简短|大肥鱼/);
+  assert.deepEqual(calls[1].request.toolFilter, { allow: ['read', 'glob', 'grep', 'read_image'] });
+
+  // 只改资料范围时不传 persona：这一位的人格保持原样，旧调用方不会顺手清空它。
+  await solver.configure({ preset: 'problem', tools: 'read', sessionId: session.id, expectedRevision: 2, route });
+  assert.equal((await solver.read({ sessionId: session.id })).workers.find(row => row.id === 'problem').persona, '说话简短，偶尔用比喻。');
+  // 传空串才是明确的「只用任务角色」。
+  await solver.configure({ preset: 'problem', tools: 'none', persona: '', sessionId: session.id, expectedRevision: 3, route });
+  assert.equal((await solver.read({ sessionId: session.id })).workers.find(row => row.id === 'problem').persona, '');
+  await solver.configure({ preset: 'problem', tools: 'none', persona: '说话简短，偶尔用比喻。', sessionId: session.id, expectedRevision: 4, route });
+
+  // 超限人格在写配置前被拒绝，日志里留下的仍是上一次的合法设置。
+  await assert.rejects(solver.configure({ preset: 'problem', tools: 'none', persona: '鱼'.repeat(4001), sessionId: session.id, expectedRevision: 5, route }), /solver_input_invalid: persona/);
+  assert.equal((await solver.read({ sessionId: session.id })).workers.find(row => row.id === 'problem').persona, '说话简短，偶尔用比喻。');
 });

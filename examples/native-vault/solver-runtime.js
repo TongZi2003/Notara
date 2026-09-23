@@ -4,6 +4,7 @@ import { teachingResource, teachingManifest } from './teaching-catalog.js';
 import { WORKER_PRESETS, WORKER_TOOLS, workerPreset } from './worker-catalog.js';
 import { SOLVER_MAX_TOKENS, preferredSolverEffort, validSolverBudget } from './solver-policy.js';
 import { SOLVER_SOURCE_LIMIT, solverSources, solverSourceBlocks } from './solver-sources.js';
+import { PERSONA_TEXT_LIMIT, personaText, workerPersona } from './persona.js';
 
 export const SOLVER_MODEL = 'gpt-5.6-sol';
 const workerSkills = [...teachingManifest.choices, ...teachingManifest.skills.filter(item => item.id.startsWith('subject-'))];
@@ -51,9 +52,16 @@ function selectedSkills(value = []) {
     return skill;
   });
 }
-function workerPersona(preset, skills) {
+/** 角色任务正文：共同规则、该预设角色与按需原则。独立人格另由 persona.js 拼在它之后。 */
+function workerRole(preset, skills) {
   return [teachingResource('workers/base.md'), teachingResource(`workers/${preset.id}.md`),
     ...skills.map(item => `## 按需原则 notara-${item.id}\n\n${teachingResource(item.file)}`)].join('\n\n');
+}
+
+/** 一个 preset 真实生效的设置：它自己的 route/tools/persona；缺省沿用旧事件里的教室默认。 */
+function workerSettings(state, presetId) {
+  const saved = state.settings[presetId] ?? { route: state.route, tools: 'none' };
+  return { ...saved, persona: personaText(saved.persona) };
 }
 export function solverState(session) {
   let revision = 0, route = null;
@@ -62,7 +70,7 @@ export function solverState(session) {
     if (event.seq < (session.inheritedEventCount ?? 0)) continue;
     // Read old settings and task records without rewriting private session history.
     if (event.type === 'notara/solver-settings') { revision = Math.max(revision, event.data.revision); route = event.data.route; }
-    if (event.type === CONFIG_EVENT) { revision = Math.max(revision, event.data.revision); settings[event.data.preset] = { route: event.data.route, tools: event.data.tools }; }
+    if (event.type === CONFIG_EVENT) { revision = Math.max(revision, event.data.revision); settings[event.data.preset] = { route: event.data.route, tools: event.data.tools, persona: event.data.persona }; }
     if ([TASK_EVENT, 'notara/solver-task'].includes(event.type)) tasks.set(event.data.id, { ...tasks.get(event.data.id), ...event.data });
   }
   return { revision, route, settings, tasks: [...tasks.values()] };
@@ -110,8 +118,8 @@ export class NotaraSolver {
     return { revision: state.revision,
       teacher: { name: '大肥鱼', description: '爱吃白饭的鲸鱼娘女仆，陪你理清思路、一步步学会。' },
       workers: WORKER_PRESETS.map(preset => {
-        const settings = state.settings[preset.id] ?? { route: state.route, tools: 'none' }, route = this.pick(settings, models);
-        return { ...preset, preferredModel: SOLVER_MODEL, route: route ?? settings.route, tools: settings.tools, ready: !!route,
+        const settings = workerSettings(state, preset.id), route = this.pick(settings, models);
+        return { ...preset, preferredModel: SOLVER_MODEL, route: route ?? settings.route, tools: settings.tools, persona: settings.persona, ready: !!route,
           ...(!route ? { reason: this.unavailableReason(settings, models) } : {}) };
       }), models,
       tasks: state.tasks.slice(-20).reverse().map(task => {
@@ -120,11 +128,12 @@ export class NotaraSolver {
       }),
     };
   }
-  async configure({ sessionId, expectedRevision, route, preset, tools }) {
+  async configure({ sessionId, expectedRevision, route, preset, tools, persona }) {
     const agent = await this.parent(sessionId);
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision !== solverState(agent.session).revision) fail('solver_settings_conflict');
     requirePreset(preset);
     if (!Object.hasOwn(WORKER_TOOLS, tools ?? '')) invalid('tools', '只接受 none（交付材料）或 read（原生读取、搜索与看图）');
+    if (persona !== undefined && (typeof persona !== 'string' || persona.length > PERSONA_TEXT_LIMIT)) invalid('persona', `必须是至多${PERSONA_TEXT_LIMIT}字的文本，留空只用这位工作员的角色职责`);
     let next = null;
     if (route !== null) {
       exact(route, ['provider', 'model', 'reasoningEffort', 'maxTokens'], 'route');
@@ -133,8 +142,10 @@ export class NotaraSolver {
       if (!this.pick({ route: next }, await this.models(true))) fail('solver_model_unavailable');
     }
     // Catalog discovery may await I/O; recheck CAS immediately before append.
-    if (expectedRevision !== solverState(agent.session).revision) fail('solver_settings_conflict');
-    appendTeachingEvent(agent.session, CONFIG_EVENT, { revision: expectedRevision + 1, preset, route: next, tools });
+    const current = solverState(agent.session);
+    if (expectedRevision !== current.revision) fail('solver_settings_conflict');
+    // 只改模型或资料范围时不传 persona 就保持这一位原来的人格；传空串才是回到「只用任务角色」。
+    appendTeachingEvent(agent.session, CONFIG_EVENT, { revision: expectedRevision + 1, preset, route: next, tools, persona: persona === undefined ? personaText(current.settings[preset]?.persona) : personaText(persona) });
     await this.teaching.flush(agent.session); return this.read({ sessionId });
   }
   async writeTask(session, data) { appendTeachingEvent(session, TASK_EVENT, data); await this.teaching.flush(session); }
@@ -180,14 +191,14 @@ export class NotaraSolver {
     const signal = exec.signal ? AbortSignal.any([exec.signal, controller.signal]) : controller.signal;
     let started = false;
     try {
-      const state = solverState(session), settings = state.settings[preset.id] ?? { route: state.route, tools: 'none' };
+      const state = solverState(session), settings = workerSettings(state, preset.id);
       const models = await this.models(true), route = this.pick(settings, models);
       if (!route) fail(`solver_model_unavailable: 尚未启动${preset.name}。${this.unavailableReason(settings, models)}保留清单，不在主课堂接管整批任务，也不要原样重试。`);
       const runRoute = { ...route, maxTokens: route.maxTokens ?? SOLVER_MAX_TOKENS };
       // Block only an identical, already exhausted attempt under the same user
       // intent and effective route. A narrower task, explicit new user input,
       // or a changed configured budget remains a legitimate new attempt.
-      const persona = workerPersona(preset, skills);
+      const persona = workerPersona(workerRole(preset, skills), settings.persona);
       const requestKey = createHash('sha256').update(JSON.stringify({ preset: preset.id, goal, focus, materials, sources, skills: skills.map(item => item.id), tools: settings.tools, persona,
         route: { provider: runRoute.provider, model: runRoute.model, reasoningEffort: runRoute.reasoningEffort ?? null, maxTokens: runRoute.maxTokens },
       })).digest('hex');

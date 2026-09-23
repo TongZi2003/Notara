@@ -1,0 +1,115 @@
+
+ RUN  v4.0.18 /Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH
+
+stdout | tests/integration/native-vault-solver.test.ts > 五预设真实请求使用独立人格与配置；只读工作员能读资料但不能写入或继续派工
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-solver.test.ts > 五预设真实请求使用独立人格与配置；只读工作员能读资料但不能写入或继续派工
+native-vault client: 5465578 bytes
+
+ ✓ |integration| tests/integration/native-vault-solver.test.ts (15 tests) 95751ms
+   ✓ 五预设真实请求使用独立人格与配置；只读工作员能读资料但不能写入或继续派工  6406ms
+   ✓ 六科与旧领域关注只进入显式选择的知识工作员请求  6289ms
+   ✓ 原生参数解析失败能定位JSON错误，修正后只启动一个独立draft任务  5114ms
+   ✓ 解题请求实际收到原页图像与独立预算；原文件变更后拒绝旧引用  5442ms
+   ✓ 教室 RPC 只投影双角色、模型清单与任务状态；解题者工具只挂教学会话  5574ms
+   ✓ 解题者是零工具独立 spawn：默认用 gpt-5.6-sol，父私密上下文不进子，结果回父且投影不含解答  5208ms
+   ✓ 解题者路由按教室配置生效；没有匹配模型时明确失败且不静默降级  5173ms
+   ✓ 原生中断取消：任务终结、没有成功解答回到教师、迟到结果不再投递  8132ms
+   ✓ 重启后教室配置与解题者路由冷恢复，新任务仍走配置的模型与推理等级  9953ms
+   ✓ 同名模型挂在两个 provider 上时教室不替教师猜，明确配置后仍可工作  5267ms
+   ✓ 取消后同一学生输入不会被自动重跑，新用户消息才重新允许派发  5178ms
+   ✓ solverTask 把一次分析绑定到父会话与真实一次性子会话；投影只报可检查性，不暴露 child  5023ms
+   ✓ solverTask 属于本课：外课会话不能借另一个会话的 taskId 读到它的绑定  5081ms
+   ✓ 任务运行中即可查看分析，取消后停止且不留迟到结果  8067ms
+   ✓ 冷重启后已完成任务的 solverTask 绑定仍可查到，且不会退回教室投影  9843ms
+stdout | tests/integration/native-vault-teaching.test.ts > 教学设置进入真实装配请求，同课切教法改变下一次请求，重启冷恢复且不串普通课
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-teaching.test.ts > 教学设置进入真实装配请求，同课切教法改变下一次请求，重启冷恢复且不串普通课
+native-vault client: 5465578 bytes
+
+ ❯ |integration| tests/integration/native-vault-teaching.test.ts (6 tests | 2 failed) 46622ms
+   ✓ 教学设置进入真实装配请求，同课切教法改变下一次请求，重启冷恢复且不串普通课  17260ms
+   × 主教师用原生 Bash 组合 ls/grep/sed 读取检索，PDF 仍走命令行，且不整库注入 5219ms
+   × 主教师的原生文本工具被隐藏并拒绝：不落盘不注入，完全权限也不解锁，越界 Bash 写入由原生沙箱拒绝 5605ms
+   ✓ 主教师写入走 CLI write-batch：create 拒绝覆盖、edit 唯一匹配、CAS revision、部分失败非零且只重试失败项  6434ms
+   ✓ 课堂写工具的拒绝保持真实：专用小结工具被拒绝时不落盘、不留成功文案  5079ms
+   ✓ 路线开课复用同一会话、交错时绑定真实前课，小结落点与原生归档可核对  7025ms
+stdout | tests/integration/native-vault-memory.test.ts > 教学记忆：L0 只给入口，Bash 的 ls/grep/sed 逐步读正文，写入走命令行且跨集可核对
+Verified rc.2 Session.append ignorable envelope passthrough
+
+stdout | tests/integration/native-vault-memory.test.ts > 教学记忆：L0 只给入口，Bash 的 ls/grep/sed 逐步读正文，写入走命令行且跨集可核对
+native-vault client: 5465578 bytes
+
+ ❯ |integration| tests/integration/native-vault-memory.test.ts (1 test | 1 failed) 5463ms
+   × 教学记忆：L0 只给入口，Bash 的 ls/grep/sed 逐步读正文，写入走命令行且跨集可核对 5462ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |integration| tests/integration/native-vault-memory.test.ts > 教学记忆：L0 只给入口，Bash 的 ls/grep/sed 逐步读正文，写入走命令行且跨集可核对
+AssertionError: expected 'vault/锦囊/选路.md:8:遇到两个动点，没有明显对称结构，先比较表…' to match /vault\/锦囊\/选路\.md:\d+: .*两个动点/锦囊\
+
+- Expected:
+/vault\/锦囊\/选路\.md:\d+: .*两个动点/
+
++ Received:
+"vault/锦囊/选路.md:8:遇到两个动点，没有明显对称结构，先比较表示。
+"
+
+ ❯ tests/integration/native-vault-memory.test.ts:84:25
+     82|     expect(found?.failed).toBe(false);
+     83|     expect(found?.text).toContain('vault/锦囊/选路.md');
+     84|     expect(found?.text).toMatch(/vault\/锦囊\/选路\.md:\d+: .*两个动点/);
+       |                         ^
+     85|     // 命中行只是线索：完整经历与失效条件还没有进入课堂。
+     86|     expect(JSON.stringify(grepTurn)).not.toContain('不要因为这次成功就断言总是适用');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |integration| tests/integration/native-vault-teaching.test.ts > 主教师用原生 Bash 组合 ls/grep/sed 读取检索，PDF 仍走命令行，且不整库注入
+AssertionError: expected 'vault/知识/向量.md:6:# 向量\nvault/知识/向量.md…' to match /vault\/知识\/向量\.md:\d+: .*向量/知识\
+
+- Expected:
+/vault\/知识\/向量\.md:\d+: .*向量/
+
++ Received:
+"vault/知识/向量.md:6:# 向量
+vault/知识/向量.md:8:向量既可以用代数坐标表示，也可以用几何方向表示。
+vault/知识/向量.md:14:[[路线/向量路线]]
+"
+
+ ❯ tests/integration/native-vault-teaching.test.ts:221:32
+    219|   expect(search.outcome?.failed).toBe(false);
+    220|   expect(search.outcome?.text).toContain('vault/知识/向量.md');
+    221|   expect(search.outcome?.text).toMatch(/vault\/知识\/向量\.md:\d+: .*向量/);
+       |                                ^
+    222|
+    223|   // 正文按需用原生 sed 读：拿到真实文件内容，而不是整库摘要。
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |integration| tests/integration/native-vault-teaching.test.ts > 主教师的原生文本工具被隐藏并拒绝：不落盘不注入，完全权限也不解锁，越界 Bash 写入由原生沙箱拒绝
+AssertionError: expected '(no output)' to match /sandbox|拒绝|denied|launcher|permission/i
+
+- Expected:
+/sandbox|拒绝|denied|launcher|permission/i
+
++ Received:
+"(no output)"
+
+ ❯ tests/integration/native-vault-teaching.test.ts:285:38
+    283|   const outside = join(harness.root, 'sandbox-outside.md');
+    284|   const escape = await askBash(harness, sessionId, '把这段写到工作区外面试试。', `p…
+    285|   expect(escape.outcome?.text ?? '').toMatch(/sandbox|拒绝|denied|launch…
+       |                                      ^
+    286|   expect(await stat(outside).then(() => true, () => false)).toBe(false…
+    287|   expect(harness.approvals.seen.map(prompt => prompt.toolName)).not.to…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed | 1 passed (3)
+      Tests  3 failed | 19 passed (22)
+   Start at  16:30:47
+   Duration  148.16s (transform 90ms, setup 0ms, import 118ms, tests 147.84s, environment 0ms)

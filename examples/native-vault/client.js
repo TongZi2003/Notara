@@ -70511,6 +70511,12 @@ ${details}`;
   var WORKER_TOOLS = Object.freeze({ none: Object.freeze([]), read: Object.freeze(["read", "glob", "grep", "read_image"]) });
   var workerPreset = (id2) => WORKER_PRESETS.find((item) => item.id === id2);
 
+  // examples/native-vault/persona.js
+  var PERSONA_TEXT_LIMIT = 4e3;
+  function personaText(value) {
+    return typeof value === "string" ? value.trim() : "";
+  }
+
   // examples/native-vault/classroom-client.js
   var CLASSROOM_VIEW = "notara-vault-classroom";
   var TASK_STATUS = {
@@ -70584,7 +70590,9 @@ ${details}`;
         // A reason is only shown when it explains a real refusal; ready work never
         // claims a model it did not get.
         reason: ready ? "" : text2(row.reason).trim(),
-        tools: normalizeTools(row.tools)
+        tools: normalizeTools(row.tools),
+        // 这一位工作员自己的独立人格；空串表示只用它的角色职责，不借别处的人格。
+        persona: text2(row.persona).trim()
       };
     }).filter((row) => row.id);
   }
@@ -70705,7 +70713,9 @@ ${details}`;
       reasoningEffort: shown?.reasoningEffort ?? "",
       maxTokens: shown?.maxTokens ?? SOLVER_MAX_TOKENS,
       // The tool scope is the worker's own saved setting, defaulting to none.
-      tools: normalizeTools(worker?.tools)
+      tools: normalizeTools(worker?.tools),
+      // 独立人格也是这一位的设置：空串只用角色职责，不回填老师的人格。
+      persona: text2(worker?.persona).trim()
     };
   }
   function draftRoute(draft) {
@@ -70715,6 +70725,9 @@ ${details}`;
   }
   function draftTools(draft) {
     return normalizeTools(draft?.tools);
+  }
+  function draftPersona(draft) {
+    return draft && typeof draft === "object" && Object.hasOwn(draft, "persona") ? personaText(draft.persona) : void 0;
   }
   function elapsedLabel(startedAt, now = Date.now()) {
     const started = Date.parse(text2(startedAt));
@@ -70830,9 +70843,9 @@ ${details}`;
       const choiceValue = (choice) => `${choice.provider}\0${choice.model}`;
       const selectValue = savedMissing ? "__saved__" : draft.provider && draft.model ? `${draft.provider}\0${draft.model}` : "";
       const current = view.models.find((choice) => choice.provider === draft.provider && choice.model === draft.model) ?? null;
-      const route = draftRoute(draft);
+      const route = draftRoute(draft), persona = draftPersona(draft), personaTooLong = (persona ?? "").length > PERSONA_TEXT_LIMIT;
       const submit = async (value) => {
-        const saved = await onSave({ preset: presetId, tools: draftTools(draft), route: value, expectedRevision: draft.expectedRevision });
+        const saved = await onSave({ preset: presetId, tools: draftTools(draft), route: value, ...persona === void 0 ? {} : { persona }, expectedRevision: draft.expectedRevision });
         if (saved) setDraft({ ...workerDraft(saved.workers.find((row) => row.id === presetId), modelChoices(saved)), expectedRevision: saved.revision });
       };
       return h(
@@ -70921,6 +70934,14 @@ ${details}`;
             )
           ),
           h("p", { style: { ...STYLE.notice, marginTop: 8 } }, "\u8FD9\u91CC\u7684\u9009\u62E9\u53EA\u5F71\u54CD\u8FD9\u4F4D\u5DE5\u4F5C\u5458\uFF0C\u4E0D\u6539\u53D8\u8001\u5E08\u4F7F\u7528\u7684\u6A21\u578B\uFF0C\u4E5F\u4E0D\u5F71\u54CD\u5176\u4ED6\u5DE5\u4F5C\u5458\u3002"),
+          h(
+            "label",
+            { style: { display: "block", marginTop: 8 } },
+            "\u72EC\u7ACB\u4EBA\u683C\uFF08\u53EF\u9009\uFF09",
+            h("textarea", { disabled: busy, "aria-label": "\u5DE5\u4F5C\u5458\u4EBA\u683C", maxLength: PERSONA_TEXT_LIMIT, style: { ...STYLE.templateInput, width: "100%", minHeight: 72 }, value: draft.persona ?? "", placeholder: "\u7559\u7A7A\u53EA\u7528\u8FD9\u4F4D\u5DE5\u4F5C\u5458\u7684\u89D2\u8272\u804C\u8D23", onChange: (event) => edit({ ...draft, persona: event.target.value }) })
+          ),
+          h("p", { style: { ...STYLE.notice, marginTop: 8 } }, "\u53EA\u5F71\u54CD\u8FD9\u4F4D\u5DE5\u4F5C\u5458\u7684\u79F0\u547C\u3001\u8BED\u6C14\u548C\u8868\u8FBE\u65B9\u5F0F\uFF0C\u4E0D\u6539\u53D8\u5B83\u7684\u804C\u8D23\u3001\u8D44\u6599\u8303\u56F4\u4E0E\u4EA4\u4ED8\u8981\u6C42\u3002"),
+          personaTooLong && h("p", { role: "alert", style: { ...STYLE.notice, marginTop: 8, color: "var(--dsw-alias-state-error-primary)" } }, `\u8FD9\u4F4D\u5DE5\u4F5C\u5458\u7684\u4EBA\u683C\u6700\u591A ${PERSONA_TEXT_LIMIT} \u5B57\u3002`),
           worker?.reason && h("p", { role: "status", style: { ...STYLE.notice, marginTop: 8 } }, worker.reason),
           error && h("p", { role: "alert", style: { ...STYLE.notice, marginTop: 8, color: "var(--dsw-alias-state-error-primary)" } }, error),
           draft.expectedRevision !== view.revision && h("button", { type: "button", style: STYLE.quiet, disabled: busy, onClick: () => {
@@ -70931,7 +70952,7 @@ ${details}`;
           h(
             "div",
             { style: { display: "flex", gap: 8, marginTop: 18 } },
-            h("button", { type: "submit", style: STYLE.quiet, disabled: busy || savedMissing || !route }, busy ? "\u6B63\u5728\u4FDD\u5B58\u2026" : "\u4FDD\u5B58"),
+            h("button", { type: "submit", style: STYLE.quiet, disabled: busy || savedMissing || !route || personaTooLong }, busy ? "\u6B63\u5728\u4FDD\u5B58\u2026" : "\u4FDD\u5B58"),
             h("button", { type: "button", style: STYLE.quiet, disabled: busy, onClick: () => submit(null) }, "\u6062\u590D\u9ED8\u8BA4\u81EA\u52A8\u5339\u914D"),
             // The shared Dialog already renders its own header 关闭 button, so the
             // footer keeps 取消 to stay a distinct, unambiguous control.
@@ -71851,6 +71872,7 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
       deadline: goal?.deadline ?? "",
       dailyMinutes: goal?.dailyMinutes === void 0 || goal?.dailyMinutes === null ? "" : String(goal.dailyMinutes),
       instructions: settings?.temporaryInstructions ?? "",
+      persona: settings?.persona ?? "",
       subjects: (settings?.subjects ?? []).join("\u3001")
     };
   }
@@ -71867,6 +71889,11 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
     if (JSON.stringify(goal) !== JSON.stringify(base2.learningGoal ?? null)) patch.learningGoal = goal;
     const instructions = String(draft.instructions ?? "").trim();
     if (instructions !== (base2.temporaryInstructions ?? "")) patch.temporaryInstructions = instructions;
+    if (draft.persona !== void 0) {
+      const persona = personaText(draft.persona);
+      if (persona.length > PERSONA_TEXT_LIMIT) return { patch: null, error: `\u8001\u5E08\u4EBA\u683C\u6700\u591A ${PERSONA_TEXT_LIMIT} \u5B57\uFF0C\u7559\u7A7A\u7528\u9ED8\u8BA4\u5F62\u8C61\u3002` };
+      if (persona !== personaText(base2.persona)) patch.persona = persona;
+    }
     const subjects = parseSubjects(draft.subjects);
     if (subjects.some((subject) => subject.length > MAX_SUBJECT_LENGTH)) return { patch: null, error: "\u79D1\u76EE\u540D\u79F0\u592A\u957F\u4E86\u3002" };
     if (subjects.length > MAX_SUBJECTS) return { patch: null, error: `\u79D1\u76EE\u6700\u591A ${MAX_SUBJECTS} \u4E2A\u3002` };
@@ -71874,7 +71901,7 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
     return { patch, error: "" };
   }
   function clearedPatch() {
-    return { teachingRef: null, learningGoal: null, temporaryInstructions: "", subjects: [] };
+    return { teachingRef: null, learningGoal: null, temporaryInstructions: "", subjects: [], persona: "" };
   }
   function createTeachingPanel(React, { STYLE, IconButton, Dialog }) {
     const h = React.createElement;
@@ -72016,6 +72043,12 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
               { style: { display: "block", marginTop: 16 } },
               "\u672C\u8BFE\u4E34\u65F6\u8981\u6C42",
               h("textarea", { "aria-label": "\u672C\u8BFE\u4E34\u65F6\u8981\u6C42", style: { ...STYLE.templateInput, minHeight: 80 }, value: form.instructions, placeholder: "\u53EA\u5F71\u54CD\u8FD9\u4E00\u8282\u8BFE\uFF0C\u4F8B\u5982\uFF1A\u5148\u8BA9\u6211\u81EA\u5DF1\u8BD5", onChange: (event) => edit({ ...form, instructions: event.target.value }) })
+            ),
+            h(
+              "label",
+              { style: { display: "block", marginTop: 10 } },
+              "\u8001\u5E08\u4EBA\u683C\uFF08\u53EF\u9009\uFF09",
+              h("textarea", { "aria-label": "\u8001\u5E08\u4EBA\u683C", maxLength: PERSONA_TEXT_LIMIT, style: { ...STYLE.templateInput, minHeight: 80 }, value: form.persona ?? "", placeholder: "\u7559\u7A7A\u7528\u9ED8\u8BA4\u5F62\u8C61\uFF1B\u586B\u5199\u540E\u53EA\u6539\u79F0\u547C\u4E0E\u8BED\u6C14\uFF0C\u4E0D\u6539\u6559\u5B66\u804C\u8D23\u4E0E\u6743\u9650", onChange: (event) => edit({ ...form, persona: event.target.value }) })
             ),
             h(
               "label",

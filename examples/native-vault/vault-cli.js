@@ -36,20 +36,24 @@ import { lessonOutline, readLessonStage } from './lesson-script.js';
 import { embedTarget, parseMediaTarget } from './media.js';
 import { createReviewRuntime } from './review-runtime.js';
 import { validateAssessments, validateReviewNote } from './review-data.js';
+import { safeRelativePath } from './vault.js';
 
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;
 const STDIN_LIMIT = 64 * 1024;
+const BATCH_STDIN_LIMIT = 2 * 1024 * 1024;
 
 /* ------------------------------------------------------------------ errors */
 
 /** Every user-visible failure explains what happened and what to do next. */
 const ERROR_HELP = {
+  batch_original_mismatch: ['原文没有唯一匹配，未修改这个文件。', '用 sed 或 rg 重新读取相关段落，扩大到唯一原文后仅重试这一项。'],
+  batch_duplicate_path: ['同一批包含重复目标文件。', '将同一文件的修改合并为一项，再提交整批。'],
   cli_workspace_required: ['没有可用的工作区。', '让用户确认当前学习集，或在独立使用时加 --workspace <绝对路径>。'],
   cli_workspace_invalid: ['工作区不是可用的绝对目录。', '检查 DSH_NOTARA_WORKSPACE，或把 --workspace 指向真实存在的绝对目录。'],
   cli_usage_invalid: ['命令行参数无法识别。', '先运行 help 或 <command> --help 查看准确用法。'],
   cli_command_unknown: ['没有这条命令。', '运行 help 查看命令清单。'],
-  cli_stdin_too_large: ['参数超过了 64 KiB。', '只传命令需要的字段，不要内嵌大段文本。'],
+  cli_stdin_too_large: ['参数超过了本命令的输入上限。', '普通命令最多64KiB，write-batch最多2MiB；按已核验的小批次提交。'],
   cli_stdin_invalid: ['stdin 不是 JSON 对象。', '传一个 JSON 对象；没有内容时传 {}。'],
   cli_field_unknown: ['参数里有命令不接受的字段。', '按 <command> --help 只传列出的内容字段。'],
   cli_field_required: ['缺少必填字段。', '按 <command> --help 补齐必填字段后重试。'],
@@ -194,6 +198,37 @@ const ADD_LESSON_FIELDS={...REVISION_LESSON_FIELDS,title:LESSON_FIELDS.title,scr
 const overviewField=field('string','课程总述Markdown，0..24000字符：终点、起点证据与未知项、范围、时间约束和教学主线；不手写Host节点标记。',{check:value=>typeof value==='string'&&value.length<=24000});
 
 const COMMANDS = {
+  'write-batch': {
+    summary: '在一次原生 Bash 调用中成批新建或精确修改 Markdown；逐文件原子保存与回执，部分失败不会撤销已成功项。普通读取搜索仍用 ls/rg/grep/sed。',
+    write: true,
+    fields: {
+      files: field('list<object>', '1..50个不同路径，整批stdin最多2MiB。create仅新建(path/content)，edit精确替换(path/oldText/newText)，两分支不可混用；字段错误在整批写入前拒绝。', {
+        required:true,check:value=>Array.isArray(value)&&value.length>=1&&value.length<=50,
+        itemFields:{
+          op:field('string','create | edit。create拒绝同名；edit要求原文恰好出现一次。',{required:true,check:value=>['create','edit'].includes(value)}),
+          path:{...pathField('当前Vault内.md相对路径，不含vault/前缀；不能是点目录或模板。'),required:true},
+          content:field('string','仅create必需：完整Markdown，最大2MiB。',{check:value=>typeof value==='string'&&Buffer.byteLength(value)<=BATCH_STDIN_LIMIT}),
+          oldText:field('string','仅edit必需：已实际读过的精确原文，非空且必须唯一匹配。',{check:value=>typeof value==='string'&&value.length>0&&Buffer.byteLength(value)<=BATCH_STDIN_LIMIT}),
+          newText:field('string','仅edit必需：替换正文，可为空以删除匹配段；其他部分原样保留。',{check:value=>typeof value==='string'&&Buffer.byteLength(value)<=BATCH_STDIN_LIMIT}),
+        },
+      }),
+    },
+    validate({files}) {
+      const seen=new Set();
+      for(const [index,item] of files.entries()) {
+        const path=safeRelativePath(item.path);
+        if(!path.toLowerCase().endsWith('.md')||path.split('/').some(part=>part.startsWith('.')||part==='node_modules')||path.startsWith('_templates/'))throw new CliError('vault_path_invalid',`files[${index}].path`);
+        if(seen.has(path))throw new CliError('batch_duplicate_path',`files[${index}].path`);
+        seen.add(path);
+        const required=item.op==='create'?['content']:['oldText','newText'];
+        const forbidden=item.op==='create'?['oldText','newText']:['content'];
+        for(const key of required)if(!Object.hasOwn(item,key))throw new CliError('cli_field_required',`files[${index}].${key}`);
+        for(const key of forbidden)if(Object.hasOwn(item,key))throw new CliError('cli_field_unknown',`files[${index}].${key}`);
+      }
+    },
+    result:'{results:[{path,op,saved,revision?,ref?,error?}],savedCount,failedCount}；部分失败顶层ok=false并退出1，成功项保留，只重试失败项。重复create不覆盖，重试已完成edit可能原文不再匹配；先回读判断。',
+    example:'{"files":[{"op":"create","path":"知识/例.md","content":"# 例\\n正文\\n"},{"op":"edit","path":"卡片/基底.md","oldText":"原有理解。","newText":"原有理解。\\n新的真实修正。"}]}',
+  },
   'route-outline': {
     summary: '读取路线节点导航、先修关系与真实revision；不读取每课规划正文，也不把有课堂记录当作已掌握。',
     write:false,
@@ -371,7 +406,7 @@ function commandHelp(name) {
 function usage() {
   return {
     program: 'DSH_NOTARA_CLI',
-    summary: '原生 Vault 的确定性命令入口：阶段化读剧本、复习、日历、课堂小结索引、路线规划/修订与排课、按页读 PDF。',
+    summary: '原生 Vault 的确定性命令入口：成批保存、阶段化读剧本、复习、日历、课堂小结索引、路线规划/修订与排课、按页读 PDF。',
     readsStdin: '只有运行具体命令时才读 stdin；help 与 --help 不读也不等待。',
     environment: {
       DSH_NOTARA_NODE: 'Node 可执行文件（由 Host 注入）。',
@@ -385,9 +420,9 @@ function usage() {
     },
     standalone: '没有绑定环境时，只允许用户显式执行 --workspace <绝对路径>；此时 actor=self、session 为空。没有根则失败，绝不猜测工作目录。',
     boundaries: [
-      '只做列出的确定性命令，不做通用 read/search/save/find 包装。',
+      '普通读取搜索直接组合原生 Bash 命令；write-batch只补成批保存与唯一原文匹配，不提供第二套读取搜索工具。',
       '命令不接受 workspace/sessionId/actor/记录时间/id 等身份字段，新时间、日期与记录 ID 由程序生成。',
-      '修改已有文件需expectedRevision；create-route仅创建新文件，重名拒绝。过期写入失败。',
+      '领域命令修改文件需expectedRevision；write-batch精确匹配已读原文后使用实际revision保存。新建拒绝重名，冲突不覆盖。',
     ],
     commands: Object.fromEntries(COMMAND_NAMES.map(name => [name, { summary: COMMANDS[name].summary, write: COMMANDS[name].write }])),
     help: ['help', '<command> --help'],
@@ -427,12 +462,12 @@ function parseArgs(rest) {
   throw new CliError('cli_usage_invalid');
 }
 
-async function readStdin() {
+async function readStdin(limit=STDIN_LIMIT) {
   const chunks = [];
   let size = 0;
   for await (const chunk of process.stdin) {
     size += chunk.length;
-    if (size > STDIN_LIMIT) throw new CliError('cli_stdin_too_large');
+    if (size > limit) throw new CliError('cli_stdin_too_large');
     chunks.push(chunk);
   }
   const text = Buffer.concat(chunks).toString('utf8').trim();
@@ -477,6 +512,7 @@ function validateArgs(command, raw) {
       return value;
     });
   }
+  spec.validate?.(args);
   return args;
 }
 
@@ -524,6 +560,7 @@ async function runCommand(command, args, { fs, root, env }) {
     ? { agent: { session: { id: sessionId, header: { cwd: workspacePath } } }, callId, signal: new AbortController().signal }
     : null;
   const review = createReviewRuntime({ ctx, editorFor: async () => io });
+  if(command==='write-batch')return writeBatch(io,args.files);
 
   if (command === 'lesson-outline' || command === 'lesson-section') {
     let pin = null, lessonIO = io, path = args.path;
@@ -594,6 +631,27 @@ async function runCommand(command, args, { fs, root, env }) {
 }
 
 /* ------------------------------------------------------------------ pdf */
+
+// A batch is intentionally not a multi-file transaction. Each write uses the
+// existing native CAS seam and reports its own result, so retries stay local.
+async function writeBatch(io,files) {
+  const results=[];
+  for(const item of files) {
+    try {
+      let content=item.content,revision=null;
+      if(item.op==='edit') {
+        const current=await io.read(item.path);
+        const at=current.content.indexOf(item.oldText);
+        if(at<0||current.content.indexOf(item.oldText,at+1)>=0)throw new CliError('batch_original_mismatch');
+        content=current.content.slice(0,at)+item.newText+current.content.slice(at+item.oldText.length);
+        revision=current.revision;
+      }
+      const saved=await io.save(item.path,content,revision);
+      results.push({path:item.path,op:item.op,saved:true,revision:saved.revision,ref:sourceRef(io.workspace.id,saved.path,saved.revision)});
+    }catch(error){results.push({path:item.path,op:item.op,saved:false,error:describe(error)});}
+  }
+  return {results,savedCount:results.filter(item=>item.saved).length,failedCount:results.filter(item=>!item.saved).length};
+}
 
 const MEDIA_CACHE_DIR = '.notara-cache';
 const MEDIA_CACHE_FILES = 'media';
@@ -710,7 +768,7 @@ async function main() {
 
   let args;
   try {
-    args = validateArgs(command, await readStdin());
+    args = validateArgs(command, await readStdin(command==='write-batch'?BATCH_STDIN_LIMIT:STDIN_LIMIT));
   } catch (error) {
     failJson(command, error, EXIT_USAGE);
     return;
@@ -727,7 +785,9 @@ async function main() {
     const resolved = await resolveWorkspace(root);
     const { fs } = await localFileSystem(resolved);
     const result = await runCommand(command, args, { fs, root: resolved, env });
-    write({ ok: true, command, result }, process.stdout);
+    const ok=command!=='write-batch'||result.failedCount===0;
+    write({ ok, command, result }, process.stdout);
+    if(!ok)process.exitCode=EXIT_FAILURE;
   } catch (error) {
     failJson(command, error, EXIT_FAILURE);
   }

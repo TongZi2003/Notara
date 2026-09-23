@@ -140,3 +140,12 @@ test('Remote 只接受形状正确的 sessionId', async t => {
   }
   await assert.rejects(world.remote.read({ path: '知识/甲.md', sessionId: 'x'.repeat(201) }), /vault_session_invalid/);
 });
+test('worker persona crosses the exact Remote input boundary without widening other fields', async () => {
+  const { NotaraVaultRemote } = await import('./index.js');
+  const calls=[];
+  const remote={teachingCall:async(name,input)=>{calls.push({name,input});return input;}};
+  const input={sessionId:'one',expectedRevision:0,preset:'review',route:null,tools:'none',persona:'温和简洁的核验助手'};
+  assert.equal((await NotaraVaultRemote.prototype.configureSolver.call(remote,input)).persona,input.persona);
+  await assert.rejects(NotaraVaultRemote.prototype.configureSolver.call(remote,{...input,workspace:'/unrelated'}),/vault_input_invalid/);
+  assert.equal(calls.length,1);
+});

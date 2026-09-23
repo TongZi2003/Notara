@@ -32,19 +32,25 @@ test('read-only subagents cannot write teaching facts even through a callable to
   assert.equal(called,false);
 });
 
-test('file writes request approval but ordinary Bash keeps the native decision',async()=>{
+test('teacher text tools are retired while Bash and ordinary agents keep native decisions',async()=>{
   const ctx=new Context();
   new SystemPrompt(ctx,{includeHarnessIdentity:true,includeRuntimeContext:true});
   new ToolRuntime(ctx,{mode:'native'});
   let called=0;
-  for(const name of ['write','edit','bash'])ctx.tools.register({name,description:'Native seam',parameters:{type:'object',properties:{},additionalProperties:false},output:{schema:{type:'object'},render:()=>[]},execute:async()=>{called++;return {};}});
-  module.installAgentTools(ctx,{isTeaching:()=>true,executeTool:async()=>({})});
-  for(const name of ['write','edit','bash']){
+  const retired=['read','write','edit','glob','grep'];
+  for(const name of [...retired,'bash'])ctx.tools.register({name,description:'Native seam',parameters:{type:'object',properties:{},additionalProperties:false},output:{schema:{type:'object'},render:()=>[]},execute:async()=>{called++;return {};}});
+  module.installAgentTools(ctx,{isTeaching:agent=>agent?.session?.header?.agentPreset==='notara-teacher',executeTool:async()=>({})});
+  for(const name of [...retired,'bash']){
     assert.ok(ctx.tools.schemas().some(tool=>tool.name===name));
-    const result=await ctx.tools.execute({name,callId:`native-${name}`,arguments:{},agent:{session:{header:{origin:'user'}}},signal:new AbortController().signal});
+    const result=await ctx.tools.execute({name,callId:`native-${name}`,arguments:{},agent:{session:{header:{origin:'user',agentPreset:'notara-teacher'}}},signal:new AbortController().signal});
     assert.equal(result.isError===true,name!=='bash');
   }
   assert.equal(called,1);
+  for(const name of retired) {
+    const result=await ctx.tools.execute({name,callId:`coding-${name}`,arguments:{},agent:{session:{header:{origin:'user',agentPreset:'default'}}},signal:new AbortController().signal});
+    assert.notEqual(result.isError,true);
+  }
+  assert.equal(called,6);
 });
 
 test('native full access overrides teaching write approval without weakening native denials',async()=>{
@@ -66,4 +72,19 @@ test('native full access overrides teaching write approval without weakening nat
   const denied=await ctx.tools.execute({...exec,callId:'native-denial'});
   assert.equal(denied.isError,true);
   assert.equal(called,1);
+});
+
+test('teacher Bash never overrides a native denial, including full access mode',async()=>{
+  const ctx=new Context();
+  new SystemPrompt(ctx,{includeHarnessIdentity:true,includeRuntimeContext:true});
+  new ToolRuntime(ctx,{mode:'native'});
+  const get=ctx.get.bind(ctx);
+  ctx.get=(name,...args)=>name==='sandboxPolicy'?{resolve:()=>({mode:'danger-full-access'})}:get(name,...args);
+  let invoked=false;
+  ctx.tools.register({name:'bash',description:'Native shell',parameters:{type:'object',properties:{}},output:{schema:{type:'object'},render:()=>[]},execute:async()=>{invoked=true;return {};}});
+  module.installAgentTools(ctx,{isTeaching:()=>true,executeTool:async()=>({})});
+  ctx.on('tools/pre-execute',()=>({kind:'deny',reason:'native policy refused'}));
+  const result=await ctx.tools.execute({name:'bash',callId:'native-denied-bash',arguments:{},agent:{session:{header:{origin:'user'}}},signal:new AbortController().signal});
+  assert.equal(result.isError,true);
+  assert.equal(invoked,false);
 });

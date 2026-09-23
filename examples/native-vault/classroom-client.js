@@ -2,6 +2,7 @@ import { createVaultClient } from './remote-client.js';
 import { createDraftStore } from './draft-client.js';
 import { SOLVER_MAX_TOKENS, SOLVER_MIN_TOKENS, SOLVER_TOKEN_LIMIT, preferredSolverEffort, validSolverBudget } from './solver-policy.js';
 import { workerPreset } from './worker-catalog.js';
+import { PERSONA_TEXT_LIMIT, personaText } from './persona.js';
 
 /**
  * 独立“教室”bench：一位主教师、五位后台工作员与它们各自的后台任务。
@@ -121,6 +122,8 @@ export function workerRows(value) {
         // claims a model it did not get.
         reason: ready ? '' : text(row.reason).trim(),
         tools: normalizeTools(row.tools),
+        // 这一位工作员自己的独立人格；空串表示只用它的角色职责，不借别处的人格。
+        persona: text(row.persona).trim(),
       };
     })
     .filter(row => row.id);
@@ -351,6 +354,8 @@ export function workerDraft(worker, choices) {
     maxTokens: shown?.maxTokens ?? SOLVER_MAX_TOKENS,
     // The tool scope is the worker's own saved setting, defaulting to none.
     tools: normalizeTools(worker?.tools),
+    // 独立人格也是这一位的设置：空串只用角色职责，不回填老师的人格。
+    persona: text(worker?.persona).trim(),
   };
 }
 
@@ -371,6 +376,15 @@ export function draftRoute(draft) {
 /** The tool scope one save sends: the worker's own pick, never a global default. */
 export function draftTools(draft) {
   return normalizeTools(draft?.tools);
+}
+
+/**
+ * The independent persona one save sends. Whitespace means "role only"; a draft
+ * written before this field existed carries no key at all, which means "leave the
+ * already saved persona alone" instead of silently clearing it.
+ */
+export function draftPersona(draft) {
+  return draft && typeof draft === 'object' && Object.hasOwn(draft, 'persona') ? personaText(draft.persona) : undefined;
 }
 
 /** Whole minutes since a task started, for a status line that carries no id. */
@@ -486,11 +500,11 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
     const choiceValue = (choice) => `${choice.provider}\u0000${choice.model}`;
     const selectValue = savedMissing ? '__saved__' : draft.provider && draft.model ? `${draft.provider}\u0000${draft.model}` : '';
     const current = view.models.find(choice => choice.provider === draft.provider && choice.model === draft.model) ?? null;
-    const route = draftRoute(draft);
+    const route = draftRoute(draft), persona = draftPersona(draft), personaTooLong = (persona ?? '').length > PERSONA_TEXT_LIMIT;
     const submit = async value => {
       // Polling can refresh view.revision while this draft still contains older
       // settings. Only the revision the draft was based on may authorize its save.
-      const saved = await onSave({ preset: presetId, tools: draftTools(draft), route: value, expectedRevision: draft.expectedRevision });
+      const saved = await onSave({ preset: presetId, tools: draftTools(draft), route: value, ...(persona === undefined ? {} : { persona }), expectedRevision: draft.expectedRevision });
       if (saved) setDraft({ ...workerDraft(saved.workers.find(row => row.id === presetId), modelChoices(saved)), expectedRevision: saved.revision });
     };
     return h(Dialog, { title: '教室设置', onClose },
@@ -526,11 +540,15 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
             h('option', { key: 'none', value: 'none' }, workerScopeLabel({ tools: 'none' })),
             h('option', { key: 'read', value: 'read' }, workerScopeLabel({ tools: 'read' })))),
         h('p', { style: { ...STYLE.notice, marginTop: 8 } }, '这里的选择只影响这位工作员，不改变老师使用的模型，也不影响其他工作员。'),
+        h('label', { style: { display: 'block', marginTop: 8 } }, '独立人格（可选）',
+          h('textarea', { disabled: busy, 'aria-label': '工作员人格', maxLength: PERSONA_TEXT_LIMIT, style: { ...STYLE.templateInput, width: '100%', minHeight: 72 }, value: draft.persona ?? '', placeholder: '留空只用这位工作员的角色职责', onChange: event => edit({ ...draft, persona: event.target.value }) })),
+        h('p', { style: { ...STYLE.notice, marginTop: 8 } }, '只影响这位工作员的称呼、语气和表达方式，不改变它的职责、资料范围与交付要求。'),
+        personaTooLong && h('p', { role: 'alert', style: { ...STYLE.notice, marginTop: 8, color: 'var(--dsw-alias-state-error-primary)' } }, `这位工作员的人格最多 ${PERSONA_TEXT_LIMIT} 字。`),
         worker?.reason && h('p', { role: 'status', style: { ...STYLE.notice, marginTop: 8 } }, worker.reason),
         error && h('p', { role: 'alert', style: { ...STYLE.notice, marginTop: 8, color: 'var(--dsw-alias-state-error-primary)' } }, error),
         draft.expectedRevision !== view.revision && h('button', { type: 'button', style: STYLE.quiet, disabled: busy, onClick: () => { drafts.delete(key(presetId)); setDraft(fresh(presetId)); onReload(); } }, '载入最新设置'),
         h('div', { style: { display: 'flex', gap: 8, marginTop: 18 } },
-          h('button', { type: 'submit', style: STYLE.quiet, disabled: busy || savedMissing || !route }, busy ? '正在保存…' : '保存'),
+          h('button', { type: 'submit', style: STYLE.quiet, disabled: busy || savedMissing || !route || personaTooLong }, busy ? '正在保存…' : '保存'),
           h('button', { type: 'button', style: STYLE.quiet, disabled: busy, onClick: () => submit(null) }, '恢复默认自动匹配'),
           // The shared Dialog already renders its own header 关闭 button, so the
           // footer keeps 取消 to stay a distinct, unambiguous control.

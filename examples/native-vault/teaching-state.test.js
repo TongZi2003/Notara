@@ -36,6 +36,24 @@ test('clearing goals and reverting a teaching method preserve unrelated settings
   assert.throws(()=>state.updateTeachingSettings(session,{learningGoal:{title:'',dailyMinutes:0}},2),/invalid/);
 });
 
+test('老师人格随教学设置持久，空白回到默认形象，超限与非法类型被拒', () => {
+  assert.equal(typeof state.updateTeachingSettings, 'function');
+  const session = Session.create('settings-persona');
+  assert.equal(state.readTeachingSettings(session).persona, '', '旧课堂没有这一项时读回空串，用默认形象');
+  const persona = '你是一位严格的数学老师，习惯先让学生自己走一步。';
+  assert.equal(state.updateTeachingSettings(session, { teachingRef: 'socratic', persona }, 0).persona, persona);
+  // 改别的字段不会顺手把人格清掉或改写。
+  const next = state.updateTeachingSettings(session, { temporaryInstructions: '慢一点' }, 1);
+  assert.equal(next.persona, persona);
+  assert.equal(next.temporaryInstructions, '慢一点');
+  // 空白与空串都回到默认形象，不留下看不见的自定义人格。
+  assert.equal(state.updateTeachingSettings(session, { persona: '   ' }, 2).persona, '');
+  assert.equal(state.readTeachingSettings(Session.create(session.id, session.snapshotEvents())).persona, '');
+  assert.throws(() => state.updateTeachingSettings(session, { persona: '鱼'.repeat(4001) }, 3), /teaching_persona_invalid/);
+  assert.throws(() => state.updateTeachingSettings(session, { persona: 42 }, 3), /teaching_persona_invalid/);
+  assert.equal(state.readTeachingSettings(session).persona, '', '被拒的写入没有落进日志');
+});
+
 test('ordinary session data does not inherit another lesson settings or binding', () => {
   assert.equal(typeof state.bindTeachingLesson, 'function');
   const first=Session.create('first-lesson'), second=Session.create('second-lesson');
@@ -75,7 +93,7 @@ test('teaching events round-trip through the real JSONL log beside the native co
   const session = Session.create(id, [], header);
 
   session.append('user/message', userMessage, { surfaceOp: 'append' });
-  state.updateTeachingSettings(session, { teachingRef: 'feynman', learningGoal: { title: '条件概率' } }, 0);
+  state.updateTeachingSettings(session, { teachingRef: 'feynman', learningGoal: { title: '条件概率' }, persona: '你是一位严格的数学老师，叫我小周。' }, 0);
   state.bindTeachingLesson(session, {
     scriptPath: '备课/第一课.md',
     scriptRevision: revisionFor('剧本原文'),
@@ -101,6 +119,7 @@ test('teaching events round-trip through the real JSONL log beside the native co
   const settings = state.readTeachingSettings(Session.create(id, events));
   assert.equal(settings.teachingRef, 'feynman');
   assert.equal(settings.learningGoal.title, '条件概率');
+  assert.equal(settings.persona, '你是一位严格的数学老师，叫我小周。');
   assert.equal(settings.scriptPath, '备课/第一课.md');
   assert.equal(settings.scriptRevision, revisionFor('剧本原文'));
   assert.equal(settings.scriptWorkspaceId, 'set-math');

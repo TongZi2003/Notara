@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { CLASSROOM_VIEW, WORKER_MODEL_PLACEHOLDER, WORKER_STATUS, WORKER_TOOL_NAME, availableRoute, canInspectTask, candidateRouteFor, showsInspectAction, workerFootnote, classroomSummary, draftRoute, draftTools, elapsedLabel, hasRunningTask, isWorkerTool, modelChoices, normalizeRoute, normalizeTools, preferredCandidate, presetLabel, taskRows, toolRowProjection, workerById, workerDraft, workerDraftKey, workerPresetLabel, workerRouteNotice, workerRowProjection, workerScopeLabel } from './classroom-client.js';
+import { CLASSROOM_VIEW, WORKER_MODEL_PLACEHOLDER, WORKER_STATUS, WORKER_TOOL_NAME, availableRoute, canInspectTask, candidateRouteFor, showsInspectAction, workerFootnote, classroomSummary, draftPersona, draftRoute, draftTools, elapsedLabel, hasRunningTask, isWorkerTool, modelChoices, normalizeRoute, normalizeTools, preferredCandidate, presetLabel, taskRows, toolRowProjection, workerById, workerDraft, workerDraftKey, workerPresetLabel, workerRouteNotice, workerRowProjection, workerRows, workerScopeLabel } from './classroom-client.js';
 import { VAULT_REMOTE_METHODS } from './remote-client.js';
 import { WORKER_PRESETS, WORKER_TOOLS } from './worker-catalog.js';
+import { PERSONA_TEXT_LIMIT } from './persona.js';
 import { taskElapsedLabel } from './classroom-client.js';
 
 test('finished task durations stay fixed; interrupted tasks without an end time do not keep running', () => {
@@ -81,9 +82,25 @@ test('一个 preset 的 route/ready/tools 不会串到其他 preset', () => {
   assert.equal(review.route, null);
   assert.equal(review.tools, 'none');
   // 草稿也是每位一份：配置 problem 的模型与工具范围不会改掉 review 的草稿。
-  assert.deepEqual(workerDraft(problem, summary.models), { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'high', maxTokens: 32768, tools: 'read' });
+  assert.deepEqual(workerDraft(problem, summary.models), { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'high', maxTokens: 32768, tools: 'read', persona: '' });
   assert.equal(workerDraft(review, summary.models).tools, 'none');
   assert.equal(workerDraft(review, summary.models).reasoningEffort, 'high');
+});
+
+test('每位工作员的人格各自保存与回读，空白只用角色职责', () => {
+  assert.deepEqual(workerRows(payload()).map(row => row.persona), ['', '', '', '', ''], '旧配置缺 persona 时缺省空串');
+  const summary = view({ workers: WORKERS.map(row => row.id === 'problem' ? { ...row, persona: '说话简短，偶尔用比喻。' } : row) });
+  const problem = workerById(summary, 'problem'), review = workerById(summary, 'review');
+  assert.equal(problem.persona, '说话简短，偶尔用比喻。');
+  assert.equal(review.persona, '', '另一位工作员不会继承这一位的人格');
+  assert.equal(workerDraft(problem, summary.models).persona, '说话简短，偶尔用比喻。');
+  assert.equal(workerDraft(review, summary.models).persona, '');
+  assert.equal(draftPersona({ persona: '  你是一位严厉的助教。 ' }), '你是一位严厉的助教。');
+  assert.equal(draftPersona({ persona: '   ' }), '', '空白等于回到只用角色职责');
+  // 升级前保存的草稿没有这一项：这次保存不改已保存的人格，而不是静默清空。
+  assert.equal(draftPersona({}), undefined);
+  assert.equal(draftPersona(null), undefined);
+  assert.ok(draftPersona({ persona: '字'.repeat(PERSONA_TEXT_LIMIT + 1) }).length > PERSONA_TEXT_LIMIT);
 });
 
 test('路由只接受 provider+model，重复或残缺的模型不会进入选项', () => {
@@ -163,7 +180,7 @@ test('没有确切首选时不预选任何普通模型，空选项等待老师�
   const worker = workerById(noSol, 'problem');
   assert.equal(candidateRouteFor(worker, noSol.models), null);
   const draft = workerDraft(worker, noSol.models);
-  assert.deepEqual(draft, { provider: '', model: '', reasoningEffort: '', maxTokens: 32768, tools: 'none' });
+  assert.deepEqual(draft, { provider: '', model: '', reasoningEffort: '', maxTokens: 32768, tools: 'none', persona: '' });
   assert.equal(draftRoute(draft), null);
   assert.equal(WORKER_MODEL_PLACEHOLDER, '请选择已接入的解题模型');
   assert.equal(candidateRouteFor(workerById(view({ models: [] }), 'problem'), []), null);

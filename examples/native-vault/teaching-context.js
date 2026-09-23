@@ -219,7 +219,7 @@ function fit(sections, budget) {
 
 function scopeLine(scope, readers) {
   const others = readers.filter(reader => reader.scope.id !== scope?.id).map(reader => reader.scope.title);
-  const cross = others.length ? `已接入范围：${others.join('、')}；实际读取仍经过原生权限` : '本段只读当前集；需要跨集时按已知且获授权的目录用原生文件工具检索，未读取的范围保持未知';
+  const cross = others.length ? `已接入范围：${others.join('、')}；实际读取仍经过原生权限` : '本段只读当前集；需要跨集时按已知且获授权的目录用原生 Bash 检索，未读取的范围保持未知';
   return `- 学习集：${scope ? scope.title : '未确定'}｜${cross}`;
 }
 

@@ -9,6 +9,7 @@ import { lessonLog,parseLessonSummaries,upsertLessonSummary,parseRoute,renderRou
 import { TEACHING_PRESET,teachingManifest,teachingResource,teachingResourcePath,currentTeachingBody } from './teaching-catalog.js';
 import { readTeachingSettings,updateTeachingSettings,validateTeachingPatch,bindTeachingLesson,appendTeachingEvent,teachingCutoff,LESSON_EVENT,SUMMARY_EVENT } from './teaching-state.js';
 import { installAgentTools } from './agent-tools.js';
+import { teacherPersona } from './persona.js';
 import { assembleTeachingContext } from './teaching-context.js';
 import { installSolver } from './solver-runtime.js';
 import { createReviewRuntime } from './review-runtime.js';
@@ -184,7 +185,7 @@ export class NotaraTeaching extends Service {
       return {path:document.path,title:route.title,revision:document.revision,ref:document.ref,
         node:{id:node.id,title:node.title,stage:node.stage??'',pathway:node.pathway??'main',
           prerequisites:(node.prerequisites??[]).map(id=>({id,title:route.nodes.find(item=>item.id===id)?.title??id}))},
-        ...(withinBudget?{brief}:{readWith:'用原生 grep 定位该 node id 的路线正文块，再按行 read；未读部分不推测。'}),
+        ...(withinBudget?{brief}:{readWith:'用原生 Bash 中的 rg/grep 定位该 node id 的路线正文块，再用 sed 按行读取；未读部分不推测。'}),
         briefRead:withinBudget,briefAvailable:!!brief,
         instruction:'这是当前课程规划，不是掌握记录；仅注入当前节点。按实际表现决定继续或补练，有小结不等于通过检查。'};
     }catch(error){
@@ -306,7 +307,7 @@ export function installTeachingRuntime(ctx,config={}) {
     // The fixed solver owns its own prompt and receives only supplied material.
     if(agent.session.header.origin==='subagent') return '';
     const settings=readTeachingSettings(agent.session);
-    return teachingResource('persona.md')+'\n\n'+teachingResource('base.md')+'\n\n'+currentTeachingBody(settings.teachingRef);
+    return teacherPersona(settings,teachingResource('persona.md'))+'\n\n'+teachingResource('base.md')+'\n\n'+currentTeachingBody(settings.teachingRef);
   }}));
   ctx.on('system-prompt/assemble',async(assembly,context,next)=>{
     const result=await next(),agent=context.agent;

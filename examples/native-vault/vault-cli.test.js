@@ -45,7 +45,7 @@ test('help is self-describing and never needs a workspace or stdin', async () =>
   const top = await run(['help']);
   assert.equal(top.code, 0);
   assert.equal(top.json.program, 'DSH_NOTARA_CLI');
-  assert.deepEqual(Object.keys(top.json.commands).sort(), ['calendar', 'create-route', 'lesson-log', 'lesson-outline', 'lesson-section', 'pdf-page', 'record-review', 'review-queue', 'revise-route', 'route-outline', 'schedule-lesson', 'undo-review']);
+  assert.deepEqual(Object.keys(top.json.commands).sort(), ['calendar', 'create-route', 'lesson-log', 'lesson-outline', 'lesson-section', 'pdf-page', 'record-review', 'review-queue', 'revise-route', 'route-outline', 'schedule-lesson', 'undo-review', 'write-batch']);
 
   const command = await run(['record-review', '--help']);
   assert.equal(command.code, 0);
@@ -140,4 +140,88 @@ test('assessment errors identify the repair field and Unicode note limits match 
   assert.equal(invalid.errorJson.error.field, 'assessments');
   const valid = await run(['record-review', '--workspace', root], { input: JSON.stringify(args) });
   assert.equal(valid.code, 0);
+});
+
+test('batch writes preserve literal Markdown, report partial failure and retry only failed items', async t => {
+  const { root } = await workspace(t);
+  const literal = '# 公式与代码\n\n$$\\frac{1}{2}$$\n`$HOME` 和 `$(touch NEVER)` 都是正文。\n';
+  const batch = { files: [
+    { op: 'create', path: '卡片/新卡.md', content: literal },
+    { op: 'create', path: '卡片/基底.md', content: '# 不应覆盖\n' },
+    { op: 'edit', path: '卡片/基底.md', oldText: '基底给出坐标语言。', newText: '基底提供坐标的参照。' },
+  ] };
+  // Duplicate targets are a malformed batch, not a partially executed one.
+  const duplicate = await run(['write-batch', '--workspace', root], { input: JSON.stringify(batch) });
+  assert.equal(duplicate.code, 2);
+  await assert.rejects(readFile(join(root, 'vault/卡片/新卡.md')), /ENOENT/);
+  batch.files.pop();
+  const first = await run(['write-batch', '--workspace', root], { input: JSON.stringify(batch) });
+  assert.equal(first.code, 1);
+  assert.equal(first.json.ok, false);
+  assert.equal(first.json.result.savedCount, 1);
+  assert.equal(first.json.result.failedCount, 1);
+  assert.equal(first.json.result.results[0].saved, true);
+  assert.equal(first.json.result.results[1].error.code, 'vault_revision_conflict');
+  assert.equal(await readFile(join(root, 'vault/卡片/新卡.md'), 'utf8'), literal);
+  assert.match(await readFile(join(root, 'vault/卡片/基底.md'), 'utf8'), /基底给出坐标语言/);
+  const fixed = await run(['write-batch', '--workspace', root], { input: JSON.stringify({ files: [{ op: 'edit', path: '卡片/基底.md', oldText: '基底给出坐标语言。', newText: '基底提供坐标的参照。' }] }) });
+  assert.equal(fixed.code, 0);
+  assert.equal(fixed.json.result.savedCount, 1);
+  assert.match(await readFile(join(root, 'vault/卡片/基底.md'), 'utf8'), /title: 基底/);
+  assert.match(await readFile(join(root, 'vault/卡片/基底.md'), 'utf8'), /基底提供坐标的参照/);
+});
+
+test('batch edits reject missing or ambiguous original text and preserve external edits', async t => {
+  const { root } = await workspace(t);
+  const path = join(root, 'vault/卡片/基底.md');
+  const changed = (await readFile(path, 'utf8')).replace('基底给出坐标语言。', '外部已经修改。\n重复\n重复\n');
+  await writeFile(path, changed);
+  for (const oldText of ['基底给出坐标语言。', '重复']) {
+    const result = await run(['write-batch', '--workspace', root], { input: JSON.stringify({ files: [{ op: 'edit', path: '卡片/基底.md', oldText, newText: '不应该写入' }] }) });
+    assert.equal(result.code, 1);
+    assert.equal(result.json.result.results[0].error.code, 'batch_original_mismatch');
+    assert.equal(await readFile(path, 'utf8'), changed);
+  }
+  const result = await run(['write-batch', '--workspace', root], { input: JSON.stringify({ files: [{ op: 'edit', path: '卡片/基底.md', oldText: '外部已经修改。', newText: '核对后的修改。' }] }) });
+  assert.equal(result.code, 0);
+  assert.equal(await readFile(path, 'utf8'), changed.replace('外部已经修改。', '核对后的修改。'));
+});
+
+test('invalid batch branches fail before any writes; batches can exceed ordinary CLI stdin limit', async t => {
+  const { root } = await workspace(t);
+  const first = { op: 'create', path: '卡片/不能提前写.md', content: '# 一\n' };
+  for (const second of [
+    { op: 'create', path: '卡片/混合.md', content: '# 二', oldText: '旧' },
+    { op: 'edit', path: '卡片/基底.md', oldText: '', newText: '新' },
+    { op: 'edit', path: '../越界.md', oldText: '旧', newText: '新' },
+    { op: 'create', path: '卡片/身份.md', content: '# 二', sessionId: 'fake' },
+  ]) {
+    const result = await run(['write-batch', '--workspace', root], { input: JSON.stringify({ files: [first, second] }) });
+    assert.equal(result.code, 2);
+    await assert.rejects(readFile(join(root, 'vault/卡片/不能提前写.md')), /ENOENT/);
+  }
+  const content = '# 完整资料\n' + '内容。'.repeat(10000);
+  const large = await run(['write-batch', '--workspace', root], { input: JSON.stringify({ files: [{ ...first, content }] }) });
+  assert.equal(large.code, 0);
+  assert.equal(await readFile(join(root, 'vault', first.path), 'utf8'), content);
+});
+
+test('batch edit cannot overwrite a file changed between its read and native CAS write', async t => {
+  const { root } = await workspace(t);
+  const { Context } = await import('@deepseek-ai/cordis');
+  const { LocalFileSystem } = await import('@deepseek-ai/dsh-fs-local');
+  const { runCommand, validateArgs } = await import('./vault-cli.js');
+  const fs = new LocalFileSystem(new Context(), { cwd: root, diffBasisMaxBytes: 10 * 1024 * 1024 });
+  const nativeWrite = fs.writeText.bind(fs);
+  const path = join(root, 'vault/卡片/基底.md');
+  const external = '# 别处刚保存的新内容\n';
+  fs.writeText = async (...args) => {
+    await writeFile(path, external);
+    return nativeWrite(...args);
+  };
+  const args = validateArgs('write-batch', { files: [{ op: 'edit', path: '卡片/基底.md', oldText: '基底给出坐标语言。', newText: '过期的修改。' }] });
+  const result = await runCommand('write-batch', args, { fs, root, env: {} });
+  assert.equal(result.savedCount, 0);
+  assert.equal(result.results[0].error.code, 'vault_revision_conflict');
+  assert.equal(await readFile(path, 'utf8'), external);
 });

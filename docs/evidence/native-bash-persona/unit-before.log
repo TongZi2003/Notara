@@ -1,0 +1,122 @@
+✔ teaching tools register native validated schemas and require approval for writes (3.505792ms)
+✔ read-only subagents cannot write teaching facts even through a callable tool (0.748417ms)
+✖ teacher text tools are retired while Bash and ordinary agents keep native decisions (3.356667ms)
+✔ native full access overrides teaching write approval without weakening native denials (1.504875ms)
+✖ help is self-describing and never needs a workspace or stdin (34.420125ms)
+✔ the schema rejects identity and unknown fields before touching any file (91.182333ms)
+✔ without a bound environment a command fails instead of guessing a root (29.320708ms)
+✔ standalone --workspace is the only explicit path, and records as actor self (115.936208ms)
+✔ CLI records unknown without a schedule, preserves evidence, enforces CAS and supports undo (189.478917ms)
+✔ oversized stdin is refused without reading the workspace (29.009875ms)
+✔ assessment errors identify the repair field and Unicode note limits match the writer (90.821041ms)
+✖ batch writes preserve literal Markdown, report partial failure and retry only failed items (60.156458ms)
+✖ batch edits reject missing or ambiguous original text and preserve external edits (29.824542ms)
+✖ invalid batch branches fail before any writes; batches can exceed ordinary CLI stdin limit (148.804542ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 9
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 859.209583
+
+✖ failing tests:
+
+test at examples/native-vault/agent-tools.test.js:35:1
+✖ teacher text tools are retired while Bash and ordinary agents keep native decisions (3.356667ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/agent-tools.test.js:46:12)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at examples/native-vault/vault-cli.test.js:44:1
+✖ help is self-describing and never needs a workspace or stdin (34.420125ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+
+    [
+      'calendar',
+      'create-route',
+      'lesson-log',
+      'lesson-outline',
+  ...
+      'undo-review',
+  -   'write-batch'
+    ]
+
+      at TestContext.<anonymous> (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/vault-cli.test.js:48:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'calendar', 'create-route', 'lesson-log', 'lesson-outline', 'lesson-section', 'pdf-page', 'record-review', 'review-queue', 'revise-route', 'route-outline', 'schedule-lesson', 'undo-review' ],
+    expected: [
+      'calendar',        'create-route',
+      'lesson-log',      'lesson-outline',
+      'lesson-section',  'pdf-page',
+      'record-review',   'review-queue',
+      'revise-route',    'route-outline',
+      'schedule-lesson', 'undo-review',
+      'write-batch'
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at examples/native-vault/vault-cli.test.js:145:1
+✖ batch writes preserve literal Markdown, report partial failure and retry only failed items (60.156458ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  2 !== 1
+
+      at TestContext.<anonymous> (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/vault-cli.test.js:159:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at examples/native-vault/vault-cli.test.js:174:1
+✖ batch edits reject missing or ambiguous original text and preserve external edits (29.824542ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  2 !== 1
+
+      at TestContext.<anonymous> (file:///Users/yangrundong/.codex/worktrees/notara-vault-clean/DSH/examples/native-vault/vault-cli.test.js:181:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at examples/native-vault/vault-cli.test.js:190:1
+✖ invalid batch branches fail before any writes; batches can exceed ordinary CLI stdin limit (148.804542ms)
+  Error: write EPIPE
+      at WriteWrap.onWriteComplete [as oncomplete] (node:internal/stream_base_commons:87:19) {
+    errno: -32,
+    code: 'EPIPE',
+    syscall: 'write'
+  }

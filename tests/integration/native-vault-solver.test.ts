@@ -32,7 +32,7 @@ interface SolverRoute { provider: string; model: string; reasoningEffort?: strin
 interface SolverView { name: string; description: string; preferredModel: string; route: SolverRoute | null; ready: boolean; reason?: string }
 interface ModelRow { provider: string; model: string; label: string; reasoningEfforts: string[] }
 interface TaskRow { id: string; status: string; startedAt?: string; finishedAt?: string; inspectable?: boolean }
-interface ClassroomView { revision: number; teacher: { name: string; description: string }; workers: (SolverView & {id: string; tools: string})[]; models: ModelRow[]; tasks: TaskRow[] }
+interface ClassroomView { revision: number; teacher: { name: string; description: string }; workers: (SolverView & {id: string; tools: string; persona: string})[]; models: ModelRow[]; tasks: TaskRow[] }
 interface SessionRowWithParent { sessionId: string; running?: boolean; origin?: string; parentSessionId?: string }
 interface SolverOutcome { taskId?: string; status?: string; analysis?: string }
 /** The Host's own parent/child binding for one solver task (查看分析). */
@@ -120,6 +120,8 @@ test('五预设真实请求使用独立人格与配置；只读工作员能读�
     expect(system).not.toContain('你是教学者');
     expect(JSON.stringify(group)).not.toContain('PARENT_ONLY_BACKGROUND');
     expect(system.includes('notara-subject-math')).toBe(preset === 'exercise');
+    // A delegation child keeps the native read-only rows even though the main
+    // classroom hides them; this boundary is deliberately not changed.
     expect(toolNames(group[0]!).sort()).toEqual(preset === 'general' ? ['glob', 'grep', 'read', 'read_image'] : []);
     if (preset === 'general') {
       const result = blocks(group.at(-1)!).filter(block => block.type === 'tool-result');
@@ -271,7 +273,9 @@ test('教室 RPC 只投影双角色、模型清单与任务状态；解题者工
   // The value is authority only: no answer, no child id, no internal path.
   expect(Object.keys(view).sort()).toEqual(['models', 'revision', 'tasks', 'teacher', 'workers']);
   expect(unexpectedKeys(view.teacher, ['name', 'description'])).toEqual([]);
-  for (const worker of view.workers) expect(unexpectedKeys(worker, ['id', 'name', 'description', 'preferredModel', 'route', 'ready', 'reason', 'tools'])).toEqual([]);
+  for (const worker of view.workers) expect(unexpectedKeys(worker, ['id', 'name', 'description', 'preferredModel', 'route', 'ready', 'reason', 'tools', 'persona'])).toEqual([]);
+  // 工作员人格的旧缺省是空串：没配置时只用角色职责，不凭空多出一段风格。
+  expect(view.workers.every(row => row.persona === '')).toBe(true);
   for (const task of view.tasks) {
     expect(unexpectedKeys(task, ['id', 'preset', 'name', 'status', 'startedAt', 'finishedAt', 'inspectable'])).toEqual([]);
     expect(task.finishedAt, '未完成的任务不应带完成时间').toBeUndefined();
@@ -294,6 +298,12 @@ test('教室 RPC 只投影双角色、模型清单与任务状态；解题者工
   expect(teacherSystem).toContain('你是教学者');
   const teacherTools = toolNames(turn!);
   expect(teacherTools).toContain('ask_worker');
+  // The main teacher reads and searches through native Bash; the native text
+  // rows are hidden from it. The child above keeps its own read-only surface.
+  expect(teacherTools).toContain('bash');
+  for (const hidden of ['read', 'write', 'edit', 'glob', 'grep']) {
+    expect(teacherTools, `教学会话仍挂着原生文本工具 ${hidden}`).not.toContain(hidden);
+  }
   for (const bypass of ['subagent', 'subagent_fork', 'send_message', 'interrupt_agent']) {
     expect(teacherTools, `教学会话仍挂着通用委派工具 ${bypass}`).not.toContain(bypass);
   }

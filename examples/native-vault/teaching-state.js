@@ -1,6 +1,7 @@
 import { parseSourceRef } from './agent-io.js';
 import { safeRelativePath } from './vault.js';
 import { defaultTeachingRef, teachingChoices } from './teaching-catalog.js';
+import { PERSONA_TEXT_LIMIT, personaText } from './persona.js';
 
 /**
  * 本插件写进原生 session 日志的三类事件。
@@ -137,7 +138,7 @@ function normalizeContinuation(value) {
 }
 
 export function readTeachingSettings(session) {
-  const result = {revision:0,teachingRef:defaultTeachingRef,learningGoal:null,temporaryInstructions:'',subjects:[],scriptPath:null,routePath:null,nodeId:null,continuation:null,scriptRevision:null,scriptWorkspaceId:null,scriptSnapshot:null,scriptSnapshotTruncated:false,materials:[]};
+  const result = {revision:0,teachingRef:defaultTeachingRef,learningGoal:null,temporaryInstructions:'',persona:'',subjects:[],scriptPath:null,routePath:null,nodeId:null,continuation:null,scriptRevision:null,scriptWorkspaceId:null,scriptSnapshot:null,scriptSnapshotTruncated:false,materials:[]};
   for (const event of session.snapshotEvents()) {
     if (event.type===SETTINGS_EVENT) Object.assign(result,event.data);
     if (event.type===LESSON_EVENT) Object.assign(result,event.data);
@@ -148,7 +149,7 @@ export function readTeachingSettings(session) {
 
 export function validateTeachingPatch(patch) {
   if (!patch || typeof patch!=='object' || Array.isArray(patch)) fail('teaching_settings_invalid');
-  const allowed=['teachingRef','learningGoal','temporaryInstructions','subjects'];
+  const allowed=['teachingRef','learningGoal','temporaryInstructions','subjects','persona'];
   for (const key of Object.keys(patch)) if (!allowed.includes(key)) fail('teaching_settings_invalid');
   const result={};
   if (Object.hasOwn(patch,'teachingRef')) {
@@ -159,6 +160,11 @@ export function validateTeachingPatch(patch) {
   if (Object.hasOwn(patch,'temporaryInstructions')) {
     if(typeof patch.temporaryInstructions!=='string'||patch.temporaryInstructions.length>8000) fail('teaching_instructions_invalid');
     result.temporaryInstructions=patch.temporaryInstructions;
+  }
+  // 老师人格是这节课自己的设置：空串表示用默认形象，不写空值以外的占位内容。
+  if (Object.hasOwn(patch,'persona')) {
+    if(typeof patch.persona!=='string'||patch.persona.length>PERSONA_TEXT_LIMIT) fail('teaching_persona_invalid');
+    result.persona=personaText(patch.persona);
   }
   if (Object.hasOwn(patch,'learningGoal')) {
     if (patch.learningGoal===null) result.learningGoal=null;

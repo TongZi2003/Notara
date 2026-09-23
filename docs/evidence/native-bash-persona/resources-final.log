@@ -1,0 +1,15 @@
+✔ 未设置老师人格时用默认形象，同一份配置永远得到同一段文本 (0.376625ms)
+✔ 自定义老师人格替换默认形象，只改风格，不覆盖职责、权限与真实性，仍按中文回应 (0.119125ms)
+✔ 工作员人格拼在角色任务正文之后，空串只用任务角色 (0.09775ms)
+✔ 人格文本只去掉外层空白，上限是 4000 字 (0.0525ms)
+✔ persona.js 是纯模块，浏览器端引用它不会带进 Node 依赖 (2.978875ms)
+✔ the active teaching bundle is fresh, complete and has no retired leftover files (18.345292ms)
+✔ the real teacher Skill provider lists distinct locators and retrieves each selected resource (1.952666ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 57.311125

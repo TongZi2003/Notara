@@ -1,5 +1,6 @@
 import { createVaultClient } from './remote-client.js';
 import { createDraftStore } from './draft-client.js';
+import { PERSONA_TEXT_LIMIT, personaText } from './persona.js';
 
 /**
  * 教学设置: one small entry in the workspace bar, no teacher-identity toolbar.
@@ -34,6 +35,7 @@ export function settingsDraft(settings) {
     deadline: goal?.deadline ?? '',
     dailyMinutes: goal?.dailyMinutes === undefined || goal?.dailyMinutes === null ? '' : String(goal.dailyMinutes),
     instructions: settings?.temporaryInstructions ?? '',
+    persona: settings?.persona ?? '',
     subjects: (settings?.subjects ?? []).join('、'),
   };
 }
@@ -43,7 +45,8 @@ export function settingsDraft(settings) {
  * another. An empty patch means there is nothing to write — the caller reports
  * that instead of pretending a save happened. `teachingRef: null` restores the
  * default teaching method, `learningGoal: null` removes the goal, `''` clears the
- * temporary instructions and `[]` clears the subjects.
+ * temporary instructions, `''` also returns the teacher persona to the default
+ * one, and `[]` clears the subjects.
  */
 export function settingsPatch(settings, draft) {
   const base = settings ?? {}, patch = {};
@@ -58,6 +61,13 @@ export function settingsPatch(settings, draft) {
   if (JSON.stringify(goal) !== JSON.stringify(base.learningGoal ?? null)) patch.learningGoal = goal;
   const instructions = String(draft.instructions ?? '').trim();
   if (instructions !== (base.temporaryInstructions ?? '')) patch.temporaryInstructions = instructions;
+  // 空白就是默认形象：只有真的和已保存内容不同才发送，避免留下看不见的自定义人格。
+  // 升级前保存的草稿没有这一项，按「没改过」处理，保存别的字段不会顺手清掉人格。
+  if (draft.persona !== undefined) {
+    const persona = personaText(draft.persona);
+    if (persona.length > PERSONA_TEXT_LIMIT) return { patch: null, error: `老师人格最多 ${PERSONA_TEXT_LIMIT} 字，留空用默认形象。` };
+    if (persona !== personaText(base.persona)) patch.persona = persona;
+  }
   const subjects = parseSubjects(draft.subjects);
   if (subjects.some(subject => subject.length > MAX_SUBJECT_LENGTH)) return { patch: null, error: '科目名称太长了。' };
   if (subjects.length > MAX_SUBJECTS) return { patch: null, error: `科目最多 ${MAX_SUBJECTS} 个。` };
@@ -67,7 +77,7 @@ export function settingsPatch(settings, draft) {
 
 /** The defaults the Host restores with `teachingRef: null`. */
 export function clearedPatch() {
-  return { teachingRef: null, learningGoal: null, temporaryInstructions: '', subjects: [] };
+  return { teachingRef: null, learningGoal: null, temporaryInstructions: '', subjects: [], persona: '' };
 }
 
 export function createTeachingPanel(React, { STYLE, IconButton, Dialog }) {
@@ -150,6 +160,8 @@ export function createTeachingPanel(React, { STYLE, IconButton, Dialog }) {
             h('input', { 'aria-label': '每天学习时长', type: 'number', min: 1, max: 1440, style: STYLE.templateInput, value: form.dailyMinutes, onChange: event => edit({ ...form, dailyMinutes: event.target.value }) })),
           h('label', { style: { display: 'block', marginTop: 16 } }, '本课临时要求',
             h('textarea', { 'aria-label': '本课临时要求', style: { ...STYLE.templateInput, minHeight: 80 }, value: form.instructions, placeholder: '只影响这一节课，例如：先让我自己试', onChange: event => edit({ ...form, instructions: event.target.value }) })),
+          h('label', { style: { display: 'block', marginTop: 10 } }, '老师人格（可选）',
+            h('textarea', { 'aria-label': '老师人格', maxLength: PERSONA_TEXT_LIMIT, style: { ...STYLE.templateInput, minHeight: 80 }, value: form.persona ?? '', placeholder: '留空用默认形象；填写后只改称呼与语气，不改教学职责与权限', onChange: event => edit({ ...form, persona: event.target.value }) })),
           h('label', { style: { display: 'block', marginTop: 10 } }, '科目（可选）',
             h('input', { 'aria-label': '科目', style: STYLE.templateInput, value: form.subjects, placeholder: '如：数学、物理', onChange: event => edit({ ...form, subjects: event.target.value }) })),
           (settings.scriptPath || settings.routePath || settings.continuation) && h('p', { style: { ...STYLE.notice, marginTop: 16 } }, '本课由课堂安排带入：', [settings.routePath ? `路线 ${settings.routePath}` : '', settings.scriptPath ? `剧本 ${settings.scriptPath}` : ''].filter(Boolean).join(' · '), settings.continuation ? '（接着上次的小结）' : ''),
