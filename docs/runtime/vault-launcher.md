@@ -33,6 +33,20 @@ npm run vault:open -- --root /path/to/runtime
 
 `startVaultIsolated` 仍使用临时目录、随机端口和合成资料，`stop()` 会清理它自己的临时根。不能将正在使用的课堂长期交给此清理生命周期。`startVaultPersistent` 的回归测试同样使用临时目录，但显式验证停止、重启和迁移后数据仍在。
 
+## 版本更新
+
+`npm run vault` 在首次创建运行目录时复制一份插件快照；后续启动会保留这份快照与课堂数据。**拉取新代码、重新构建和重新开一个课堂，都不等于替换已有运行目录内的插件版本。** 当前没有自动原地升级插件快照的命令，不应删除运行目录来强制升级。
+
+从旧版 StudyForge 的 `npm run trial` 切换过来时，按仓库 README 另建代码目录，再首次运行 `npm run vault`。旧版与新版的数据格式不同，不自动迁移 `.trial` 中的卡片、课堂和复习记录。
+
+已在使用 Native Vault、仅想先试本次发布的新版本时，可以另外指定一个空的运行目录和空闲端口：
+
+```sh
+npm run vault -- --root ../Notara-Vault-Data-0.14.9 --port 57094
+```
+
+这会创建一个独立的新学习空间，不包含原学习数据；保留旧目录，需要时回到原目录启动。代码和运行目录不要整体转发，运行目录中包含本机模型配置与认证材料。正式迁移既有 Native Vault 的插件快照和记录应另行处理，不把新建空空间称为数据升级。
+
 ## 迁移已有临时实例
 
 `relocateVaultRuntime(source, destination, port)` 只在原服务停止后调用，目标必须不存在。它复制整个 runtime，原目录改名为 `.pre-persistent` 备份，原路径保留到新位置的目录链接。只调整工作区登记里的内部目录路径，外部资料目录和 session/workspace 身份保持不变；不编辑课堂日志或解析密钥。旧 session header 保存的 cwd 通过目录链接继续解析。持久化启动会检查这些旧路径，缺失时恢复链接，冲突时拒绝覆盖。

@@ -6,6 +6,7 @@
 
 - DSH 依赖版本以 `package-lock.json` 和 `docs/runtime/upstream-lock.json` 为准，所有 `@deepseek-ai/dsh-*` 必须保持同一 `0.1.5-rc.2` 系列。
 - Node 下限为 `>=24.0.0`；本机验证使用 Node `v24.13.0`。
+- 新用户首选 Native Vault 的 `npm run vault` 持久入口；`npm run trial` 和默认 `dev:isolated` 保留给旧工作台。Windows 安装说明使用 Git for Windows 附带的 Git Bash；`dev-native-vault.ts` 的目录链接统一走 Windows junction。没有 Windows 实机证据时不得报告 Windows 安装或课堂验收通过。已有 Vault 运行目录固定插件快照，不能把 `git pull` 或新建会话宣称为原地版本升级。
 - 旧 StudyForge 产品基线只作为 `docs/migration/` 中记录的历史行为来源，不是运行时依赖；不要读取本机绝对路径来替代仓库内证据。
 - `docs/migration/` 保存当前迁移合同、Notara 规格和验收边界；`docs/runtime/`、`docs/ui/` 与 `docs/evidence/` 保存实现、运行和验证记录。
 - `examples/native-vault` 是文件事实源上的独立教学组合，教学资源在 `resources/vault-teaching/`。教学设置、剧本绑定与小结操作身份使用原生 session 的 `notara/*` 扩展事件；写入必须用 `appendTeachingEvent` 和 `ignorable` 信封。`scripts/patch-session-extension.ts` 是 rc.2 的必要写侧接缝，不修改已知事件词表或绕过持久化读校验。

@@ -170,9 +170,9 @@ tags: [math, vector]
   await cp(join(project,'examples/native-vault'),pluginRoot,{recursive:true,filter:source=>!source.endsWith('.test.js')&&!source.endsWith('/node_modules')});
   await symlink(join(project,'node_modules'),join(pluginRoot,'node_modules'),dirLink);
   await mkdir(join(workspace, 'node_modules/@notara'), { recursive: true });
-  await symlink(pluginRoot, join(workspace, 'node_modules/@notara/vault-native'));
+  await symlink(pluginRoot, join(workspace, 'node_modules/@notara/vault-native'), dirLink);
   await mkdir(join(home, 'profiles/web/node_modules/@notara'), { recursive: true });
-  await symlink(pluginRoot, join(home, 'profiles/web/node_modules/@notara/vault-native'));
+  await symlink(pluginRoot, join(home, 'profiles/web/node_modules/@notara/vault-native'), dirLink);
   let pixelPluginRoot: string | undefined;
   if (options.pixelClassroom) {
     await (await import('./build-pixel-classroom.ts')).buildPixelClassroom();

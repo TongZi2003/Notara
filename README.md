@@ -1,19 +1,51 @@
-# DSH / StudyForge Native
+# Notara · Native Vault
 
-这是 StudyForge 的 DSH 原生插件与课堂运行时。仓库从项目根独立运行，包含 contracts、domain、host、client、示例插件和分层验证。
+Notara 是建立在 DeepSeek Harness 上的学习工具：带着资料开始讨论，将题目、理解变化和课堂小结保存为 Markdown 文件，再通过资产、图谱、路线和日历继续学习。
 
-## 环境
+**新用户使用本分支的 Native Vault，启动命令是 `npm run vault`。** `npm run trial` 启动的是保留的旧版 StudyForge 工作台，有独立“教法”页与“普通卡／知识”列表，不是这里介绍的新界面。
 
-- Node.js `>=24.0.0`（版本以 `.nvmrc` 和 `package.json` 为准）
-- npm 与提交的 `package-lock.json`
-- DSH 及其插件依赖必须保持同一锁定 rc 版本
-- macOS / Linux / Windows 均可运行（Windows 上目录链接自动改用 junction，无需管理员权限）；DSH 自身的 Windows 支持以上游为准，尚未实机验证
+## 安装并开始学习
 
-## 常用命令
+准备 Git 和 Node.js **24 或更新版本**（包含 npm）。本机验证使用 Node 24.13.0 / macOS；其他系统的实机验证边界见[发布说明](docs/releases/native-vault-0.14.9.md)。
 
-```bash
+**Windows 用户请安装 Git for Windows，并在它附带的 Git Bash 中执行下面的命令。** 主教师会使用 Bash 处理文件，启动环境需要能找到 `bash`；不要用只提供 WSL 跳转的 `bash.exe` 代替 Git Bash。详细步骤见 [Windows 安装说明](docs/runtime/windows-native-vault.md)。
+
+在一个新目录安装：
+
+```sh
+git clone --branch codex/notara-vault-clean --single-branch https://github.com/TongZi2003/Notara.git Notara-Vault
+cd Notara-Vault
+node --version
 npm ci --no-audit --no-fund
 npm run build
+npm run vault
+```
+
+启动后会自动打开浏览器。首次配置自己的模型；最初只需一个可用的主教师模型，就能从一道题开始。看到“对话、资产、图谱、卡片、路线、日历、教室”等分页，就是 Native Vault。无需按旧说明另装数学工作台和世界书。
+
+在对话中输入题目和自己的尝试，或者在资产页导入讲义并带入对话。输入框的“指令”提供拆书、备课、路线规划、作文批改等入口；教法和学科关注收在“更多技能”里，也能按中文关键词搜索。可参考[第一次学习的操作脚本](docs/tutorials/01-first-lesson.md)。
+
+服务运行期间保留终端窗口。以后进入代码目录运行 `npm run vault` 即可继续；关闭终端只停止服务，不删除学习数据。若服务已运行，但另一个浏览器需要重新登录：
+
+```sh
+npm run vault:open
+```
+
+默认数据目录为用户目录下的 `.notara/vault-runtime`，默认端口为 `57093`。登录入口由启动器生成，不要把带 token 的登录链接转发给别人。自定义目录、端口与认证说明见[启动说明](docs/runtime/vault-launcher.md)。
+
+## 已经装过旧版怎么办
+
+保留旧代码目录和 `.trial` 等旧数据目录，另建上面的 `Notara-Vault` 目录运行新版。新版首次创建空 Vault，**不会自动迁入旧版课堂和卡片**；不要把旧版数据目录直接用作新版 `--root`。原始 PDF 和普通 Markdown 资料可以先带入新版，旧格式学习记录需另行迁移。
+
+如果已经使用 Native Vault，请先看[版本更新的边界](docs/runtime/vault-launcher.md#版本更新)。现有运行目录固定了创建时的插件快照，单纯 `git pull` 不会自动替换它；不要为了升级删除数据目录。
+
+## 开发与验证
+
+依赖以 `package-lock.json` 为准，DSH 系列锁定为 `0.1.5-rc.2`。构建与常用检查：
+
+```sh
+npm run build
+npm run build:native-vault
 npm run check:contracts
 npm run typecheck
 npm run typecheck:tests
@@ -22,40 +54,6 @@ npm run test:integration -- <文件>
 npm run test:e2e -- <文件>
 ```
 
-需要启动隔离 web 实例时使用：
+浏览器测试经 `scripts/dev-isolated.ts` 创建临时数据根、独立端口和合成资料；不使用真实学习目录。`npm run dev:isolated` 仍是旧 Host 的开发测试入口，不能作为 Native Vault 的长期试用入口。
 
-```bash
-npm run dev:isolated
-```
-
-启动器会创建独立的临时 `DSH_HOME`、课堂目录和随机端口。不要把真实用户目录、凭据或共享服务用于测试。
-
-## 试用
-
-给试用者的完整安装与启动流程（macOS / Linux / Windows 相同，Windows 用 PowerShell 或 cmd 即可，不需要 bash）：
-
-```bash
-git clone <仓库地址> Notara
-cd Notara
-node --version          # 必须 >= v24
-npm ci --no-audit --no-fund
-npm run build
-npm run trial           # 数据落在 ./.trial/，重启续学；可选：npm run trial -- <数据目录> --port <n>
-```
-
-1. 启动成功后浏览器自动打开登录页（`--no-open` 可禁用）；完整 URL（内含本机登录 token）同时打印在终端并写入 `.trial/launcher.json` 的 `authUrl`，脚本包装直接读文件即可，无需解析终端输出。
-2. 首次进入按引导配置模型提供方，需要试用者自己的 DeepSeek API key。
-3. 装两个日常插件：侧栏 **插件 → 安装插件 → 开发目录**，各填一次仓库内目录的**绝对路径**，「查看安装内容」后「确认安装」：
-   - `<仓库>/examples/plugins/math-workbench`（数学工作台）
-   - `<仓库>/examples/plugins/worldbook`（教室与世界书）
-4. 之后每次试用只需 `npm run trial`；学习记录、课堂、插件固定版本都保存在 `.trial/`。想重置就删掉该目录。**运行中的终端窗口即服务本体，关闭窗口服务即停止**——旧标签页/书签在端口未监听时会显示「无法访问此页面」（ERR_CONNECTION_REFUSED），重新 `npm run trial` 从自动打开的登录页进入。
-
-上游明确拒绝 `0.0.0.0` 绑定（会把执行能力暴露到网络）。局域网试用走 SSH 隧道：`ssh -L 3080:127.0.0.1:3080 <试用机>`。
-
-当前有效的迁移合同、基线和 Notara 设计保存在 [`docs/migration/`](docs/migration/README.md)；运行时、UI 和验收证据保存在 [`docs/`](docs/) 下。
-
-## Native Vault 教学入口
-
-文件 Vault 组合使用 `npm run vault` 启动，保留同一数据目录；详见[启动说明](docs/runtime/vault-launcher.md)。在教学会话输入框点击 **指令（＋）**，可以直接选择拆书、备课、路线规划、作文批改等功能。选择后补充资料或要求，再发送即可。
-
-教法、学科关注和辅助工作流默认收在 **更多技能** 中；输入 `/` 加中文关键词（例如 `/数学`、`/认知`）也能直接搜索折叠项。展开、收起和选择均不会自动发送消息。
+当前迁移合同位于 [`docs/migration/`](docs/migration/README.md)，运行说明与验收记录位于 [`docs/`](docs/)。本次变化见 [Native Vault 0.14.9 发布说明](docs/releases/native-vault-0.14.9.md)。
