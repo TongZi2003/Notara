@@ -16,7 +16,12 @@ body .sf-linear-tree.sf-lessons button>span:first-child,body .sf-linear-tree>.ca
 body .sf-linear-tree.sf-plan-list .sf-plan-row{gap:4px 14px}
 body .sf-linear-tree.sf-card-list .sf-card-row-open{background:none;border:0;box-shadow:none;padding:0;text-align:left}
 body .sf-linear-tree.sf-linear-tree .sf-card-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:start;min-height:0}
-body .sf-linear-tree.sf-card-list .sf-card-face-preview{font:14px/1.8 var(--nb-print,serif);max-height:3.6em;overflow:hidden}
+body .sf-linear-tree.sf-card-list .sf-card-row-copy{position:relative;display:flex;flex-direction:column;gap:8px;min-width:0}
+body .sf-linear-tree.sf-card-list .sf-card-row-copy>.sf-card-row-open{position:static}
+body .sf-linear-tree.sf-card-list .sf-card-row-copy>.sf-card-row-open::after{content:"";position:absolute;inset:0;z-index:1;cursor:pointer}
+body .sf-linear-tree.sf-card-list .sf-card-face-preview{display:block;-webkit-line-clamp:unset;min-width:0;max-width:100%;font:14px/1.8 var(--nb-print,serif);max-height:9em;overflow:hidden;white-space:normal}
+body .sf-linear-tree.sf-card-list .sf-card-face-preview .sf-card-markdown{font:inherit;color:inherit}
+body .sf-linear-tree.sf-card-list .sf-card-face-preview .katex-display{margin:.4em 0;max-width:100%;overflow-x:auto;overflow-y:hidden}
 body .sf-linear-tree.sf-cardgrid .sf-acard{display:block!important;width:100%;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;transform:none!important;translate:none!important;text-align:left}
 body .sf-linear-tree.sf-cardgrid .sf-acard::before{display:none}
 body .sf-linear-tree.sf-cardgrid .a-head,body .sf-linear-tree.sf-cardgrid .a-foot{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}

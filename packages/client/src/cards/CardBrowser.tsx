@@ -158,15 +158,21 @@ function CardRow({ card, onOpen, onLearn }: {
   readonly onLearn?: ((target: string) => void) | undefined;
 }): React.JSX.Element {
   return <li className="sf-card-row" data-testid="card-row" data-kind="card">
-    <button type="button" className="sf-card-row-open" data-testid="card-row-open" onClick={() => { onOpen(card.ref); }}>
-      <span className="sf-card-row-title">{card.content.title}</span>
-      {card.content.front && <span className="sf-card-face-preview">{clip(card.content.front, 180)}</span>}
+    <div className="sf-card-row-copy">
+      <button type="button" className="sf-card-row-open" data-testid="card-row-open" onClick={() => { onOpen(card.ref); }}>
+        <span className="sf-card-row-title">{card.content.title}</span>
+      </button>
+      {/* Parse the intact Markdown before clipping its visual preview. Links
+          and code controls stay inert; the title button opens the whole row. */}
+      {card.content.front && <div className="sf-card-face-preview" ref={element => { if (element) element.inert = true; }}>
+        <MarkdownBody text={card.content.front} />
+      </div>}
       <span className="sf-meta">{PRESENTATION_LABELS[card.content.presentation]}
         {card.content.chapter === undefined ? ' · 未归书' : ` · ${card.content.chapter}`}
         {card.content.topic === undefined ? '' : ` · 图:${card.content.topic}`}
         {card.content.tags.length > 0 ? ` · ${card.content.tags.join('、')}` : ''}
         {card.review === undefined ? ' · 还没学过' : ` · 下次 ${card.review.nextDue}`}</span>
-    </button>
+    </div>
     {/* Learning an unstudied card is allowed here and writes nothing by itself. */}
     {onLearn !== undefined && <button type="button" className="sf-quiet" data-testid="card-row-learn"
       data-card-ref={card.ref} onClick={() => { onLearn(card.ref); }}>{card.review === undefined ? '开始学' : '复习'}</button>}
