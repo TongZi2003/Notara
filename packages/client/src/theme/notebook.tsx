@@ -115,12 +115,7 @@ export function registerNotebook(ctx: Context, navigation: MaterialNavigation): 
     return <main className="sf-notebook-settings sf-page" data-testid="notebook-appearance">
       {!embedded && <header><button className="sf-quiet" data-testid="notebook-back" onClick={() => { if (returnPanel === 'studyforge.materials') navigation.restore(returnMaterial); ctx.layout.selectPanel(returnPanel); }}>← {returnPanel ? '返回' : '返回课堂'}</button><span>外观</span></header>}
       <div className="sf-notebook-settings-body"><h1>外观</h1>
-        <div className="sf-theme-choices" role="radiogroup" aria-label="界面主题" data-testid="notebook-style">
-          {(['modern', 'notebook'] as const).map(style => <button key={style} type="button" role="radio" aria-checked={state.style === style} data-testid={`theme-${style}`} onClick={() => update({ style })}>
-            <span className={`sf-theme-sample sf-theme-sample-${style}`} aria-hidden="true"><i /><span><b /><em /><em /></span></span>
-            <strong>{style === 'modern' ? '现代简约' : '手写手帐'}</strong><small>{style === 'modern' ? '白色 · 清晰 · 圆角' : '纸张 · 字迹 · 贴纸'}</small>
-          </button>)}
-        </div>
+        <p className="sf-note" data-testid="notebook-style">当前主题：极简</p>
         <label>正文字号<select data-testid="notebook-size" value={state.size} onChange={event => update({ size: event.target.value as Appearance['size'] })}><option value="s">小</option><option value="m">中</option><option value="l">大</option></select></label>
         {state.style === 'notebook' && <div className="sf-paper-options">
         <label>纸色<select data-testid="notebook-tone" value={state.tone} onChange={event => update({ tone: event.target.value as Appearance['tone'] })}><option value="yellow">暖色纸张</option><option value="white">白色纸张</option></select></label>

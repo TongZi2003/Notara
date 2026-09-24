@@ -1,0 +1,10 @@
+{
+  "node": "v24.13.0",
+  "scriptSyntax": "PASS",
+  "whiteboardCSSRules": 118,
+  "hashes": {
+    "notara-frontend-prototype.html": "9497b2a9eed8d604fbd0163c049484c9db994203dac18ccdfc67767f7b51a506",
+    "notara-whiteboard.js": "c9990798c3bb060d8db067a2a26e5a2e225ee530e2412718b4a583b19d742fcd",
+    "notara-whiteboard.css": "7192a0b1eb0bb151dfb82a8abefcc6791756e2859387aee41d8b77043095150e"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "light": {
+    "cellHeight": 36,
+    "contentVisible": true,
+    "display": "flex",
+    "gap": 18
+  },
+  "dark": {
+    "bg": "rgb(21, 24, 29)",
+    "display": "flex",
+    "gap": 18
+  },
+  "narrow": {
+    "layout": "column",
+    "navDirection": "row",
+    "navScrollable": true,
+    "pageWidth": 390,
+    "viewport": 390
+  },
+  "errors": [],
+  "assertions": "PASS"
+}

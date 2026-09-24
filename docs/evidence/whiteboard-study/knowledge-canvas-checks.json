@@ -1,0 +1,59 @@
+{
+  "date": "2026-09-24",
+  "scope": "synthetic knowledge canvas",
+  "checks": [
+    {
+      "name": "知识面沿用点阵手写与高亮",
+      "pass": true
+    },
+    {
+      "name": "新增资料后3个节点不重叠",
+      "pass": true
+    },
+    {
+      "name": "两面共用一个工具条和输入框",
+      "pass": true
+    },
+    {
+      "name": "资料移动后关系线更新",
+      "pass": true
+    },
+    {
+      "name": "资料仍打开正确内容",
+      "pass": true
+    },
+    {
+      "name": "回到板书保留草稿与共用工具条",
+      "pass": true
+    },
+    {
+      "name": "知识面可手动给资料说明高亮",
+      "pass": true
+    },
+    {
+      "name": "知识面缩放作用于资料画布",
+      "pass": true
+    },
+    {
+      "name": "切换两面保留资料位置和高亮",
+      "pass": true
+    },
+    {
+      "name": "知识面控制台无异常",
+      "pass": true
+    },
+    {
+      "name": "空课堂知识面不虚构资料和连线",
+      "pass": true
+    },
+    {
+      "name": "切换课程只显示该课资料",
+      "pass": true
+    },
+    {
+      "name": "最新演示仍保留共享工具条",
+      "pass": true
+    }
+  ],
+  "logs": []
+}

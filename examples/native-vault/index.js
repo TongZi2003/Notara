@@ -126,6 +126,8 @@ export class NotaraVaultRemote extends TypertRemoteService {
   }
 
   async teachingSettings(input) {return this.teachingCall('settings',exactInput(input,['sessionId']));}
+  async board(input) {return this.teachingCall('board',exactInput(input,['sessionId']));}
+  async mutateBoard(input) {return this.teachingCall('mutateBoard',exactInput(input,['sessionId','expectedRevision','patch'],['blockId','sourcePath']));}
   async classroom(input) {return this.teachingCall('classroom',exactInput(input,['sessionId']));}
   async solverTask(input) {return this.teachingCall('solverTask',exactInput(input,['sessionId','taskId']));}
   async configureSolver(input) {return this.teachingCall('configureSolver',exactInput(input,['sessionId','expectedRevision','preset','route','tools'],['persona']));}

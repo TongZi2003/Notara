@@ -1,0 +1,38 @@
+{
+  "plugin": "0.16.7",
+  "desktop": {
+    "width": 1155,
+    "headerHeight": 58,
+    "boardY": 114.5,
+    "previousBoardY": 200.5,
+    "headerCount": 1,
+    "primaryTabListCount": 1,
+    "settingsDialogOpened": true,
+    "nativeMenuOpened": true,
+    "chatTogglePassed": true
+  },
+  "narrow": {
+    "composer": 1,
+    "draft": "顶栏切换后保留草稿",
+    "overflow": false,
+    "tabs": [
+      {
+        "right": 118,
+        "text": "对话"
+      },
+      {
+        "right": 172,
+        "text": "白板"
+      },
+      {
+        "right": 226,
+        "text": "教室"
+      }
+    ],
+    "visiblePanes": [
+      "对话区域"
+    ],
+    "width": 390
+  },
+  "consoleErrors": []
+}

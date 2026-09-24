@@ -1,0 +1,42 @@
+{
+  "origin": "http://127.0.0.1:53002",
+  "checks": [
+    {
+      "name": "Notara lesson introduction replaces native welcome",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "There is exactly one native input",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Directory selector is folded from normal lesson entry",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Native course options remain available on demand",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Reference handoff preserves native draft and the single input",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "New introduction stays readable in a narrow pane",
+      "ok": true,
+      "detail": "{\"input\":\"13px\",\"overflow\":false,\"title\":\"18px\",\"width\":248.75}"
+    },
+    {
+      "name": "First send leaves the welcome and enters the same native conversation",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "consoleErrors": [],
+  "model": "synthetic echo adapter"
+}

@@ -40,7 +40,13 @@ export function createVaultCalendar(React, { STYLE, IconButton }) {
     const [busy, setBusy] = useState(false), busyRef = useRef(false), [tick, setTick] = useState(0);
     const [scheduling, setScheduling] = useState(false), [routes, setRoutes] = useState(null), [lessonKey, setLessonKey] = useState('');
     const days = useMemo(() => gridDays(month), [month]);
+    useEffect(()=>{if(props.mode)setMode(props.mode);},[props.mode]);
     useEffect(() => {
+      if(props.viewRequest?.reviewFilter==='due'){
+        setMode('review');setFilter('due');setQuery('');setTag('');setOffset(0);
+        setSelected('');setDetail(null);setNote('');setAssessments(blankAssessments());
+        props.completeViewRequest();return;
+      }
       if (!props.viewRequest?.focus) return;
       const target = props.viewRequest.focus;
       if (/^\d{4}-\d{2}-\d{2}$/.test(target)) { setDate(target); setMonth(monthStart(target)); setMode('calendar'); }
@@ -137,7 +143,7 @@ export function createVaultCalendar(React, { STYLE, IconButton }) {
     const invalidPaths = [...new Set([...(calendar?.invalid??[]),...(queue?.invalid??[])].map(row=>row.path))];
     return h('div', { className: 'nv-calendar', style: STYLE.page }, h('style', null, CSS),
       h('header', { className: 'nv-calendar-top' },
-        h('div', { className: 'nv-calendar-modes', 'aria-label': '日历视图' },
+        !props.hideModes&&h('div', { className: 'nv-calendar-modes', 'aria-label': '日历视图' },
           ...[['calendar','日历'],['review','间隔复习']].map(([value,label]) => h('button', { key: value, 'aria-pressed': mode === value, onClick: () => setMode(value) }, label))),
         h('span', { style: { marginLeft: 'auto', ...STYLE.notice } }, today),
         h(IconButton, { icon: 'refresh', label: '刷新日历与复习', onClick: () => setTick(value => value + 1) })),

@@ -1,0 +1,59 @@
+{
+  "origin": "http://127.0.0.1:54093",
+  "startedAt": "2026-09-24T06:06:38.888Z",
+  "model": "isolated synthetic echo adapter",
+  "checks": [
+    {
+      "name": "Library opens its file tree by default",
+      "ok": true
+    },
+    {
+      "name": "Cards show rendered math",
+      "ok": true
+    },
+    {
+      "name": "Card excerpts render wiki references as readable text",
+      "ok": true
+    },
+    {
+      "name": "Filtered card counts omit unrelated insights",
+      "ok": true
+    },
+    {
+      "name": "Final build native launch works",
+      "ok": true
+    },
+    {
+      "name": "Companion collapses file rail on handoff",
+      "ok": true
+    },
+    {
+      "name": "Final draft and reference preserved",
+      "ok": true
+    },
+    {
+      "name": "Closing active diagnostics returns to conversation",
+      "ok": true
+    },
+    {
+      "name": "Final route detail retains readable stage area",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Final second launch uses a separate lesson",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Final original draft survives another lesson",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "console": [],
+  "narrow": {
+    "viewport": "390x844",
+    "scope": "responsive rendering only; interaction not validated"
+  }
+}

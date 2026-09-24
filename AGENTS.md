@@ -6,6 +6,9 @@
 
 - DSH 依赖版本以 `package-lock.json` 和 `docs/runtime/upstream-lock.json` 为准，所有 `@deepseek-ai/dsh-*` 必须保持同一 `0.1.5-rc.2` 系列。
 - Node 下限为 `>=24.0.0`；本机验证使用 Node `v24.13.0`。
+- Native Vault 0.15.0 使用现代白灰主题与「今日 / 资料库 / 计划」全局导航；课堂沿用原生 session 与唯一输入框，切页只切换视图可见性。今日开课以当前课堂所属的已登记 workspace 为目标，未选定时只接受唯一 workspace，不向当前旧课堂直接发送。系统上下文与轨迹默认隐藏，可在设置的「学习界面」显式开启调试。路线的课程列表和图谱共用同一文件投影；双面白板接线以本文 0.16.6 规则为准。
+- Native Vault 0.15.1 在侧栏品牌下选择学习目录，课堂列表仅显示原生目录登记中的会话，排除 blank、subagent 和 archived。目录身份优先从当前原生 session 反查；清空会话后可保留仍已登记的目录。选择目录沿用原生 workspaces/UI API，不重建 session 生命周期。极窄分屏按 `notara-pane` 容器适配字号；rc.2 原生 HeroShell/Composer 样式选择器在上游升级时须重新核对。
+- Native Vault 0.15.2 通过 `conversation.hero.intro` 接缝替换空课堂的欢迎说明，原生 composer 与 seat 保持原位置和生命周期；未安装插件时使用原生介绍作为 fallback。目录/教学模式保留在“课程选项”内；缺目录时直接显示原生选择控件，不能把输入框永久置于不可用状态。该接缝在 `scripts/patch-conversation-views.ts` 随 rc.2 摘要校验安装和剥离。
 - 新用户首选 Native Vault 的 `npm run vault` 持久入口；`npm run trial` 和默认 `dev:isolated` 保留给旧工作台。Windows 安装说明使用 Git for Windows 附带的 Git Bash；`dev-native-vault.ts` 的目录链接统一走 Windows junction。没有 Windows 实机证据时不得报告 Windows 安装或课堂验收通过。已有 Vault 运行目录固定插件快照，不能把 `git pull` 或新建会话宣称为原地版本升级。
 - 旧 StudyForge 产品基线只作为 `docs/migration/` 中记录的历史行为来源，不是运行时依赖；不要读取本机绝对路径来替代仓库内证据。
 - `docs/migration/` 保存当前迁移合同、Notara 规格和验收边界；`docs/runtime/`、`docs/ui/` 与 `docs/evidence/` 保存实现、运行和验证记录。
@@ -24,7 +27,7 @@
 - Native Vault 0.14.4 的课堂规则要求主教师在一道题讨论收束、转入下一题前记录一次本轮评估。复用本题题卡，缺卡时按模板与真实题面建卡；有认知变化先补正文“学生理解”，再取最新revision记录评估。纯讲解无学生表现记not_observed，不凭听过启动复习。收束由教师按语义判断，不是逐消息自动hook；正文与评估是分别核对回执的两次写入，评估和排期本身仍在同文件一次CAS完成。
 - Native Vault 0.14.5 的 `material-search` 通过查询意图展开、原生检索与正文语义判断找卡片，可交只读 `general` 独立整理；不是向量索引。`teaching-reflection` 反思教学判断，将必要更新分流至小结、画像、锦囊或路线，内置 Skill 先给修订建议，不就地改快照；当前教学预设没有个人文件 Skill 自动发现。`learning-review` 综合近期进展、兴趣与目标给下一步方向，按已知授权目录跨集取证，不宣称全局发现或统一复习。找卡片/学习复盘直接展示，教学反思折叠到更多技能；三者按需加载，归档反思并入已有小结。
 - Native Vault 0.9.0 的单文件删除走 Vault `.trash` 回收站，可恢复但不覆盖同名文件；所有点目录不进入资产、搜索和图谱投影。PDF 图层与矩形批注保存在 `.notara/pdf-annotations/`，绑定 PDF revision；区域引用卡片保留原版图像、页码、矩形和可选标注引用，不把逐页文字层直接拆成卡片。原 PDF 改版后不得把旧标注自动当作新版位置。
-- Native Vault 教师仅保留 `set_teaching_settings`、`open_learning_lesson`、`save_lesson_summary`、`ask_worker` 四个专用模型工具；主教师普通文件读写和搜索统一用 DSH 原生 Bash，确定性复习/排课/PDF 辅助走 `vault-cli.js`。CLI 与 UI 共用 IO 和文件计算；Host 通过原生 `shellEnv` 注入 `DSH_NOTARA_*`，不得让模型填写执行身份。0.14.8 起主教师不再暴露或接受 `read/write/edit/glob/grep`；课堂写工具默认请求批准，原生 `danger-full-access` 覆盖这层额外要求；原生 deny/ask 和工作员工具范围限制仍保留。Bash 完全沿用原生沙箱与审批决定，不做命令字符串“只读”猜测，也不额外统一审批。每次 Bash 的 `description` 按 Skill 用 `[notara:<intent>] 中文说明` 标记用途，0.8.2 在原生工具 slot 中将用途显示为小字折叠行，点击展开命令与输出，普通返回不另显示状态；未标记的调用沿用原生展示。标记不是权限或执行成功依据。
+- Native Vault 教师保留 `set_teaching_settings`、`open_learning_lesson`、`save_lesson_summary`、`ask_worker`、`write_lesson_board` 五个专用模型工具；主教师普通文件读写和搜索统一用 DSH 原生 Bash，确定性复习/排课/PDF 辅助走 `vault-cli.js`。CLI 与 UI 共用 IO 和文件计算；Host 通过原生 `shellEnv` 注入 `DSH_NOTARA_*`，不得让模型填写执行身份。0.14.8 起主教师不再暴露或接受 `read/write/edit/glob/grep`；课堂写工具默认请求批准，原生 `danger-full-access` 覆盖这层额外要求；原生 deny/ask 和工作员工具范围限制仍保留。Bash 完全沿用原生沙箱与审批决定，不做命令字符串“只读”猜测，也不额外统一审批。每次 Bash 的 `description` 按 Skill 用 `[notara:<intent>] 中文说明` 标记用途，0.8.2 在原生工具 slot 中将用途显示为小字折叠行，点击展开命令与输出，普通返回不另显示状态；未标记的调用沿用原生展示。标记不是权限或执行成功依据。
 
 - Native Vault 0.14.7 的评估要求当前实际困难证据；缺少步骤展示不等于失败，已纠正的历史错误不冒充当前困难。常驻规则、按需 Skill 与 CLI help 同步约束；有真实认知变化先保存题卡正文，再按最新 revision 记评估，分别核对回执。教学小结保存即为教学归档，默认保留原生会话继续交流；只有用户明确从会话列表收起时才调用原生归档。
 
@@ -33,6 +36,14 @@
 - Native Vault 0.14.8 老师人格在本课教学设置、工作员人格在各预设的教室设置中独立保存，上限4000字符。老师空白恢复默认大肥鱼；工作员空白只用任务职责，省略配置字段保持原值。`persona.js` 是纯文本装配，身份风格不改工具/权限/交付边界，也不按模型名自动猜人格。首次介绍应出现在最终可见答复，不仅是被折叠的工具进度。
 
 ## 工作约定
+
+- Native Vault 0.16.13 与客户端外观入口只开放极简主题；历史手帐偏好保留但不自动启用，样式素材留待后续润色。原型同样不开放手帐切换。设置导航使用独立的纵向列表，主侧栏导航规则只匹配直接子元素，避免设置菜单被撑到中部；窄屏设置改成顶部横向导航。
+
+- Native Vault 0.16.12 首页与正式会话共用唯一 `nativeConversationBody` 输入组件，首页通过 `prepareHome` 选择本目录原生空白课堂，不复制或覆盖原生草稿；发送后进入同一课堂。首页日期问候与正式空课堂欢迎文字居中。`homeQueue` 从真实到期复习卡与未安排的主线课程投影近期候选（最多8项）；到期卡超过5张时按服务端完整 `total` 合并为一条，点击清除旧筛选并打开到期队列，5张以内仍逐张定位。排期使用原生 `scheduleLesson` CAS。单条待办每6.5秒轮换，悬停、焦点操作、弹窗、隐藏页面和减少动态效果偏好均暂停；可手动切换/暂停。首页不写独立待办本，不把打开卡片推定为掌握。白板与知识面无内容时保持留白，仅保留必要的错误与运行状态。
+
+- Native Vault 0.16.7 将课堂标题、主视图切换与课堂操作整合为 `workspace-client.js / lessonHeader` 的一条顶栏，复用原生 Header 标题和更多菜单。`对话 / 白板 / 教室` 只有一个主 tablist，白板两面和导出保留在画布内部；主视图切换和窄屏切换继续共用唯一原生 composer。
+
+- Native Vault 0.16.6 已接入双面课堂白板：`write_lesson_board` 通过 Host 绑定 `lesson-board/<session hash>.md`，稳定块标记和布局随同一 Markdown 保存；`board` / `mutateBoard` 复用原生会话授权与文件 CAS。课堂工具集合在既有四个专用工具基础上增加 `write_lesson_board`，只读工作员仍不能写入。知识面来自本课板书的实际引用，资料说明不复制教师参考正文。客户端订阅原生 `SessionBinding.eventSource` 的参数增量（rc.2 聊天摘要会省略纯工具流）；暂态文字不等于落盘，取消/拒绝撤掉暂态。白板保留唯一原生输入框，窄屏按工作区实际宽度切换。导出排除未勾选的提示/参考/尝试正文；浏览器下载能力单独验收。
 
 - 普通任务按「读取适用规则 → 核对真实状态 → 最小完整改动 → 比例化验证 → 简短交付」执行；能从仓库、日志、配置或现有测试发现答案时不先追问。
 - 诊断类请求只定位原因与证据；除非同时要求修复，否则不改代码。

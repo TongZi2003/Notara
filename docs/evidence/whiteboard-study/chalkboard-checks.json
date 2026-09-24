@@ -1,0 +1,9 @@
+{
+  "scope": "synthetic prototype visual refinement",
+  "checks": {
+    "darkBoard": true,
+    "singleComposer": true,
+    "transparentBlocks": true,
+    "writingInRegion": true
+  }
+}

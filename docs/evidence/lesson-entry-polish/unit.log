@@ -1,0 +1,27 @@
+✔ the browser entry has no unresolved identifiers in deferred event handlers (527.69775ms)
+✔ 今日提交把原文交给目标 blank 会话的原生输入，只报告已交给原生输入 (2.031333ms)
+✔ 已有非空 current 课堂不会被串课 (0.166375ms)
+✔ blank 会话里已有草稿时明确报错，不覆盖也不发送 (0.128875ms)
+✔ 多个已注册工作区且没有显式选择时拒绝，不猜目标也不碰任何课堂 (0.078417ms)
+✔ 切页取消后不再开课，文字原样交还调用方 (0.1315ms)
+✔ 重复提交时后一次作数，前一次回来也不抢课堂 (0.135ms)
+✔ 输入始终不是 plain 时有界失败，不写草稿也不提交 (62.650375ms)
+✔ connect 期间用户选了别的课堂时让位，不开课也不写入 (0.179209ms)
+✔ 空文本但会话里留有附件或引用时也算冲突，不一起发出 (0.176ms)
+✔ 列表没有明确 blank=true 时不当空课，拒绝开课 (0.083959ms)
+✔ launch survives UI subscriber replacement during a native session transition (1.385667ms)
+✔ leaving Today cancels a pending launch and keeps its text without stealing selection (0.190583ms)
+✔ duplicate clicks admit a single native submission (0.104375ms)
+✔ Today launches in the workspace owning the currently selected lesson (0.102708ms)
+✔ directory lessons use registry membership and exclude archived, blank and worker records (0.126792ms)
+✔ clearing the current lesson keeps a still-registered directory without guessing another (0.052709ms)
+✔ an empty single directory can be selected before any lesson exists (0.044875ms)
+✔ Today respects the retained directory when current lesson is cleared (0.101459ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 814.244

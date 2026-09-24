@@ -20,7 +20,7 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
     }
 
     const drafts = createDraftStore('asset-draft');
-    function App({ ctx, sessionId, visible, openView, viewRequest, completeViewRequest }) {
+    function App({ ctx, sessionId, visible, global = false, openView, viewRequest, completeViewRequest }) {
       // ctx.remote.* returns a fresh proxy per access; pin it once or every
       // render would re-fire the effects and loops that take it as a dep.
       // The whole page — files, templates, embeds, PDF cards — stays in this
@@ -32,6 +32,7 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
       const [selected, setSelected] = useState(drafts.get(sessionId)?.path ?? (viewRequest?.focus ? parseMediaTarget(viewRequest.focus).path : ''));
       const [anchor, setAnchor] = useState('');
       const [sidebar, setSidebar] = useState(false), [searching, setSearching] = useState(false), [creating, setCreating] = useState(false);
+      useEffect(()=>{setSidebar(global&&window.innerWidth>760);},[global]);
       const [extracting, setExtracting] = useState(false), [extractTitle, setExtractTitle] = useState(''), [extractQuote, setExtractQuote] = useState(''), [section, setSection] = useState('');
       const [assetLocator, setAssetLocator] = useState(null), [contextPath, setContextPath] = useState(null);
       const [busy, setBusy] = useState(false);

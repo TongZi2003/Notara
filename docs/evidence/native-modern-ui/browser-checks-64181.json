@@ -1,0 +1,139 @@
+{
+  "origin": "http://127.0.0.1:64181",
+  "checks": [
+    {
+      "name": "Today projects actual due cards and scheduled lesson",
+      "ok": false,
+      "detail": ""
+    },
+    {
+      "name": "Today due count",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Today scheduled lesson",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Empty route stays explicit",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Route stages keep space with detail open",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Route optional paths expand",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Routes graph uses real lesson nodes",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Calendar shows scheduled lesson",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Empty calendar date has explicit empty state",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Incomplete review form cannot save",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Review saves unknown without changing schedule",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Card pending filter has only pending knowledge card",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Card type filter isolates insight",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Card empty filter explicit",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Today submits once through native conversation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "One native composer",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "System context hidden",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Global navigation preserves one hidden composer",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Reference handoff preserves lesson draft",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Reference handoff opens companion",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Teaching settings save to native lesson",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Classroom retains worker view",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Second launch creates separate lesson",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Old lesson draft survives second lesson launch",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Dark theme follows native preference",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Diagnostics explicitly enable native trajectory",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "harnessNotes": [
+    "First combined count check used an incorrect whitespace assumption; corrected with DOM count assertion.",
+    "Closing diagnostics on active trajectory exposed a blank-pane bug, fixed after this run."
+  ]
+}

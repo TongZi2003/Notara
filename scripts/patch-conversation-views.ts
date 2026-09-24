@@ -5,6 +5,12 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const file = new URL('../node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js', import.meta.url);
 const original = '677c5fa3788255531d3655917fafc2f55077ad7803d4da10cda7739c68f873cf';
 const changes = [
+  // Expose only the empty lesson's introduction. The native input and its seat
+  // remain siblings owned by ConversationRoot, with the original UI as fallback.
+  ['"conversation.hero.brand.mark": {', '"conversation.hero.intro": { kind: "single", scope: "root" },\n\t\t\t\t\t"conversation.hero.brand.mark": {'],
+  ['hero && (0, react_jsx_runtime.jsx)(HeroShell, {\n\t\t\t\t\t\tt,\n\t\t\t\t\t\trenderSlot\n\t\t\t\t\t}),\n\t\t\t\t\thero && heroWorkspaceRow,', 'hero && renderSlot("conversation.hero.intro", { nativeWorkspaceSelector: heroWorkspaceRow, needsWorkspace: inert }, { fallback: (0, react_jsx_runtime.jsxs)(react.Fragment, { children: [(0, react_jsx_runtime.jsx)(HeroShell, { t, renderSlot }), heroWorkspaceRow] }) }),'],
+  // Keep the native submit/stop control; expose its foreground for pale themes.
+  ['background:var(--dsw-alias-button-info-fill);color:#fff;cursor:pointer;', 'background:var(--dsw-alias-button-info-fill);color:var(--dsh-composer-primary-color,#fff);cursor:pointer;'],
   // The scroll body owns scrolling. Keep the conversation shell from being
   // panned horizontally by focus when its narrow composer overflows.
   ['.wSkVaW_root[data-phase=active]{overflow:hidden}', '.wSkVaW_root[data-phase=active]{overflow:clip}'],

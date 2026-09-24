@@ -1,0 +1,62 @@
+{
+  "origin": "http://127.0.0.1:59173",
+  "checks": [
+    {
+      "name": "Narrow fonts actually scale",
+      "ok": true,
+      "detail": "{\"cardWidth\":218.75,\"container\":\"notara-pane\",\"input\":\"13px\",\"overflow\":false,\"title\":\"18px\",\"width\":248.75}"
+    },
+    {
+      "name": "Narrow composer does not overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Native send works in a very narrow pane",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Empty directory has no foreign sessions",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Second directory list contains its own lesson only",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Directory chooser has no horizontal overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Switching back restores only first directory lessons",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Draft survives directory switch",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Recent lessons respect selected directory",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Starter keeps content as editable unsent draft",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Starter never replaces an existing draft",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "model": "synthetic echo adapter",
+  "consoleErrors": []
+}

@@ -22,7 +22,7 @@ const paths = {
   chat:'M21 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 19 0Z', graph:'M12 5 5 19m7-14 7 14M5 19h14M10 3h4v4h-4zM3 17h4v4H3zM17 17h4v4h-4z',
   upload:'M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5', save:'M19 21H5l-2-2V3h15l3 3v13zM7 3v6h10V3M7 21v-8h10v8', refresh:'M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 6M4 12l2 6a7 7 0 0 0 12-1',
   copy:'M8 8h13v13H8zM16 8V3H3v13h5', extract:'M4 3h16v18H4zM8 7h8M8 11h8M8 15h4', left:'m15 5-7 7 7 7', right:'m9 5 7 7-7 7', minus:'M5 12h14', fit:'M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5', target:'M12 2v4M12 18v4M2 12h4M18 12h4M19 12a7 7 0 1 1-14 0 7 7 0 0 1 14 0', filter:'M3 4h18l-7 8v7l-4 2v-9z', book:'M3 4h7l2 2 2-2h7v16h-7l-2 2-2-2H3z',
-  sliders:'M4 8h9M17 8h3M4 16h3M11 16h9M15 5v6M7 13v6', log:'M5 4h14v16H5zM8 9h8M8 13h8M8 17h5',
+  folder:'M3 7V5h6l2 2h10v13H3z', sliders:'M4 8h9M17 8h3M4 16h3M11 16h9M15 5v6M7 13v6', log:'M5 4h14v16H5zM8 9h8M8 13h8M8 17h5',
   calendar:'M4 5h16v16H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2',
   trash:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7', layers:'M12 3 2 8l10 5 10-5-10-5ZM2 12l10 5 10-5M2 16l10 5 10-5',
 };

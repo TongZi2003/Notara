@@ -3,6 +3,7 @@ import { mediaLocatorSuffix, parseMediaTarget } from './media.js';
 import { CANVAS_CSS, KNOWLEDGE_ROLES, createVaultCanvas } from './canvas-client.js';
 import { createVaultClient } from './remote-client.js';
 import { createFileActions } from './file-actions-client.js';
+import { renderMath } from './math-latex.js';
 
 export const VIEW_IDS = { assets: 'notara-vault', graph: 'notara-vault-graph', cards: 'notara-vault-cards', routes: 'notara-vault-routes', calendar: 'notara-vault-calendar' };
 // A source whose position could not be read says so, instead of looking like a
@@ -11,7 +12,7 @@ export const sourceLabel = source => `${source.path}${source.locator?.page ? ` �
 export const focusFor = (path, locator) => `${path}${mediaLocatorSuffix(locator)}`;
 // 锦囊 is a card with its own type, so both kinds belong to the card library.
 const LIBRARY_TYPES = new Set(['card', 'insight']);
-const CARD_TYPE_LABEL = { insight: '锦囊' };
+const CARD_TYPE_LABEL = { card:'知识卡片', insight: '锦囊', topic:'教学专题' };
 // 源目录/教学专题 carry their own type, so the graph labels them from `type`
 // instead of reusing the topology role（原书（根））and reading a 教学专题 as the
 // book itself.
@@ -86,27 +87,69 @@ export function createVaultViews(React, { STYLE, IconButton, Menu, Dialog }) {
   /** 层级分组 is the card library's own reading order, so both kinds group the same way. */
   function CardsView(props) {
     const vault = useVault(props.ctx, props.sessionId), { graph, loading, error } = useGraph(vault, props.visible);
-    const [search, setSearch] = useState(''), [source, setSource] = useState(''), [grouped, setGrouped] = useState(true);
-    const cards = graph.nodes.filter(node => LIBRARY_TYPES.has(node.type));
-    const insights = cards.filter(node => node.type === 'insight').length;
+    const [search, setSearch] = useState(''), [source, setSource] = useState(''), [grouped, setGrouped] = useState(false);
+    const [type,setType]=useState('all'),[tag,setTag]=useState('');
+    const [reviewFilter,setReviewFilter]=useState('all'),[reviews,setReviews]=useState(null),[reviewError,setReviewError]=useState('');
+    useEffect(()=>{
+      if(!props.visible)return;
+      let live=true,pending=false;
+      setReviews(null);
+      const refresh=async()=>{
+        if(pending)return;pending=true;
+        try{
+          const hits=new Map();let offset=0,today='',incomplete=false;
+          do{
+            const result=await vault.reviewQueue({status:reviewFilter,offset,limit:200,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone});
+            if(!live)return;
+            if(!result?.ok)throw new Error('read');
+            const page=result.value;today=page.today;
+            for(const row of page.hits)hits.set(row.path,row.state);
+            incomplete ||= !!(page.truncated||page.unreadable||page.invalid?.length);
+            if(page.nextOffset===null)break;
+            if(page.nextOffset<=offset)throw new Error('pagination');
+            offset=page.nextOffset;
+          }while(live);
+          if(live){setReviews({hits,today});setReviewError(incomplete?'部分卡片的复习属性未能读入。':'');}
+        }catch{if(live){setReviews(null);setReviewError('复习状态暂时无法读取。');}}
+        finally{pending=false;}
+      };
+      void refresh();const timer=setInterval(refresh,15000);
+      window.addEventListener('notara-vault-changed',refresh);
+      return()=>{live=false;clearInterval(timer);window.removeEventListener('notara-vault-changed',refresh);};
+    },[vault,props.visible,reviewFilter]);
+    const cards = graph.nodes.filter(node => LIBRARY_TYPES.has(node.type)||node.type==='topic');
     const sources = [...new Set(cards.flatMap(node => [...node.sources.map(item => item.path), ...(node.parent ? [node.parent] : [])]))].sort();
-    const filtered = cards.filter(node => (!source || node.parent === source || node.sources.some(item => item.path === source)) && `${node.title}\n${node.excerpt}\n${node.path}\n${CARD_TYPE_LABEL[node.type] ?? ''}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+    const tags=[...new Set(cards.flatMap(node=>node.tags))].sort();
+    const filtered = cards.filter(node => (reviewFilter==='all'||reviews?.hits.has(node.path))&&(type==='all'||node.type===type)&&(!tag||node.tags.includes(tag))&&(!source || node.parent === source || node.sources.some(item => item.path === source)) && `${node.title}\n${node.excerpt}\n${node.path}\n${CARD_TYPE_LABEL[node.type] ?? ''}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+    const insights = filtered.filter(node => node.type === 'insight').length;
     const groups = new Map();
-    for (const card of filtered) { const level = grouped ? card.depth : 'all'; if (!groups.has(level)) groups.set(level, []); groups.get(level).push(card); }
-    return h(Frame, { title: '卡片库', status: error || `${cards.length} 张卡片${insights ? ` · ${insights} 张锦囊` : ''}`, tools: h(React.Fragment, null,
-      h('input', { style: { ...STYLE.search, width: 180, margin: 0 }, placeholder: '搜索卡片…', value: search, onChange: event => setSearch(event.target.value) }),
-      h('select', { style: { ...STYLE.templateInput, width: 170, margin: 0 }, 'aria-label': '来源过滤', value: source, onChange: event => setSource(event.target.value) }, h('option', { value: '' }, '全部来源'), sources.map(path => h('option', { key: path, value: path }, path))),
-      h('label', { style: STYLE.notice }, h('input', { type: 'checkbox', checked: grouped, onChange: event => setGrouped(event.target.checked) }), ' 按层级分组')) },
-      h('div', { className: 'nv-cards-scroll' }, loading ? h('div', { style: STYLE.empty }, '正在读取…') : !cards.length ? h('div', { style: STYLE.empty }, '还没有卡片。从资产页选取一段内容开始。') : !filtered.length ? h('div', { style: STYLE.empty }, '没有符合条件的卡片。')
-        : [...groups.entries()].sort(([a], [b]) => (a ?? Infinity) - (b ?? Infinity)).map(([level, nodes]) => h('section', { key: String(level) },
-          grouped && h('h2', { style: { fontSize: 13, color: 'var(--dsw-alias-label-secondary)', margin: '10px 0 14px' } }, level === null ? '层级未确定' : `第 ${level} 层`),
+    for (const card of filtered) { const level = grouped ? (graph.nodes.find(n=>n.path===card.parent)?.title||'未归入专题') : 'all'; if (!groups.has(level)) groups.set(level, []); groups.get(level).push(card); }
+    const excerpt=text=>String(text).replace(/!?\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,(_match,target,label)=>label||target.split('/').at(-1).replace(/\.md$/,'')).split(/(\$[^$\n]+\$)/g).map((part,i)=>{
+      if(part.startsWith('$')&&part.endsWith('$')){const math=renderMath(part.slice(1,-1),false);if(math)return h('span',{key:i,dangerouslySetInnerHTML:{__html:math}});}
+      return part;
+    });
+    return h(Frame, { title: '卡片', status: error || `${filtered.length} 项${insights ? ` · ${insights} 张锦囊` : ''}`, tools: h(React.Fragment, null,
+      h('input', { style: { ...STYLE.search, width: 180, margin: 0 }, 'aria-label':'搜索卡片',placeholder: '搜索卡片…', value: search, onChange: event => setSearch(event.target.value) }),
+      h('select', { style: { ...STYLE.templateInput, width: 170, margin: 0 }, 'aria-label': '来源过滤', value: source, onChange: event => setSource(event.target.value) }, h('option', { value: '' }, '全部来源'), sources.map(path => h('option', { key: path, value: path }, graph.nodes.find(n=>n.path===path)?.title||path))),
+      h('label', { style: STYLE.notice }, h('input', { type: 'checkbox', checked: grouped, onChange: event => setGrouped(event.target.checked) }), ' 按专题分组')) },
+      h('div',{className:'nv-card-filters','aria-label':'卡片筛选'},
+        [['all','全部'],['card','知识卡片'],['insight','锦囊'],['topic','教学专题']].map(([key,label])=>h('button',{key,'aria-pressed':type===key,onClick:()=>setType(key)},label)),
+        h('span',{className:'nv-filter-divider'}),
+        h('select',{'aria-label':'卡片复习状态',style:{...STYLE.templateInput,width:140,margin:0},value:reviewFilter,onChange:e=>setReviewFilter(e.target.value)},
+          [['all','全部复习状态'],['due','今日到期'],['pending','待评估'],['learning','复习中'],['familiar','熟悉']].map(([value,label])=>h('option',{key:value,value},label))),
+        tags.map(value=>h('button',{key:value,'aria-pressed':tag===value,onClick:()=>setTag(tag===value?'':value)},'#'+value))),
+      reviewError&&h('p',{role:'status',style:{...STYLE.notice,margin:'8px 24px'}},reviewError),
+      h('div', { className: 'nv-cards-scroll' }, loading || (reviewFilter!=='all'&&!reviews&&!reviewError) ? h('div', { style: STYLE.empty }, '正在读取…') : !cards.length ? h('div', { style: STYLE.empty }, '还没有卡片。从文件视图选取一段内容开始。') : !filtered.length ? h('div', { style: STYLE.empty }, reviewError&&reviewFilter!=='all'?'复习状态读取失败，请稍后重试。':'没有符合条件的卡片。')
+        : [...groups.entries()].sort(([a], [b]) => String(a).localeCompare(String(b),'zh-CN')).map(([level, nodes]) => h('section', { key: String(level) },
+          grouped && h('h2', { style: { fontSize: 13, color: 'var(--dsw-alias-label-secondary)', margin: '10px 0 14px' } }, level),
           h('div', { className: 'nv-card-grid' }, nodes.map(node => h('article', { className: 'nv-card', key: node.path },
             h('h3', null, h('button', { style: { ...STYLE.link, fontSize: 16, textDecoration: 'none' }, 'aria-label': `打开卡片 ${node.title}`, onClick: () => props.openView(VIEW_IDS.assets, node.path) }, node.title),
-              CARD_TYPE_LABEL[node.type] && h('span', { className: 'nv-tag-group', style: { marginLeft: 8, fontSize: 12, color: 'var(--dsw-alias-label-secondary)' } }, CARD_TYPE_LABEL[node.type])),
-            h('p', null, node.excerpt || '这张卡片还没有摘录。'),
+              CARD_TYPE_LABEL[node.type] && h('span', { className: 'nv-card-kind' }, CARD_TYPE_LABEL[node.type])),
+            node.type==='card'&&h('div',{className:'nv-card-review'},reviews?.hits.has(node.path)?(!reviews.hits.get(node.path).learned?'待评估':reviews.hits.get(node.path).next_review<=reviews.today?'今日到期':'下次复习 '+reviews.hits.get(node.path).next_review):'复习状态待读取'),
+            h('p', null, excerpt(node.excerpt || '这张卡片还没有摘录。')),
             h('div', { className: 'nv-card-source' },
-              node.sources.map((item, index) => h('button', { key: `${item.path}:${index}`, style: { ...STYLE.link, textAlign: 'left', fontSize: 12 }, 'aria-label': `阅读来源 ${sourceLabel(item)}`, onClick: () => props.openView(VIEW_IDS.assets, focusFor(item.path, item.locator)) }, `↩ ${sourceLabel(item)}`)),
-              node.parent && !node.sources.some(item => item.path === node.parent) && h('button', { style: STYLE.link, onClick: () => props.openView(VIEW_IDS.graph, node.parent) }, `${parentLabelOf(graph, node.parent)}：${node.parent}`),
+              node.sources.map((item, index) => h('button', { key: `${item.path}:${index}`, style: { ...STYLE.link, textAlign: 'left', fontSize: 12 }, 'aria-label': `阅读来源 ${sourceLabel(item)}`, onClick: () => props.openView(VIEW_IDS.assets, focusFor(item.path, item.locator)) }, '↩ '+sourceLabel({...item,path:graph.nodes.find(n=>n.path===item.path)?.title||item.path}))),
+              node.parent && !node.sources.some(item => item.path === node.parent) && h('button', { style: STYLE.link, onClick: () => props.openView(VIEW_IDS.graph, node.parent) }, `${parentLabelOf(graph, node.parent)}：${graph.nodes.find(n=>n.path===node.parent)?.title||node.parent}`),
               node.type==='card' && h('button', { style: { ...STYLE.link, textAlign: 'left', fontSize: 12 }, onClick: () => props.openView(VIEW_IDS.calendar, node.path) }, '复习安排'),
               h('button', { style: { ...STYLE.link, textAlign: 'left', fontSize: 12 }, onClick: () => props.openView(VIEW_IDS.graph, node.path) }, '在图谱中查看')))))))));
   }

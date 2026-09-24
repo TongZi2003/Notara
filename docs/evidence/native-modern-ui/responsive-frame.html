@@ -1,0 +1,8 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>Notara responsive verification fixture</title>
+<style>body{margin:0;padding:16px;background:#e9edf0;font:12px system-ui}iframe{display:block;width:390px;height:844px;border:1px solid #c9cfd7;background:white}p{margin:0 0 8px}</style>
+<p>390 × 844 · isolated runtime · browser verification fixture</p>
+<iframe title="手机尺寸的 Notara"></iframe>
+<script>
+const target=new URLSearchParams(location.search).get('target');
+if(/^http:\/\/127\.0\.0\.1:\d+\/$/.test(target||''))document.querySelector('iframe').src=target;
+</script></html>

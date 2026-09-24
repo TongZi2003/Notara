@@ -1,0 +1,39 @@
+{
+  "scope": "deterministic content renderer, not browser or real-model proof",
+  "node": "v24.13.0",
+  "checks": [
+    {
+      "name": "All seed blocks parse including final block",
+      "ok": true
+    },
+    {
+      "name": "Only real referenced material nodes",
+      "ok": true
+    },
+    {
+      "name": "Default export physically excludes student and answer blocks",
+      "ok": true
+    },
+    {
+      "name": "Independent HTML preserves drawing and native fold with no external dependency",
+      "ok": true
+    },
+    {
+      "name": "Portable Markdown has local source links and embedded diagram",
+      "ok": true
+    },
+    {
+      "name": "Explicit opt-in adds student attempt and reference",
+      "ok": true
+    },
+    {
+      "name": "Literal dollar replacement updates one block without duplicating old text",
+      "ok": true
+    },
+    {
+      "name": "User note HTML is escaped in projection",
+      "ok": true
+    }
+  ],
+  "passed": 8
+}

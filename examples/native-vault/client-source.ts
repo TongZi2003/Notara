@@ -18,6 +18,12 @@ import { createVaultCalendar } from './calendar-client.js';
 import { installBashDisplay } from './bash-display-client.js';
 import { createPdfAnnotations } from './pdf-annotations-client.js';
 import { quoteFromItems } from './pdf.js';
+import { installModernTheme } from './modern-theme.js';
+import { createVaultNavigation, createVaultShell, installStudentProjection } from './shell-client.js';
+import { createTodayEntry } from './today-entry-client.js';
+import { createLessonEntry } from './lesson-entry-client.js';
+import { createLessonBoard } from './board-client.js';
+import { createBoardStream } from './board-stream.js';
 
 const VAULT_REFERENCE = 'notara-vault';
 const PAGE_REFERENCE_LIMIT = 12000;
@@ -28,7 +34,11 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const { resolveSlotLabel } = require('@deepseek-ai/dsh-client-ui-slots');
     const { useCallback, useEffect, useMemo, useRef, useState } = React;
-    const { IconButton, Menu, Dialog } = createVaultUI(React);
+    const { Icon, IconButton, Menu, Dialog } = createVaultUI(React);
+    const navigation = createVaultNavigation();
+    const TodayEntry = createTodayEntry(React, { Icon });
+    const LessonEntry = createLessonEntry(React, { Icon });
+    const { Sidebar, Today } = createVaultShell(React, { navigation, Icon, IconButton, Dialog, TodayEntry });
 
     // DSH's browser Remote API only mounts strict codecs. The Host remains the
     // authoritative validator for every field; this client codec checks the
@@ -56,24 +66,24 @@ window.__ModuleLoader__.load({
     const STYLE = {
       page: { height: '100%', minHeight: 0, background: 'var(--dsw-alias-bg-base)', color: 'var(--dsw-alias-label-primary)', fontFamily: 'var(--dsw-font-family, ui-sans-serif, system-ui, sans-serif)', display: 'flex', flexDirection: 'column' },
       brand: { fontSize: 16, letterSpacing: '.02em', color: 'var(--dsw-alias-label-primary)', fontWeight: 650 },
-      search: { width: '100%', boxSizing: 'border-box', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 6, padding: '8px 10px', background: 'var(--dsw-specific-input-major, var(--dsw-alias-bg-layer-1))', color: 'var(--dsw-alias-label-primary)', marginBottom: 14, outline: 'none' },
-      row: { width: '100%', boxSizing: 'border-box', textAlign: 'left', border: 0, background: 'transparent', color: 'var(--dsw-alias-label-primary)', padding: '7px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 13 },
+      search: { width: '100%', boxSizing: 'border-box', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 14, padding: '8px 10px', background: 'var(--dsw-specific-input-major, var(--dsw-alias-bg-layer-1))', color: 'var(--dsw-alias-label-primary)', marginBottom: 14, outline: 'none' },
+      row: { width: '100%', boxSizing: 'border-box', textAlign: 'left', border: 0, background: 'transparent', color: 'var(--dsw-alias-label-primary)', padding: '7px 10px', borderRadius: 14, cursor: 'pointer', fontSize: 13 },
       rowActive: { background: 'var(--dsw-alias-interactive-bg-active)', color: 'var(--dsw-alias-label-primary)', fontWeight: 600 },
       treeFolder: { color: 'var(--dsw-alias-label-secondary)', padding: '8px 10px 4px', fontSize: 12 },
       path: { color: 'var(--dsw-alias-label-secondary)', fontSize: 12, marginTop: 8 },
-      quiet: { border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 5, background: 'transparent', color: 'var(--dsw-alias-label-primary)', padding: '6px 10px', cursor: 'pointer', font: 'inherit', fontSize: 12 },
+      quiet: { border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 12, background: 'var(--dsw-alias-bg-layer-2)', color: 'var(--dsw-alias-label-primary)', padding: '7px 12px', cursor: 'pointer', font: 'inherit', fontSize: 12 },
       content: { marginTop: 26, fontSize: 15, lineHeight: 1.85, color: 'var(--dsw-alias-label-primary)' },
       links: { display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 18 },
       link: { border: 0, background: 'transparent', color: 'var(--dsw-alias-label-link, var(--dsw-alias-label-primary))', cursor: 'pointer', padding: 0, font: 'inherit', fontSize: 13, textDecoration: 'underline' },
       notice: { color: 'var(--dsw-alias-label-secondary)', fontSize: 12, marginLeft: 4 },
       empty: { color: 'var(--dsw-alias-label-secondary)', padding: 40, textAlign: 'center' },
-      templateInput: { width: '100%', boxSizing: 'border-box', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 5, padding: '7px 8px', background: 'var(--dsw-alias-bg-layer-1)', color: 'var(--dsw-alias-label-primary)', marginBottom: 7, outline: 'none' },
-      assetPreview: { marginTop: 26, minHeight: 420, border: '1px solid var(--dsw-alias-border-l1)', borderRadius: 6, overflow: 'hidden', background: 'var(--dsw-alias-bg-layer-2)' },
+      templateInput: { width: '100%', boxSizing: 'border-box', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 12, padding: '7px 8px', background: 'var(--dsw-alias-bg-layer-1)', color: 'var(--dsw-alias-label-primary)', marginBottom: 7, outline: 'none' },
+      assetPreview: { marginTop: 26, minHeight: 420, border: '1px solid var(--dsw-alias-border-l1)', borderRadius: 14, overflow: 'hidden', background: 'var(--dsw-alias-bg-layer-2)' },
       assetFrame: { width: '100%', height: 620, border: 0, display: 'block', background: 'white' },
       assetImage: { maxWidth: '100%', maxHeight: 620, display: 'block', margin: '0 auto' },
       assetVideo: { width: '100%', maxHeight: 620, display: 'block' },
       assetTools: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, padding: 12, borderTop: '1px solid var(--dsw-alias-border-l1)' },
-      assetPage: { width: 70, boxSizing: 'border-box', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 5, padding: '6px 8px', background: 'var(--dsw-alias-bg-layer-1)', color: 'var(--dsw-alias-label-primary)' },
+      assetPage: { width: 70, boxSizing: 'border-box', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 12, padding: '6px 8px', background: 'var(--dsw-alias-bg-layer-1)', color: 'var(--dsw-alias-label-primary)' },
       pdfReader: { height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--dsw-alias-bg-layer-2)' },
       pdfToolbar: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, padding: 12, borderBottom: '1px solid var(--dsw-alias-border-l1)' },
       pdfScroll: { flex: 1, minWidth: 0, minHeight: 0, overflow: 'auto', padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center' },
@@ -571,7 +581,9 @@ window.__ModuleLoader__.load({
     const CalendarView = createVaultCalendar(React, { STYLE, IconButton });
     const { TeachingEntry, SummaryEntry } = createTeachingPanel(React, { STYLE, IconButton, Dialog });
     const { ClassroomView, WorkerToolRow } = createVaultClassroom(React, { STYLE, IconButton, Dialog, resolveSlotLabel });
-    const Workspace = createVaultWorkspace(React, { App, GraphView, CardsView, RoutesView, CalendarView, ClassroomView, TeachingEntry, SummaryEntry, IconButton,
+    const Board = createLessonBoard(React), BoardStream = createBoardStream(React);
+    const Workspace = createVaultWorkspace(React, { App, GraphView, CardsView, RoutesView, CalendarView, ClassroomView, Board, BoardStream, TeachingEntry, SummaryEntry, IconButton,
+      navigation, Today,
       ensureSession: ctx => ensureTeachingSession(ctx),
       onBring: (ctx, sessionId, file, selection, page = 1, intent = '', openView) => insertVaultReference(ctx, sessionId, {
         kind: file.content !== undefined ? 'page' : 'asset', sessionId, path: file.path, revision: file.revision, title: file.title,
@@ -586,11 +598,24 @@ window.__ModuleLoader__.load({
         const unmount = await ctx.remote.$mount(REMOTE_CONTRIBUTION);
         ctx.effect(() => unmount, 'notara-vault-native: remote');
         ctx.plugin({
-          inject: ['slots', 'remote.notaraVault', 'inputTriggers', 'conversation', 'sessions'],
+          inject: ['slots', 'remote.notaraVault', 'inputTriggers', 'conversation', 'sessions', 'theme', 'layout', 'uiWorkspace', 'workspaces'],
           apply(scope) {
             console.info('notara-vault-native: apply');
+            installModernTheme(scope);
+            installStudentProjection(scope, React, navigation);
+            scope.effect(() => scope.slots.inject('conversation.hero.intro', () => scope.slots.register({
+              name: 'conversation.hero.intro',
+            }, LessonEntry)));
+            scope.effect(() => () => navigation.dispose());
+            scope.effect(() => scope.slots.inject('sidebar.content', () => scope.slots.register({
+              name: 'sidebar.content', id: 'notara-vault-sidebar',
+            }, props => React.createElement(Sidebar, { ...props, ctx: scope }))));
             scope.effect(() => registerVaultReference(scope), 'notara-vault-native: conversation reference');
             scope.effect(() => installBashDisplay(scope.slots, React), 'notara-vault-native: bash learning steps');
+            scope.effect(() => scope.slots.inject('tool.call.toolview', () => scope.slots.register({
+              name: 'tool.call.toolview', key: 'write_lesson_board', priority: -1,
+            }, props => React.createElement('div', { className: 'nv-board-tool-row' },
+              props.block?.kind === 'tool-result' ? (props.block.isError ? '板书未保存' : '已更新板书') : '正在整理板书…'))));
             // 教室的学生安全投影: the teaching preset's background lane renders a
             // fixed status row instead of the raw ask_worker arguments or analysis.
             // The new model-facing tool is `ask_worker`; `ask_solver` keeps the same

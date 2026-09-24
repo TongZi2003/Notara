@@ -1,0 +1,621 @@
+{
+  "prototype": "docs/ui/notara-frontend-prototype.html",
+  "browser": "Chromium via Playwright 1.63.0, headless",
+  "passed": 143,
+  "failed": 0,
+  "problems": [],
+  "screenshots": [
+    "modern-today.png",
+    "modern-lesson.png",
+    "modern-classroom.png",
+    "modern-library-files.png",
+    "modern-library-cards.png",
+    "modern-graph.png",
+    "modern-plan-routes.png",
+    "modern-calendar.png",
+    "modern-review.png",
+    "modern-today-dark.png",
+    "modern-lesson-dark.png",
+    "modern-empty-today.png",
+    "modern-new-lesson.png",
+    "modern-narrow-today.png",
+    "modern-narrow-lesson.png",
+    "notebook-today.png",
+    "notebook-lesson.png",
+    "notebook-classroom.png",
+    "notebook-library-files.png",
+    "notebook-library-cards.png",
+    "notebook-graph.png",
+    "notebook-plan-routes.png",
+    "notebook-calendar.png",
+    "notebook-review.png",
+    "notebook-today-dark.png",
+    "notebook-lesson-dark.png",
+    "notebook-narrow-today.png",
+    "notebook-narrow-lesson.png"
+  ],
+  "results": [
+    {
+      "name": "modern: data-sf-style",
+      "ok": true
+    },
+    {
+      "name": "modern: body font family",
+      "ok": true,
+      "detail": "-apple-system, \"system-ui\", \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", sans-serif"
+    },
+    {
+      "name": "modern: WenKai not downloaded",
+      "ok": true
+    },
+    {
+      "name": "modern: today heading",
+      "ok": true
+    },
+    {
+      "name": "modern: due count",
+      "ok": true
+    },
+    {
+      "name": "modern: today lesson",
+      "ok": true
+    },
+    {
+      "name": "modern: honest route note",
+      "ok": true
+    },
+    {
+      "name": "modern: sidebar nav count",
+      "ok": true
+    },
+    {
+      "name": "modern: sidebar lesson rows fit",
+      "ok": true
+    },
+    {
+      "name": "modern: today no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern: lesson heading",
+      "ok": true
+    },
+    {
+      "name": "modern: assessment receipt",
+      "ok": true
+    },
+    {
+      "name": "modern: companion shows card",
+      "ok": true
+    },
+    {
+      "name": "modern: system rows hidden by default",
+      "ok": true
+    },
+    {
+      "name": "modern: no engineering vocabulary",
+      "ok": true
+    },
+    {
+      "name": "modern: step row expands",
+      "ok": true
+    },
+    {
+      "name": "modern: message sent",
+      "ok": true
+    },
+    {
+      "name": "modern: teacher reply",
+      "ok": true
+    },
+    {
+      "name": "modern: skill menu",
+      "ok": true
+    },
+    {
+      "name": "modern: more skills expand",
+      "ok": true
+    },
+    {
+      "name": "modern: skill inserted into draft",
+      "ok": true
+    },
+    {
+      "name": "modern: menu closes after pick",
+      "ok": true
+    },
+    {
+      "name": "modern: teaching method saved",
+      "ok": true
+    },
+    {
+      "name": "modern: classroom workers",
+      "ok": true
+    },
+    {
+      "name": "modern: companion graph",
+      "ok": true
+    },
+    {
+      "name": "modern: companion node opens file",
+      "ok": true
+    },
+    {
+      "name": "modern: split handle resizes",
+      "ok": true,
+      "detail": "555.21875 -> 675.671875"
+    },
+    {
+      "name": "modern: library inspector",
+      "ok": true
+    },
+    {
+      "name": "modern: card tag filter",
+      "ok": true,
+      "detail": "10/4"
+    },
+    {
+      "name": "modern: card review filter",
+      "ok": true
+    },
+    {
+      "name": "modern: graph nodes",
+      "ok": true
+    },
+    {
+      "name": "modern: graph detail",
+      "ok": true
+    },
+    {
+      "name": "modern: graph hover highlights neighbours",
+      "ok": true
+    },
+    {
+      "name": "modern: bring to current lesson",
+      "ok": true
+    },
+    {
+      "name": "modern: route lanes",
+      "ok": true
+    },
+    {
+      "name": "modern: node drawer",
+      "ok": true
+    },
+    {
+      "name": "modern: calendar today selected",
+      "ok": true
+    },
+    {
+      "name": "modern: agenda lists today's lesson",
+      "ok": true
+    },
+    {
+      "name": "modern: review save disabled until complete",
+      "ok": true
+    },
+    {
+      "name": "modern: review save enabled",
+      "ok": true
+    },
+    {
+      "name": "modern: review schedule updated",
+      "ok": true
+    },
+    {
+      "name": "modern: new history entry",
+      "ok": true
+    },
+    {
+      "name": "modern: undo review",
+      "ok": true
+    },
+    {
+      "name": "modern: dark theme",
+      "ok": true
+    },
+    {
+      "name": "modern: debug shows trace tab and system rows",
+      "ok": true
+    },
+    {
+      "name": "modern: switch to notebook in settings",
+      "ok": true
+    },
+    {
+      "name": "modern: switch back",
+      "ok": true
+    },
+    {
+      "name": "modern: debug off again",
+      "ok": true
+    },
+    {
+      "name": "modern: launch creates lesson",
+      "ok": true
+    },
+    {
+      "name": "modern: empty today onboarding",
+      "ok": true
+    },
+    {
+      "name": "modern: empty sidebar",
+      "ok": true
+    },
+    {
+      "name": "modern: empty has no due badge",
+      "ok": true
+    },
+    {
+      "name": "modern: library nav keeps last sub-view",
+      "ok": true
+    },
+    {
+      "name": "modern: empty library",
+      "ok": true
+    },
+    {
+      "name": "modern: empty graph",
+      "ok": true
+    },
+    {
+      "name": "modern: empty routes",
+      "ok": true
+    },
+    {
+      "name": "modern: empty review",
+      "ok": true
+    },
+    {
+      "name": "modern: blank lesson hero",
+      "ok": true
+    },
+    {
+      "name": "modern 1024: #/today no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 1024: #/library/files no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 1024: #/library/graph no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 1024: #/plan/routes no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 1024: #/plan/calendar no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 1024: #/plan/review no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 1024: #/lesson/l1 no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 900: #/today no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 900: #/library/files no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 900: #/library/graph no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 900: #/plan/routes no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 900: #/plan/calendar no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 900: #/plan/review no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 900: #/lesson/l1 no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 390: today no overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 390: drawer opens in view",
+      "ok": true,
+      "detail": "{\"x\":0,\"y\":0,\"width\":276,\"height\":844}"
+    },
+    {
+      "name": "modern 390: drawer closes after navigation",
+      "ok": true
+    },
+    {
+      "name": "modern 390: companion overlays chat",
+      "ok": true
+    },
+    {
+      "name": "modern 390: composer inside viewport",
+      "ok": true,
+      "detail": "{\"x\":10,\"y\":728.75,\"width\":370,\"height\":82}"
+    },
+    {
+      "name": "modern 390: send button hit-testable",
+      "ok": true
+    },
+    {
+      "name": "modern 390: lesson no overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 390: #/library/files no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 390: #/library/cards no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 390: #/plan/routes no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 390: #/plan/calendar no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "modern 390: #/plan/review no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "notebook: data-sf-style",
+      "ok": true
+    },
+    {
+      "name": "notebook: body font family",
+      "ok": true,
+      "detail": "\"SF WenKai\", \"LXGW WenKai\", \"Kaiti SC\", STKaiti, KaiTi, serif"
+    },
+    {
+      "name": "notebook: WenKai face loaded",
+      "ok": true
+    },
+    {
+      "name": "notebook: today heading",
+      "ok": true
+    },
+    {
+      "name": "notebook: due count",
+      "ok": true
+    },
+    {
+      "name": "notebook: today lesson",
+      "ok": true
+    },
+    {
+      "name": "notebook: honest route note",
+      "ok": true
+    },
+    {
+      "name": "notebook: sidebar nav count",
+      "ok": true
+    },
+    {
+      "name": "notebook: sidebar lesson rows fit",
+      "ok": true
+    },
+    {
+      "name": "notebook: today no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "notebook: lesson heading",
+      "ok": true
+    },
+    {
+      "name": "notebook: assessment receipt",
+      "ok": true
+    },
+    {
+      "name": "notebook: companion shows card",
+      "ok": true
+    },
+    {
+      "name": "notebook: system rows hidden by default",
+      "ok": true
+    },
+    {
+      "name": "notebook: no engineering vocabulary",
+      "ok": true
+    },
+    {
+      "name": "notebook: step row expands",
+      "ok": true
+    },
+    {
+      "name": "notebook: message sent",
+      "ok": true
+    },
+    {
+      "name": "notebook: teacher reply",
+      "ok": true
+    },
+    {
+      "name": "notebook: skill menu",
+      "ok": true
+    },
+    {
+      "name": "notebook: more skills expand",
+      "ok": true
+    },
+    {
+      "name": "notebook: skill inserted into draft",
+      "ok": true
+    },
+    {
+      "name": "notebook: menu closes after pick",
+      "ok": true
+    },
+    {
+      "name": "notebook: teaching method saved",
+      "ok": true
+    },
+    {
+      "name": "notebook: classroom workers",
+      "ok": true
+    },
+    {
+      "name": "notebook: companion graph",
+      "ok": true
+    },
+    {
+      "name": "notebook: companion node opens file",
+      "ok": true
+    },
+    {
+      "name": "notebook: split handle resizes",
+      "ok": true,
+      "detail": "555.21875 -> 675.671875"
+    },
+    {
+      "name": "notebook: library inspector",
+      "ok": true
+    },
+    {
+      "name": "notebook: card tag filter",
+      "ok": true,
+      "detail": "10/4"
+    },
+    {
+      "name": "notebook: card review filter",
+      "ok": true
+    },
+    {
+      "name": "notebook: graph nodes",
+      "ok": true
+    },
+    {
+      "name": "notebook: graph detail",
+      "ok": true
+    },
+    {
+      "name": "notebook: graph hover highlights neighbours",
+      "ok": true
+    },
+    {
+      "name": "notebook: bring to current lesson",
+      "ok": true
+    },
+    {
+      "name": "notebook: route lanes",
+      "ok": true
+    },
+    {
+      "name": "notebook: node drawer",
+      "ok": true
+    },
+    {
+      "name": "notebook: calendar today selected",
+      "ok": true
+    },
+    {
+      "name": "notebook: agenda lists today's lesson",
+      "ok": true
+    },
+    {
+      "name": "notebook: review save disabled until complete",
+      "ok": true
+    },
+    {
+      "name": "notebook: review save enabled",
+      "ok": true
+    },
+    {
+      "name": "notebook: review schedule updated",
+      "ok": true
+    },
+    {
+      "name": "notebook: new history entry",
+      "ok": true
+    },
+    {
+      "name": "notebook: undo review",
+      "ok": true
+    },
+    {
+      "name": "notebook: dark theme",
+      "ok": true
+    },
+    {
+      "name": "notebook: debug shows trace tab and system rows",
+      "ok": true
+    },
+    {
+      "name": "notebook: debug off again",
+      "ok": true
+    },
+    {
+      "name": "notebook 390: today no overflow",
+      "ok": true
+    },
+    {
+      "name": "notebook 390: drawer opens in view",
+      "ok": true,
+      "detail": "{\"x\":0,\"y\":0,\"width\":276,\"height\":844}"
+    },
+    {
+      "name": "notebook 390: drawer closes after navigation",
+      "ok": true
+    },
+    {
+      "name": "notebook 390: companion overlays chat",
+      "ok": true
+    },
+    {
+      "name": "notebook 390: composer inside viewport",
+      "ok": true,
+      "detail": "{\"x\":10,\"y\":696,\"width\":370,\"height\":90}"
+    },
+    {
+      "name": "notebook 390: send button hit-testable",
+      "ok": true
+    },
+    {
+      "name": "notebook 390: lesson no overflow",
+      "ok": true
+    },
+    {
+      "name": "notebook 390: #/library/files no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "notebook 390: #/library/cards no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "notebook 390: #/plan/routes no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "notebook 390: #/plan/calendar no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "notebook 390: #/plan/review no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "no console errors, page errors or failed requests",
+      "ok": true
+    }
+  ]
+}

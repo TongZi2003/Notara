@@ -2628,12 +2628,12 @@
     let result = {};
     for (let config of configs)
       for (let key of Object.keys(config)) {
-        let value = config[key], current = result[key];
-        if (current === void 0)
+        let value = config[key], current2 = result[key];
+        if (current2 === void 0)
           result[key] = value;
-        else if (current === value || value === void 0) ;
+        else if (current2 === value || value === void 0) ;
         else if (Object.hasOwnProperty.call(combine, key))
-          result[key] = combine[key](current, value);
+          result[key] = combine[key](current2, value);
         else
           throw new Error("Config merge conflict for field " + key);
       }
@@ -9677,7 +9677,7 @@
     // since actual DOM coordinates aren't always available and
     // predictable. Relies on generous margins (see LG.Margin) to hide
     // the artifacts this might produce from the user.
-    ensureLineGaps(current, mayMeasure) {
+    ensureLineGaps(current2, mayMeasure) {
       let wrapping = this.heightOracle.lineWrapping;
       let margin = wrapping ? 1e4 : 2e3, halfMargin = margin >> 1, doubleMargin = margin << 1;
       if (this.defaultTextDirection != Direction.LTR && !wrapping)
@@ -9696,7 +9696,7 @@
             return;
           }
         }
-        let gap = find(current, (gap2) => gap2.from >= line.from && gap2.to <= line.to && Math.abs(gap2.from - from) < halfMargin && Math.abs(gap2.to - to) < halfMargin && !avoid.some((pos) => gap2.from < pos && gap2.to > pos));
+        let gap = find(current2, (gap2) => gap2.from >= line.from && gap2.to <= line.to && Math.abs(gap2.from - from) < halfMargin && Math.abs(gap2.to - to) < halfMargin && !avoid.some((pos) => gap2.from < pos && gap2.to > pos));
         if (!gap) {
           if (to < line.to && mayMeasure && wrapping && mayMeasure.visibleRanges.some((r) => r.from <= to && r.to >= to)) {
             let lineStart = mayMeasure.moveToLineBoundary(EditorSelection.cursor(to), false, true).head;
@@ -9736,7 +9736,7 @@
           let marginWidth = margin * this.heightOracle.charWidth;
           let horizOffset = 0;
           if (totalWidth > 2e6)
-            for (let old of current) {
+            for (let old of current2) {
               if (old.from >= line.from && old.from < line.to && old.size != old.displaySize && old.from * this.heightOracle.charWidth + horizOffset < this.pixelViewport.left)
                 horizOffset = old.size - old.displaySize;
             }
@@ -11979,10 +11979,10 @@
     let bound = /* @__PURE__ */ Object.create(null);
     let isPrefix = /* @__PURE__ */ Object.create(null);
     let checkPrefix = (name2, is) => {
-      let current = isPrefix[name2];
-      if (current == null)
+      let current2 = isPrefix[name2];
+      if (current2 == null)
         isPrefix[name2] = is;
-      else if (current != is)
+      else if (current2 != is)
         throw new Error("Key binding " + name2 + " is used both as a regular binding and as a multi-stroke prefix");
     };
     let add = (scope, key, command2, preventDefault2, stopPropagation) => {
@@ -14488,17 +14488,17 @@
     }
   };
   function punchRanges(outer, ranges) {
-    let copy = null, current = ranges;
+    let copy = null, current2 = ranges;
     for (let i3 = 1, j = 0; i3 < outer.length; i3++) {
       let gapFrom = outer[i3 - 1].to, gapTo = outer[i3].from;
-      for (; j < current.length; j++) {
-        let r = current[j];
+      for (; j < current2.length; j++) {
+        let r = current2[j];
         if (r.from >= gapTo)
           break;
         if (r.to <= gapFrom)
           continue;
         if (!copy)
-          current = copy = ranges.slice();
+          current2 = copy = ranges.slice();
         if (r.from < gapFrom) {
           copy[j] = new Range3(r.from, gapFrom);
           if (r.to > gapTo)
@@ -14510,7 +14510,7 @@
         }
       }
     }
-    return current;
+    return current2;
   }
   function findCoverChanges(a, b, from, to) {
     let iA = 0, iB = 0, inA = false, inB = false, pos = -1e9;
@@ -23771,9 +23771,9 @@
       } = this.getClientDimensions();
       const {
         innerHeight: innerHeight2,
-        innerWidth
+        innerWidth: innerWidth2
       } = window;
-      return left < innerWidth && right > 0 && top2 < innerHeight2 && bottom > 0;
+      return left < innerWidth2 && right > 0 && top2 < innerHeight2 && bottom > 0;
     }
     #addFocusListeners() {
       if (this.#focusAC || !this.div) {
@@ -24838,7 +24838,7 @@
     inheritPendingDependenciesAsFutureForcedDependencies() {
       return this;
     }
-    recordCharacterBBox(idx, ctx, font, scale = 1, x = 0, y = 0, getMeasure) {
+    recordCharacterBBox(idx, ctx, font2, scale = 1, x = 0, y = 0, getMeasure) {
       return this;
     }
     getSimpleIndex(dependencyName) {
@@ -24994,15 +24994,15 @@
       this.#bboxTracker.recordBBox(idx, ctx, minX, maxX, minY, maxY);
       return this;
     }
-    recordCharacterBBox(idx, ctx, font, scale = 1, x = 0, y = 0, getMeasure) {
-      const fontBBox = font.bbox;
+    recordCharacterBBox(idx, ctx, font2, scale = 1, x = 0, y = 0, getMeasure) {
+      const fontBBox = font2.bbox;
       let isBBoxTrustworthy;
       let computedBBox;
       if (fontBBox) {
-        isBBoxTrustworthy = fontBBox[2] !== fontBBox[0] && fontBBox[3] !== fontBBox[1] && this.#fontBBoxTrustworthy.get(font);
+        isBBoxTrustworthy = fontBBox[2] !== fontBBox[0] && fontBBox[3] !== fontBBox[1] && this.#fontBBoxTrustworthy.get(font2);
         if (isBBoxTrustworthy !== false) {
           computedBBox = [0, 0, 0, 0];
-          Util.axialAlignedBoundingBox(fontBBox, font.fontMatrix, computedBBox);
+          Util.axialAlignedBoundingBox(fontBBox, font2.fontMatrix, computedBBox);
           if (scale !== 1 || x !== 0 || y !== 0) {
             scaleCharBBox(scale, -scale, x, y, computedBBox);
           }
@@ -25017,7 +25017,7 @@
       const measure = getMeasure();
       if (fontBBox && computedBBox && isBBoxTrustworthy === void 0) {
         isBBoxTrustworthy = computedBBox[0] <= x - measure.actualBoundingBoxLeft && computedBBox[2] >= x + measure.actualBoundingBoxRight && computedBBox[1] <= y - measure.actualBoundingBoxAscent && computedBBox[3] >= y + measure.actualBoundingBoxDescent;
-        this.#fontBBoxTrustworthy.set(font, isBBoxTrustworthy);
+        this.#fontBBoxTrustworthy.set(font2, isBBoxTrustworthy);
         if (isBBoxTrustworthy) {
           return this.recordBBox(idx, ctx, computedBBox[0], computedBBox[2], computedBBox[1], computedBBox[3]);
         }
@@ -25201,9 +25201,9 @@
       }
       return this;
     }
-    recordCharacterBBox(idx, ctx, font, scale, x, y, getMeasure) {
+    recordCharacterBBox(idx, ctx, font2, scale, x, y, getMeasure) {
       if (!this.#ignoreBBoxes) {
-        this.#dependencyTracker.recordCharacterBBox(this.#opIdx, ctx, font, scale, x, y, getMeasure);
+        this.#dependencyTracker.recordCharacterBBox(this.#opIdx, ctx, font2, scale, x, y, getMeasure);
       }
       return this;
     }
@@ -25442,30 +25442,30 @@
       }
       unreachable("Not implemented: loadSystemFont without the Font Loading API.");
     }
-    async bind(font) {
-      if (font.attached || font.missingFile && !font.systemFontInfo) {
+    async bind(font2) {
+      if (font2.attached || font2.missingFile && !font2.systemFontInfo) {
         return;
       }
-      font.attached = true;
-      if (font.systemFontInfo) {
-        await this.loadSystemFont(font);
+      font2.attached = true;
+      if (font2.systemFontInfo) {
+        await this.loadSystemFont(font2);
         return;
       }
       if (this.isFontLoadingAPISupported) {
-        const nativeFontFace = font.createNativeFontFace();
+        const nativeFontFace = font2.createNativeFontFace();
         if (nativeFontFace) {
           this.addNativeFontFace(nativeFontFace);
           try {
             await nativeFontFace.loaded;
           } catch (ex) {
             warn(`Failed to load font '${nativeFontFace.family}': '${ex}'.`);
-            font.disableFontFace = true;
+            font2.disableFontFace = true;
             throw ex;
           }
         }
         return;
       }
-      const rule = font.createFontFaceRule();
+      const rule = font2.createFontFaceRule();
       if (rule) {
         this.insertRule(rule);
         if (this.isSyncFontLoadingSupported) {
@@ -25473,7 +25473,7 @@
         }
         await new Promise((resolve) => {
           const request = this._queueLoadingCallback(resolve);
-          this._prepareFontLoadEvent(font, request);
+          this._prepareFontLoadEvent(font2, request);
         });
       }
     }
@@ -25508,7 +25508,7 @@
       const testFont = atob("T1RUTwALAIAAAwAwQ0ZGIDHtZg4AAAOYAAAAgUZGVE1lkzZwAAAEHAAAABxHREVGABQAFQAABDgAAAAeT1MvMlYNYwkAAAEgAAAAYGNtYXABDQLUAAACNAAAAUJoZWFk/xVFDQAAALwAAAA2aGhlYQdkA+oAAAD0AAAAJGhtdHgD6AAAAAAEWAAAAAZtYXhwAAJQAAAAARgAAAAGbmFtZVjmdH4AAAGAAAAAsXBvc3T/hgAzAAADeAAAACAAAQAAAAEAALZRFsRfDzz1AAsD6AAAAADOBOTLAAAAAM4KHDwAAAAAA+gDIQAAAAgAAgAAAAAAAAABAAADIQAAAFoD6AAAAAAD6AABAAAAAAAAAAAAAAAAAAAAAQAAUAAAAgAAAAQD6AH0AAUAAAKKArwAAACMAooCvAAAAeAAMQECAAACAAYJAAAAAAAAAAAAAQAAAAAAAAAAAAAAAFBmRWQAwAAuAC4DIP84AFoDIQAAAAAAAQAAAAAAAAAAACAAIAABAAAADgCuAAEAAAAAAAAAAQAAAAEAAAAAAAEAAQAAAAEAAAAAAAIAAQAAAAEAAAAAAAMAAQAAAAEAAAAAAAQAAQAAAAEAAAAAAAUAAQAAAAEAAAAAAAYAAQAAAAMAAQQJAAAAAgABAAMAAQQJAAEAAgABAAMAAQQJAAIAAgABAAMAAQQJAAMAAgABAAMAAQQJAAQAAgABAAMAAQQJAAUAAgABAAMAAQQJAAYAAgABWABYAAAAAAAAAwAAAAMAAAAcAAEAAAAAADwAAwABAAAAHAAEACAAAAAEAAQAAQAAAC7//wAAAC7////TAAEAAAAAAAABBgAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAD/gwAyAAAAAQAAAAAAAAAAAAAAAAAAAAABAAQEAAEBAQJYAAEBASH4DwD4GwHEAvgcA/gXBIwMAYuL+nz5tQXkD5j3CBLnEQACAQEBIVhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYAAABAQAADwACAQEEE/t3Dov6fAH6fAT+fPp8+nwHDosMCvm1Cvm1DAz6fBQAAAAAAAABAAAAAMmJbzEAAAAAzgTjFQAAAADOBOQpAAEAAAAAAAAADAAUAAQAAAABAAAAAgABAAAAAAAAAAAD6AAAAAAAAA==");
       return shadow(this, "_loadTestFont", testFont);
     }
-    _prepareFontLoadEvent(font, request) {
+    _prepareFontLoadEvent(font2, request) {
       function int32(data3, offset) {
         return data3.charCodeAt(offset) << 24 | data3.charCodeAt(offset + 1) << 16 | data3.charCodeAt(offset + 2) << 8 | data3.charCodeAt(offset + 3) & 255;
       }
@@ -25563,7 +25563,7 @@
       div.style.width = div.style.height = "10px";
       div.style.position = "absolute";
       div.style.top = div.style.left = "0px";
-      for (const name2 of [font.loadedName, loadTestFontId]) {
+      for (const name2 of [font2.loadedName, loadTestFontId]) {
         const span = this._document.createElement("span");
         span.textContent = "Hi";
         span.style.fontFamily = name2;
@@ -27929,20 +27929,20 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
       graphics.current.updateClipFromPath();
     }
     setFillAndStrokeStyleToContext(graphics, paintType, color) {
-      const context = graphics.ctx, current = graphics.current;
-      current.patternFill = current.patternStroke = false;
+      const context = graphics.ctx, current2 = graphics.current;
+      current2.patternFill = current2.patternStroke = false;
       switch (paintType) {
         case PaintType.COLORED:
           const {
             fillStyle,
             strokeStyle
           } = this.ctx;
-          context.fillStyle = current.fillColor = fillStyle;
-          context.strokeStyle = current.strokeColor = strokeStyle;
+          context.fillStyle = current2.fillColor = fillStyle;
+          context.strokeStyle = current2.strokeColor = strokeStyle;
           break;
         case PaintType.UNCOLORED:
           context.fillStyle = context.strokeStyle = color;
-          current.fillColor = current.strokeColor = color;
+          current2.fillColor = current2.strokeColor = color;
           break;
         default:
           throw new FormatError(`Unsupported paint type: ${paintType}`);
@@ -29366,19 +29366,19 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     setFont(opIdx, fontRefName, size) {
       this.dependencyTracker?.recordSimpleData("font", opIdx).recordSimpleDataFromNamed("fontObj", fontRefName, opIdx);
       const fontObj = this.commonObjs.get(fontRefName);
-      const current = this.current;
+      const current2 = this.current;
       if (!fontObj) {
         throw new Error(`Can't find font for ${fontRefName}`);
       }
-      current.fontMatrix = fontObj.fontMatrix || FONT_IDENTITY_MATRIX;
-      if (current.fontMatrix[0] === 0 || current.fontMatrix[3] === 0) {
+      current2.fontMatrix = fontObj.fontMatrix || FONT_IDENTITY_MATRIX;
+      if (current2.fontMatrix[0] === 0 || current2.fontMatrix[3] === 0) {
         warn("Invalid font matrix for font " + fontRefName);
       }
       if (size < 0) {
         size = -size;
-        current.fontDirection = -1;
+        current2.fontDirection = -1;
       } else {
-        current.fontDirection = 1;
+        current2.fontDirection = 1;
       }
       this.current.font = fontObj;
       this.current.fontSize = size;
@@ -29418,12 +29418,12 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     setTextMatrix(opIdx, matrix) {
       this.dependencyTracker?.resetIncrementalData("sameLineText").recordSimpleData("textMatrix", opIdx);
       const {
-        current
+        current: current2
       } = this;
-      current.textMatrix = matrix;
-      current.textMatrixScale = Math.hypot(matrix[0], matrix[1]);
-      current.x = current.lineX = 0;
-      current.y = current.lineY = 0;
+      current2.textMatrix = matrix;
+      current2.textMatrixScale = Math.hypot(matrix[0], matrix[1]);
+      current2.x = current2.lineX = 0;
+      current2.y = current2.lineY = 0;
     }
     nextLine(opIdx) {
       this.moveText(opIdx, 0, this.current.leading);
@@ -29436,23 +29436,23 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     }
     paintChar(opIdx, character, x, y, patternFillTransform, patternStrokeTransform) {
       const ctx = this.ctx;
-      const current = this.current;
-      const font = current.font;
-      const textRenderingMode = current.textRenderingMode;
-      const fontSize = current.fontSize / current.fontSizeScale;
+      const current2 = this.current;
+      const font2 = current2.font;
+      const textRenderingMode = current2.textRenderingMode;
+      const fontSize = current2.fontSize / current2.fontSizeScale;
       const fillStrokeMode = textRenderingMode & TextRenderingMode.FILL_STROKE_MASK;
       const isAddToPathSet = !!(textRenderingMode & TextRenderingMode.ADD_TO_PATH_FLAG);
-      const patternFill = current.patternFill && !font.missingFile;
-      const patternStroke = current.patternStroke && !font.missingFile;
+      const patternFill = current2.patternFill && !font2.missingFile;
+      const patternStroke = current2.patternStroke && !font2.missingFile;
       let path2;
-      if ((font.disableFontFace || isAddToPathSet || patternFill || patternStroke) && !font.missingFile) {
-        path2 = font.getPathGenerator(this.commonObjs, character);
+      if ((font2.disableFontFace || isAddToPathSet || patternFill || patternStroke) && !font2.missingFile) {
+        path2 = font2.getPathGenerator(this.commonObjs, character);
       }
-      if (path2 && (font.disableFontFace || patternFill || patternStroke)) {
+      if (path2 && (font2.disableFontFace || patternFill || patternStroke)) {
         ctx.save();
         ctx.translate(x, y);
         ctx.scale(fontSize, -fontSize);
-        this.dependencyTracker?.recordCharacterBBox(opIdx, ctx, font);
+        this.dependencyTracker?.recordCharacterBBox(opIdx, ctx, font2);
         let currentTransform;
         if (fillStrokeMode === TextRenderingMode.FILL || fillStrokeMode === TextRenderingMode.FILL_STROKE) {
           if (patternFillTransform) {
@@ -29488,11 +29488,11 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
       } else {
         if (fillStrokeMode === TextRenderingMode.FILL || fillStrokeMode === TextRenderingMode.FILL_STROKE) {
           ctx.fillText(character, x, y);
-          this.dependencyTracker?.recordCharacterBBox(opIdx, ctx, font, fontSize, x, y, () => ctx.measureText(character));
+          this.dependencyTracker?.recordCharacterBBox(opIdx, ctx, font2, fontSize, x, y, () => ctx.measureText(character));
         }
         if (fillStrokeMode === TextRenderingMode.STROKE || fillStrokeMode === TextRenderingMode.FILL_STROKE) {
           if (this.dependencyTracker) {
-            this.dependencyTracker?.recordCharacterBBox(opIdx, ctx, font, fontSize, x, y, () => ctx.measureText(character)).recordDependencies(opIdx, Dependencies.stroke);
+            this.dependencyTracker?.recordCharacterBBox(opIdx, ctx, font2, fontSize, x, y, () => ctx.measureText(character)).recordDependencies(opIdx, Dependencies.stroke);
           }
           ctx.strokeText(character, x, y);
         }
@@ -29506,7 +29506,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
           fontSize,
           path: path2
         });
-        this.dependencyTracker?.recordCharacterBBox(opIdx, ctx, font, fontSize, x, y);
+        this.dependencyTracker?.recordCharacterBBox(opIdx, ctx, font2, fontSize, x, y);
       }
     }
     get isFontSubpixelAAEnabled() {
@@ -29532,49 +29532,49 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
           this.dependencyTracker.recordFutureForcedDependency("textClip", opIdx).inheritPendingDependenciesAsFutureForcedDependencies();
         }
       }
-      const current = this.current;
-      const font = current.font;
-      if (font.isType3Font) {
-        const started2 = this.#beginKnockoutElement(current.fillAlpha);
+      const current2 = this.current;
+      const font2 = current2.font;
+      if (font2.isType3Font) {
+        const started2 = this.#beginKnockoutElement(current2.fillAlpha);
         this.showType3Text(opIdx, glyphs);
         this.dependencyTracker?.recordShowTextOperation(opIdx);
         this.#endKnockoutElement(started2);
         return;
       }
-      const fontSize = current.fontSize;
+      const fontSize = current2.fontSize;
       if (fontSize === 0) {
         this.dependencyTracker?.recordOperation(opIdx);
         return;
       }
-      const started = this.#beginKnockoutElement(current.fillAlpha);
+      const started = this.#beginKnockoutElement(current2.fillAlpha);
       const ctx = this.ctx;
-      const fontSizeScale = current.fontSizeScale;
-      const charSpacing = current.charSpacing;
-      const wordSpacing = current.wordSpacing;
-      const fontDirection = current.fontDirection;
-      const textHScale = current.textHScale * fontDirection;
+      const fontSizeScale = current2.fontSizeScale;
+      const charSpacing = current2.charSpacing;
+      const wordSpacing = current2.wordSpacing;
+      const fontDirection = current2.fontDirection;
+      const textHScale = current2.textHScale * fontDirection;
       const glyphsLength = glyphs.length;
-      const vertical = font.vertical;
+      const vertical = font2.vertical;
       const spacingDir = vertical ? 1 : -1;
-      const defaultVMetrics = font.defaultVMetrics;
-      const widthAdvanceScale = fontSize * current.fontMatrix[0];
-      const simpleFillText = current.textRenderingMode === TextRenderingMode.FILL && !font.disableFontFace && !current.patternFill;
+      const defaultVMetrics = font2.defaultVMetrics;
+      const widthAdvanceScale = fontSize * current2.fontMatrix[0];
+      const simpleFillText = current2.textRenderingMode === TextRenderingMode.FILL && !font2.disableFontFace && !current2.patternFill;
       ctx.save();
-      if (current.textMatrix) {
-        ctx.transform(...current.textMatrix);
+      if (current2.textMatrix) {
+        ctx.transform(...current2.textMatrix);
       }
-      ctx.translate(current.x, current.y + current.textRise);
+      ctx.translate(current2.x, current2.y + current2.textRise);
       if (fontDirection > 0) {
         ctx.scale(textHScale, -1);
       } else {
         ctx.scale(textHScale, 1);
       }
       let patternFillTransform, patternStrokeTransform;
-      const fillStrokeMode = current.textRenderingMode & TextRenderingMode.FILL_STROKE_MASK;
+      const fillStrokeMode = current2.textRenderingMode & TextRenderingMode.FILL_STROKE_MASK;
       const needsFill = fillStrokeMode === TextRenderingMode.FILL || fillStrokeMode === TextRenderingMode.FILL_STROKE;
       const needsStroke = fillStrokeMode === TextRenderingMode.STROKE || fillStrokeMode === TextRenderingMode.FILL_STROKE;
-      let lineWidth = current.lineWidth;
-      const scale = current.textMatrixScale;
+      let lineWidth = current2.lineWidth;
+      const scale = current2.textMatrixScale;
       if (scale === 0 || lineWidth === 0) {
         if (needsStroke) {
           lineWidth = this.getSinglePixelWidth();
@@ -29587,21 +29587,21 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
         lineWidth /= fontSizeScale;
       }
       ctx.lineWidth = lineWidth;
-      if (needsFill && current.patternFill) {
+      if (needsFill && current2.patternFill) {
         ctx.save();
-        const pattern = current.fillColor.getPattern(ctx, this, getCurrentTransformInverse(ctx), PathType.FILL, opIdx);
+        const pattern = current2.fillColor.getPattern(ctx, this, getCurrentTransformInverse(ctx), PathType.FILL, opIdx);
         patternFillTransform = getCurrentTransform(ctx);
         ctx.restore();
         ctx.fillStyle = pattern;
       }
-      if (needsStroke && current.patternStroke) {
+      if (needsStroke && current2.patternStroke) {
         ctx.save();
-        const pattern = current.strokeColor.getPattern(ctx, this, getCurrentTransformInverse(ctx), PathType.STROKE, opIdx);
+        const pattern = current2.strokeColor.getPattern(ctx, this, getCurrentTransformInverse(ctx), PathType.STROKE, opIdx);
         patternStrokeTransform = getCurrentTransform(ctx);
         ctx.restore();
         ctx.strokeStyle = pattern;
       }
-      if (font.isInvalidPDFjsFont) {
+      if (font2.isInvalidPDFjsFont) {
         const chars = [];
         let width = 0;
         for (const glyph of glyphs) {
@@ -29614,7 +29614,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
           const measure = ctx.measureText(joinedChars);
           this.dependencyTracker.recordBBox(opIdx, this.ctx, -measure.actualBoundingBoxLeft, measure.actualBoundingBoxRight, -measure.actualBoundingBoxAscent, measure.actualBoundingBoxDescent).recordShowTextOperation(opIdx);
         }
-        current.x += width * widthAdvanceScale * textHScale;
+        current2.x += width * widthAdvanceScale * textHScale;
         ctx.restore();
         this.compose();
         this.#endKnockoutElement(started);
@@ -29645,7 +29645,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
           scaledY = 0;
         }
         let measure;
-        if (font.remeasure && width > 0) {
+        if (font2.remeasure && width > 0) {
           measure = ctx.measureText(character);
           const measuredWidth = measure.width * 1e3 / fontSize * fontSizeScale;
           if (width < measuredWidth && this.isFontSubpixelAAEnabled) {
@@ -29658,12 +29658,12 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
             scaledX += (width - measuredWidth) / 2e3 * fontSize / fontSizeScale;
           }
         }
-        if (this.contentVisible && (glyph.isInFont || font.missingFile)) {
+        if (this.contentVisible && (glyph.isInFont || font2.missingFile)) {
           if (simpleFillText && !accent2) {
             ctx.fillText(character, scaledX, scaledY);
             this.dependencyTracker?.recordCharacterBBox(opIdx, ctx, measure ? {
               bbox: null
-            } : font, fontSize / fontSizeScale, scaledX, scaledY, () => measure ?? ctx.measureText(character));
+            } : font2, fontSize / fontSizeScale, scaledX, scaledY, () => measure ?? ctx.measureText(character));
           } else {
             this.paintChar(opIdx, character, scaledX, scaledY, patternFillTransform, patternStrokeTransform);
             if (accent2) {
@@ -29680,9 +29680,9 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
         }
       }
       if (vertical) {
-        current.y -= x;
+        current2.y -= x;
       } else {
-        current.x += x * textHScale;
+        current2.x += x * textHScale;
       }
       ctx.restore();
       this.compose();
@@ -29691,17 +29691,17 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     }
     showType3Text(opIdx, glyphs) {
       const ctx = this.ctx;
-      const current = this.current;
-      const font = current.font;
-      const fontSize = current.fontSize;
-      const fontDirection = current.fontDirection;
-      const spacingDir = font.vertical ? 1 : -1;
-      const charSpacing = current.charSpacing;
-      const wordSpacing = current.wordSpacing;
-      const textHScale = current.textHScale * fontDirection;
-      const fontMatrix = current.fontMatrix || FONT_IDENTITY_MATRIX;
+      const current2 = this.current;
+      const font2 = current2.font;
+      const fontSize = current2.fontSize;
+      const fontDirection = current2.fontDirection;
+      const spacingDir = font2.vertical ? 1 : -1;
+      const charSpacing = current2.charSpacing;
+      const wordSpacing = current2.wordSpacing;
+      const textHScale = current2.textHScale * fontDirection;
+      const fontMatrix = current2.fontMatrix || FONT_IDENTITY_MATRIX;
       const glyphsLength = glyphs.length;
-      const isTextInvisible = current.textRenderingMode === TextRenderingMode.INVISIBLE;
+      const isTextInvisible = current2.textRenderingMode === TextRenderingMode.INVISIBLE;
       let i3, glyph, width, spacingLength;
       if (isTextInvisible || fontSize === 0) {
         return;
@@ -29709,10 +29709,10 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
       this._cachedScaleForStroking[0] = -1;
       this._cachedGetSinglePixelWidth = null;
       ctx.save();
-      if (current.textMatrix) {
-        ctx.transform(...current.textMatrix);
+      if (current2.textMatrix) {
+        ctx.transform(...current2.textMatrix);
       }
-      ctx.translate(current.x, current.y + current.textRise);
+      ctx.translate(current2.x, current2.y + current2.textRise);
       ctx.scale(textHScale, fontDirection);
       const dependencyTracker = this.dependencyTracker;
       this.dependencyTracker = dependencyTracker ? new CanvasNestedDependencyTracker(dependencyTracker, opIdx) : null;
@@ -29721,17 +29721,17 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
         if (typeof glyph === "number") {
           spacingLength = spacingDir * glyph * fontSize / 1e3;
           this.ctx.translate(spacingLength, 0);
-          current.x += spacingLength * textHScale;
+          current2.x += spacingLength * textHScale;
           continue;
         }
         const spacing2 = (glyph.isSpace ? wordSpacing : 0) + charSpacing;
-        const operatorList = font.charProcOperatorList.get(glyph.operatorListId);
+        const operatorList = font2.charProcOperatorList.get(glyph.operatorListId);
         if (!operatorList) {
           warn(`Type3 character "${glyph.operatorListId}" is not available.`);
         } else if (this.contentVisible) {
           this.save();
           if (operatorList.fnArray[0] === OPS.setCharWidth) {
-            current.fillAlpha = current.strokeAlpha = 1;
+            current2.fillAlpha = current2.strokeAlpha = 1;
             ctx.globalAlpha = 1;
           }
           ctx.scale(fontSize, fontSize);
@@ -29743,7 +29743,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
         Util.applyTransform(p, fontMatrix);
         width = p[0] * fontSize + spacing2;
         ctx.translate(width, 0);
-        current.x += width * textHScale;
+        current2.x += width * textHScale;
       }
       ctx.restore();
       if (dependencyTracker) {
@@ -33952,15 +33952,15 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
               break;
             }
             const fontData = new FontInfo(exportedData);
-            const inspectFont = this._params.pdfBug && globalThis.FontInspector?.enabled ? (font2, url) => globalThis.FontInspector.fontAdded(font2, url) : null;
-            const font = new FontFaceObject(fontData, inspectFont, exportedData.charProcOperatorList, exportedData.extra);
-            this.fontLoader.bind(font).catch(() => messageHandler.sendWithPromise("FontFallback", {
+            const inspectFont = this._params.pdfBug && globalThis.FontInspector?.enabled ? (font3, url) => globalThis.FontInspector.fontAdded(font3, url) : null;
+            const font2 = new FontFaceObject(fontData, inspectFont, exportedData.charProcOperatorList, exportedData.extra);
+            this.fontLoader.bind(font2).catch(() => messageHandler.sendWithPromise("FontFallback", {
               id: id2
             })).finally(() => {
-              if (!font.fontExtraProperties) {
-                font.clearData();
+              if (!font2.fontExtraProperties) {
+                font2.clearData();
               }
-              this.commonObjs.resolve(id2, font);
+              this.commonObjs.resolve(id2, font2);
             });
             break;
           case "CopyLocalImage":
@@ -42601,7 +42601,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
         alpha: false
       });
       const fontSize = 200;
-      const font = ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+      const font2 = ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
       const {
         actualBoundingBoxLeft,
         actualBoundingBoxRight,
@@ -42619,7 +42619,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
         alpha: true,
         willReadFrequently: true
       });
-      ctx.font = font;
+      ctx.font = font2;
       ctx.filter = "grayscale(1)";
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -56296,19 +56296,19 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
   function setFontMetrics(fontName, metrics) {
     fontMetricsData[fontName] = metrics;
   }
-  function getCharacterMetrics(character, font, mode) {
-    if (!fontMetricsData[font]) {
-      throw new Error("Font metrics not found for font: " + font + ".");
+  function getCharacterMetrics(character, font2, mode) {
+    if (!fontMetricsData[font2]) {
+      throw new Error("Font metrics not found for font: " + font2 + ".");
     }
     var ch2 = character.charCodeAt(0);
-    var metrics = fontMetricsData[font][ch2];
+    var metrics = fontMetricsData[font2][ch2];
     if (!metrics && character[0] in extraCharacterMap) {
       ch2 = extraCharacterMap[character[0]].charCodeAt(0);
-      metrics = fontMetricsData[font][ch2];
+      metrics = fontMetricsData[font2][ch2];
     }
     if (!metrics && mode === "text") {
       if (supportedCodepoint(ch2)) {
-        metrics = fontMetricsData[font][77];
+        metrics = fontMetricsData[font2][77];
       }
     }
     if (metrics) {
@@ -56347,9 +56347,9 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     "math": {},
     "text": {}
   };
-  function defineSymbol(mode, font, group, replace2, name2, acceptUnicodeChar) {
+  function defineSymbol(mode, font2, group, replace2, name2, acceptUnicodeChar) {
     symbols[mode][name2] = {
-      font,
+      font: font2,
       group,
       replace: replace2
     };
@@ -57282,13 +57282,13 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     var text3 = group.text;
     var classes = ["mord"];
     var {
-      font,
+      font: font2,
       fontFamily,
       fontWeight,
       fontShape
     } = options;
-    var useFont = mode === "math" || mode === "text" && !!font;
-    var fontOrFamily = useFont ? font : fontFamily;
+    var useFont = mode === "math" || mode === "text" && !!font2;
+    var fontOrFamily = useFont ? font2 : fontFamily;
     var wideFontName = "";
     var wideFontClass = "";
     if (text3.charCodeAt(0) === 55349) {
@@ -57306,8 +57306,8 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
         fontName = fontData.fontName;
         fontClasses = [fontData.fontClass];
       } else if (useFont) {
-        fontName = fontMap[font].fontName;
-        fontClasses = [font];
+        fontName = fontMap[font2].fontName;
+        fontClasses = [font2];
       } else {
         fontName = retrieveTextFontName(fontFamily, fontWeight, fontShape);
         fontClasses = [fontFamily, fontWeight, fontShape];
@@ -58246,12 +58246,12 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
         return "bold";
       }
     }
-    var font = options.font;
-    if (!font || font === "mathnormal") {
+    var font2 = options.font;
+    if (!font2 || font2 === "mathnormal") {
       return null;
     }
     var mode = group.mode;
-    var mathVariant = mathFontVariants[font];
+    var mathVariant = mathFontVariants[font2];
     if (mathVariant) {
       return typeof mathVariant === "function" ? mathVariant(group) : mathVariant;
     }
@@ -58265,9 +58265,9 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
         text3 = replacement;
       }
     }
-    var fontName = fontMap[font].fontName;
+    var fontName = fontMap[font2].fontName;
     if (getCharacterMetrics(text3, fontName, mode)) {
-      return fontMap[font].variant;
+      return fontMap[font2].variant;
     }
     return null;
   };
@@ -58555,9 +58555,9 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
      * Creates a new options object with the given math font or old text font.
      * @type {[type]}
      */
-    withFont(font) {
+    withFont(font2) {
       return this.extend({
-        font
+        font: font2
       });
     }
     /**
@@ -60049,11 +60049,11 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
       };
     }
   });
-  var getMetrics = function getMetrics2(symbol, font, mode) {
+  var getMetrics = function getMetrics2(symbol, font2, mode) {
     var replace2 = symbols.math[symbol] && symbols.math[symbol].replace;
-    var metrics = getCharacterMetrics(replace2 || symbol, font, mode);
+    var metrics = getCharacterMetrics(replace2 || symbol, font2, mode);
     if (!metrics) {
-      throw new Error("Unsupported symbol " + symbol + " and font size " + font + ".");
+      throw new Error("Unsupported symbol " + symbol + " and font size " + font2 + ".");
     }
     return metrics;
   };
@@ -60093,14 +60093,14 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     }
     return span;
   };
-  var makeGlyphSpan = function makeGlyphSpan2(symbol, font, mode) {
+  var makeGlyphSpan = function makeGlyphSpan2(symbol, font2, mode) {
     var sizeClass;
-    if (font === "Size1-Regular") {
+    if (font2 === "Size1-Regular") {
       sizeClass = "delim-size1";
     } else {
       sizeClass = "delim-size4";
     }
-    var corner = makeSpan(["delimsizinginner", sizeClass], [makeSpan([], [makeSymbol(symbol, font, mode)])]);
+    var corner = makeSpan(["delimsizinginner", sizeClass], [makeSpan([], [makeSymbol(symbol, font2, mode)])]);
     return {
       type: "elem",
       elem: corner
@@ -60142,7 +60142,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     var viewBoxWidth = 0;
     top2 = repeat = bottom = delim;
     middle = null;
-    var font = "Size1-Regular";
+    var font2 = "Size1-Regular";
     if (delim === "\\uparrow") {
       repeat = bottom = "\u23D0";
     } else if (delim === "\\Uparrow") {
@@ -60171,52 +60171,52 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
       top2 = "\u23A1";
       repeat = "\u23A2";
       bottom = "\u23A3";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
       svgLabel = "lbrack";
       viewBoxWidth = 667;
     } else if (delim === "]" || delim === "\\rbrack") {
       top2 = "\u23A4";
       repeat = "\u23A5";
       bottom = "\u23A6";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
       svgLabel = "rbrack";
       viewBoxWidth = 667;
     } else if (delim === "\\lfloor" || delim === "\u230A") {
       repeat = top2 = "\u23A2";
       bottom = "\u23A3";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
       svgLabel = "lfloor";
       viewBoxWidth = 667;
     } else if (delim === "\\lceil" || delim === "\u2308") {
       top2 = "\u23A1";
       repeat = bottom = "\u23A2";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
       svgLabel = "lceil";
       viewBoxWidth = 667;
     } else if (delim === "\\rfloor" || delim === "\u230B") {
       repeat = top2 = "\u23A5";
       bottom = "\u23A6";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
       svgLabel = "rfloor";
       viewBoxWidth = 667;
     } else if (delim === "\\rceil" || delim === "\u2309") {
       top2 = "\u23A4";
       repeat = bottom = "\u23A5";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
       svgLabel = "rceil";
       viewBoxWidth = 667;
     } else if (delim === "(" || delim === "\\lparen") {
       top2 = "\u239B";
       repeat = "\u239C";
       bottom = "\u239D";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
       svgLabel = "lparen";
       viewBoxWidth = 875;
     } else if (delim === ")" || delim === "\\rparen") {
       top2 = "\u239E";
       repeat = "\u239F";
       bottom = "\u23A0";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
       svgLabel = "rparen";
       viewBoxWidth = 875;
     } else if (delim === "\\{" || delim === "\\lbrace") {
@@ -60224,44 +60224,44 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
       middle = "\u23A8";
       bottom = "\u23A9";
       repeat = "\u23AA";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
     } else if (delim === "\\}" || delim === "\\rbrace") {
       top2 = "\u23AB";
       middle = "\u23AC";
       bottom = "\u23AD";
       repeat = "\u23AA";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
     } else if (delim === "\\lgroup" || delim === "\u27EE") {
       top2 = "\u23A7";
       bottom = "\u23A9";
       repeat = "\u23AA";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
     } else if (delim === "\\rgroup" || delim === "\u27EF") {
       top2 = "\u23AB";
       bottom = "\u23AD";
       repeat = "\u23AA";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
     } else if (delim === "\\lmoustache" || delim === "\u23B0") {
       top2 = "\u23A7";
       bottom = "\u23AD";
       repeat = "\u23AA";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
     } else if (delim === "\\rmoustache" || delim === "\u23B1") {
       top2 = "\u23AB";
       bottom = "\u23A9";
       repeat = "\u23AA";
-      font = "Size4-Regular";
+      font2 = "Size4-Regular";
     }
-    var topMetrics = getMetrics(top2, font, mode);
+    var topMetrics = getMetrics(top2, font2, mode);
     var topHeightTotal = topMetrics.height + topMetrics.depth;
-    var repeatMetrics = getMetrics(repeat, font, mode);
+    var repeatMetrics = getMetrics(repeat, font2, mode);
     var repeatHeightTotal = repeatMetrics.height + repeatMetrics.depth;
-    var bottomMetrics = getMetrics(bottom, font, mode);
+    var bottomMetrics = getMetrics(bottom, font2, mode);
     var bottomHeightTotal = bottomMetrics.height + bottomMetrics.depth;
     var middleHeightTotal = 0;
     var middleFactor = 1;
     if (middle !== null) {
-      var middleMetrics = getMetrics(middle, font, mode);
+      var middleMetrics = getMetrics(middle, font2, mode);
       middleHeightTotal = middleMetrics.height + middleMetrics.depth;
       middleFactor = 2;
     }
@@ -60295,7 +60295,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
         elem: wrapper
       });
     } else {
-      stack.push(makeGlyphSpan(bottom, font, mode));
+      stack.push(makeGlyphSpan(bottom, font2, mode));
       stack.push(lap);
       if (middle === null) {
         var innerHeight2 = realHeightTotal - topHeightTotal - bottomHeightTotal + 2 * lapInEms;
@@ -60304,12 +60304,12 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
         var _innerHeight = (realHeightTotal - topHeightTotal - bottomHeightTotal - middleHeightTotal) / 2 + 2 * lapInEms;
         stack.push(makeInner(repeat, _innerHeight, options));
         stack.push(lap);
-        stack.push(makeGlyphSpan(middle, font, mode));
+        stack.push(makeGlyphSpan(middle, font2, mode));
         stack.push(lap);
         stack.push(makeInner(repeat, _innerHeight, options));
       }
       stack.push(lap);
-      stack.push(makeGlyphSpan(top2, font, mode));
+      stack.push(makeGlyphSpan(top2, font2, mode));
     }
     var newOptions = options.havingBaseStyle(Style$1.TEXT);
     var inner2 = makeVList({
@@ -62104,13 +62104,13 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     }
   });
   var htmlBuilder$5 = (group, options) => {
-    var font = group.font;
-    var newOptions = options.withFont(font);
+    var font2 = group.font;
+    var newOptions = options.withFont(font2);
     return buildGroup$1(group.body, newOptions);
   };
   var mathmlBuilder$4 = (group, options) => {
-    var font = group.font;
-    var newOptions = options.withFont(font);
+    var font2 = group.font;
+    var newOptions = options.withFont(font2);
     return buildGroup2(group.body, newOptions);
   };
   var fontAliases = {
@@ -64581,17 +64581,17 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     "\\textup": "textup"
   };
   var optionsWithFont = (group, options) => {
-    var font = group.font;
-    if (!font) {
+    var font2 = group.font;
+    if (!font2) {
       return options;
-    } else if (textFontFamilies[font]) {
-      return options.withTextFontFamily(textFontFamilies[font]);
-    } else if (textFontWeights[font]) {
-      return options.withTextFontWeight(textFontWeights[font]);
-    } else if (font === "\\emph") {
+    } else if (textFontFamilies[font2]) {
+      return options.withTextFontFamily(textFontFamilies[font2]);
+    } else if (textFontWeights[font2]) {
+      return options.withTextFontWeight(textFontWeights[font2]);
+    } else if (font2 === "\\emph") {
       return options.fontShape === "textit" ? options.withTextFontShape("textup") : options.withTextFontShape("textit");
     }
-    return options.withTextFontShape(textFontShapes[font]);
+    return options.withTextFontShape(textFontShapes[font2]);
   };
   defineFunction({
     type: "text",
@@ -67741,7 +67741,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
       return { frontmatter: {}, body: content2, range: null };
     }
   }
-  var CLOSED_METADATA_MARKER = /^<!--[ \t]*notara:(?:route-node(?::end)?|route-log(?::end)?|lesson-summary:end)\b[^\n]*?-->/;
+  var CLOSED_METADATA_MARKER = /^<!--[ \t]*(?:notara:(?:route-node(?::end)?|route-log(?::end)?|lesson-summary:end)|notara-board)\b[^\n]*?-->/;
   var SUMMARY_BEGIN_MARKER = /^<!--[ \t]*notara:lesson-summary\b/;
   function metadataCommentLength(raw) {
     const text3 = String(raw ?? "");
@@ -67869,7 +67869,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     kind = "properties";
     constructor(properties2) {
       super();
-      this.properties = properties2;
+      this.properties = properties2.type === "lesson-board" ? Object.fromEntries(Object.entries(properties2).filter(([key]) => !["session", "sourceNotes"].includes(key))) : properties2;
     }
     eq(other) {
       return JSON.stringify(this.properties) === JSON.stringify(other.properties);
@@ -68068,8 +68068,8 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     }
     activate(view) {
       if (view.state.readOnly) return;
-      const current = view.state.sliceDoc(this.from, this.to);
-      if (!/^\[[ xX]\]$/.test(current)) return;
+      const current2 = view.state.sliceDoc(this.from, this.to);
+      if (!/^\[[ xX]\]$/.test(current2)) return;
       view.dispatch({ changes: { from: this.from, to: this.to, insert: this.checked ? "[ ]" : "[x]" }, userEvent: "input" });
     }
     toDOM(view) {
@@ -69141,6 +69141,8 @@ ${detail}
   var VAULT_REMOTE_METHODS = Object.freeze([
     "pdfAnnotations",
     "updatePdfAnnotations",
+    "board",
+    "mutateBoard",
     "list",
     "read",
     "readAsset",
@@ -69312,7 +69314,7 @@ ${detail}
   var sourceLabel = (source) => `${source.path}${source.locator?.page ? ` \xB7 \u7B2C ${source.locator.page} \u9875` : ""}${source.locator?.anchor ? ` \xB7 ${source.locator.anchor}` : ""}${source.invalidLocator ? " \xB7 \u4F4D\u7F6E\u65E0\u6CD5\u8BC6\u522B" : ""}`;
   var focusFor = (path2, locator) => `${path2}${mediaLocatorSuffix(locator)}`;
   var LIBRARY_TYPES = /* @__PURE__ */ new Set(["card", "insight"]);
-  var CARD_TYPE_LABEL = { insight: "\u9526\u56CA" };
+  var CARD_TYPE_LABEL = { card: "\u77E5\u8BC6\u5361\u7247", insight: "\u9526\u56CA", topic: "\u6559\u5B66\u4E13\u9898" };
   var MATERIAL_TYPE_LABEL = { source: "\u6E90\u76EE\u5F55", topic: "\u6559\u5B66\u4E13\u9898" };
   var roleLabelOf = (node) => MATERIAL_TYPE_LABEL[node?.type] ?? KNOWLEDGE_ROLES[node?.role] ?? "";
   var parentLabelOf = (graph, path2) => {
@@ -69404,33 +69406,100 @@ ${detail}
     }
     function CardsView(props) {
       const vault = useVault(props.ctx, props.sessionId), { graph, loading, error } = useGraph(vault, props.visible);
-      const [search, setSearch] = useState(""), [source, setSource] = useState(""), [grouped, setGrouped] = useState(true);
-      const cards = graph.nodes.filter((node) => LIBRARY_TYPES.has(node.type));
-      const insights = cards.filter((node) => node.type === "insight").length;
+      const [search, setSearch] = useState(""), [source, setSource] = useState(""), [grouped, setGrouped] = useState(false);
+      const [type, setType] = useState("all"), [tag, setTag] = useState("");
+      const [reviewFilter, setReviewFilter] = useState("all"), [reviews, setReviews] = useState(null), [reviewError, setReviewError] = useState("");
+      useEffect(() => {
+        if (!props.visible) return;
+        let live = true, pending = false;
+        setReviews(null);
+        const refresh = async () => {
+          if (pending) return;
+          pending = true;
+          try {
+            const hits = /* @__PURE__ */ new Map();
+            let offset = 0, today = "", incomplete = false;
+            do {
+              const result = await vault.reviewQueue({ status: reviewFilter, offset, limit: 200, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+              if (!live) return;
+              if (!result?.ok) throw new Error("read");
+              const page = result.value;
+              today = page.today;
+              for (const row of page.hits) hits.set(row.path, row.state);
+              incomplete ||= !!(page.truncated || page.unreadable || page.invalid?.length);
+              if (page.nextOffset === null) break;
+              if (page.nextOffset <= offset) throw new Error("pagination");
+              offset = page.nextOffset;
+            } while (live);
+            if (live) {
+              setReviews({ hits, today });
+              setReviewError(incomplete ? "\u90E8\u5206\u5361\u7247\u7684\u590D\u4E60\u5C5E\u6027\u672A\u80FD\u8BFB\u5165\u3002" : "");
+            }
+          } catch {
+            if (live) {
+              setReviews(null);
+              setReviewError("\u590D\u4E60\u72B6\u6001\u6682\u65F6\u65E0\u6CD5\u8BFB\u53D6\u3002");
+            }
+          } finally {
+            pending = false;
+          }
+        };
+        void refresh();
+        const timer = setInterval(refresh, 15e3);
+        window.addEventListener("notara-vault-changed", refresh);
+        return () => {
+          live = false;
+          clearInterval(timer);
+          window.removeEventListener("notara-vault-changed", refresh);
+        };
+      }, [vault, props.visible, reviewFilter]);
+      const cards = graph.nodes.filter((node) => LIBRARY_TYPES.has(node.type) || node.type === "topic");
       const sources = [...new Set(cards.flatMap((node) => [...node.sources.map((item) => item.path), ...node.parent ? [node.parent] : []]))].sort();
-      const filtered = cards.filter((node) => (!source || node.parent === source || node.sources.some((item) => item.path === source)) && `${node.title}
+      const tags3 = [...new Set(cards.flatMap((node) => node.tags))].sort();
+      const filtered = cards.filter((node) => (reviewFilter === "all" || reviews?.hits.has(node.path)) && (type === "all" || node.type === type) && (!tag || node.tags.includes(tag)) && (!source || node.parent === source || node.sources.some((item) => item.path === source)) && `${node.title}
 ${node.excerpt}
 ${node.path}
 ${CARD_TYPE_LABEL[node.type] ?? ""}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+      const insights = filtered.filter((node) => node.type === "insight").length;
       const groups = /* @__PURE__ */ new Map();
       for (const card of filtered) {
-        const level = grouped ? card.depth : "all";
+        const level = grouped ? graph.nodes.find((n) => n.path === card.parent)?.title || "\u672A\u5F52\u5165\u4E13\u9898" : "all";
         if (!groups.has(level)) groups.set(level, []);
         groups.get(level).push(card);
       }
+      const excerpt = (text3) => String(text3).replace(/!?\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_match, target, label) => label || target.split("/").at(-1).replace(/\.md$/, "")).split(/(\$[^$\n]+\$)/g).map((part, i3) => {
+        if (part.startsWith("$") && part.endsWith("$")) {
+          const math2 = renderMath(part.slice(1, -1), false);
+          if (math2) return h("span", { key: i3, dangerouslySetInnerHTML: { __html: math2 } });
+        }
+        return part;
+      });
       return h(
         Frame,
-        { title: "\u5361\u7247\u5E93", status: error || `${cards.length} \u5F20\u5361\u7247${insights ? ` \xB7 ${insights} \u5F20\u9526\u56CA` : ""}`, tools: h(
+        { title: "\u5361\u7247", status: error || `${filtered.length} \u9879${insights ? ` \xB7 ${insights} \u5F20\u9526\u56CA` : ""}`, tools: h(
           React.Fragment,
           null,
-          h("input", { style: { ...STYLE.search, width: 180, margin: 0 }, placeholder: "\u641C\u7D22\u5361\u7247\u2026", value: search, onChange: (event) => setSearch(event.target.value) }),
-          h("select", { style: { ...STYLE.templateInput, width: 170, margin: 0 }, "aria-label": "\u6765\u6E90\u8FC7\u6EE4", value: source, onChange: (event) => setSource(event.target.value) }, h("option", { value: "" }, "\u5168\u90E8\u6765\u6E90"), sources.map((path2) => h("option", { key: path2, value: path2 }, path2))),
-          h("label", { style: STYLE.notice }, h("input", { type: "checkbox", checked: grouped, onChange: (event) => setGrouped(event.target.checked) }), " \u6309\u5C42\u7EA7\u5206\u7EC4")
+          h("input", { style: { ...STYLE.search, width: 180, margin: 0 }, "aria-label": "\u641C\u7D22\u5361\u7247", placeholder: "\u641C\u7D22\u5361\u7247\u2026", value: search, onChange: (event) => setSearch(event.target.value) }),
+          h("select", { style: { ...STYLE.templateInput, width: 170, margin: 0 }, "aria-label": "\u6765\u6E90\u8FC7\u6EE4", value: source, onChange: (event) => setSource(event.target.value) }, h("option", { value: "" }, "\u5168\u90E8\u6765\u6E90"), sources.map((path2) => h("option", { key: path2, value: path2 }, graph.nodes.find((n) => n.path === path2)?.title || path2))),
+          h("label", { style: STYLE.notice }, h("input", { type: "checkbox", checked: grouped, onChange: (event) => setGrouped(event.target.checked) }), " \u6309\u4E13\u9898\u5206\u7EC4")
         ) },
-        h("div", { className: "nv-cards-scroll" }, loading ? h("div", { style: STYLE.empty }, "\u6B63\u5728\u8BFB\u53D6\u2026") : !cards.length ? h("div", { style: STYLE.empty }, "\u8FD8\u6CA1\u6709\u5361\u7247\u3002\u4ECE\u8D44\u4EA7\u9875\u9009\u53D6\u4E00\u6BB5\u5185\u5BB9\u5F00\u59CB\u3002") : !filtered.length ? h("div", { style: STYLE.empty }, "\u6CA1\u6709\u7B26\u5408\u6761\u4EF6\u7684\u5361\u7247\u3002") : [...groups.entries()].sort(([a], [b]) => (a ?? Infinity) - (b ?? Infinity)).map(([level, nodes]) => h(
+        h(
+          "div",
+          { className: "nv-card-filters", "aria-label": "\u5361\u7247\u7B5B\u9009" },
+          [["all", "\u5168\u90E8"], ["card", "\u77E5\u8BC6\u5361\u7247"], ["insight", "\u9526\u56CA"], ["topic", "\u6559\u5B66\u4E13\u9898"]].map(([key, label]) => h("button", { key, "aria-pressed": type === key, onClick: () => setType(key) }, label)),
+          h("span", { className: "nv-filter-divider" }),
+          h(
+            "select",
+            { "aria-label": "\u5361\u7247\u590D\u4E60\u72B6\u6001", style: { ...STYLE.templateInput, width: 140, margin: 0 }, value: reviewFilter, onChange: (e) => setReviewFilter(e.target.value) },
+            [["all", "\u5168\u90E8\u590D\u4E60\u72B6\u6001"], ["due", "\u4ECA\u65E5\u5230\u671F"], ["pending", "\u5F85\u8BC4\u4F30"], ["learning", "\u590D\u4E60\u4E2D"], ["familiar", "\u719F\u6089"]].map(([value, label]) => h("option", { key: value, value }, label))
+          ),
+          tags3.map((value) => h("button", { key: value, "aria-pressed": tag === value, onClick: () => setTag(tag === value ? "" : value) }, "#" + value))
+        ),
+        reviewError && h("p", { role: "status", style: { ...STYLE.notice, margin: "8px 24px" } }, reviewError),
+        h("div", { className: "nv-cards-scroll" }, loading || reviewFilter !== "all" && !reviews && !reviewError ? h("div", { style: STYLE.empty }, "\u6B63\u5728\u8BFB\u53D6\u2026") : !cards.length ? h("div", { style: STYLE.empty }, "\u8FD8\u6CA1\u6709\u5361\u7247\u3002\u4ECE\u6587\u4EF6\u89C6\u56FE\u9009\u53D6\u4E00\u6BB5\u5185\u5BB9\u5F00\u59CB\u3002") : !filtered.length ? h("div", { style: STYLE.empty }, reviewError && reviewFilter !== "all" ? "\u590D\u4E60\u72B6\u6001\u8BFB\u53D6\u5931\u8D25\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002" : "\u6CA1\u6709\u7B26\u5408\u6761\u4EF6\u7684\u5361\u7247\u3002") : [...groups.entries()].sort(([a], [b]) => String(a).localeCompare(String(b), "zh-CN")).map(([level, nodes]) => h(
           "section",
           { key: String(level) },
-          grouped && h("h2", { style: { fontSize: 13, color: "var(--dsw-alias-label-secondary)", margin: "10px 0 14px" } }, level === null ? "\u5C42\u7EA7\u672A\u786E\u5B9A" : `\u7B2C ${level} \u5C42`),
+          grouped && h("h2", { style: { fontSize: 13, color: "var(--dsw-alias-label-secondary)", margin: "10px 0 14px" } }, level),
           h("div", { className: "nv-card-grid" }, nodes.map((node) => h(
             "article",
             { className: "nv-card", key: node.path },
@@ -69438,14 +69507,15 @@ ${CARD_TYPE_LABEL[node.type] ?? ""}`.toLocaleLowerCase().includes(search.toLocal
               "h3",
               null,
               h("button", { style: { ...STYLE.link, fontSize: 16, textDecoration: "none" }, "aria-label": `\u6253\u5F00\u5361\u7247 ${node.title}`, onClick: () => props.openView(VIEW_IDS.assets, node.path) }, node.title),
-              CARD_TYPE_LABEL[node.type] && h("span", { className: "nv-tag-group", style: { marginLeft: 8, fontSize: 12, color: "var(--dsw-alias-label-secondary)" } }, CARD_TYPE_LABEL[node.type])
+              CARD_TYPE_LABEL[node.type] && h("span", { className: "nv-card-kind" }, CARD_TYPE_LABEL[node.type])
             ),
-            h("p", null, node.excerpt || "\u8FD9\u5F20\u5361\u7247\u8FD8\u6CA1\u6709\u6458\u5F55\u3002"),
+            node.type === "card" && h("div", { className: "nv-card-review" }, reviews?.hits.has(node.path) ? !reviews.hits.get(node.path).learned ? "\u5F85\u8BC4\u4F30" : reviews.hits.get(node.path).next_review <= reviews.today ? "\u4ECA\u65E5\u5230\u671F" : "\u4E0B\u6B21\u590D\u4E60 " + reviews.hits.get(node.path).next_review : "\u590D\u4E60\u72B6\u6001\u5F85\u8BFB\u53D6"),
+            h("p", null, excerpt(node.excerpt || "\u8FD9\u5F20\u5361\u7247\u8FD8\u6CA1\u6709\u6458\u5F55\u3002")),
             h(
               "div",
               { className: "nv-card-source" },
-              node.sources.map((item, index) => h("button", { key: `${item.path}:${index}`, style: { ...STYLE.link, textAlign: "left", fontSize: 12 }, "aria-label": `\u9605\u8BFB\u6765\u6E90 ${sourceLabel(item)}`, onClick: () => props.openView(VIEW_IDS.assets, focusFor(item.path, item.locator)) }, `\u21A9 ${sourceLabel(item)}`)),
-              node.parent && !node.sources.some((item) => item.path === node.parent) && h("button", { style: STYLE.link, onClick: () => props.openView(VIEW_IDS.graph, node.parent) }, `${parentLabelOf(graph, node.parent)}\uFF1A${node.parent}`),
+              node.sources.map((item, index) => h("button", { key: `${item.path}:${index}`, style: { ...STYLE.link, textAlign: "left", fontSize: 12 }, "aria-label": `\u9605\u8BFB\u6765\u6E90 ${sourceLabel(item)}`, onClick: () => props.openView(VIEW_IDS.assets, focusFor(item.path, item.locator)) }, "\u21A9 " + sourceLabel({ ...item, path: graph.nodes.find((n) => n.path === item.path)?.title || item.path }))),
+              node.parent && !node.sources.some((item) => item.path === node.parent) && h("button", { style: STYLE.link, onClick: () => props.openView(VIEW_IDS.graph, node.parent) }, `${parentLabelOf(graph, node.parent)}\uFF1A${graph.nodes.find((n) => n.path === node.parent)?.title || node.parent}`),
               node.type === "card" && h("button", { style: { ...STYLE.link, textAlign: "left", fontSize: 12 }, onClick: () => props.openView(VIEW_IDS.calendar, node.path) }, "\u590D\u4E60\u5B89\u6392"),
               h("button", { style: { ...STYLE.link, textAlign: "left", fontSize: 12 }, onClick: () => props.openView(VIEW_IDS.graph, node.path) }, "\u5728\u56FE\u8C31\u4E2D\u67E5\u770B")
             )
@@ -69689,6 +69759,7 @@ ${CARD_TYPE_LABEL[node.type] ?? ""}`.toLocaleLowerCase().includes(search.toLocal
     target: "M12 2v4M12 18v4M2 12h4M18 12h4M19 12a7 7 0 1 1-14 0 7 7 0 0 1 14 0",
     filter: "M3 4h18l-7 8v7l-4 2v-9z",
     book: "M3 4h7l2 2 2-2h7v16h-7l-2 2-2-2H3z",
+    folder: "M3 7V5h6l2 2h10v13H3z",
     sliders: "M4 8h9M17 8h3M4 16h3M11 16h9M15 5v6M7 13v6",
     log: "M5 4h14v16H5zM8 9h8M8 13h8M8 17h5",
     calendar: "M4 5h16v16H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2",
@@ -69889,7 +69960,7 @@ ${details}`;
       );
     }
     const drafts = createDraftStore("asset-draft");
-    function App({ ctx, sessionId, visible, openView, viewRequest, completeViewRequest }) {
+    function App({ ctx, sessionId, visible, global = false, openView, viewRequest, completeViewRequest }) {
       const vault = useMemo(() => createVaultClient(ctx, sessionId), [ctx, sessionId]);
       const fileActions = useFileActions(vault);
       const [files, setFiles] = useState([]);
@@ -69897,6 +69968,9 @@ ${details}`;
       const [selected, setSelected] = useState(drafts.get(sessionId)?.path ?? (viewRequest?.focus ? parseMediaTarget(viewRequest.focus).path : ""));
       const [anchor, setAnchor] = useState("");
       const [sidebar, setSidebar] = useState(false), [searching, setSearching] = useState(false), [creating, setCreating] = useState(false);
+      useEffect(() => {
+        setSidebar(global && window.innerWidth > 760);
+      }, [global]);
       const [extracting, setExtracting] = useState(false), [extractTitle, setExtractTitle] = useState(""), [extractQuote, setExtractQuote] = useState(""), [section, setSection] = useState("");
       const [assetLocator, setAssetLocator] = useState(null), [contextPath, setContextPath] = useState(null);
       const [busy, setBusy] = useState(false);
@@ -70369,7 +70443,7 @@ ${details}`;
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
       }, [save]);
-      const current = document2 ?? asset;
+      const current2 = document2 ?? asset;
       const menuItems = [
         { label: "\u5237\u65B0", run: () => {
           void refresh(selected);
@@ -70380,7 +70454,7 @@ ${details}`;
         { label: "\u5728\u56FE\u8C31\u4E2D\u67E5\u770B", run: () => openView(VIEW_IDS.graph, selected) },
         document2?.type === "card" && { label: "\u67E5\u770B\u590D\u4E60\u5B89\u6392", disabled: dirty, run: () => openView(VIEW_IDS.calendar, selected) },
         asset && { label: "\u590D\u5236\u5D4C\u5165\u6807\u8BB0", run: () => copyAssetEmbed() },
-        current && { label: "\u79FB\u5230\u56DE\u6536\u7AD9", disabled: dirty, run: () => fileActions.requestDelete(current.path) },
+        current2 && { label: "\u79FB\u5230\u56DE\u6536\u7AD9", disabled: dirty, run: () => fileActions.requestDelete(current2.path) },
         { label: "\u56DE\u6536\u7AD9", run: fileActions.showTrash }
       ];
       return h(
@@ -70395,10 +70469,10 @@ ${details}`;
             setSidebar(true);
             setSearching((v) => !v);
           } }),
-          h("span", { className: "nv-breadcrumb", title: current?.path }, current?.path ?? "\u8D44\u4EA7"),
+          h("span", { className: "nv-breadcrumb", title: current2?.path }, current2?.path ?? "\u8D44\u4EA7"),
           document2 && dirty && h(IconButton, { icon: "save", label: saving ? "\u4FDD\u5B58\u4E2D\u2026" : "\u4FDD\u5B58", disabled: saving, onClick: save }),
           document2 && h(IconButton, { icon: "extract", label: "\u6253\u5F00\u6458\u5F55\u5DE5\u5177", disabled: dirty, "aria-pressed": extracting, onClick: startExtract }),
-          current && h(IconButton, { icon: "chat", label: "\u5E26\u5165\u5BF9\u8BDD", disabled: dirty, onClick: () => bringIntoConversation() }),
+          current2 && h(IconButton, { icon: "chat", label: "\u5E26\u5165\u5BF9\u8BDD", disabled: dirty, onClick: () => bringIntoConversation() }),
           h(Menu, { label: "\u6587\u4EF6\u64CD\u4F5C", items: menuItems })
         ),
         notice && h("div", { className: "nv-notice", role: "status" }, notice),
@@ -70420,7 +70494,7 @@ ${details}`;
             searching && h("input", { style: { ...STYLE.search, margin: "8px", width: "calc(100% - 16px)" }, autoFocus: true, placeholder: "\u641C\u7D22\u6807\u9898\u3001\u5185\u5BB9\u6216\u8DEF\u5F84\u2026", value: query, onChange: (event) => runSearch(event.target.value) }),
             query.trim() ? shownFiles.map((item) => h("button", { key: item.path, style: buttonStyle(item.path === selected), onClick: () => selectFromResult(item.path) }, item.path)) : h(Tree2, { node: tree, selected, onSelect: selectPage, onContext: setContextPath })
           ),
-          h("main", { className: "nv-document" + (asset?.assetKind === "pdf" ? " nv-document-pdf" : "") }, current ? h(
+          h("main", { className: "nv-document" + (asset?.assetKind === "pdf" ? " nv-document-pdf" : "") }, current2 ? h(
             "article",
             null,
             document2 ? h(
@@ -70842,7 +70916,7 @@ ${details}`;
       const savedMissing = !!savedRoute && !!draft.model && !view.models.some((choice) => choice.provider === draft.provider && choice.model === draft.model);
       const choiceValue = (choice) => `${choice.provider}\0${choice.model}`;
       const selectValue = savedMissing ? "__saved__" : draft.provider && draft.model ? `${draft.provider}\0${draft.model}` : "";
-      const current = view.models.find((choice) => choice.provider === draft.provider && choice.model === draft.model) ?? null;
+      const current2 = view.models.find((choice) => choice.provider === draft.provider && choice.model === draft.model) ?? null;
       const route = draftRoute(draft), persona = draftPersona(draft), personaTooLong = (persona ?? "").length > PERSONA_TEXT_LIMIT;
       const submit = async (value) => {
         const saved = await onSave({ preset: presetId, tools: draftTools(draft), route: value, ...persona === void 0 ? {} : { persona }, expectedRevision: draft.expectedRevision });
@@ -70903,14 +70977,14 @@ ${details}`;
                 )
               ),
               preferredCandidate(worker, view.models) || savedMissing ? null : h("p", { role: "status", style: { ...STYLE.notice, marginTop: 8 } }, `\u5F53\u524D\u6CA1\u6709\u63A5\u5165 ${worker?.preferredModel || "\u9ED8\u8BA4\u6A21\u578B"}\uFF0C\u53EF\u4EE5\u63A5\u5165\u540E\u518D\u7528\uFF0C\u6216\u660E\u786E\u9009\u62E9\u53E6\u4E00\u4E2A\u540E\u53F0\u6A21\u578B\u3002`),
-              current && current.reasoningEfforts.length > 1 && h(
+              current2 && current2.reasoningEfforts.length > 1 && h(
                 "label",
                 { style: { display: "block", marginTop: 8 } },
                 "\u63A8\u7406\u7B49\u7EA7",
                 h(
                   "select",
                   { "aria-label": "\u63A8\u7406\u7B49\u7EA7", style: { ...STYLE.templateInput, width: "100%" }, value: draft.reasoningEffort, onChange: (event) => edit({ ...draft, reasoningEffort: event.target.value }) },
-                  current.reasoningEfforts.map((effort) => h("option", { key: effort, value: effort }, effort))
+                  current2.reasoningEfforts.map((effort) => h("option", { key: effort, value: effort }, effort))
                 )
               )
             ) : h("p", { role: "status", style: { ...STYLE.notice, marginTop: 8 } }, "\u5F53\u524D\u8FD0\u884C\u73AF\u5883\u6CA1\u6709\u53EF\u7528\u7684\u6A21\u578B\uFF0C\u540E\u53F0\u5206\u6790\u6682\u65F6\u65E0\u6CD5\u89C4\u5212\u3002")
@@ -71203,123 +71277,242 @@ ${details}`;
   }
 
   // examples/native-vault/workspace-client.js
-  function createVaultWorkspace(React, { App, GraphView, CardsView, RoutesView, CalendarView, ClassroomView, TeachingEntry, SummaryEntry, IconButton, onBring, ensureSession = async () => void 0 }) {
-    const h = React.createElement, { useState, useRef, useEffect, useCallback } = React;
-    const choices = [["chat", "\u5BF9\u8BDD"], ["trajectory", "\u8F68\u8FF9"], [VIEW_IDS.assets, "\u8D44\u4EA7"], [VIEW_IDS.graph, "\u56FE\u8C31"], [VIEW_IDS.cards, "\u5361\u7247"], [VIEW_IDS.routes, "\u8DEF\u7EBF"], [VIEW_IDS.calendar, "\u65E5\u5386"], [CLASSROOM_VIEW, "\u6559\u5BA4"]];
-    const hasPane = (id2, teaching) => id2 !== CLASSROOM_VIEW || teaching;
-    const components = { [VIEW_IDS.assets]: App, [VIEW_IDS.graph]: GraphView, [VIEW_IDS.cards]: CardsView, [VIEW_IDS.routes]: RoutesView, [VIEW_IDS.calendar]: CalendarView, [CLASSROOM_VIEW]: ClassroomView };
+  function createVaultWorkspace(React, { App, GraphView, CardsView, RoutesView, CalendarView, ClassroomView, Board, BoardStream, TeachingEntry, SummaryEntry, IconButton, onBring, ensureSession = async () => void 0, navigation, Today }) {
+    const h = React.createElement, { useState, useRef, useEffect, useCallback, useSyncExternalStore } = React;
+    const choices = [["chat", "\u5BF9\u8BDD"], ["board", "\u767D\u677F"], ["trajectory", "\u8F68\u8FF9"], [VIEW_IDS.assets, "\u6587\u4EF6"], [VIEW_IDS.graph, "\u56FE\u8C31"], [VIEW_IDS.cards, "\u5361\u7247"], [VIEW_IDS.routes, "\u8DEF\u7EBF"], [VIEW_IDS.calendar, "\u65E5\u5386"], [CLASSROOM_VIEW, "\u6559\u5BA4"]];
+    const components = { board: Board, [VIEW_IDS.assets]: App, [VIEW_IDS.graph]: GraphView, [VIEW_IDS.cards]: CardsView, [VIEW_IDS.routes]: RoutesView, [VIEW_IDS.calendar]: CalendarView, [CLASSROOM_VIEW]: ClassroomView };
     const layouts = /* @__PURE__ */ new Map();
+    const libraryTabs = [["files", "\u6587\u4EF6"], ["cards", "\u5361\u7247"], ["graph", "\u56FE\u8C31"]], planTabs = [["routes", "\u8DEF\u7EBF"], ["calendar", "\u65E5\u5386"], ["review", "\u590D\u4E60"]];
+    const libraryIds = { files: VIEW_IDS.assets, cards: VIEW_IDS.cards, graph: VIEW_IDS.graph };
     function Workspace(props) {
-      const { sessionId, nativeConversationBody, nativeHeader, nativeTrajectory } = props;
-      const nativeSessions = props.ctx.sessions.list;
-      const sessionState = React.useSyncExternalStore((callback) => nativeSessions.subscribe(callback), () => nativeSessions.getSnapshot());
-      const current = sessionState.byId[sessionId ?? sessionState.current];
-      const teaching = current?.projectionValues?.agentPreset === "notara-teacher" && current?.origin !== "subagent";
-      const [layout, setLayout] = useState(() => layouts.get(sessionId) ?? { sessionId, left: "chat", right: null, ratio: 50 });
-      const [active, setActive2] = useState("left"), [requests, setRequests] = useState({}), [visited, setVisited] = useState(/* @__PURE__ */ new Set(["chat"]));
-      const root = useRef(null), drag = useRef(null), serial = useRef(0);
+      const { sessionId, nativeConversationBody, nativeHeader, nativeTrajectory } = props, ctx = props.ctx;
+      const nav2 = useSyncExternalStore(navigation.subscribe, navigation.getSnapshot);
+      const sessions = ctx.sessions.list;
+      const sessionState = useSyncExternalStore((fn) => sessions.subscribe(fn), () => sessions.getSnapshot());
+      const current2 = sessionState.byId[sessionId ?? sessionState.current];
+      const teaching = current2?.projectionValues?.agentPreset === "notara-teacher" && current2?.origin !== "subagent";
+      const [layout, setLayout] = useState(() => layouts.get(sessionId) ?? { sessionId, left: "chat", right: null, ratio: 62 });
+      const [requests, setRequests] = useState({}), [visited, setVisited] = useState(/* @__PURE__ */ new Set(["chat"]));
+      const [narrow, setNarrow] = useState(() => window.innerWidth < 800), [narrowFace, setNarrowFace] = useState("board");
+      useEffect(() => {
+        const observer = new ResizeObserver((entries) => setNarrow(entries[0].contentRect.width < 700));
+        if (root.current) observer.observe(root.current);
+        return () => observer.disconnect();
+      }, []);
+      const root = useRef(null), drag = useRef(false), serial = useRef(0), previous = useRef(sessionId);
+      const debug = nav2.debug;
+      const globalView = nav2.section === "today" ? "today" : nav2.section === "library" ? libraryIds[nav2.library] : nav2.section === "plan" ? nav2.plan === "routes" ? VIEW_IDS.routes : VIEW_IDS.calendar : null;
       if (layout.sessionId !== sessionId) {
-        setLayout(layouts.get(sessionId) ?? { sessionId, left: "chat", right: null, ratio: 50 });
+        setLayout(layouts.get(sessionId) ?? { sessionId, left: "chat", right: null, ratio: 62 });
         setRequests({});
       }
+      useEffect(() => {
+        if (previous.current !== sessionId) {
+          const state = navigation.getSnapshot(), homeOwnsSelection = state.section === "today" && (state.preparingHome || state.homeSession === sessionId);
+          if (previous.current !== void 0 && !homeOwnsSelection) navigation.show("lesson");
+          previous.current = sessionId;
+        }
+      }, [sessionId]);
       useEffect(() => {
         layouts.set(sessionId, layout);
       }, [sessionId, layout]);
       useEffect(() => {
-        setVisited((prev) => /* @__PURE__ */ new Set([...prev, layout.left, ...layout.right ? [layout.right] : []]));
-      }, [layout.left, layout.right]);
+        setVisited((prev) => /* @__PURE__ */ new Set([...prev, layout.left, ...layout.right ? [layout.right] : [], ...globalView ? [globalView] : []]));
+      }, [layout.left, layout.right, globalView]);
       useEffect(() => {
         if (teaching || layout.left !== CLASSROOM_VIEW && layout.right !== CLASSROOM_VIEW) return;
-        setLayout((prev) => {
-          const next = { ...prev, left: prev.left === CLASSROOM_VIEW ? "chat" : prev.left, right: prev.right === CLASSROOM_VIEW ? null : prev.right };
-          return next.right === next.left ? { ...next, right: null } : next;
-        });
-      }, [teaching, sessionId, layout.left, layout.right]);
+        setLayout((prev) => ({ ...prev, left: "chat", right: null }));
+      }, [teaching, layout.left, layout.right]);
+      useEffect(() => {
+        if (debug || layout.left !== "trajectory" && layout.right !== "trajectory") return;
+        setLayout((prev) => ({ ...prev, left: prev.left === "trajectory" ? "chat" : prev.left, right: prev.right === "trajectory" ? null : prev.right }));
+      }, [debug, layout.left, layout.right]);
       const choose = (side, id2) => {
-        if (!hasPane(id2, teaching)) return;
-        setVisited((prev) => /* @__PURE__ */ new Set([...prev, id2]));
+        if (id2 === "board") {
+          if (teaching) setLayout((prev) => ({ ...prev, left: "board", right: "chat", ratio: 68 }));
+          setNarrowFace("board");
+          return;
+        }
+        if (id2 === CLASSROOM_VIEW && !teaching) return;
         setLayout((prev) => {
           const other = side === "left" ? "right" : "left";
           return { ...prev, [side]: id2, ...prev[other] === id2 ? { [other]: prev[side] } : {} };
         });
       };
+      const primaryView = narrow && layout.left === "board" ? narrowFace : layout.left;
+      const choosePrimary = (id2) => {
+        if (narrow && layout.left === "board" && ["chat", "board"].includes(id2)) {
+          setNarrowFace(id2);
+          return;
+        }
+        if (id2 === "board") {
+          choose("left", id2);
+          return;
+        }
+        setLayout((prev) => ({ ...prev, left: id2, right: null }));
+      };
+      const secondaryLabel = layout.left === "board" ? layout.right ? "\u6536\u8D77\u5BF9\u8BDD" : "\u6253\u5F00\u5BF9\u8BDD" : layout.right ? "\u6536\u8D77\u8D44\u6599\u9762\u677F" : "\u6253\u5F00\u8D44\u6599\u9762\u677F";
+      const toggleSecondary = () => setLayout((prev) => ({ ...prev, right: prev.right ? null : prev.left === "board" ? "chat" : VIEW_IDS.assets }));
+      const globalOpen = (id2, focus = "") => {
+        if (id2 === VIEW_IDS.assets) navigation.show("library", "files", focus);
+        else if (id2 === VIEW_IDS.cards) navigation.show("library", "cards", focus);
+        else if (id2 === VIEW_IDS.graph) navigation.show("library", "graph", focus);
+        else if (id2 === VIEW_IDS.routes) navigation.show("plan", "routes", focus);
+        else if (id2 === VIEW_IDS.calendar) navigation.show("plan", focus && !/^\d{4}-\d{2}-\d{2}$/.test(focus) ? "review" : "calendar", focus);
+      };
       const openView = (origin, id2, focus = "") => {
         if (id2 === "chat") {
-          setLayout((prev) => prev.left === "chat" || prev.right === "chat" ? prev : { ...prev, [origin === "right" ? "left" : "right"]: "chat" });
+          if (globalView) setLayout((prev) => ({ ...prev, left: "chat", right: globalView === "today" ? null : globalView }));
+          else setLayout((prev) => prev.left === "chat" || prev.right === "chat" ? prev : { ...prev, [origin === "right" ? "left" : "right"]: "chat" });
+          navigation.show("lesson");
           requestAnimationFrame(() => document.querySelector("[data-composer-input]")?.focus({ preventScroll: true }));
-        } else {
+        } else if (globalView) globalOpen(id2, focus);
+        else {
           const side = layout.left === id2 ? "left" : layout.right === id2 ? "right" : origin;
           choose(side, id2);
           if (focus) setRequests((prev) => ({ ...prev, [id2]: { focus, nonce: ++serial.current } }));
         }
       };
-      const navigate = useRef(null), detachNavigation = useRef(null);
+      const navigate = useRef(null), detach = useRef(null);
       useEffect(() => {
         navigate.current = (path2) => openView(layout.left === "chat" ? "right" : "left", VIEW_IDS.assets, path2);
       });
       const bindChatNavigation = useCallback((node) => {
-        detachNavigation.current?.();
-        detachNavigation.current = null;
-        if (node) detachNavigation.current = attachConversationFileNavigation(node, { open: (path2) => navigate.current?.(path2) });
+        detach.current?.();
+        detach.current = null;
+        if (node) detach.current = attachConversationFileNavigation(node, { open: (path2) => navigate.current?.(path2) });
       }, []);
       useEffect(() => () => {
-        detachNavigation.current?.();
-        detachNavigation.current = null;
+        detach.current?.();
       }, []);
-      const bar = (side) => h(
+      const bar = (side) => {
+        const tabs = side === "left" ? [["chat", "\u5BF9\u8BDD"], ...teaching ? [["board", "\u767D\u677F"], [CLASSROOM_VIEW, "\u6559\u5BA4"]] : [], ...debug ? [["trajectory", "\u8F68\u8FF9"]] : []] : layout.right === "chat" ? [["chat", "\u5BF9\u8BDD"]] : choices.filter(([id2]) => !["today", "chat", "board", "trajectory", CLASSROOM_VIEW].includes(id2));
+        return h(
+          "div",
+          { className: "nv-bar" },
+          h("div", { className: "nv-workspace-tabs", role: "tablist", "aria-label": side === "left" ? "\u8BFE\u5802\u89C6\u56FE" : "\u8D44\u6599\u9762\u677F\u89C6\u56FE" }, tabs.map(([id2, label]) => h("button", { key: id2, role: "tab", "aria-selected": layout[side] === id2, onClick: () => choose(side, id2) }, label))),
+          h(
+            "div",
+            { style: { marginLeft: "auto", display: "flex", gap: 3 } },
+            side === "left" && teaching && h(TeachingEntry, { ctx, sessionId, ensureSession: () => ensureSession(ctx) }),
+            side === "left" && teaching && h(SummaryEntry, { ctx, sessionId }),
+            side === "left" && h(IconButton, { icon: "split", label: layout.right ? "\u6536\u8D77\u8D44\u6599\u9762\u677F" : "\u6253\u5F00\u8D44\u6599\u9762\u677F", "aria-pressed": !!layout.right, onClick: () => setLayout((prev) => ({ ...prev, right: prev.right ? null : VIEW_IDS.assets })) }),
+            side === "right" && h(IconButton, { icon: "close", label: "\u5173\u95ED\u8D44\u6599\u9762\u677F", onClick: () => setLayout((prev) => ({ ...prev, right: null })) })
+          )
+        );
+      };
+      const lessonHeader = teaching && h(
         "div",
-        { className: "nv-bar" },
-        h("div", { className: "nv-workspace-tabs", role: "tablist", "aria-label": side === "left" ? "\u5DE6\u4FA7\u5206\u9875" : "\u53F3\u4FA7\u5206\u9875" }, choices.filter(([id2]) => hasPane(id2, teaching)).map(([id2, label]) => h("button", { key: id2, role: "tab", "aria-selected": layout[side] === id2, onClick: () => {
-          setActive2(side);
-          choose(side, id2);
-        } }, label))),
+        { className: "nv-class-topbar", "data-narrow": narrow ? "true" : void 0 },
+        h("div", { className: "nv-class-native" }, nativeHeader),
+        h(
+          "nav",
+          { className: "nv-class-views nv-workspace-tabs", role: "tablist", "aria-label": "\u8BFE\u5802\u89C6\u56FE" },
+          [["chat", "\u5BF9\u8BDD"], ["board", "\u767D\u677F"], [CLASSROOM_VIEW, "\u6559\u5BA4"], ...debug ? [["trajectory", "\u8F68\u8FF9"]] : []].map(([id2, label]) => h("button", { key: id2, role: "tab", "aria-selected": primaryView === id2, onClick: () => choosePrimary(id2) }, label))
+        ),
         h(
           "div",
-          { style: { marginLeft: "auto", display: "flex", alignItems: "center", gap: 2, minWidth: 0 } },
-          side === "left" && teaching && h(TeachingEntry, { ctx: props.ctx, sessionId, ensureSession: () => ensureSession(props.ctx) }),
-          side === "left" && teaching && h(SummaryEntry, { ctx: props.ctx, sessionId })
-        ),
-        side === "left" && h(IconButton, { icon: "split", label: layout.right ? "\u9000\u51FA\u5206\u5C4F" : "\u5206\u5C4F\u663E\u793A", "aria-pressed": !!layout.right, onClick: () => setLayout((prev) => ({ ...prev, right: prev.right ? null : prev.left === "chat" ? VIEW_IDS.assets : "chat" })) }),
-        side === "right" && h(IconButton, { icon: "swap", label: "\u4EA4\u6362\u5206\u5C4F", onClick: () => setLayout((prev) => ({ ...prev, left: prev.right, right: prev.left, ratio: 100 - prev.ratio })) }),
-        side === "right" && h(IconButton, { icon: "close", label: "\u5173\u95ED\u5206\u5C4F", onClick: () => setLayout((prev) => ({ ...prev, right: null })) })
+          { className: "nv-class-actions" },
+          h(TeachingEntry, { ctx, sessionId, ensureSession: () => ensureSession(ctx) }),
+          h(SummaryEntry, { ctx, sessionId }),
+          !(narrow && layout.left === "board") && h(IconButton, { icon: layout.left === "board" ? "chat" : "split", label: secondaryLabel, "aria-pressed": !!layout.right, onClick: toggleSecondary })
+        )
+      );
+      const globalHeader = globalView && globalView !== "today" && h(
+        "header",
+        { className: "nv-shell-heading" },
+        h("h1", null, nav2.section === "library" ? "\u8D44\u6599\u5E93" : "\u8BA1\u5212"),
+        h(
+          "div",
+          { className: "nv-shell-tabs", role: "tablist", "aria-label": nav2.section === "library" ? "\u8D44\u6599\u5E93\u89C6\u56FE" : "\u8BA1\u5212\u89C6\u56FE" },
+          (nav2.section === "library" ? libraryTabs : planTabs).map(([id2, label]) => h("button", { key: id2, role: "tab", "aria-selected": (nav2.section === "library" ? nav2.library : nav2.plan) === id2, onClick: () => navigation.show(nav2.section, id2) }, label))
+        )
       );
       return h(
         "div",
-        { className: "nv-workspace" },
+        { className: "nv-workspace", "data-section": nav2.section },
+        teaching && BoardStream && h(BoardStream, { ctx, sessionId }),
         h("style", null, UI_CSS),
-        nativeHeader,
-        teaching && current?.blank && current.title && h("header", { "aria-label": "\u5F53\u524D\u8BFE\u7A0B", style: { padding: "14px 20px", borderBottom: "1px solid var(--dsw-alias-border-l1)" } }, h("h1", { style: { fontSize: 16, margin: 0, fontWeight: 600 } }, current.title)),
+        !globalView && (teaching ? lessonHeader : nativeHeader),
+        globalHeader,
         h(
           "div",
-          { ref: root, className: "nv-panes", "data-nv-split": layout.right ? "true" : void 0, style: { gridTemplateColumns: layout.right ? `minmax(0,${layout.ratio}fr) 5px minmax(0,${100 - layout.ratio}fr)` : "minmax(0,1fr)", gridTemplateRows: "minmax(0,1fr)" } },
+          {
+            ref: root,
+            className: "nv-panes",
+            "data-nv-board": layout.left === "board" ? "true" : void 0,
+            "data-nv-split": !globalView && layout.right && !(narrow && layout.left === "board") ? "true" : void 0,
+            style: { gridTemplateColumns: !globalView && layout.right && !(narrow && layout.left === "board") ? "minmax(0," + layout.ratio + "fr) 5px minmax(0," + (100 - layout.ratio) + "fr)" : "minmax(0,1fr)", gridTemplateRows: "minmax(0,1fr)" }
+          },
           choices.map(([id2, label]) => {
-            const side = layout.left === id2 ? "left" : layout.right === id2 ? "right" : null;
-            if (!hasPane(id2, teaching)) return null;
+            const side = globalView ? id2 === (globalView === "today" ? "chat" : globalView) ? "left" : null : narrow && layout.left === "board" ? id2 === narrowFace ? "left" : null : layout.left === id2 ? "left" : layout.right === id2 ? "right" : null;
+            if (id2 === "board" && !teaching) return null;
+            if (id2 === CLASSROOM_VIEW && !teaching) return null;
+            if (id2 === "trajectory" && !debug) return null;
+            const request = globalView === id2 ? nav2.request : requests[id2];
+            const childProps = {
+              ...props,
+              key: sessionId,
+              global: !!globalView,
+              visible: !!side,
+              viewRequest: request,
+              completeViewRequest: () => globalView === id2 ? navigation.complete() : setRequests((prev) => ({ ...prev, [id2]: null })),
+              ...id2 === VIEW_IDS.calendar && globalView ? { mode: nav2.plan === "review" ? "review" : "calendar", hideModes: true } : {},
+              openView: (target, focus) => openView(side ?? "left", target, focus),
+              onBring: (file, selection, page, intent) => onBring(ctx, sessionId, file, selection, page, intent, (target, focus) => openView(side ?? "left", target, focus))
+            };
             return h(
               "section",
-              { key: id2, className: "nv-pane", "aria-label": `${label}\u533A\u57DF`, "aria-hidden": !side, ...!side ? { inert: "" } : {}, style: { display: side ? "flex" : "none", gridColumn: side === "right" ? 3 : 1, gridRow: 1, "--nv-row": side === "right" ? 3 : 1 }, onPointerDown: () => side && setActive2(side) },
-              side && bar(side),
-              h("div", { className: "nv-pane-content", ref: id2 === "chat" ? bindChatNavigation : void 0 }, id2 === "chat" ? nativeConversationBody : id2 === "trajectory" ? (side || visited.has(id2)) && nativeTrajectory : sessionId && (side || visited.has(id2)) && h(components[id2], { ...props, key: sessionId, visible: !!side, viewRequest: requests[id2], completeViewRequest: () => setRequests((prev) => ({ ...prev, [id2]: null })), openView: (target, focus) => openView(side ?? active, target, focus), onBring: (file, selection, page, intent) => onBring(props.ctx, sessionId, file, selection, page, intent, (target, focus) => openView(side ?? active, target, focus)) }))
+              {
+                key: id2,
+                className: "nv-pane",
+                "aria-label": label + "\u533A\u57DF",
+                "aria-hidden": !side,
+                ...!side ? { inert: "" } : {},
+                style: { display: side ? "flex" : "none", gridColumn: side === "right" ? 3 : 1, gridRow: 1, "--nv-row": side === "right" ? 3 : 1 }
+              },
+              side && !globalView && !(narrow && layout.left === "board") && (!teaching || side === "right") && bar(side),
+              h(
+                "div",
+                { className: "nv-pane-content", ref: id2 === "chat" ? bindChatNavigation : void 0 },
+                id2 === "chat" ? h(Today, { ctx, sessionId, visible: globalView === "today", onView: globalOpen }, nativeConversationBody) : id2 === "trajectory" ? (side || visited.has(id2)) && nativeTrajectory : (side || visited.has(id2)) && h(components[id2], childProps)
+              )
             );
           }),
-          layout.right && h("div", { className: "nv-split-handle", role: "separator", "aria-label": "\u8C03\u6574\u5206\u5C4F\u5BBD\u5EA6", "aria-orientation": "vertical", "aria-valuemin": 25, "aria-valuemax": 75, "aria-valuenow": layout.ratio, tabIndex: 0, style: { gridColumn: 2, gridRow: 1 }, onKeyDown: (e) => {
-            if (["ArrowLeft", "ArrowRight"].includes(e.key)) {
-              e.preventDefault();
-              setLayout((prev) => ({ ...prev, ratio: Math.max(25, Math.min(75, prev.ratio + (e.key === "ArrowRight" ? 5 : -5))) }));
+          !globalView && layout.right && !(narrow && layout.left === "board") && h("div", {
+            className: "nv-split-handle",
+            role: "separator",
+            "aria-label": "\u8C03\u6574\u8D44\u6599\u9762\u677F\u5BBD\u5EA6",
+            "aria-orientation": "vertical",
+            "aria-valuemin": 25,
+            "aria-valuemax": 75,
+            "aria-valuenow": layout.ratio,
+            tabIndex: 0,
+            style: { gridColumn: 2, gridRow: 1 },
+            onKeyDown: (e) => {
+              if (["ArrowLeft", "ArrowRight"].includes(e.key)) {
+                e.preventDefault();
+                setLayout((prev) => ({ ...prev, ratio: Math.max(25, Math.min(75, prev.ratio + (e.key === "ArrowRight" ? 5 : -5))) }));
+              }
+            },
+            onPointerDown: (e) => {
+              drag.current = true;
+              e.currentTarget.setPointerCapture(e.pointerId);
+            },
+            onPointerMove: (e) => {
+              if (!drag.current) return;
+              const rect = root.current.getBoundingClientRect();
+              const ratio = innerWidth <= 760 ? (e.clientY - rect.top) / rect.height : (e.clientX - rect.left) / rect.width;
+              setLayout((prev) => ({ ...prev, ratio: Math.max(25, Math.min(75, ratio * 100)) }));
+            },
+            onPointerUp: (e) => {
+              drag.current = false;
+              e.currentTarget.releasePointerCapture(e.pointerId);
+            },
+            onPointerCancel: () => {
+              drag.current = false;
             }
-          }, onPointerDown: (e) => {
-            drag.current = true;
-            e.currentTarget.setPointerCapture(e.pointerId);
-          }, onPointerMove: (e) => {
-            if (!drag.current) return;
-            const rect = root.current.getBoundingClientRect();
-            setLayout((prev) => ({ ...prev, ratio: Math.max(25, Math.min(75, (e.clientX - rect.left) / rect.width * 100)) }));
-          }, onPointerUp: (e) => {
-            drag.current = null;
-            e.currentTarget.releasePointerCapture(e.pointerId);
-          }, onPointerCancel: () => {
-            drag.current = null;
-          } })
+          })
         )
       );
     }
@@ -71350,6 +71543,46 @@ ${details}`;
 .nv-legend svg line[data-edge="prerequisite"]{stroke:var(--dsw-alias-label-secondary);stroke-dasharray:3 5}
 .nv-legend svg line[data-edge="branch"]{stroke:var(--dsw-alias-state-business-primary);stroke-dasharray:4 3}
 .nv-legend svg polygon[data-edge="sequence"]{fill:var(--dsw-alias-state-business-primary)}
+/* \u8BFE\u7A0B\u5217\u8868 / \u5206\u9636\u6BB5\u6CF3\u9053\uFF1A\u9ED8\u8BA4\u5165\u53E3\u662F\u539F\u578B\u91CC\u9010\u9636\u6BB5\u8BFB\u8BFE\u5E8F\u7684\u5217\u8868\uFF0C\u56FE\u8C31\u4FDD\u7559\u539F\u6765\u7684\u753B\u5E03
+   \u4F53\u9A8C\u3002\u4E24\u79CD\u89C6\u56FE\u8BFB\u540C\u4E00\u4EFD\u6295\u5F71\u3001\u5171\u7528\u53F3\u4FA7\u8BE6\u60C5\u680F\uFF0C\u6240\u4EE5\u300C\u663E\u793A\u4EC0\u4E48\u8BFE\u300D\u4E0D\u4F1A\u56E0\u4E3A\u5207\u6362
+   \u89C6\u56FE\u800C\u6539\u53D8\u3002\u767D\u7070\u5E95\u3001\u7EC6\u8FB9\u754C\u3001\u5706\u89D2\u6CBF\u7528\u65E2\u6709 theme tokens\u3002 */
+.nv-route-views{display:flex;gap:3px;padding:3px;border-radius:10px;background:var(--dsw-alias-bg-layer-2)}
+.nv-route-views button{border:0;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;white-space:nowrap;padding:6px 12px;border-radius:8px;cursor:pointer}
+.nv-route-views button[aria-pressed=true]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 1px 4px #0001}
+.nv-route-shell{display:flex;flex:1;min-height:0;overflow:hidden}
+.nv-route-rail{width:230px;flex:none;min-width:0;overflow:auto;padding:12px;display:grid;align-content:start;gap:8px;border-right:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base)}
+.nv-route-card{width:100%;display:grid;gap:6px;padding:12px 14px;text-align:left;font:inherit;color:inherit;cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1);border-radius:var(--nv-card-radius,16px)}
+.nv-route-card:hover{border-color:var(--dsw-alias-border-l2)}
+.nv-route-card[aria-current=true]{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 3px var(--dsw-alias-interactive-bg-active)}
+.nv-route-card b{font-size:13px;font-weight:500;overflow-wrap:anywhere}
+.nv-route-card small{font-size:11px;line-height:1.6;color:var(--dsw-alias-label-tertiary)}
+.nv-route-progress{display:flex;gap:2px;height:5px;border-radius:3px;overflow:hidden;background:var(--dsw-alias-bg-layer-2)}
+.nv-route-progress i{display:block;height:100%;background:var(--dsw-alias-border-l3)}
+.nv-route-progress i[data-part=logged]{background:var(--dsw-alias-label-secondary)}
+.nv-route-progress i[data-part=opened]{background:var(--dsw-alias-state-business-primary)}
+.nv-route-main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
+.nv-route-empty{flex:1;min-height:0;display:grid;place-items:center;padding:16px}
+.nv-route-lanes{flex:1;min-height:0;overflow:auto;padding:14px 16px 22px;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);align-content:start;background-image:radial-gradient(var(--dsw-alias-border-l1) .7px,transparent .7px);background-size:20px 20px}
+.nv-route-lane{min-width:0;padding:0 12px;border-left:1px dashed var(--dsw-alias-border-l2)}
+.nv-route-lane:first-child{border-left:0}
+.nv-route-lane-head{display:flex;align-items:center;gap:6px;margin:2px 0 12px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
+.nv-route-lane-head b{font-weight:500;color:var(--dsw-alias-label-secondary)}
+.nv-route-node{position:relative;display:grid;gap:6px;width:100%;margin-bottom:10px;padding:12px;text-align:left;font:inherit;color:inherit;cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1);border-radius:var(--nv-card-radius,16px)}
+.nv-route-node:hover{border-color:var(--dsw-alias-border-l2)}
+.nv-route-node[aria-pressed=true]{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 3px var(--dsw-alias-interactive-bg-active)}
+.nv-route-node b{font-size:13.5px;font-weight:500;line-height:1.5;overflow-wrap:anywhere}
+.nv-route-kind{font-size:11px;color:var(--dsw-alias-label-tertiary)}
+.nv-route-state{display:flex;flex-wrap:wrap;gap:6px}
+.nv-route-badge{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;font-size:11px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);box-shadow:inset 0 0 0 1px var(--dsw-alias-border-l1)}
+.nv-route-badge[data-role="logged"]{color:var(--dsw-alias-label-primary);box-shadow:inset 0 0 0 1px var(--dsw-alias-border-l2)}
+.nv-route-badge[data-role="opened"]{background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-primary)}
+.nv-route-badge[data-role="scheduled"]{color:var(--dsw-alias-state-business-primary);box-shadow:inset 0 0 0 1px var(--dsw-alias-state-business-primary)}
+/* \u6761\u4EF6\u8865\u7EC3\u4E0E\u62D3\u5C55\u53EA\u9760\u865A\u7EBF\u6846\u548C\u4E00\u6BB5\u6298\u89D2\u8868\u8FBE\uFF1A\u5B83\u4EEC\u662F\u53E6\u4E00\u79CD pathway\uFF0C\u4E0D\u662F\u53E6\u4E00\u79CD\u8BFE\u3002 */
+.nv-route-node[data-pathway="remedial"],.nv-route-node[data-pathway="extension"]{width:calc(100% - 14px);margin-left:14px;border-style:dashed}
+.nv-route-node[data-pathway="remedial"]::before,.nv-route-node[data-pathway="extension"]::before{content:'';position:absolute;left:-11px;top:-10px;width:9px;height:26px;border-left:1.5px solid var(--dsw-alias-border-l2);border-bottom:1.5px solid var(--dsw-alias-border-l2);border-bottom-left-radius:6px}
+.nv-route-main .nv-route-log{border-bottom:0;border-top:1px solid var(--dsw-alias-border-l1)}
+@container (max-width:900px){.nv-route-shell{flex-direction:column}.nv-route-rail{width:auto;grid-auto-flow:column;grid-auto-columns:minmax(200px,1fr);overflow-x:auto;border-right:0;border-bottom:1px solid var(--dsw-alias-border-l1)}}
+@container (max-width:650px){.nv-route-shell[data-detail=true]{flex-direction:column}.nv-route-shell[data-detail=true] .nv-route-main{min-height:180px}}
 `;
   var PATHWAY_LABEL = { main: "\u4E3B\u7EBF", remedial: "\u6761\u4EF6\u8865\u7EC3", extension: "\u62D3\u5C55" };
   var FOLDED_PATHWAYS = ["remedial", "extension"];
@@ -71367,6 +71600,24 @@ ${details}`;
   }
   function stageOf(node) {
     return typeof node?.stage === "string" ? node.stage.trim() : "";
+  }
+  function routeLanes(rows) {
+    const lanes = /* @__PURE__ */ new Map();
+    for (const row of Array.isArray(rows) ? rows : []) {
+      const stage = typeof row?.stage === "string" ? row.stage : "";
+      if (!lanes.has(stage)) lanes.set(stage, []);
+      lanes.get(stage).push(row);
+    }
+    return [...lanes.entries()].map(([stage, items]) => ({ stage, items }));
+  }
+  function routeRailSummary(route, nodes) {
+    const rows = (Array.isArray(nodes) ? nodes : []).filter((node) => node && node.routePath === route?.path);
+    return {
+      total: rows.length,
+      stages: new Set(rows.map((node) => stageOf(node)).filter(Boolean)).size,
+      logged: rows.filter((node) => routeRoleOf(node) === "logged").length,
+      opened: rows.filter((node) => routeRoleOf(node) === "opened").length
+    };
   }
   function nodeHint(item) {
     return [PATHWAY_LABEL[item?.pathway] ?? PATHWAY_LABEL.main, item?.stage ? `\u9636\u6BB5 ${item.stage}` : ""].filter(Boolean).join(" \xB7 ");
@@ -71463,6 +71714,7 @@ ${details}`;
       const [selected, setSelected] = useRemembered(store, "lesson", "");
       const [pathways, setPathways] = useRemembered(store, "pathways", ["main"]);
       const [stage, setStage] = useRemembered(store, "stage", "");
+      const [view, setView] = useRemembered(store, "routeView", "list");
       const [paneWidth, setPaneWidth] = useRemembered(store, "paneWidth", 320);
       const [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [creating, setCreating] = useState(false), [overview, setOverview] = useState(false);
       const [title, setTitle] = useState(""), [lines, setLines] = useState("");
@@ -71502,6 +71754,8 @@ ${details}`;
       const visibleNodes = useMemo(() => projection.nodes.filter((row) => !hidden(row)), [projection, pathways, stage]);
       const visibleKeys = useMemo(() => new Set(visibleNodes.map((row) => row.key)), [visibleNodes]);
       const visibleEdges = useMemo(() => projection.edges.filter((edge) => visibleKeys.has(edge.source) && visibleKeys.has(edge.target)), [projection, visibleKeys]);
+      const lanes = useMemo(() => routeLanes(visibleNodes), [visibleNodes]);
+      const railRows = useMemo(() => (state.data?.routes ?? []).map((entry) => ({ route: entry, summary: routeRailSummary(entry, state.data?.nodes) })), [state.data]);
       const item = byKey.get(selected);
       const lesson = item?.node;
       const parent = lesson?.parent ? byId.get(lesson.parent) : void 0;
@@ -71624,6 +71878,18 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
       const tools = h(
         React.Fragment,
         null,
+        // 课程列表 is the reading surface and 图谱 keeps the canvas interaction the
+        // bench already had; the switch never changes which lessons are visible.
+        h(
+          "div",
+          { className: "nv-route-views", role: "group", "aria-label": "\u8DEF\u7EBF\u89C6\u56FE" },
+          [["list", "\u8BFE\u7A0B\u5217\u8868"], ["graph", "\u56FE\u8C31"]].map(([id2, label]) => h("button", {
+            key: id2,
+            type: "button",
+            "aria-pressed": view === id2,
+            onClick: () => setView(id2)
+          }, label))
+        ),
         routes.length ? h("select", { "aria-label": "\u5B66\u4E60\u8DEF\u7EBF", style: { ...STYLE.templateInput, width: 200, margin: 0 }, value: route?.path ?? "", onChange: (event) => {
           setSelectedPath(event.target.value);
           setSelected("");
@@ -71659,6 +71925,260 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
       const sequenceCount = projection.edges.filter((edge) => edge.kind === "sequence").length;
       const edgeKinds = new Set(projection.edges.map((edge) => edge.kind));
       const status = notice || state.error || (state.loading && !routes.length ? "\u6B63\u5728\u8BFB\u53D6\u2026" : route ? `${projection.nodes.length} \u8282\u8BFE \xB7 ${sequenceCount} \u6BB5\u63A5\u7EED${projection.nodes.length > visibleNodes.length ? ` \xB7 \u663E\u793A ${visibleNodes.length} \u8282` : ""}` : "\u8FD8\u6CA1\u6709\u5B66\u4E60\u8DEF\u7EBF");
+      const overviewBlock = overviewBody.trim() ? h(
+        "details",
+        { className: "nv-route-overview", open: overview, onToggle: (event) => setOverview(event.target.open) },
+        h("summary", null, "\u8DEF\u7EBF\u603B\u8FF0"),
+        overview && h(
+          "div",
+          { className: "nv-route-body" },
+          h(CodeMirrorMarkdown, {
+            key: `overview:${route.path}:${route.revision}:${assetStamp}`,
+            content: overviewBody,
+            assets: media,
+            readOnly: true,
+            onOpenPage: (path2) => props.openView(VIEW_IDS.assets, path2),
+            onTag: (tag) => props.openView(VIEW_IDS.graph, "tag:" + encodeURIComponent(tag))
+          })
+        )
+      ) : null;
+      const logBlock = h(
+        "details",
+        { className: "nv-route-log" },
+        h("summary", null, log.status === "loading" ? "\u8BFE\u5802\u65E5\u5FD7" : log.status === "failed" ? "\u8BFE\u5802\u65E5\u5FD7\u6682\u65F6\u8BFB\u4E0D\u51FA\u6765" : `\u8BFE\u5802\u65E5\u5FD7 \xB7 ${log.total} \u6B21\u8BFE\u5802`),
+        log.status === "failed" ? h("p", { role: "alert", style: { margin: "8px 0 0" } }, "\u8BFE\u5802\u65E5\u5FD7\u6682\u65F6\u8BFB\u4E0D\u51FA\u6765\u3002") : !log.hits.length ? h("p", { style: { margin: "8px 0 0" } }, "\u8FD8\u6CA1\u6709\u5DF2\u5F52\u6863\u7684\u8BFE\u5802\u5C0F\u7ED3\u3002") : h("ul", null, log.hits.map((hit) => h(
+          "li",
+          { key: `${hit.sessionId}:${hit.path}:${hit.anchor}` },
+          h("button", { style: STYLE.link, onClick: () => props.openView(VIEW_IDS.assets, lessonLogTarget(hit)) }, hit.title || "\u8BFE\u5802\u5C0F\u7ED3"),
+          h("span", null, [day(hit.throughAt), (hit.subjects ?? []).join("\u3001")].filter(Boolean).join(" \xB7 ")),
+          hit.continuation && h("span", { style: { color: "var(--dsw-alias-label-secondary)" } }, hit.continuation)
+        )))
+      );
+      const emptyState = !routes.length && !state.loading ? h("div", { style: STYLE.empty }, h("p", { style: { marginBottom: 14 } }, "\u8FD8\u6CA1\u6709\u5B66\u4E60\u8DEF\u7EBF\u3002"), btn("\u65B0\u5EFA\u8DEF\u7EBF", () => setCreating(true))) : !projection.nodes.length ? h("div", { style: STYLE.empty }, h("p", { style: { marginBottom: 14 } }, "\u8FD9\u6761\u8DEF\u7EBF\u8FD8\u6CA1\u6709\u8BFE\u7A0B\u3002"), btn("\u65B0\u5EFA\u8DEF\u7EBF", () => setCreating(true))) : !visibleNodes.length ? h("div", { style: STYLE.empty }, h("p", null, "\u5F53\u524D\u7B5B\u9009\u4E0B\u6CA1\u6709\u8BFE\u7A0B\u3002\u53EF\u4EE5\u5207\u6362\u9636\u6BB5\uFF0C\u6216\u5C55\u5F00\u8865\u7EC3\u4E0E\u62D3\u5C55\u3002")) : null;
+      const detailPane = !lesson ? null : h(
+        React.Fragment,
+        null,
+        h("div", {
+          className: "nv-resize",
+          role: "separator",
+          "aria-label": "\u8C03\u6574\u8BE6\u60C5\u5BBD\u5EA6",
+          "aria-orientation": "vertical",
+          "aria-valuenow": paneWidth,
+          tabIndex: 0,
+          onKeyDown: (event) => {
+            if (["ArrowLeft", "ArrowRight"].includes(event.key)) {
+              event.preventDefault();
+              setPaneWidth((width) => Math.max(240, Math.min(800, width + (event.key === "ArrowLeft" ? 20 : -20))));
+            }
+          },
+          onPointerDown: (event) => {
+            resize.current = { x: event.clientX, width: paneWidth };
+            event.currentTarget.setPointerCapture(event.pointerId);
+          },
+          onPointerMove: (event) => {
+            if (resize.current) setPaneWidth(Math.max(240, Math.min(root.current.clientWidth - 200, resize.current.width + resize.current.x - event.clientX)));
+          },
+          onPointerUp: (event) => {
+            resize.current = null;
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          },
+          onPointerCancel: () => {
+            resize.current = null;
+          }
+        }),
+        h(
+          "aside",
+          { className: "nv-graph-pane", "aria-label": "\u8BFE\u7A0B\u8BE6\u60C5" },
+          h(
+            "div",
+            { style: { display: "flex", alignItems: "center", justifyContent: "space-between" } },
+            h("span", { style: STYLE.notice }, [LESSON_ROLES[item?.role], item?.hint].filter(Boolean).join(" \xB7 ")),
+            h(IconButton, { icon: "close", label: "\u5173\u95ED\u8BE6\u60C5", onClick: () => setSelected("") })
+          ),
+          h("h2", null, lesson.title),
+          h("p", { style: STYLE.path }, route.title || route.path),
+          // 课序、先修、条件分支 keep three different sentences: a 先修 list is
+          // knowledge to have, and never a lock on opening this lesson.
+          parent && h("p", { style: STYLE.notice }, "\u63A5\u7EED\uFF1A", h("button", { style: STYLE.link, onClick: () => select(parent) }, parent.title)),
+          prerequisites.length > 0 && h(
+            "p",
+            { style: STYLE.notice },
+            "\u5148\u4FEE\uFF1A",
+            prerequisites.map((row, index) => h("button", { key: row.key, style: STYLE.link, onClick: () => select(row) }, `${index ? "\u3001" : ""}${row.title}`)),
+            "\uFF08\u9700\u8981\u5148\u5177\u5907\u7684\u77E5\u8BC6\uFF0C\u4E0D\u9650\u5236\u5F00\u8BFE\u3002\uFF09"
+          ),
+          reachedByBranch.length > 0 && h(
+            "p",
+            { style: STYLE.notice },
+            `\u6761\u4EF6\u5206\u652F\uFF1A\u4ECE\u300A${reachedByBranch.map((row) => row.title).join("\u3001")}\u300B\u6EE1\u8DB3\u6761\u4EF6\u65F6\u624D\u8D70\u8FD9\u91CC\uFF1B\u5177\u4F53\u6761\u4EF6\u5199\u5728\u4E0B\u9762\u7684\u8BFE\u7A0B\u8BF4\u660E\u91CC\u3002`
+          ),
+          branchTargets.length > 0 && h(
+            "p",
+            { style: STYLE.notice },
+            "\u5206\u652F\uFF1A",
+            branchTargets.map((row) => h("button", { key: row.key, style: STYLE.link, onClick: () => select(row) }, `${PATHWAY_LABEL[row.pathway]}\u300A${row.title}\u300B`)),
+            "\uFF08\u6EE1\u8DB3\u8BFE\u7A0B\u8BF4\u660E\u91CC\u7684\u6761\u4EF6\u65F6\u518D\u8D70\u3002\uFF09"
+          ),
+          h("h3", { style: { fontSize: 13, margin: "18px 0 8px" } }, "\u8BFE\u7A0B\u8BF4\u660E"),
+          briefBody ? h(
+            "div",
+            { className: "nv-route-brief" },
+            h(CodeMirrorMarkdown, {
+              key: `brief:${lesson.id}:${assetStamp}`,
+              content: briefBody,
+              assets: media,
+              readOnly: true,
+              onOpenPage: (path2) => props.openView(VIEW_IDS.assets, path2),
+              onTag: (tag) => props.openView(VIEW_IDS.graph, "tag:" + encodeURIComponent(tag))
+            })
+          ) : h("p", { style: STYLE.notice }, "\u8FD9\u6761\u8DEF\u7EBF\u7684\u8FD9\u8282\u8BFE\u8FD8\u6CA1\u6709\u89C4\u5212\u8BF4\u660E\u3002"),
+          materials.length > 0 && h(
+            React.Fragment,
+            null,
+            h("h3", { style: { fontSize: 13, margin: "18px 0 8px" } }, `\u6750\u6599 ${materials.length}`),
+            h(
+              "ul",
+              { style: { listStyle: "none", margin: 0, padding: 0 } },
+              materials.map((path2) => h("li", { key: path2 }, h("button", { style: { ...STYLE.link, textAlign: "left", fontSize: 12 }, onClick: () => props.openView(VIEW_IDS.assets, path2) }, path2)))
+            )
+          ),
+          lesson.scriptPath && h("p", { style: STYLE.notice }, "\u5267\u672C\uFF1A", h("button", { style: STYLE.link, onClick: () => props.openView(VIEW_IDS.assets, lesson.scriptPath) }, lesson.scriptPath)),
+          h(
+            "div",
+            { className: "nv-route-actions", style: { marginTop: 16 } },
+            h("button", { style: STYLE.quiet, disabled: busy, onClick: () => openLesson() }, lesson.sessionId ? "\u56DE\u5230\u8FD9\u8282\u8BFE" : "\u5F00\u59CB\u8FD9\u8282\u8BFE"),
+            lesson.sessionId && h(IconButton, { icon: "plus", label: "\u518D\u5B66\u4E00\u6B21", disabled: busy, onClick: () => openLesson(true) }),
+            lesson.scheduledOn && h(IconButton, { icon: "calendar", label: "\u5728\u65E5\u5386\u4E2D\u67E5\u770B", onClick: () => props.openView(VIEW_IDS.calendar, lesson.scheduledOn) }),
+            lesson.scriptPath && h(IconButton, { icon: "book", label: "\u67E5\u770B\u5267\u672C", onClick: () => props.openView(VIEW_IDS.assets, lesson.scriptPath) }),
+            h(IconButton, { icon: "log", label: "\u67E5\u770B\u5C0F\u7ED3", disabled: !lesson.summary?.path, onClick: () => props.openView(VIEW_IDS.assets, summaryTarget(lesson.summary)) })
+          ),
+          h("label", { style: { display: "block", marginTop: 16, fontSize: 12, color: "var(--dsw-alias-label-secondary)" } }, "\u5B89\u6392\u65E5\u671F", h("input", { type: "date", "aria-label": "\u8BFE\u7A0B\u5B89\u6392\u65E5\u671F", disabled: busy, value: lesson.scheduledOn ?? "", style: { ...STYLE.templateInput, marginTop: 6 }, onChange: async (event) => {
+            const date = event.target.value || null;
+            setBusy(true);
+            setNotice("");
+            try {
+              const result = await vault.scheduleLesson({ path: route.path, nodeId: lesson.id, date, expectedRevision: route.revision });
+              if (!result?.ok) throw new Error("write");
+              await refresh();
+              window.dispatchEvent(new Event("notara-vault-changed"));
+            } catch {
+              setNotice("\u65E5\u671F\u6CA1\u6709\u4FDD\u5B58\uFF0C\u8D44\u6599\u53EF\u80FD\u5DF2\u4FEE\u6539\uFF0C\u8BF7\u5237\u65B0\u540E\u91CD\u8BD5\u3002");
+            } finally {
+              setBusy(false);
+            }
+          } })),
+          lesson.summary?.path ? h(
+            "div",
+            null,
+            h("h3", { style: { fontSize: 13, margin: "18px 0 8px" } }, lesson.summary.title || "\u672C\u8BFE\u5C0F\u7ED3"),
+            lesson.summary.continuation && h("p", { style: STYLE.notice }, lesson.summary.continuation)
+          ) : h("p", { style: STYLE.notice }, "\u8FD9\u8282\u8BFE\u8FD8\u6CA1\u6709\u5C0F\u7ED3\u3002")
+        )
+      );
+      const nodeCard = (row) => {
+        const scheduled = typeof row.node?.scheduledOn === "string" ? row.node.scheduledOn : "";
+        const prerequisiteCount = Array.isArray(row.node?.prerequisites) ? row.node.prerequisites.length : 0;
+        return h(
+          "button",
+          {
+            key: row.key,
+            type: "button",
+            className: "nv-route-node",
+            "data-pathway": row.pathway,
+            "aria-label": `\u8DEF\u7EBF\u8282\u70B9 ${row.title}`,
+            "aria-pressed": selected === row.key,
+            onClick: () => select(row)
+          },
+          h("span", { className: "nv-route-kind" }, [PATHWAY_LABEL[row.pathway], prerequisiteCount ? `\u5148\u4FEE ${prerequisiteCount}` : ""].filter(Boolean).join(" \xB7 ")),
+          h("b", null, row.title),
+          h(
+            "span",
+            { className: "nv-route-state" },
+            h("span", { className: "nv-route-badge", "data-role": row.role }, LESSON_ROLES[row.role] ?? LESSON_ROLES.lesson),
+            // 已安排 is a date the plan really carries; a lesson that already has a
+            // classroom keeps 已开课 instead of claiming a future appointment.
+            scheduled && !row.node?.sessionId && h("span", { className: "nv-route-badge", "data-role": "scheduled" }, `\u5DF2\u5B89\u6392 ${day(scheduled)}`)
+          )
+        );
+      };
+      const percent2 = (count2, total) => total ? `${Math.round(count2 / total * 100)}%` : "0";
+      const rail = railRows.length ? h(
+        "nav",
+        { className: "nv-route-rail", "aria-label": "\u8DEF\u7EBF\u5217\u8868" },
+        railRows.map((row) => h(
+          "button",
+          {
+            key: row.route.path,
+            type: "button",
+            className: "nv-route-card",
+            "aria-current": route?.path === row.route.path,
+            onClick: () => {
+              setSelectedPath(row.route.path);
+              setSelected("");
+            }
+          },
+          h("b", null, row.route.title || row.route.path),
+          h("small", null, [row.summary.stages ? `${row.summary.stages} \u4E2A\u9636\u6BB5` : "", `${row.summary.total} \u8282\u8BFE`, row.summary.logged ? `\u5DF2\u6709\u5C0F\u7ED3 ${row.summary.logged}` : ""].filter(Boolean).join(" \xB7 ")),
+          h(
+            "span",
+            { className: "nv-route-progress", "aria-hidden": true },
+            h("i", { "data-part": "logged", style: { width: percent2(row.summary.logged, row.summary.total) } }),
+            h("i", { "data-part": "opened", style: { width: percent2(row.summary.opened, row.summary.total) } })
+          )
+        ))
+      ) : null;
+      const listLayout = h(
+        "div",
+        { className: "nv-route-shell", "data-detail": !!lesson },
+        rail,
+        h(
+          "div",
+          { ref: root, className: "nv-graph-layout", "data-detail": !!lesson, style: { "--nv-pane-width": paneWidth + "px", position: "relative", minWidth: 0 } },
+          h(
+            "div",
+            { className: "nv-route-main" },
+            overviewBlock,
+            filters,
+            emptyState ? h("div", { className: "nv-route-empty" }, emptyState) : h(
+              "div",
+              { className: "nv-route-lanes" },
+              lanes.map((lane, index) => h(
+                "div",
+                { key: lane.stage || `lane-${index}`, className: "nv-route-lane" },
+                (lanes.length > 1 || lane.stage) && h("div", { className: "nv-route-lane-head" }, h("b", null, lane.stage ? `\u9636\u6BB5 ${index + 1}` : "\u8BFE\u7A0B"), lane.stage || null),
+                lane.items.map(nodeCard)
+              ))
+            ),
+            logBlock
+          ),
+          detailPane
+        )
+      );
+      const graphLayout = h(
+        React.Fragment,
+        null,
+        overviewBlock,
+        filters,
+        logBlock,
+        h(
+          "div",
+          { ref: root, className: "nv-graph-layout", "data-detail": !!lesson, style: { "--nv-pane-width": paneWidth + "px", position: "relative" } },
+          emptyState ?? h(Board, { nodes: visibleNodes, edges: visibleEdges, selected, state: store, nodeName: "\u8DEF\u7EBF\u8282\u70B9", label: "\u5B66\u4E60\u8DEF\u7EBF\u8BFE\u5E8F", onSelect: (node) => select(byKey.get(node.key)) }),
+          detailPane
+        )
+      );
+      const legend = h(
+        "div",
+        { className: "nv-legend" },
+        Object.entries(LESSON_ROLES).map(([role, label]) => h("span", { key: role }, h("svg", { width: 24, height: 26, viewBox: "-20 -20 40 40", "aria-hidden": true }, h(NodeMark, { role })), label)),
+        // 条件补练/拓展 are drawn as dashed cards and 先修 as a count on the card, so
+        // the edge swatches belong to the canvas where those lines really exist.
+        view === "graph" && edgeKinds.has("sequence") && h("span", { key: "sequence", title: "\u8BFE\u5E8F\uFF1A\u63A5\u7740\u4E0A\u9762\u8FD9\u4E00\u8282\u7EE7\u7EED" }, edgeSwatch("sequence"), "\u8BFE\u5E8F"),
+        view === "graph" && edgeKinds.has("prerequisite") && h("span", { key: "prerequisite", title: "\u5148\u4FEE\uFF1A\u9700\u8981\u5148\u5177\u5907\u7684\u77E5\u8BC6\u524D\u63D0\uFF0C\u4E0D\u9650\u5236\u5F00\u8BFE" }, edgeSwatch("prerequisite"), "\u5148\u4FEE"),
+        view === "graph" && edgeKinds.has("branch") && h("span", { key: "branch", title: "\u6761\u4EF6\u5206\u652F\uFF1A\u6EE1\u8DB3\u8BFE\u7A0B\u8BF4\u660E\u91CC\u7684\u6761\u4EF6\u65F6\u624D\u8D70" }, edgeSwatch("branch"), "\u6761\u4EF6\u5206\u652F"),
+        view === "list" && h("span", { key: "folded" }, "\u865A\u7EBF\u6846\uFF1A\u6761\u4EF6\u8865\u7EC3 / \u62D3\u5C55"),
+        view === "list" && h("span", { key: "record" }, "\u6709\u5C0F\u7ED3\u4E0D\u7B49\u4E8E\u5DF2\u638C\u63E1")
+      );
       return h(
         "div",
         { className: "nv-views", style: STYLE.page },
@@ -71671,171 +72191,8 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
           tools,
           h("span", { role: "status", style: { ...STYLE.notice, marginLeft: "auto" } }, status)
         ),
-        // 路线总述 comes from the route page itself and is folded by default: one
-        // body, no second copy of the plan in local state.
-        overviewBody.trim() ? h(
-          "details",
-          { className: "nv-route-overview", open: overview, onToggle: (event) => setOverview(event.target.open) },
-          h("summary", null, "\u8DEF\u7EBF\u603B\u8FF0"),
-          overview && h(
-            "div",
-            { className: "nv-route-body" },
-            h(CodeMirrorMarkdown, {
-              key: `overview:${route.path}:${route.revision}:${assetStamp}`,
-              content: overviewBody,
-              assets: media,
-              readOnly: true,
-              onOpenPage: (path2) => props.openView(VIEW_IDS.assets, path2),
-              onTag: (tag) => props.openView(VIEW_IDS.graph, "tag:" + encodeURIComponent(tag))
-            })
-          )
-        ) : null,
-        filters,
-        h(
-          "details",
-          { className: "nv-route-log" },
-          h("summary", null, log.status === "loading" ? "\u8BFE\u5802\u65E5\u5FD7" : log.status === "failed" ? "\u8BFE\u5802\u65E5\u5FD7\u6682\u65F6\u8BFB\u4E0D\u51FA\u6765" : `\u8BFE\u5802\u65E5\u5FD7 \xB7 ${log.total} \u6B21\u8BFE\u5802`),
-          log.status === "failed" ? h("p", { role: "alert", style: { margin: "8px 0 0" } }, "\u8BFE\u5802\u65E5\u5FD7\u6682\u65F6\u8BFB\u4E0D\u51FA\u6765\u3002") : !log.hits.length ? h("p", { style: { margin: "8px 0 0" } }, "\u8FD8\u6CA1\u6709\u5DF2\u5F52\u6863\u7684\u8BFE\u5802\u5C0F\u7ED3\u3002") : h("ul", null, log.hits.map((hit) => h(
-            "li",
-            { key: `${hit.sessionId}:${hit.path}:${hit.anchor}` },
-            h("button", { style: STYLE.link, onClick: () => props.openView(VIEW_IDS.assets, lessonLogTarget(hit)) }, hit.title || "\u8BFE\u5802\u5C0F\u7ED3"),
-            h("span", null, [day(hit.throughAt), (hit.subjects ?? []).join("\u3001")].filter(Boolean).join(" \xB7 ")),
-            hit.continuation && h("span", { style: { color: "var(--dsw-alias-label-secondary)" } }, hit.continuation)
-          )))
-        ),
-        h(
-          "div",
-          { ref: root, className: "nv-graph-layout", "data-detail": !!lesson, style: { "--nv-pane-width": paneWidth + "px", position: "relative" } },
-          !routes.length && !state.loading ? h("div", { style: STYLE.empty }, h("p", { style: { marginBottom: 14 } }, "\u8FD8\u6CA1\u6709\u5B66\u4E60\u8DEF\u7EBF\u3002"), btn("\u65B0\u5EFA\u8DEF\u7EBF", () => setCreating(true))) : !projection.nodes.length ? h("div", { style: STYLE.empty }, h("p", { style: { marginBottom: 14 } }, "\u8FD9\u6761\u8DEF\u7EBF\u8FD8\u6CA1\u6709\u8BFE\u7A0B\u3002"), btn("\u65B0\u5EFA\u8DEF\u7EBF", () => setCreating(true))) : !visibleNodes.length ? h("div", { style: STYLE.empty }, h("p", null, "\u5F53\u524D\u7B5B\u9009\u4E0B\u6CA1\u6709\u8BFE\u7A0B\u3002\u53EF\u4EE5\u5207\u6362\u9636\u6BB5\uFF0C\u6216\u5C55\u5F00\u8865\u7EC3\u4E0E\u62D3\u5C55\u3002")) : h(Board, { nodes: visibleNodes, edges: visibleEdges, selected, state: store, nodeName: "\u8DEF\u7EBF\u8282\u70B9", label: "\u5B66\u4E60\u8DEF\u7EBF\u8BFE\u5E8F", onSelect: (node) => select(byKey.get(node.key)) }),
-          lesson && h(
-            React.Fragment,
-            null,
-            h("div", {
-              className: "nv-resize",
-              role: "separator",
-              "aria-label": "\u8C03\u6574\u8BE6\u60C5\u5BBD\u5EA6",
-              "aria-orientation": "vertical",
-              "aria-valuenow": paneWidth,
-              tabIndex: 0,
-              onKeyDown: (event) => {
-                if (["ArrowLeft", "ArrowRight"].includes(event.key)) {
-                  event.preventDefault();
-                  setPaneWidth((width) => Math.max(240, Math.min(800, width + (event.key === "ArrowLeft" ? 20 : -20))));
-                }
-              },
-              onPointerDown: (event) => {
-                resize.current = { x: event.clientX, width: paneWidth };
-                event.currentTarget.setPointerCapture(event.pointerId);
-              },
-              onPointerMove: (event) => {
-                if (resize.current) setPaneWidth(Math.max(240, Math.min(root.current.clientWidth - 200, resize.current.width + resize.current.x - event.clientX)));
-              },
-              onPointerUp: (event) => {
-                resize.current = null;
-                event.currentTarget.releasePointerCapture(event.pointerId);
-              },
-              onPointerCancel: () => {
-                resize.current = null;
-              }
-            }),
-            h(
-              "aside",
-              { className: "nv-graph-pane", "aria-label": "\u8BFE\u7A0B\u8BE6\u60C5" },
-              h(
-                "div",
-                { style: { display: "flex", alignItems: "center", justifyContent: "space-between" } },
-                h("span", { style: STYLE.notice }, [LESSON_ROLES[item?.role], item?.hint].filter(Boolean).join(" \xB7 ")),
-                h(IconButton, { icon: "close", label: "\u5173\u95ED\u8BE6\u60C5", onClick: () => setSelected("") })
-              ),
-              h("h2", null, lesson.title),
-              h("p", { style: STYLE.path }, route.title || route.path),
-              // 课序、先修、条件分支 keep three different sentences: a 先修 list is
-              // knowledge to have, and never a lock on opening this lesson.
-              parent && h("p", { style: STYLE.notice }, "\u63A5\u7EED\uFF1A", h("button", { style: STYLE.link, onClick: () => select(parent) }, parent.title)),
-              prerequisites.length > 0 && h(
-                "p",
-                { style: STYLE.notice },
-                "\u5148\u4FEE\uFF1A",
-                prerequisites.map((row, index) => h("button", { key: row.key, style: STYLE.link, onClick: () => select(row) }, `${index ? "\u3001" : ""}${row.title}`)),
-                "\uFF08\u9700\u8981\u5148\u5177\u5907\u7684\u77E5\u8BC6\uFF0C\u4E0D\u9650\u5236\u5F00\u8BFE\u3002\uFF09"
-              ),
-              reachedByBranch.length > 0 && h(
-                "p",
-                { style: STYLE.notice },
-                `\u6761\u4EF6\u5206\u652F\uFF1A\u4ECE\u300A${reachedByBranch.map((row) => row.title).join("\u3001")}\u300B\u6EE1\u8DB3\u6761\u4EF6\u65F6\u624D\u8D70\u8FD9\u91CC\uFF1B\u5177\u4F53\u6761\u4EF6\u5199\u5728\u4E0B\u9762\u7684\u8BFE\u7A0B\u8BF4\u660E\u91CC\u3002`
-              ),
-              branchTargets.length > 0 && h(
-                "p",
-                { style: STYLE.notice },
-                "\u5206\u652F\uFF1A",
-                branchTargets.map((row) => h("button", { key: row.key, style: STYLE.link, onClick: () => select(row) }, `${PATHWAY_LABEL[row.pathway]}\u300A${row.title}\u300B`)),
-                "\uFF08\u6EE1\u8DB3\u8BFE\u7A0B\u8BF4\u660E\u91CC\u7684\u6761\u4EF6\u65F6\u518D\u8D70\u3002\uFF09"
-              ),
-              h("h3", { style: { fontSize: 13, margin: "18px 0 8px" } }, "\u8BFE\u7A0B\u8BF4\u660E"),
-              briefBody ? h(
-                "div",
-                { className: "nv-route-brief" },
-                h(CodeMirrorMarkdown, {
-                  key: `brief:${lesson.id}:${assetStamp}`,
-                  content: briefBody,
-                  assets: media,
-                  readOnly: true,
-                  onOpenPage: (path2) => props.openView(VIEW_IDS.assets, path2),
-                  onTag: (tag) => props.openView(VIEW_IDS.graph, "tag:" + encodeURIComponent(tag))
-                })
-              ) : h("p", { style: STYLE.notice }, "\u8FD9\u6761\u8DEF\u7EBF\u7684\u8FD9\u8282\u8BFE\u8FD8\u6CA1\u6709\u89C4\u5212\u8BF4\u660E\u3002"),
-              materials.length > 0 && h(
-                React.Fragment,
-                null,
-                h("h3", { style: { fontSize: 13, margin: "18px 0 8px" } }, `\u6750\u6599 ${materials.length}`),
-                h(
-                  "ul",
-                  { style: { listStyle: "none", margin: 0, padding: 0 } },
-                  materials.map((path2) => h("li", { key: path2 }, h("button", { style: { ...STYLE.link, textAlign: "left", fontSize: 12 }, onClick: () => props.openView(VIEW_IDS.assets, path2) }, path2)))
-                )
-              ),
-              lesson.scriptPath && h("p", { style: STYLE.notice }, "\u5267\u672C\uFF1A", h("button", { style: STYLE.link, onClick: () => props.openView(VIEW_IDS.assets, lesson.scriptPath) }, lesson.scriptPath)),
-              h(
-                "div",
-                { className: "nv-route-actions", style: { marginTop: 16 } },
-                h("button", { style: STYLE.quiet, disabled: busy, onClick: () => openLesson() }, lesson.sessionId ? "\u56DE\u5230\u8FD9\u8282\u8BFE" : "\u5F00\u59CB\u8FD9\u8282\u8BFE"),
-                lesson.sessionId && h(IconButton, { icon: "plus", label: "\u518D\u5B66\u4E00\u6B21", disabled: busy, onClick: () => openLesson(true) }),
-                lesson.scheduledOn && h(IconButton, { icon: "calendar", label: "\u5728\u65E5\u5386\u4E2D\u67E5\u770B", onClick: () => props.openView(VIEW_IDS.calendar, lesson.scheduledOn) }),
-                lesson.scriptPath && h(IconButton, { icon: "book", label: "\u67E5\u770B\u5267\u672C", onClick: () => props.openView(VIEW_IDS.assets, lesson.scriptPath) }),
-                h(IconButton, { icon: "log", label: "\u67E5\u770B\u5C0F\u7ED3", disabled: !lesson.summary?.path, onClick: () => props.openView(VIEW_IDS.assets, summaryTarget(lesson.summary)) })
-              ),
-              h("label", { style: { display: "block", marginTop: 16, fontSize: 12, color: "var(--dsw-alias-label-secondary)" } }, "\u5B89\u6392\u65E5\u671F", h("input", { type: "date", "aria-label": "\u8BFE\u7A0B\u5B89\u6392\u65E5\u671F", disabled: busy, value: lesson.scheduledOn ?? "", style: { ...STYLE.templateInput, marginTop: 6 }, onChange: async (event) => {
-                const date = event.target.value || null;
-                setBusy(true);
-                setNotice("");
-                try {
-                  const result = await vault.scheduleLesson({ path: route.path, nodeId: lesson.id, date, expectedRevision: route.revision });
-                  if (!result?.ok) throw new Error("write");
-                  await refresh();
-                  window.dispatchEvent(new Event("notara-vault-changed"));
-                } catch {
-                  setNotice("\u65E5\u671F\u6CA1\u6709\u4FDD\u5B58\uFF0C\u8D44\u6599\u53EF\u80FD\u5DF2\u4FEE\u6539\uFF0C\u8BF7\u5237\u65B0\u540E\u91CD\u8BD5\u3002");
-                } finally {
-                  setBusy(false);
-                }
-              } })),
-              lesson.summary?.path ? h(
-                "div",
-                null,
-                h("h3", { style: { fontSize: 13, margin: "18px 0 8px" } }, lesson.summary.title || "\u672C\u8BFE\u5C0F\u7ED3"),
-                lesson.summary.continuation && h("p", { style: STYLE.notice }, lesson.summary.continuation)
-              ) : h("p", { style: STYLE.notice }, "\u8FD9\u8282\u8BFE\u8FD8\u6CA1\u6709\u5C0F\u7ED3\u3002")
-            )
-          )
-        ),
-        h(
-          "div",
-          { className: "nv-legend" },
-          Object.entries(LESSON_ROLES).map(([role, label]) => h("span", { key: role }, h("svg", { width: 24, height: 26, viewBox: "-20 -20 40 40", "aria-hidden": true }, h(NodeMark, { role })), label)),
-          edgeKinds.has("sequence") && h("span", { key: "sequence", title: "\u8BFE\u5E8F\uFF1A\u63A5\u7740\u4E0A\u9762\u8FD9\u4E00\u8282\u7EE7\u7EED" }, edgeSwatch("sequence"), "\u8BFE\u5E8F"),
-          edgeKinds.has("prerequisite") && h("span", { key: "prerequisite", title: "\u5148\u4FEE\uFF1A\u9700\u8981\u5148\u5177\u5907\u7684\u77E5\u8BC6\u524D\u63D0\uFF0C\u4E0D\u9650\u5236\u5F00\u8BFE" }, edgeSwatch("prerequisite"), "\u5148\u4FEE"),
-          edgeKinds.has("branch") && h("span", { key: "branch", title: "\u6761\u4EF6\u5206\u652F\uFF1A\u6EE1\u8DB3\u8BFE\u7A0B\u8BF4\u660E\u91CC\u7684\u6761\u4EF6\u65F6\u624D\u8D70" }, edgeSwatch("branch"), "\u6761\u4EF6\u5206\u652F")
-        ),
+        view === "list" ? listLayout : graphLayout,
+        legend,
         creating && h(
           Dialog,
           { title: "\u65B0\u5EFA\u8DEF\u7EBF", onClose: () => setCreating(false) },
@@ -72167,6 +72524,22 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
       const [scheduling, setScheduling] = useState(false), [routes, setRoutes] = useState(null), [lessonKey, setLessonKey] = useState("");
       const days = useMemo(() => gridDays(month), [month]);
       useEffect(() => {
+        if (props.mode) setMode(props.mode);
+      }, [props.mode]);
+      useEffect(() => {
+        if (props.viewRequest?.reviewFilter === "due") {
+          setMode("review");
+          setFilter("due");
+          setQuery("");
+          setTag("");
+          setOffset(0);
+          setSelected("");
+          setDetail(null);
+          setNote("");
+          setAssessments(blankAssessments());
+          props.completeViewRequest();
+          return;
+        }
         if (!props.viewRequest?.focus) return;
         const target = props.viewRequest.focus;
         if (/^\d{4}-\d{2}-\d{2}$/.test(target)) {
@@ -72350,7 +72723,7 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
         h(
           "header",
           { className: "nv-calendar-top" },
-          h(
+          !props.hideModes && h(
             "div",
             { className: "nv-calendar-modes", "aria-label": "\u65E5\u5386\u89C6\u56FE" },
             ...[["calendar", "\u65E5\u5386"], ["review", "\u95F4\u9694\u590D\u4E60"]].map(([value, label]) => h("button", { key: value, "aria-pressed": mode === value, onClick: () => setMode(value) }, label))
@@ -72673,13 +73046,13 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
         if (active && active.id !== layerId) setLayerId(active.id);
       }, [active?.id, layerId]);
       const disabled = busy || !data2 || data2.stale || referenceStale;
-      const current = data2?.annotations.find((mark) => mark.id === selection?.annotationId);
+      const current2 = data2?.annotations.find((mark) => mark.id === selection?.annotationId);
       const overlay = data2 && !data2.stale ? data2.annotations.filter((mark) => mark.page === page && !hidden.has(mark.layerId)).map((mark) => {
         const color = PDF_MARK_COLORS[data2.layers.find((layer2) => layer2.id === mark.layerId)?.color] ?? PDF_MARK_COLORS.yellow;
         return h("button", { key: mark.id, type: "button", "data-annotation": mark.id, "aria-label": mark.note || `\u7B2C ${mark.page} \u9875\u9AD8\u4EAE`, title: mark.note || "\u67E5\u770B\u6807\u6CE8", onPointerDown: (event) => event.stopPropagation(), onClick: (event) => {
           event.stopPropagation();
           pick(mark);
-        }, style: { position: "absolute", left: mark.rect[0] * 100 + "%", top: mark.rect[1] * 100 + "%", width: mark.rect[2] * 100 + "%", height: mark.rect[3] * 100 + "%", zIndex: 3, padding: 0, cursor: "pointer", border: `${current?.id === mark.id ? 2 : 1}px solid ${color}`, background: `color-mix(in srgb,${color} 22%,transparent)`, borderRadius: 2 } });
+        }, style: { position: "absolute", left: mark.rect[0] * 100 + "%", top: mark.rect[1] * 100 + "%", width: mark.rect[2] * 100 + "%", height: mark.rect[3] * 100 + "%", zIndex: 3, padding: 0, cursor: "pointer", border: `${current2?.id === mark.id ? 2 : 1}px solid ${color}`, background: `color-mix(in srgb,${color} 22%,transparent)`, borderRadius: 2 } });
       }) : null;
       const panelView = panel && h(
         "aside",
@@ -72720,9 +73093,9 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
           h(
             "div",
             { style: { display: "flex", gap: 6 } },
-            h("button", { style: STYLE.quiet, disabled, onClick: saveSelection }, current ? "\u4FDD\u5B58\u6279\u6CE8" : "\u4FDD\u5B58\u9AD8\u4EAE"),
-            current && h("button", { style: STYLE.quiet, disabled, onClick: async () => {
-              if (await mutate({ action: "remove-annotation", annotationId: current.id })) {
+            h("button", { style: STYLE.quiet, disabled, onClick: saveSelection }, current2 ? "\u4FDD\u5B58\u6279\u6CE8" : "\u4FDD\u5B58\u9AD8\u4EAE"),
+            current2 && h("button", { style: STYLE.quiet, disabled, onClick: async () => {
+              if (await mutate({ action: "remove-annotation", annotationId: current2.id })) {
                 onSelect(void 0);
                 setNote("");
               }
@@ -72746,9 +73119,1153 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
         note,
         openPanel: () => setPanel(true),
         error,
-        selected: current,
+        selected: current2,
         open: pick
       };
+    };
+  }
+
+  // examples/native-vault/modern-theme.css
+  var modern_theme_default = 'body[data-notara-ui=modern]{--nv-control-radius:14px;--nv-card-radius:20px;--nv-input-radius:24px;--nv-shadow:0 6px 24px rgba(30,45,65,.045);font-family:var(--dsw-font-family)}\n[data-notara-ui=modern] :is(.nv-workspace,.nv-sidebar){-webkit-font-smoothing:antialiased;line-height:1.6}\n[data-notara-ui=modern] .nv-workspace :is(button,input,select,textarea){font-family:inherit}\n[data-notara-ui=modern] .nv-workspace button{font-weight:500}\n[data-notara-ui=modern] .nv-icon{border-radius:10px}\n[data-notara-ui=modern] .nv-workspace-tabs{gap:4px}\n[data-notara-ui=modern] .nv-workspace-tabs button{border-radius:var(--nv-control-radius);padding:7px 13px}\n[data-notara-ui=modern] .nv-bar{min-height:49px;padding:5px 16px}\n[data-notara-ui=modern] :is(.nv-menu,.nv-popover-panel){border-radius:16px;box-shadow:var(--nv-shadow);padding:7px}\n[data-notara-ui=modern] :is(.nv-menu,.nv-popover-panel) button{border-radius:10px}\n[data-notara-ui=modern] .nv-dialog>section{border-radius:var(--nv-card-radius);padding:24px;box-shadow:var(--nv-shadow)}\n[data-notara-ui=modern] .nv-file-rail{background:var(--dsw-alias-bg-base)}\n[data-notara-ui=modern] :is(.nv-card,.nv-worker-card){border-radius:var(--nv-card-radius);box-shadow:none}\n[data-notara-ui=modern] :is(.nv-calendar-modes,.nv-review-filters) button{border-radius:12px}\n[data-notara-ui=modern] .nv-review-row[aria-pressed=true]{border-radius:12px}\n[data-notara-ui=modern] .nv-workspace :is(h1,h2,h3){font-weight:600;letter-spacing:-.02em}\n.nv-sidebar{height:calc(100% - 24px);margin:12px 8px 12px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:20px;padding:16px 10px 12px;display:flex;flex-direction:column;gap:16px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:13px;box-shadow:0 2px 10px rgba(30,45,65,.025);min-height:0;box-sizing:border-box}\n.nv-sidebar-brand{display:flex;align-items:center;gap:9px;padding:2px 9px;font-size:14px;font-weight:600}\n.nv-brand-mark{width:27px;height:27px;display:grid;place-items:center;border:1px solid var(--dsw-alias-border-l1);border-radius:9px;font-size:12px;font-weight:400}\n.nv-sidebar-brand .nv-icon{margin-left:auto}\n.nv-sidebar>nav{display:grid;gap:4px}\n.nv-sidebar button{font:inherit;color:inherit;cursor:pointer}\n.nv-nav-button,.nv-new-lesson{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;background:transparent;border:0;border-radius:13px;text-align:left;white-space:nowrap}\n.nv-new-lesson{background:var(--dsw-alias-bg-layer-2);margin:0 0 2px}\n.nv-nav-button:hover,.nv-session-row:hover{background:var(--dsw-alias-interactive-bg-hover)}\n.nv-nav-button[aria-current=page],.nv-session-row[aria-current=page]{background:var(--dsw-alias-interactive-bg-active)}\n.nv-sidebar-label{font-size:11px;color:var(--dsw-alias-label-tertiary);padding:0 12px;margin:4px 0 10px}\n.nv-sidebar-lessons{flex:1;min-height:0;overflow:auto}\n.nv-session-row{display:flex;align-items:center;gap:8px;border:0;border-radius:10px;background:none;padding:10px 12px;width:100%;text-align:left;color:var(--dsw-alias-label-secondary)!important}\n.nv-session-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}\n.nv-session-row time{font-size:10px;color:var(--dsw-alias-label-tertiary);white-space:nowrap}\n.nv-session-dot{width:5px;height:5px;flex:none;border-radius:50%;background:var(--dsw-alias-border-l3)}\n.nv-session-dot[data-running=true]{background:var(--dsw-alias-state-success-primary)}\n.nv-sidebar-foot{display:grid;gap:10px;font-size:12px}\n.nv-directory{min-width:0;margin-top:-4px}\n.nv-directory-button{width:100%;display:flex;align-items:center;gap:9px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;padding:9px 12px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary)!important;text-align:left}\n.nv-directory-button:hover{background:var(--dsw-alias-bg-layer-2)}\n.nv-directory-button>span:first-of-type{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}\n.nv-directory-button svg{flex:none}\n.nv-directory-chevron{font-size:13px;color:var(--dsw-alias-label-tertiary)}\n.nv-directory-error{margin:8px 3px 0;font-size:11px;color:var(--dsw-alias-state-error-primary)}\n.nv-sidebar[data-collapsed=true] .nv-directory-button{justify-content:center;padding:9px 4px;border-color:transparent}\n.nv-directory-options{display:grid;gap:5px;margin:20px 0;max-height:260px;min-width:0;overflow:auto;overflow-x:hidden}\n.nv-directory-options>button{box-sizing:border-box;display:flex;align-items:center;gap:12px;width:100%;min-width:0;padding:12px;border:0;border-radius:12px;background:transparent;text-align:left}\n.nv-directory-options>button[aria-pressed=true],.nv-directory-options>button:hover{background:var(--dsw-alias-bg-layer-2)}\n.nv-directory-options>button>span:first-of-type{flex:1;min-width:0}\n.nv-directory-options strong{display:block;font-size:13px;font-weight:500}\n.nv-directory-options small{display:block;color:var(--dsw-alias-label-tertiary);font-size:10px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n.nv-directory-form{border-top:1px solid var(--dsw-alias-border-l1);padding-top:2px;font-size:12px}\n.nv-directory-form input{display:block;box-sizing:border-box;width:100%;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);font:inherit}\n.nv-directory-actions{display:flex;justify-content:space-between;gap:10px;margin-top:12px}\n.nv-directory-actions button{border:0;background:var(--dsw-alias-bg-layer-2);padding:9px 14px;border-radius:12px;font-size:12px}\n.nv-directory-actions button:disabled{opacity:.45;cursor:default}\n.nv-directory-browser{max-height:220px;overflow:auto;margin-top:16px;border-top:1px solid var(--dsw-alias-border-l1);padding-top:8px}\n.nv-directory-browser-head{display:flex;align-items:center;justify-content:space-between;color:var(--dsw-alias-label-tertiary);margin-bottom:6px}\n.nv-directory-browser button{border:0;border-radius:8px;background:transparent;padding:7px;color:inherit;font-size:12px;display:flex;align-items:center;gap:8px}\n.nv-directory-browser>button{width:100%;text-align:left}\n.nv-directory-browser button:hover{background:var(--dsw-alias-bg-layer-2)}\n.nv-directory-browser p{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:1.6}\n.nv-sidebar[data-collapsed=true]{margin:8px 3px;padding:12px 4px}\n.nv-sidebar[data-collapsed=true] .nv-sidebar-brand{padding:0;justify-content:center}\n.nv-sidebar[data-collapsed=true] .nv-brand-mark{display:none}\n.nv-sidebar[data-collapsed=true] .nv-nav-button{padding:10px;justify-content:center}\n/* The native settings dialog is mounted below the sidebar slot. Its nav is\n   independent of the main sidebar and must never inherit that grid layout. */\n[data-notara-ui=modern] .VOzbGW_panel{border-radius:24px;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2)}\n[data-notara-ui=modern] .VOzbGW_nav{display:flex;flex-direction:column;justify-content:flex-start;gap:18px;width:184px;padding:24px 12px 16px;background:var(--dsw-alias-bg-base);border-right:1px solid var(--dsw-alias-border-l1)}\n[data-notara-ui=modern] .VOzbGW_navTitle{padding:0 10px;font-size:14px;font-weight:550;line-height:24px}\n[data-notara-ui=modern] .VOzbGW_navList{flex:none;gap:4px;min-height:0;overflow-y:auto}\n[data-notara-ui=modern] .VOzbGW_navCell{height:36px;flex:none;padding:7px 10px;gap:9px;font-size:13px;border-radius:9px;color:var(--dsw-alias-label-secondary)}\n[data-notara-ui=modern] .VOzbGW_navCell.VOzbGW_active{background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-primary);font-weight:500}\n[data-notara-ui=modern] .VOzbGW_navCell:hover{background:var(--dsw-alias-interactive-bg-hover)}\n[data-notara-ui=modern] .VOzbGW_navIcon{width:16px;height:16px}\n@media(max-width:560px){\n  [data-notara-ui=modern] .VOzbGW_panel{flex-direction:column;max-width:calc(100vw - 24px);height:calc(100dvh - 24px);border-radius:18px}\n  [data-notara-ui=modern] .VOzbGW_nav{width:100%;padding:16px 14px 10px;gap:12px;border-right:0;border-bottom:1px solid var(--dsw-alias-border-l1)}\n  [data-notara-ui=modern] .VOzbGW_navTitle{padding:0 5px}\n  [data-notara-ui=modern] .VOzbGW_navList{flex-direction:row;overflow-x:auto;gap:4px}\n  [data-notara-ui=modern] .VOzbGW_content{min-height:0}\n}\n.nv-shell-panel{height:100%;min-height:0;display:flex;flex-direction:column}\n.nv-shell-heading{display:flex;align-items:center;gap:20px;min-height:70px;padding:18px 28px;border-bottom:1px solid var(--dsw-alias-border-l1);box-sizing:border-box}\n.nv-shell-heading h1{font-size:20px;margin:0}\n.nv-shell-tabs{display:flex;gap:3px;background:var(--dsw-alias-bg-layer-2);border-radius:14px;padding:3px}\n.nv-shell-tabs button{background:none;color:var(--dsw-alias-label-secondary);border:0;border-radius:11px;padding:6px 14px;cursor:pointer;white-space:nowrap;font:inherit}\n.nv-shell-tabs button[aria-selected=true]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 1px 4px #0001}\n.nv-shell-view{flex:1;min-height:0;min-width:0;overflow:clip}\n.nv-shell-view>div{height:100%}\n.nv-shell-toolbar{display:flex;align-items:center;gap:8px;min-height:42px;padding:5px 16px;border-bottom:1px solid var(--dsw-alias-border-l1)}\n.nv-shell-toolbar strong{font-size:13px;font-weight:500;margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n.nv-shell-toolbar button{border:0;border-radius:11px;padding:6px 10px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);cursor:pointer}\n.nv-lesson-entry{padding:0 16px 20px;text-align:center;color:var(--dsw-alias-label-primary)}\n.nv-lesson-entry-heading{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:16px}\n.nv-lesson-entry h1{grid-column:2;font-size:26px;line-height:1.4;margin:0;font-weight:600;letter-spacing:-.035em}\n.nv-lesson-entry-lead{font-size:13px;line-height:1.8;color:var(--dsw-alias-label-tertiary);margin:12px 0 0}\n.nv-lesson-entry-options{grid-column:3;justify-self:end;position:relative;flex:none;text-align:left;font-size:12px;color:var(--dsw-alias-label-secondary)}\n.nv-lesson-entry-options summary{cursor:pointer;display:flex;align-items:center;gap:7px;list-style:none;border-radius:11px;padding:8px 10px}\n.nv-lesson-entry-options summary::-webkit-details-marker{display:none}\n.nv-lesson-entry-options summary:hover,.nv-lesson-entry-options[open] summary{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2)}\n.nv-lesson-entry-options-content{position:absolute;right:0;top:calc(100% + 8px);z-index:20;box-sizing:border-box;width:min(330px,calc(100cqw - 40px));padding:16px;border:1px solid var(--dsw-alias-border-l1);border-radius:16px;background:var(--dsw-alias-bg-layer-1);box-shadow:0 8px 28px rgba(24,36,48,.08)}\n.nv-lesson-entry-required{margin-top:18px;font-size:12px;color:var(--dsw-alias-label-secondary)}\n.nv-lesson-entry :is(.nv-lesson-entry-options-content,.nv-lesson-entry-required) .wSkVaW_heroWorkspaceRow{margin:0;padding:0;gap:10px;flex-wrap:wrap}\n[data-notara-ui=modern] .wSkVaW_root[data-phase=hero]{--dsh-composer-card-max-width:760px}\n[data-notara-ui=modern] .wSkVaW_root[data-phase=hero] .wSkVaW_scrollBody{justify-content:flex-start}\n[data-notara-ui=modern] .wSkVaW_root[data-phase=hero] .wSkVaW_composerSeat{padding-top:clamp(36px,calc((100dvh - 420px)*.28),110px);padding-bottom:32px}\n[data-notara-ui=modern] .wSkVaW_composerHero{width:min(792px,calc(100% - 48px));gap:0;padding-bottom:0}\n[data-notara-ui=modern] .wSkVaW_root[data-phase=hero] [data-composer-card]{border:1px solid var(--dsw-alias-border-l1);border-radius:22px;padding-top:16px;box-shadow:0 3px 22px rgba(24,36,48,.035);gap:12px}\n[data-notara-ui=modern] .wSkVaW_root[data-phase=hero] [data-composer-card]:focus-within{border-color:var(--dsw-alias-border-l3)}\n[data-notara-ui=modern] .wSkVaW_root[data-phase=hero] [data-composer-input]{min-height:112px;padding-left:18px;padding-right:18px}\n[data-notara-ui=modern] .wSkVaW_root[data-phase=hero] [data-composer-placeholder]{left:18px;right:18px}\n[data-notara-ui=modern] .wSkVaW_root[data-phase=hero] .uV2eYG_row{border-top:1px solid var(--dsw-alias-border-l1);margin:0 8px;padding:10px 4px}\n.nv-today{height:100%;overflow:auto;box-sizing:border-box}\n.nv-card-filters{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:12px 22px;border-bottom:1px solid var(--dsw-alias-border-l1)}\n.nv-card-filters button{background:transparent;color:var(--dsw-alias-label-secondary);border:1px solid transparent;padding:6px 11px;border-radius:12px;cursor:pointer;font:12px var(--dsw-font-family)}\n.nv-card-filters button[aria-pressed=true]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l1)}\n.nv-filter-divider{height:18px;width:1px;background:var(--dsw-alias-border-l1);margin:0 5px}\n.nv-card-kind{display:inline-block;background:var(--dsw-alias-bg-layer-2);border-radius:7px;padding:2px 6px;font-size:10px;font-weight:400;color:var(--dsw-alias-label-secondary);margin:5px 0 0 8px}\n.nv-card-review{font-size:11px;color:var(--dsw-alias-label-tertiary);margin:8px 0 0}\n[data-notara-ui=modern] .nv-card h3{display:flex;gap:3px;flex-wrap:wrap;align-items:center}\n[data-notara-ui=modern] .nv-card-grid{gap:18px}\n[data-notara-ui=modern] .nv-card{padding:20px}\n[data-notara-ui=modern] .nv-cards-scroll{padding:24px 28px}\n[data-notara-ui=modern] .nv-view-top{gap:12px;flex-wrap:wrap}\n[data-notara-ui=modern] input[type=checkbox]{accent-color:var(--dsw-alias-state-business-primary)}\n[data-notara-ui=modern] .nv-calendar-layout{grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr)}\n[data-notara-ui=modern] .nv-month{padding:24px 28px;overflow:auto}\n[data-notara-ui=modern] .nv-month-head{margin-bottom:22px;font-size:17px}\n[data-notara-ui=modern] .nv-month-grid{gap:4px}\n[data-notara-ui=modern] .nv-month-day{min-height:48px;aspect-ratio:1.1;border-radius:12px;font-size:13px}\n[data-notara-ui=modern] .nv-month-weekday{padding:10px 0}\n[data-notara-ui=modern] .nv-calendar-hint{font-size:11px;margin-top:18px}\n[data-notara-ui=modern] .nv-review-layout{grid-template-columns:minmax(240px,.75fr) minmax(0,1.25fr)}\n[data-notara-ui=modern] .nv-review-row{padding:18px 12px}\n[data-notara-ui=modern] .nv-review-detail{padding:26px}\n@container(max-width:700px){[data-notara-ui=modern] .nv-calendar-layout,[data-notara-ui=modern] .nv-review-layout{grid-template-columns:minmax(0,1fr)}[data-notara-ui=modern] .nv-month{border-right:0;border-bottom:1px solid var(--dsw-alias-border-l1);padding:18px}[data-notara-ui=modern] .nv-month-day{min-height:32px}[data-notara-ui=modern] .nv-review-list{max-height:300px;border-right:0;border-bottom:1px solid var(--dsw-alias-border-l1)}}\n@media(max-width:850px){.nv-shell-heading{padding:14px 16px;gap:12px;flex-wrap:wrap}}\n@media(max-width:560px){.nv-shell-tabs button{padding:6px 10px}.nv-bar{flex-wrap:wrap}.nv-sidebar{margin:8px;height:calc(100% - 16px)}}\n/* The named container follows each pane, including a narrow desktop split.\n   Native rc.2 hero classes are verified against the locked conversation build. */\n[data-notara-ui=modern] .nv-pane{container: notara-pane / inline-size}\n@container notara-pane (max-width:420px){\n  [data-notara-ui=modern] .wSkVaW_root{--dsh-content-font-size:clamp(13px,4cqw,14px);--dsh-content-font-delta:-1px;--dsh-composer-side-clearance:10px}\n  [data-notara-ui=modern] .pXSMma_root{padding:0 12px}\n  [data-notara-ui=modern] .pXSMma_headline{font-size:clamp(18px,6.5cqw,26px);line-height:1.4;gap:8px}\n  [data-notara-ui=modern] .pXSMma_fish{width:clamp(22px,8cqw,30px);height:clamp(22px,8cqw,30px)}\n  [data-notara-ui=modern] .pXSMma_previewBadge{font-size:10px;line-height:16px;padding:0 5px;margin-top:0}\n  [data-notara-ui=modern] .wSkVaW_heroWorkspaceRow{flex-wrap:wrap;padding:0 10px;gap:4px}\n  [data-notara-ui=modern] .wSkVaW_heroWorkspaceRow button{font-size:12px;max-width:100%}\n  [data-notara-ui=modern] [data-composer-card]{border-radius:18px;gap:8px;line-height:1.65}\n  [data-notara-ui=modern] .uV2eYG_row{gap:6px;padding:2px 6px 6px}\n  [data-notara-ui=modern] :is(.uV2eYG_tools,.uV2eYG_modes,.uV2eYG_trailing){gap:6px}\n  [data-notara-ui=modern] .nv-bar{padding:5px 7px;gap:3px;flex-wrap:wrap}\n  [data-notara-ui=modern] .nv-workspace-tabs button{font-size:12px;padding:6px 8px}\n  [data-notara-ui=modern] .nv-document article{padding:18px 12px 32px}\n  [data-notara-ui=modern] .nv-document .cm-content{font-size:13px}\n  [data-notara-ui=modern] .nv-lesson-entry{padding:0 10px 16px}\n  [data-notara-ui=modern] .nv-lesson-entry h1{font-size:clamp(18px,6.5cqw,26px)}\n  [data-notara-ui=modern] .nv-lesson-entry-heading{grid-template-columns:1fr;gap:6px}\n  [data-notara-ui=modern] .nv-lesson-entry-heading h1{grid-column:1}\n  [data-notara-ui=modern] .nv-lesson-entry-options{grid-column:1;justify-self:center}\n  [data-notara-ui=modern] .nv-lesson-entry-options-content{right:50%;transform:translateX(50%)}\n  [data-notara-ui=modern] .nv-lesson-entry-options summary{font-size:11px;padding:6px;gap:5px}\n  [data-notara-ui=modern] .nv-lesson-entry-options summary svg{width:13px;height:13px}\n  [data-notara-ui=modern] .nv-lesson-entry-lead{font-size:12px;margin-top:9px}\n  [data-notara-ui=modern] .wSkVaW_composerHero{width:100%}\n  [data-notara-ui=modern] .wSkVaW_root[data-phase=hero] .wSkVaW_composerSeat{padding-top:40px}\n  [data-notara-ui=modern] .wSkVaW_root[data-phase=hero] [data-composer-card]{border-radius:18px;padding-top:10px}\n  [data-notara-ui=modern] .wSkVaW_root[data-phase=hero] [data-composer-input]{min-height:88px;padding-left:12px;padding-right:12px}\n  [data-notara-ui=modern] .wSkVaW_root[data-phase=hero] [data-composer-placeholder]{left:12px;right:12px}\n  [data-notara-ui=modern] .wSkVaW_root[data-phase=hero] .uV2eYG_row{padding:8px 0}\n}\n@media(prefers-reduced-motion:reduce){[data-notara-ui=modern] *{scroll-behavior:auto!important}}\n/* rc.2 keeps an empty seat for filtered context/assistant nodes. It must not\n   retain message spacing when the renderer contributes no visible content. */\n[data-notara-ui=modern] .EvIC1a_flowItem:has(> [data-slot="conversation.chat.node"]:empty){display:none}\n[data-notara-ui=modern] .EvIC1a_flowItem{--dsh-chat-flow-gap:12px}\n[data-notara-ui=modern] .EvIC1a_flowItem:has(.nv-board-tool-row){--dsh-chat-flow-gap:3px}\n[data-notara-ui=modern] .EvIC1a_flowItem:has([data-turn-tail]){--dsh-chat-flow-gap:7px}\n.nv-board-tool-row{font-size:12px;line-height:19px;color:#8a929d;padding:1px 0}\n@container notara-pane (max-width:420px){\n  [data-notara-ui=modern] .Q51KRG_trigger{width:26px;min-width:26px;padding:4px;justify-content:center;gap:0}\n  [data-notara-ui=modern] .Q51KRG_root{flex:0 0 26px}\n  [data-notara-ui=modern] .Q51KRG_label{display:block!important;position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}\n  [data-notara-ui=modern] .wSkVaW_root:not([data-phase=hero]) .uV2eYG_row{flex-wrap:nowrap;align-items:center;gap:4px;padding:3px 6px 7px}\n  [data-notara-ui=modern] .wSkVaW_root:not([data-phase=hero]) .uV2eYG_tools{min-width:0;flex:0 1 auto;gap:3px}\n  [data-notara-ui=modern] .wSkVaW_root:not([data-phase=hero]) .uV2eYG_trailing{margin-left:auto;min-width:0;flex:0 0 auto;gap:3px}\n  [data-notara-ui=modern] .wSkVaW_root:not([data-phase=hero]) .uV2eYG_modes{gap:0}\n  [data-notara-ui=modern] .wSkVaW_root:not([data-phase=hero]) :is(.uV2eYG_add,.Sh0Q9G_trigger,._7KE1Ra_trigger){width:28px;height:28px;min-width:28px;padding:5px;justify-content:center;gap:0}\n  [data-notara-ui=modern] .wSkVaW_root:not([data-phase=hero]) :is(.Sh0Q9G_chevron,._7KE1Ra_chevron){display:none}\n}\n.nv-workspace{container:notara-workspace / inline-size}\n.nv-class-topbar{display:grid;grid-template-columns:minmax(120px,1fr) auto minmax(94px,1fr) 30px;align-items:center;gap:14px;box-sizing:border-box;min-height:58px;padding:10px 20px;border-bottom:1px solid var(--dsw-alias-border-l1);flex:none}\n.nv-class-native,.nv-class-native .wSkVaW_header,.nv-class-native .wSkVaW_titleRow{display:contents}\n.nv-class-native .wSkVaW_titleCluster{grid-column:1;grid-row:1;min-width:0;overflow:hidden;gap:0}\n.nv-class-native .wSkVaW_crumbs{min-width:0;max-width:100%;font-size:14px}\n.nv-class-native .wSkVaW_crumbCurrent{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;font-size:14px;font-weight:550}\n.nv-class-native .wSkVaW_headerActions,.nv-class-native .wSkVaW_headerCorner,.nv-class-native .wSkVaW_headerUtilities> [data-slot]>span:has(.CAgGvG_split){display:none}\n.nv-class-native .wSkVaW_headerUtilities{grid-column:4;grid-row:1;display:flex;align-items:center;justify-content:flex-end;gap:0;min-width:0}\n.nv-class-native .nL4_yW_moreButton{width:30px;height:30px;min-width:30px;padding:6px;border-radius:10px}\n.nv-class-views{grid-column:2;grid-row:1;justify-content:center;gap:3px;overflow:visible}\n[data-notara-ui=modern] .nv-class-views button{font-size:13px;padding:7px 14px;border-radius:10px}\n.nv-class-actions{grid-column:3;grid-row:1;display:flex;gap:3px;align-items:center;justify-content:flex-end;min-width:0}\n[data-notara-ui=modern] .nv-panes[data-nv-board=true] .nv-bar{min-height:42px;box-sizing:border-box;padding:5px 14px}\n.nv-panes[data-nv-board=true] .nb-head{padding:8px 16px;min-height:52px;box-sizing:border-box}\n@container notara-workspace (max-width:650px){\n  .nv-class-topbar{grid-template-columns:minmax(0,1fr) auto 30px;gap:5px 8px;min-height:82px;padding:8px 12px}\n  .nv-class-actions{grid-column:2;grid-row:1}\n  .nv-class-native .wSkVaW_headerUtilities{grid-column:3;grid-row:1}\n  .nv-class-views{grid-column:1/-1;grid-row:2;justify-content:flex-start}\n  [data-notara-ui=modern] .nv-class-views button{padding:6px 12px}\n}\n';
+
+  // examples/native-vault/modern-theme.js
+  var pairs = {
+    "--dsw-alias-bg-base": ["#ffffff", "#15181d"],
+    "--dsw-alias-bg-layer-1": ["#ffffff", "#1d2128"],
+    "--dsw-alias-bg-layer-2": ["#f4f5f6", "#242a33"],
+    "--dsw-alias-bg-layer-3": ["#eceef0", "#2a323e"],
+    "--dsw-alias-bg-module-platform": ["#f4f5f6", "#242a33"],
+    "--dsw-specific-sidebar-fill": ["#ffffff", "#1b1f25"],
+    "--dsw-specific-input-major": ["#ffffff", "#1d2128"],
+    "--dsw-specific-selector": ["#f4f5f6", "#242a33"],
+    "--dsw-alias-interactive-bg-hover": ["#eceef0", "#2a323e"],
+    "--dsw-alias-interactive-bg-hover-solid": ["#eceef0", "#2a323e"],
+    "--dsw-alias-interactive-bg-active": ["#f0f1f3", "#333e4c"],
+    "--dsw-alias-border-l1": ["#e8ecf0", "#2b323d"],
+    "--dsw-alias-border-l2": ["#d8dee6", "#3b4553"],
+    "--dsw-alias-border-l3": ["#c7cdd4", "#525c69"],
+    "--dsw-alias-border-l4": ["#b8c0ca", "#66707e"],
+    "--dsw-alias-label-primary": ["#20252c", "#edf0f4"],
+    "--dsw-alias-label-secondary": ["#525c69", "#bac3cf"],
+    "--dsw-alias-label-tertiary": ["#697482", "#a1aab7"],
+    "--dsw-alias-label-caption": ["#76808c", "#939eac"],
+    "--dsw-alias-label-link": ["#59626e", "#b5becb"],
+    "--dsw-alias-link": ["#59626e", "#b5becb"],
+    "--dsw-alias-brand-primary": ["#59626e", "#b5becb"],
+    "--dsw-alias-state-business-primary": ["#59626e", "#b5becb"],
+    "--dsw-alias-button-info-fill": ["#f0f1f3", "#333e4c"],
+    "--dsw-alias-button-info-hover": ["#e5e7ea", "#424d5c"],
+    "--dsh-composer-primary-color": ["#343c46", "#edf0f4"]
+  };
+  var font = '"Helvetica Neue",Helvetica,"Hiragino Sans GB","PingFang SC","Noto Sans SC","Microsoft YaHei UI",Arial,sans-serif';
+  var MODERN_TOKENS = Object.fromEntries([...Object.entries(pairs).map(([name2, [light, dark]]) => [name2, { light, dark }]), ["--dsw-font-family", { light: font, dark: font }]]);
+  function installModernTheme(ctx) {
+    ctx.effect(() => ctx.theme.overrideTokens("@notara/vault-native", MODERN_TOKENS));
+    ctx.effect(() => {
+      const previous = document.body.getAttribute("data-notara-ui");
+      document.body.setAttribute("data-notara-ui", "modern");
+      const style = document.createElement("style");
+      style.dataset.notaraTheme = "modern";
+      style.textContent = modern_theme_default;
+      document.head.append(style);
+      const timingHint = (event) => {
+        const button = event.target.closest?.(".Q51KRG_trigger");
+        if (button) button.title = button.querySelector(".Q51KRG_label")?.textContent ?? "";
+      };
+      document.addEventListener("pointerover", timingHint);
+      document.addEventListener("focusin", timingHint);
+      return () => {
+        document.removeEventListener("pointerover", timingHint);
+        document.removeEventListener("focusin", timingHint);
+        style.remove();
+        if (previous === null) document.body.removeAttribute("data-notara-ui");
+        else document.body.setAttribute("data-notara-ui", previous);
+      };
+    });
+  }
+
+  // examples/native-vault/home-queue.js
+  function homeQueue(queue, routes) {
+    const result = [], seen = /* @__PURE__ */ new Set(), titles = new Map((routes?.routes ?? []).map((route) => [route.path, route.title]));
+    for (const card of queue?.hits ?? []) {
+      const key = "review:" + card.path;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push({ key, kind: "review", title: card.title, path: card.path, subtitle: "\u5F85\u590D\u4E60" + (card.state?.next_review ? " \xB7 " + card.state.next_review : ""), action: "\u590D\u4E60" });
+    }
+    const dueCount = queue?.total ?? result.length;
+    if (dueCount > 5) {
+      result.splice(0, result.length, { key: "review:due", kind: "review-group", count: dueCount, title: dueCount + " \u5F20\u5361\u7247\u5F85\u590D\u4E60", subtitle: "\u56DE\u987E\u5DF2\u5B66\u5185\u5BB9", action: "\u590D\u4E60" });
+    }
+    for (const node of routes?.nodes ?? []) {
+      if (node.scheduledOn || node.sessionId || node.summary || node.pathway && node.pathway !== "main") continue;
+      const key = "schedule:" + node.routePath + ":" + node.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push({ key, kind: "schedule", title: node.title, path: node.routePath, nodeId: node.id, revision: node.routeRevision, subtitle: "\u5F85\u5B89\u6392" + (titles.get(node.routePath) ? " \xB7 " + titles.get(node.routePath) : ""), action: "\u5B89\u6392" });
+    }
+    const reviews = result.filter((item) => item.kind === "review" || item.kind === "review-group"), lessons = result.filter((item) => item.kind === "schedule"), interleaved = [];
+    for (let index = 0; index < Math.max(reviews.length, lessons.length); index++) {
+      if (reviews[index]) interleaved.push(reviews[index]);
+      if (lessons[index]) interleaved.push(lessons[index]);
+    }
+    return interleaved;
+  }
+
+  // examples/native-vault/shell-client.js
+  function selectedVaultDirectory(spaces2, sessions, rememberedId, prepared) {
+    const items = spaces2.items ?? [];
+    const owner = items.find((item) => item.sessionIds?.includes(sessions.current));
+    if (owner) return owner;
+    if (prepared?.homeSession === sessions.current && sessions.byId?.[sessions.current]?.blank === true) {
+      const pending = items.find((item) => item.workspaceId === prepared.homeWorkspaceId);
+      if (pending) return pending;
+    }
+    if (sessions.current && sessions.byId?.[sessions.current]) return null;
+    return items.find((item) => item.workspaceId === rememberedId) ?? (items.length === 1 ? items[0] : null);
+  }
+  function directoryLessons(directory, spaces2, sessions) {
+    if (!directory) return [];
+    const members = new Set(directory.sessionIds ?? []), archived = new Set(spaces2.archivedSessionIds ?? []);
+    return sessions.ids.map((id2) => sessions.byId[id2]).filter((row) => row && members.has(row.id) && !archived.has(row.id) && !row.blank && row.origin !== "subagent");
+  }
+  function createVaultNavigation() {
+    let value = { section: "today", library: "files", plan: "routes", request: null, serial: 0, preparingHome: false, homeSession: null, homeWorkspaceId: null, homeError: "", debug: false, directoryId: null };
+    const listeners = /* @__PURE__ */ new Set();
+    let controller = null;
+    const publish = (patch) => {
+      value = { ...value, ...patch };
+      for (const fn of listeners) fn();
+    };
+    return {
+      getSnapshot: () => value,
+      subscribe: (fn) => {
+        listeners.add(fn);
+        return () => listeners.delete(fn);
+      },
+      show(section, tab, focus = "") {
+        if (section !== "today") controller?.abort();
+        value = {
+          ...value,
+          section,
+          ...section === "today" ? { homeSession: null, homeError: "" } : {},
+          ...section === "library" && tab ? { library: tab } : {},
+          ...section === "plan" && tab ? { plan: tab } : {},
+          request: focus ? { focus, nonce: value.serial + 1 } : null,
+          serial: value.serial + 1
+        };
+        for (const fn of listeners) fn();
+      },
+      complete() {
+        if (!value.request) return;
+        value = { ...value, request: null };
+        for (const fn of listeners) fn();
+      },
+      showReviewQueue() {
+        controller?.abort();
+        publish({ section: "plan", plan: "review", request: { reviewFilter: "due", nonce: value.serial + 1 }, serial: value.serial + 1 });
+      },
+      setDebug(debug) {
+        publish({ debug });
+      },
+      rememberDirectory(directoryId) {
+        if (value.directoryId !== directoryId) publish({ directoryId });
+      },
+      async prepareHome(ctx) {
+        if (value.preparingHome || value.section !== "today") return;
+        const spaces2 = ctx.workspaces.list.getSnapshot(), sessions = ctx.sessions.list.getSnapshot();
+        const directory = selectedVaultDirectory(spaces2, sessions, value.directoryId);
+        if (!directory) {
+          publish({ homeError: "\u8BF7\u5148\u5728\u5DE6\u4E0A\u89D2\u9009\u62E9\u5B66\u4E60\u76EE\u5F55\u3002" });
+          return;
+        }
+        const attempt = new AbortController(), before = sessions.current, serial = value.serial;
+        controller = attempt;
+        publish({ preparingHome: true, homeError: "" });
+        try {
+          const id2 = await ctx.uiWorkspace.connectWorkspace(directory.workspaceId);
+          if (attempt.signal.aborted || controller !== attempt || value.serial !== serial || value.section !== "today") return;
+          const latest = ctx.sessions.list.getSnapshot();
+          if (latest.current !== before && latest.current !== id2) return;
+          if (!id2 || latest.byId[id2]?.blank !== true) throw new Error("not_blank");
+          publish({ homeSession: id2, homeWorkspaceId: directory.workspaceId, directoryId: directory.workspaceId });
+          ctx.sessions.open(id2);
+        } catch {
+          if (!attempt.signal.aborted && value.serial === serial) publish({ homeError: "\u8F93\u5165\u6846\u6682\u65F6\u6CA1\u6709\u51C6\u5907\u597D\uFF0C\u8BF7\u91CD\u8BD5\u3002" });
+        } finally {
+          if (controller === attempt) {
+            controller = null;
+            publish({ preparingHome: false });
+          }
+        }
+      },
+      dispose() {
+        controller?.abort();
+        controller = null;
+        listeners.clear();
+      }
+    };
+  }
+  function createVaultShell(React, { navigation, Icon, IconButton, Dialog, TodayEntry }) {
+    const h = React.createElement, { useState, useEffect, useRef, useMemo, useSyncExternalStore } = React;
+    const useNav = () => useSyncExternalStore(navigation.subscribe, navigation.getSnapshot);
+    const useSessions = (ctx) => useSyncExternalStore((fn) => ctx.sessions.list.subscribe(fn), () => ctx.sessions.list.getSnapshot());
+    const useSpaces = (ctx) => useSyncExternalStore((fn) => ctx.workspaces.list.subscribe(fn), () => ctx.workspaces.list.getSnapshot());
+    function Sidebar({ ctx, collapsed, renderSidebarSlot }) {
+      const nav2 = useNav(), sessions = useSessions(ctx);
+      const spaces2 = useSpaces(ctx), directory = selectedVaultDirectory(spaces2, sessions, nav2.directoryId, nav2);
+      const rows = directoryLessons(directory, spaces2, sessions);
+      const [pickerOpen, setPickerOpen] = useState(false), [switching, setSwitching] = useState(false), [directoryError, setDirectoryError] = useState(""), [directoryPath, setDirectoryPath] = useState("");
+      const [directoryListing, setDirectoryListing] = useState(null), [scanning, setScanning] = useState(false);
+      const pickerAttempt = useRef(0), busyRef = useRef(false);
+      useEffect(() => {
+        if (directory) navigation.rememberDirectory(directory.workspaceId);
+      }, [directory?.workspaceId]);
+      useEffect(() => () => {
+        pickerAttempt.current++;
+      }, []);
+      const closePicker = () => {
+        pickerAttempt.current++;
+        setPickerOpen(false);
+        setDirectoryError("");
+        setScanning(false);
+      };
+      const pickDirectory = async (workspaceId) => {
+        pickerAttempt.current++;
+        setScanning(false);
+        setPickerOpen(false);
+        setDirectoryError("");
+        if (workspaceId === directory?.workspaceId && directory.sessionIds?.includes(sessions.current)) return;
+        setSwitching(true);
+        try {
+          await ctx.uiWorkspace.openWorkspace(workspaceId, () => navigation.show("lesson"));
+        } catch {
+          setDirectoryError("\u76EE\u5F55\u6CA1\u6709\u6253\u5F00\uFF0C\u8BF7\u91CD\u65B0\u9009\u62E9\u3002");
+        } finally {
+          setSwitching(false);
+        }
+      };
+      const addDirectory = async (path2) => {
+        if (!path2.trim() || busyRef.current) return;
+        const attempt = ++pickerAttempt.current;
+        busyRef.current = true;
+        setSwitching(true);
+        setDirectoryError("");
+        try {
+          const workspace = await ctx.workspaces.create({ path: path2.trim() });
+          if (attempt !== pickerAttempt.current) return;
+          await pickDirectory(workspace.workspaceId);
+          setDirectoryPath("");
+        } catch {
+          if (attempt === pickerAttempt.current) setDirectoryError("\u65E0\u6CD5\u6253\u5F00\u8FD9\u4E2A\u76EE\u5F55\uFF0C\u8BF7\u68C0\u67E5\u8DEF\u5F84\u662F\u5426\u5B58\u5728\u5E76\u4E14\u53EF\u4EE5\u8BBF\u95EE\u3002");
+        } finally {
+          busyRef.current = false;
+          setSwitching(false);
+        }
+      };
+      const browseDirectory = async (path2) => {
+        const attempt = ++pickerAttempt.current;
+        setDirectoryError("");
+        setScanning(true);
+        try {
+          const listing = await ctx.uiWorkspace.listDirectory(path2 || directoryPath.trim() || directory?.path);
+          if (attempt === pickerAttempt.current) {
+            setDirectoryListing(listing);
+            setDirectoryPath(listing.path);
+          }
+        } catch (error) {
+          if (attempt !== pickerAttempt.current) return;
+          if (error?.rpcError?.code === "directory-picker/unavailable") {
+            try {
+              const picked = await ctx.uiWorkspace.pickDirectory();
+              if (picked && attempt === pickerAttempt.current) setDirectoryPath(picked);
+            } catch {
+              if (attempt === pickerAttempt.current) setDirectoryError("\u76EE\u5F55\u9009\u62E9\u5668\u6682\u4E0D\u53EF\u7528\uFF0C\u53EF\u4EE5\u76F4\u63A5\u586B\u5199\u76EE\u5F55\u8DEF\u5F84\u3002");
+            }
+          } else if (attempt === pickerAttempt.current) setDirectoryError("\u65E0\u6CD5\u6D4F\u89C8\u6B64\u76EE\u5F55\uFF0C\u8BF7\u68C0\u67E5\u8DEF\u5F84\uFF0C\u6216\u76F4\u63A5\u6253\u5F00\u76EE\u5F55\u3002");
+        } finally {
+          if (attempt === pickerAttempt.current) setScanning(false);
+        }
+      };
+      const dismiss = () => {
+        if (innerWidth <= 760 && !collapsed) ctx.layout.toggleSidebar();
+      };
+      const show = (section) => {
+        navigation.show(section);
+        ctx.layout.selectPanel(null);
+        dismiss();
+      };
+      const open2 = (row) => {
+        navigation.show("lesson");
+        ctx.uiWorkspace.openSession(row.id);
+        dismiss();
+      };
+      return h(
+        "aside",
+        { className: "nv-sidebar", "data-collapsed": collapsed || void 0, "aria-label": "Notara \u5BFC\u822A" },
+        h(
+          "div",
+          { className: "nv-sidebar-brand" },
+          h("span", { className: "nv-brand-mark" }, "\u62FE"),
+          !collapsed && h("span", null, "Notara \xB7 \u62FE\u9875"),
+          h(IconButton, { icon: "sidebar", label: collapsed ? "\u5C55\u5F00\u5BFC\u822A" : "\u6536\u8D77\u5BFC\u822A", onClick: () => ctx.layout.toggleSidebar() })
+        ),
+        h(
+          "div",
+          { className: "nv-directory" },
+          h(
+            "button",
+            { className: "nv-directory-button", "aria-label": directory ? "\u9009\u62E9\u76EE\u5F55\uFF0C\u5F53\u524D\uFF1A" + directory.title : "\u9009\u62E9\u5B66\u4E60\u76EE\u5F55", "aria-haspopup": "dialog", "aria-expanded": pickerOpen, disabled: switching || spaces2.phase !== "ready", title: directory?.path || "\u9009\u62E9\u5B66\u4E60\u76EE\u5F55", onClick: () => {
+              setDirectoryError("");
+              setPickerOpen((v) => !v);
+            } },
+            h(Icon, { name: "folder" }),
+            !collapsed && h("span", null, switching ? "\u6B63\u5728\u6253\u5F00\u2026" : directory?.title || "\u9009\u62E9\u5B66\u4E60\u76EE\u5F55"),
+            !collapsed && h("span", { className: "nv-directory-chevron", "aria-hidden": true }, "\u2304")
+          ),
+          directoryError && !pickerOpen && h("p", { role: "alert", className: "nv-directory-error" }, directoryError)
+        ),
+        pickerOpen && h(
+          Dialog,
+          { title: "\u9009\u62E9\u5B66\u4E60\u76EE\u5F55", onClose: closePicker },
+          h("div", { className: "nv-directory-options" }, spaces2.items.map((item) => h(
+            "button",
+            { key: item.workspaceId, type: "button", "aria-pressed": directory?.workspaceId === item.workspaceId, disabled: switching, onClick: () => pickDirectory(item.workspaceId) },
+            h(Icon, { name: "folder" }),
+            h("span", null, h("strong", null, item.title), h("small", null, item.path)),
+            directory?.workspaceId === item.workspaceId && h("span", { "aria-hidden": true }, "\u2713")
+          ))),
+          h(
+            "form",
+            { className: "nv-directory-form", onSubmit: (event) => {
+              event.preventDefault();
+              void addDirectory(directoryPath);
+            } },
+            h("label", null, "\u6253\u5F00\u5176\u4ED6\u76EE\u5F55", h("input", { "aria-label": "\u76EE\u5F55\u8DEF\u5F84", value: directoryPath, placeholder: "\u7C98\u8D34\u6587\u4EF6\u5939\u7684\u5B8C\u6574\u8DEF\u5F84", disabled: switching, onChange: (event) => setDirectoryPath(event.target.value) })),
+            h("div", { className: "nv-directory-actions" }, h("button", { type: "button", disabled: switching || scanning, onClick: () => browseDirectory() }, scanning ? "\u6B63\u5728\u8BFB\u53D6\u2026" : "\u6D4F\u89C8\u6587\u4EF6\u5939"), h("button", { type: "submit", disabled: switching || scanning || !directoryPath.trim() }, switching ? "\u6B63\u5728\u6253\u5F00\u2026" : "\u6253\u5F00\u76EE\u5F55")),
+            directoryListing && h(
+              "div",
+              { className: "nv-directory-browser", "aria-label": "\u76EE\u5F55\u6D4F\u89C8" },
+              h("div", { className: "nv-directory-browser-head" }, h("span", null, "\u5F53\u524D\u76EE\u5F55"), h("button", { type: "button", disabled: scanning || directoryListing.crumbs.length < 2, onClick: () => browseDirectory(directoryListing.crumbs.at(-2)?.path) }, "\u4E0A\u4E00\u7EA7")),
+              directoryListing.entries.filter((entry) => !entry.hidden).map((entry) => h("button", { key: entry.path, type: "button", disabled: scanning, onClick: () => browseDirectory(entry.path) }, h(Icon, { name: "folder" }), entry.name)),
+              !directoryListing.entries.some((entry) => !entry.hidden) && h("p", null, "\u6CA1\u6709\u53EF\u89C1\u7684\u5B50\u6587\u4EF6\u5939\uFF0C\u53EF\u4EE5\u76F4\u63A5\u6253\u5F00\u5F53\u524D\u76EE\u5F55\u3002"),
+              directoryListing.truncated && h("p", null, "\u6B64\u76EE\u5F55\u8F83\u5927\uFF0C\u672A\u663E\u793A\u5168\u90E8\u6587\u4EF6\u5939\uFF1B\u53EF\u4EE5\u76F4\u63A5\u586B\u5199\u5B8C\u6574\u8DEF\u5F84\u3002")
+            ),
+            directoryError && h("p", { role: "alert", className: "nv-directory-error" }, directoryError)
+          )
+        ),
+        h("button", { className: "nv-new-lesson", "aria-label": "\u65B0\u7684\u4E00\u8BFE", title: "\u65B0\u7684\u4E00\u8BFE", disabled: switching, onClick: () => {
+          if (!directory) {
+            setPickerOpen(true);
+            return;
+          }
+          navigation.show("lesson");
+          ctx.uiWorkspace.startSession(directory.workspaceId);
+          dismiss();
+        } }, h(Icon, { name: "plus" }), !collapsed && "\u65B0\u7684\u4E00\u8BFE"),
+        h("nav", { "aria-label": "\u5B66\u4E60\u5BFC\u822A" }, [["today", "\u4ECA\u5929", "\u4ECA\u65E5"], ["library", "book", "\u8D44\u6599\u5E93"], ["plan", "calendar", "\u8BA1\u5212"]].map(([id2, ic, label]) => h("button", { key: id2, className: "nv-nav-button", "aria-current": nav2.section === id2 ? "page" : void 0, title: label, onClick: () => show(id2) }, h(Icon, { name: ic === "\u4ECA\u5929" ? "calendar" : ic }), !collapsed && label))),
+        !collapsed && h(
+          "div",
+          { className: "nv-sidebar-lessons" },
+          h("div", { className: "nv-sidebar-label" }, "\u8BFE\u5802"),
+          rows.length ? rows.map((row) => h(
+            "button",
+            { key: row.id, className: "nv-session-row", "aria-current": nav2.section === "lesson" && sessions.current === row.id ? "page" : void 0, title: row.title || "\u672A\u547D\u540D\u8BFE\u5802", onClick: () => open2(row) },
+            h("i", { className: "nv-session-dot", "data-running": !!row.running }),
+            h("span", null, row.title || "\u672A\u547D\u540D\u8BFE\u5802"),
+            h("time", null, row.running ? "\u8FDB\u884C\u4E2D" : new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(new Date(row.updatedAt)))
+          )) : h("p", { className: "nv-sidebar-label" }, directory ? "\u8FD9\u4E2A\u76EE\u5F55\u8FD8\u6CA1\u6709\u8BFE\u5802" : "\u9009\u62E9\u76EE\u5F55\u540E\u67E5\u770B\u8BFE\u5802")
+        ),
+        h(
+          "footer",
+          { className: "nv-sidebar-foot" },
+          renderSidebarSlot("sidebar.footer.action", { wide: !collapsed }),
+          renderSidebarSlot("sidebar.settings", { wide: !collapsed })
+        )
+      );
+    }
+    function Today({ ctx, sessionId, visible, onView, children }) {
+      const sessions = useSessions(ctx), spaces2 = useSpaces(ctx), nav2 = useNav();
+      const directory = selectedVaultDirectory(spaces2, sessions, nav2.directoryId, nav2);
+      const targetSession = directory?.sessionIds?.includes(sessionId) || sessionId === nav2.homeSession && nav2.homeWorkspaceId === directory?.workspaceId ? sessionId : directory?.sessionIds?.find((id2) => sessions.byId[id2]);
+      const ready = spaces2.phase === "ready" && !!directory && (!!targetSession || spaces2.items.length === 1);
+      const scopeKey = directory?.workspaceId ?? "", vault = useMemo(() => createVaultClient(ctx, targetSession), [ctx, targetSession]);
+      const [data2, setData] = useState(null), [loading, setLoading] = useState(true), [error, setError] = useState(""), [tick, setTick] = useState(0);
+      const [appointment, setAppointment] = useState(null), [date, setDate] = useState(""), [saving, setSaving] = useState(false), [scheduleError, setScheduleError] = useState("");
+      const savingRef = useRef(false), scope = useRef(scopeKey), request = useRef(0);
+      scope.current = scopeKey;
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const current2 = sessions.byId[sessionId];
+      const composerReady = !!sessionId && sessionId === nav2.homeSession && current2?.blank === true;
+      useEffect(() => {
+        if (!visible || spaces2.phase !== "ready" || !directory || nav2.preparingHome || nav2.homeError) return;
+        if (sessionId && sessionId === nav2.homeSession) {
+          if (current2 && current2.blank !== true) navigation.show("lesson");
+          return;
+        }
+        void navigation.prepareHome(ctx);
+      }, [visible, spaces2.phase, scopeKey, sessionId, current2?.blank, nav2.homeSession, nav2.preparingHome, nav2.homeError]);
+      const items = useMemo(() => data2?.scopeKey === scopeKey ? homeQueue(data2.queue, data2.routes).slice(0, 8) : [], [data2, scopeKey]);
+      async function read() {
+        if (!ready) return;
+        const serial = ++request.current, owner = scopeKey;
+        const results = await Promise.allSettled([vault.reviewQueue({ status: "due", limit: 8, offset: 0, timeZone }), vault.routes({})]);
+        if (serial !== request.current || scope.current !== owner) return;
+        const values2 = results.map((result) => result.status === "fulfilled" && result.value?.ok ? result.value.value : null);
+        setData({ scopeKey: owner, queue: values2[0], routes: values2[1] });
+        setError(values2.some((value) => !value) ? "\u90E8\u5206\u5F85\u529E\u6682\u65F6\u65E0\u6CD5\u8BFB\u53D6\u3002" : values2.some((value) => value.truncated || value.unreadable || value.invalid?.length) ? "\u90E8\u5206\u8D44\u6599\u9700\u8981\u68C0\u67E5\uFF0C\u5F53\u524D\u53EA\u663E\u793A\u53EF\u8BFB\u53D6\u7684\u5F85\u529E\u3002" : "");
+        setLoading(false);
+      }
+      useEffect(() => {
+        if (!visible) return;
+        setError("");
+        setLoading(true);
+        setData(null);
+        if (!ready) {
+          setLoading(spaces2.phase !== "ready");
+          return;
+        }
+        void read();
+        const timer = setInterval(read, 15e3);
+        window.addEventListener("focus", read);
+        window.addEventListener("notara-vault-changed", read);
+        return () => {
+          request.current++;
+          clearInterval(timer);
+          window.removeEventListener("focus", read);
+          window.removeEventListener("notara-vault-changed", read);
+        };
+      }, [vault, visible, ready, scopeKey, tick]);
+      useEffect(() => {
+        setAppointment(null);
+        setScheduleError("");
+      }, [scopeKey, visible]);
+      const open2 = (item) => {
+        if (item.kind === "review-group") {
+          navigation.showReviewQueue();
+          return;
+        }
+        if (item.kind === "review") {
+          onView(VIEW_IDS.calendar, item.path);
+          return;
+        }
+        setScheduleError("");
+        setDate(civilDay(/* @__PURE__ */ new Date(), timeZone));
+        setAppointment(item);
+      };
+      async function schedule() {
+        if (savingRef.current || !appointment || !date || !ready) return;
+        savingRef.current = true;
+        setSaving(true);
+        setScheduleError("");
+        const owner = scopeKey;
+        try {
+          const result = await vault.scheduleLesson({ path: appointment.path, nodeId: appointment.nodeId, date, expectedRevision: appointment.revision });
+          if (!result?.ok) throw new Error(result?.error?.message?.includes("revision_conflict") ? "\u8BFE\u7A0B\u5DF2\u53D1\u751F\u53D8\u5316\uFF0C\u8BF7\u5173\u95ED\u540E\u91CD\u65B0\u5B89\u6392\u3002" : "\u5B89\u6392\u672A\u4FDD\u5B58\uFF0C\u8BF7\u91CD\u8BD5\u3002");
+          if (scope.current === owner) {
+            setAppointment(null);
+            void read();
+          }
+          window.dispatchEvent(new Event("notara-vault-changed"));
+        } catch (error2) {
+          if (scope.current === owner) setScheduleError(error2.message);
+        } finally {
+          savingRef.current = false;
+          setSaving(false);
+        }
+      }
+      return h("div", { className: visible ? "nv-today" : "nv-home-pass" }, h(TodayEntry, {
+        items,
+        loading,
+        visible,
+        composerReady,
+        active: visible && !appointment,
+        error: error || (!ready && spaces2.phase === "ready" ? "\u8BF7\u5148\u5728\u4FA7\u680F\u9009\u62E9\u5B66\u4E60\u76EE\u5F55\u3002" : ""),
+        composerError: nav2.homeError,
+        onPrepare: () => navigation.prepareHome(ctx),
+        onOpen: open2,
+        onRetry: () => setTick((value) => value + 1)
+      }, children), appointment && h(
+        Dialog,
+        { title: "\u5B89\u6392\u8BFE\u7A0B", onClose: () => {
+          if (!savingRef.current) setAppointment(null);
+        } },
+        h(
+          "form",
+          { className: "nv-home-schedule", onSubmit: (event) => {
+            event.preventDefault();
+            void schedule();
+          } },
+          h("p", null, appointment.title),
+          h("label", null, "\u5B89\u6392\u65E5\u671F", h("input", { type: "date", "aria-label": "\u5B89\u6392\u65E5\u671F", required: true, value: date, disabled: saving, onChange: (event) => setDate(event.target.value) })),
+          scheduleError && h("p", { role: "alert", className: "nv-home-error" }, scheduleError),
+          h("button", { type: "submit", disabled: saving || !date }, saving ? "\u6B63\u5728\u4FDD\u5B58\u2026" : "\u786E\u8BA4\u5B89\u6392")
+        )
+      ));
+    }
+    return { Sidebar, Today };
+  }
+  function installStudentProjection(ctx, React, navigation) {
+    let hidden = [], last2;
+    const sync = () => {
+      const debug = navigation.getSnapshot().debug;
+      if (debug === last2) return;
+      last2 = debug;
+      hidden.forEach((dispose) => dispose());
+      hidden = [];
+      if (!debug) for (const key of ["system-prompt", "context"]) hidden.push(ctx.slots.inject("conversation.chat.node", () => ctx.slots.register({ name: "conversation.chat.node", key, priority: -1 }, () => null)));
+    };
+    ctx.effect(() => {
+      sync();
+      const stop = navigation.subscribe(sync);
+      return () => {
+        stop();
+        hidden.forEach((dispose) => dispose());
+      };
+    });
+    ctx.effect(() => ctx.slots.inject("settings.section", () => ctx.slots.register({ name: "settings.section", id: "notara.interface", order: 35, label: "\u5B66\u4E60\u754C\u9762" }, function InterfaceSettings() {
+      const state = React.useSyncExternalStore(navigation.subscribe, navigation.getSnapshot);
+      return React.createElement(
+        "section",
+        { style: { padding: "16px 0" } },
+        React.createElement("h2", { style: { fontSize: 16, margin: "0 0 16px" } }, "\u5B66\u4E60\u754C\u9762"),
+        React.createElement(
+          "label",
+          { style: { display: "flex", alignItems: "center", gap: 10 } },
+          React.createElement("input", { type: "checkbox", checked: state.debug, onChange: (e) => navigation.setDebug(e.target.checked) }),
+          "\u663E\u793A\u8C03\u8BD5\u8BB0\u5F55"
+        ),
+        React.createElement("p", { style: { fontSize: 12, color: "var(--dsw-alias-label-secondary)" } }, "\u5C55\u5F00\u7CFB\u7EDF\u4E0A\u4E0B\u6587\u548C\u8F68\u8FF9\uFF0C\u4F9B\u6392\u67E5\u95EE\u9898\u3002")
+      );
+    })));
+  }
+
+  // examples/native-vault/today-entry.css
+  var today_entry_default = '.nv-home{box-sizing:border-box;width:min(100%,756px);min-height:100%;margin:0 auto;padding:clamp(32px,8vh,64px) 32px 32px;color:var(--dsw-alias-label-primary);font:14px/1.6 var(--dsw-font-family,system-ui)}\n.nv-home-welcome{margin:0 3px 25px;text-align:center}.nv-home-welcome time{display:block;font-size:12px;color:var(--dsw-alias-label-tertiary)}.nv-home-welcome h1{font-size:clamp(20px,3.7cqw,26px);font-weight:550;line-height:1.45;letter-spacing:-.025em;margin:9px 0 0;text-wrap:balance}\n.nv-home-pass{height:100%;min-height:0;min-width:0}\n.nv-home-native{min-width:0;--dsh-composer-side-clearance:0px;--dsh-composer-card-max-width:100%}\n.nv-home-native .nv-lesson-entry,.nv-home-native [data-slot="conversation.session"]{display:none}\n.nv-home .nv-home-native :is(.wSkVaW_root,.wSkVaW_body,.wSkVaW_scrollBody){height:auto;min-height:0;flex:none;overflow:visible}\n[data-notara-ui=modern] .nv-home .wSkVaW_root .wSkVaW_composerSeat{position:static;padding:0;background:none}\n[data-notara-ui=modern] .nv-home .wSkVaW_composerHero{width:100%;padding:0}\n.nv-home-native .uV2eYG_root{padding:0}\n.nv-home-preparing{min-height:140px;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--dsw-alias-label-tertiary);font-size:12px}\n.nv-home-preparing button{border:0;border-radius:8px;background:var(--dsw-alias-bg-layer-2);color:inherit;padding:6px 10px;cursor:pointer}\n.nv-home-agenda{margin:22px 9px 0}\n.nv-home-agenda>header{display:flex;align-items:center;justify-content:space-between;min-height:28px}\n.nv-home-agenda h2{font-size:12px;font-weight:500;color:var(--dsw-alias-label-tertiary);margin:0}\n.nv-home-controls{display:flex;align-items:center;gap:2px;color:var(--dsw-alias-label-tertiary)}\n.nv-home-controls>span{font-size:10px;font-variant-numeric:tabular-nums;margin-right:7px}\n.nv-home-controls button{display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:inherit;font:16px/1 system-ui;cursor:pointer}\n.nv-home-controls button:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}\n.nv-home-ticker{overflow:hidden;min-height:76px}\n.nv-home-task{box-sizing:border-box;width:100%;min-height:76px;display:flex;align-items:center;gap:12px;border:0;border-radius:10px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;padding:12px 5px;animation:nv-home-advance .3s ease-out}\n.nv-home-task:hover{background:var(--dsw-alias-bg-layer-2)}\n.nv-home-task-icon{display:grid;place-items:center;flex:none;width:28px;height:28px;color:var(--dsw-alias-label-tertiary)}\n.nv-home-task-text{flex:1;min-width:0}.nv-home-task-text strong{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:14px;font-weight:500;overflow-wrap:anywhere}\n.nv-home-task-text small{display:block;margin-top:3px;font-size:11px;color:var(--dsw-alias-label-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n.nv-home-task-action{flex:none;font-size:12px;color:var(--dsw-alias-label-secondary);padding-right:5px}.nv-home-task-action>span{margin-left:6px;color:var(--dsw-alias-label-caption)}\n.nv-home-empty{font-size:12px;color:var(--dsw-alias-label-tertiary);margin:20px 4px}\n.nv-home-error{margin:9px 3px;font-size:12px;color:var(--dsw-alias-state-error-primary)}.nv-home-error button{border:0;background:none;font:inherit;color:inherit;cursor:pointer;text-decoration:underline;margin-left:8px}\n.nv-home-schedule{display:grid;gap:16px}.nv-home-schedule p{margin:4px 0}.nv-home-schedule label{display:grid;gap:8px;font-size:13px}.nv-home-schedule input,.nv-home-schedule>button{font:inherit;color:inherit;border:1px solid var(--dsw-alias-border-l1);border-radius:9px;padding:10px 12px;background:var(--dsw-alias-bg-layer-2)}.nv-home-schedule>button{justify-self:end;cursor:pointer}\n.nv-home :is(button,textarea):focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:2px}\n@keyframes nv-home-advance{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}\n@container notara-pane (max-width:540px){.nv-home{padding:32px 18px 24px}.nv-home-welcome{margin-bottom:20px}.nv-home-welcome h1{font-size:clamp(18px,5.5cqw,23px)}.nv-home-agenda{margin:18px 3px 0}.nv-home-task{gap:7px}.nv-home-task-text strong{font-size:13px}.nv-home-task-action{font-size:11px}}\n@media(max-height:550px){.nv-home{padding-top:24px}.nv-home-welcome{margin-bottom:16px}.nv-home-agenda{margin-top:14px}}\n@media(prefers-reduced-motion:reduce){.nv-home-task{animation:none}}\n';
+
+  // examples/native-vault/today-entry-client.js
+  function createTodayEntry(React, { Icon } = {}) {
+    const h = React.createElement, { useState, useEffect } = React;
+    return function TodayEntry({ items = [], loading = false, error = "", composerError = "", visible = true, composerReady = false, active = true, onOpen, onRetry, onPrepare, children } = {}) {
+      const [selected, setSelected] = useState(null), [hovered, setHovered] = useState(false), [focused, setFocused] = useState(false), [paused, setPaused] = useState(false);
+      const [hidden, setHidden] = useState(document.hidden), [reduced, setReduced] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
+      const [now, setNow] = useState(() => /* @__PURE__ */ new Date());
+      useEffect(() => {
+        if (!active) return;
+        setNow(/* @__PURE__ */ new Date());
+        const timer = setInterval(() => setNow(/* @__PURE__ */ new Date()), 6e4);
+        return () => clearInterval(timer);
+      }, [active]);
+      const greeting = now.getHours() < 6 ? "\u591C\u6DF1\u4E86" : now.getHours() < 12 ? "\u4E0A\u5348\u597D" : now.getHours() < 18 ? "\u4E0B\u5348\u597D" : "\u665A\u4E0A\u597D";
+      const index = Math.max(0, items.findIndex((item2) => item2.key === selected)), item = items[index];
+      const keys = items.map((item2) => item2.key), signature = JSON.stringify(keys);
+      useEffect(() => {
+        const media = matchMedia("(prefers-reduced-motion: reduce)"), motion = () => setReduced(media.matches), visibility = () => setHidden(document.hidden);
+        media.addEventListener("change", motion);
+        document.addEventListener("visibilitychange", visibility);
+        return () => {
+          media.removeEventListener("change", motion);
+          document.removeEventListener("visibilitychange", visibility);
+        };
+      }, []);
+      useEffect(() => {
+        if (!active || hidden || reduced || paused || hovered || focused || loading || keys.length < 2) return;
+        const timer = setInterval(() => setSelected((previous) => {
+          const current2 = Math.max(0, keys.indexOf(previous));
+          return keys[(current2 + 1) % keys.length];
+        }), 6500);
+        return () => clearInterval(timer);
+      }, [active, hidden, reduced, paused, hovered, focused, loading, signature]);
+      const step = (delta) => setSelected(keys[(index + delta + keys.length) % keys.length]);
+      return h(
+        "div",
+        { className: visible ? "nv-home" : "nv-home-pass", "aria-label": visible ? "\u4ECA\u65E5\u5B66\u4E60" : void 0 },
+        h("style", null, today_entry_default),
+        visible && h(
+          "header",
+          { className: "nv-home-welcome" },
+          h("time", null, new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" }).format(now)),
+          h("h1", null, greeting + "\uFF0C\u4ECA\u5929\u60F3\u5B66\u70B9\u4EC0\u4E48\uFF1F")
+        ),
+        visible && !composerReady && h("div", { className: "nv-home-preparing", role: composerError ? "alert" : "status" }, composerError || "\u6B63\u5728\u51C6\u5907\u8F93\u5165\u6846\u2026", composerError && h("button", { onClick: onPrepare }, "\u91CD\u8BD5")),
+        h("div", { key: "native", className: visible ? "nv-home-native" : "nv-home-pass", style: visible && !composerReady ? { display: "none" } : void 0 }, children),
+        visible && h(
+          "section",
+          {
+            className: "nv-home-agenda",
+            "aria-label": "\u5B66\u4E60\u5F85\u529E",
+            onMouseEnter: () => setHovered(true),
+            onMouseLeave: () => setHovered(false),
+            onFocusCapture: () => setFocused(true),
+            onBlurCapture: (e) => {
+              if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false);
+            }
+          },
+          h(
+            "header",
+            null,
+            h("h2", null, "\u63A5\u4E0B\u6765"),
+            items.length > 1 && h(
+              "div",
+              { className: "nv-home-controls" },
+              h("span", { "aria-label": "\u5F85\u529E\u4F4D\u7F6E" }, index + 1 + " / " + items.length),
+              !reduced && h("button", { type: "button", "aria-label": paused ? "\u7EE7\u7EED\u81EA\u52A8\u8F6E\u6362" : "\u6682\u505C\u81EA\u52A8\u8F6E\u6362", onClick: () => setPaused((value) => !value) }, paused ? "\u25B7" : "\u2161"),
+              h("button", { type: "button", "aria-label": "\u4E0A\u4E00\u6761\u5F85\u529E", onClick: () => step(-1) }, "\u2039"),
+              h("button", { type: "button", "aria-label": "\u4E0B\u4E00\u6761\u5F85\u529E", onClick: () => step(1) }, "\u203A")
+            )
+          ),
+          error && h("div", { className: "nv-home-error", role: "alert" }, error, h("button", { onClick: onRetry }, "\u91CD\u8BD5")),
+          h(
+            "div",
+            { className: "nv-home-ticker", "aria-live": "off" },
+            loading ? h("p", { className: "nv-home-empty", role: "status" }, "\u6B63\u5728\u8BFB\u53D6\u5B66\u4E60\u5B89\u6392\u2026") : !item && !error ? h("p", { className: "nv-home-empty" }, "\u6682\u65F6\u6CA1\u6709\u5F85\u590D\u4E60\u5361\u7247\u6216\u5F85\u5B89\u6392\u7684\u8BFE\u7A0B\u3002") : item && h(
+              "button",
+              { key: item.key, className: "nv-home-task", onClick: () => onOpen(item) },
+              h("span", { className: "nv-home-task-icon", "aria-hidden": true }, Icon ? h(Icon, { name: item.kind === "schedule" ? "calendar" : "refresh" }) : "\u25CB"),
+              h("span", { className: "nv-home-task-text" }, h("strong", null, item.title), h("small", null, item.subtitle)),
+              h("span", { className: "nv-home-task-action" }, item.action, h("span", { "aria-hidden": true }, " \u2197"))
+            )
+          )
+        )
+      );
+    };
+  }
+
+  // examples/native-vault/lesson-entry-client.js
+  function createLessonEntry(React, { Icon }) {
+    const h = React.createElement;
+    return function LessonEntry({ nativeWorkspaceSelector, needsWorkspace }) {
+      return h(
+        "section",
+        { className: "nv-lesson-entry", "aria-label": "\u5F00\u59CB\u4E00\u8282\u65B0\u8BFE" },
+        h(
+          "div",
+          { className: "nv-lesson-entry-heading" },
+          h("h1", null, "\u65B0\u7684\u4E00\u8BFE"),
+          !needsWorkspace && h(
+            "details",
+            { className: "nv-lesson-entry-options" },
+            h("summary", null, h(Icon, { name: "sliders" }), "\u8BFE\u7A0B\u9009\u9879"),
+            h("div", { className: "nv-lesson-entry-options-content" }, nativeWorkspaceSelector)
+          )
+        ),
+        h("p", { className: "nv-lesson-entry-lead" }, "\u5199\u4E0B\u95EE\u9898\u548C\u4F60\u7684\u5C1D\u8BD5\uFF0C\u6216\u5E26\u4E00\u4EFD\u8D44\u6599\u8FDB\u6765\u3002"),
+        needsWorkspace && h("div", { className: "nv-lesson-entry-required" }, h("p", null, "\u5148\u9009\u62E9\u5B66\u4E60\u76EE\u5F55\uFF0C\u518D\u5F00\u59CB\u8FD9\u8282\u8BFE\u3002"), nativeWorkspaceSelector)
+      );
+    };
+  }
+
+  // examples/native-vault/board-client.css
+  var board_client_default = `.nb-board{height:100%;min-height:0;display:flex;flex-direction:column;background:#fff;color:#30343b;position:relative;container-type:inline-size;font:13px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+.nb-head{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid #eff0f2;flex-wrap:wrap;flex:none}.nb-tabs{display:flex;background:#f3f4f5;border-radius:11px;padding:3px}.nb-board button{border:0;background:#f2f3f4;color:#626873;padding:7px 11px;border-radius:9px;cursor:pointer;font:inherit}.nb-board button:hover{background:#e9ebee}.nb-board button:focus-visible{outline:2px solid #6b93b4;outline-offset:2px}.nb-tabs button{background:transparent}.nb-tabs button[aria-selected=true]{background:white;color:#242932;box-shadow:0 1px 4px #27323c10}.nb-status{font-size:11px;color:#9298a1;margin-left:auto}.nb-viewport{position:relative;flex:1;min-height:200px;overflow:hidden;background-color:#fff;background-image:radial-gradient(#d7dbe0 .75px,transparent .75px);background-size:22px 22px;touch-action:none;cursor:grab}.nb-world{position:absolute;inset:0 auto auto 0;transform-origin:0 0;width:2400px;height:2400px}.nb-block{position:absolute;padding:12px 14px 18px;box-sizing:border-box;border:1px solid transparent;border-radius:12px;cursor:auto;font:20px/1.7 "Kaiti SC",STKaiti,"KaiTi","Songti SC",serif;overflow-wrap:anywhere}.nb-block:hover{border-color:#e3e7ec}.nb-block[data-stream=true]{border-color:#b7cddd;background:#ffffffb3}.nb-block h2{font:600 25px/1.4 "Kaiti SC",STKaiti,"KaiTi",serif;margin:0 0 13px;color:#27333e}.nb-block h3{font-size:21px;line-height:1.5;margin:12px 0 5px}.nb-block p{margin:5px 0}.nb-block ul{padding-left:24px;margin:7px 0}.nb-block strong{font-weight:650}.nb-block pre{white-space:pre-wrap;font:14px/1.6 monospace}.nb-block mark{background:linear-gradient(transparent 28%,#dcebf9 28%,#dcebf9 90%,transparent 90%);border-radius:3px;padding:0 2px;color:inherit}.nb-block mark[data-color=green]{background:linear-gradient(transparent 28%,#dceee2 28%,#dceee2 90%,transparent 90%)}.nb-block mark[data-color=orange]{background:linear-gradient(transparent 28%,#f8e2ca 28%,#f8e2ca 90%,transparent 90%)}.nb-block mark[data-color=pink]{background:linear-gradient(transparent 28%,#f4dce5 28%,#f4dce5 90%,transparent 90%)}
+.nb-block .nb-source-link{padding:0;background:none;color:#507b98;font:inherit;border-bottom:1px dotted #97b0c1;border-radius:0}.nb-block-tools{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;opacity:0;transition:opacity .12s;font:11px/1.3 -apple-system,sans-serif}.nb-block:hover .nb-block-tools,.nb-block:focus-within .nb-block-tools{opacity:1}.nb-block-tools button{padding:3px 7px}.nb-grip{cursor:move!important;touch-action:none}.nb-block details>summary{cursor:pointer;list-style:none;font-size:23px;margin-bottom:8px}.nb-block details>summary:before{content:'\u203A';display:inline-block;margin-right:8px;color:#a0a8b0}.nb-block details[open]>summary:before{transform:rotate(90deg)}.nb-source-actions{display:flex;gap:6px;margin-top:14px;font:11px -apple-system,sans-serif;flex-wrap:wrap}.nb-edges{position:absolute;left:0;top:0;overflow:visible;width:2400px;height:2400px;pointer-events:none}.nb-edges path{stroke:#a8b8c6;stroke-width:1.4;fill:none}.nb-edges text{font:13px -apple-system,sans-serif;fill:#7b8c9b;paint-order:stroke;stroke:#fff;stroke-width:6px}.nb-toolbar{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:6px;border:1px solid #e6e9ed;background:#fffffff2;border-radius:13px;box-shadow:0 5px 24px #27323c0a;white-space:nowrap}.nb-toolbar button{background:transparent;min-width:30px;padding:6px 8px}.nb-toolbar .nb-color{width:22px;height:22px;min-width:22px;border-radius:50%;padding:0;margin:0 2px;border:2px solid white;outline:1px solid #ddd}.nb-toolbar .nb-color[data-color=blue]{background:#c3dcf1}.nb-toolbar .nb-color[data-color=green]{background:#bddfca}.nb-toolbar .nb-color[data-color=orange]{background:#f3d3ac}.nb-toolbar .nb-color[data-color=pink]{background:#eac3d3}.nb-sep{width:1px;height:20px;background:#e8ebef;margin:0 5px}.nb-notice{padding:6px 16px;background:#f4f6f8;color:#677584;flex:none;font-size:12px}.nb-export{position:absolute;z-index:5;right:15px;top:58px;width:220px;background:white;border:1px solid #e5e8ec;border-radius:14px;padding:17px;box-shadow:0 8px 38px #2d374017}.nb-export strong{display:block;margin-bottom:10px}.nb-export label{display:flex;gap:8px;margin:8px 0}.nb-export-actions{display:flex;gap:7px;margin-top:14px}.nb-live-label{font:11px -apple-system,sans-serif;color:#7c97ad;margin-bottom:8px}.nb-image{max-width:100%;max-height:400px;object-fit:contain;border-radius:5px}
+@container(max-width:480px){.nb-head{padding:10px;gap:5px}.nb-status{display:none}.nb-toolbar{gap:1px;bottom:12px;padding:4px;max-width:calc(100% - 18px);flex-wrap:wrap;justify-content:center}.nb-toolbar button{padding:5px}.nb-toolbar .nb-sep{margin:0 2px}.nb-follow{display:none}}
+.nb-viewport{overflow:clip}
+.nb-block table{border-collapse:collapse;font-size:17px;width:100%}.nb-block th,.nb-block td{padding:5px 8px;border-bottom:1px solid #dfe5eb;text-align:left}.nb-block th{font-weight:600}
+`;
+
+  // examples/native-vault/board-render.js
+  var escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var HIGHLIGHTS = ["blue", "green", "orange", "pink"];
+  var safePath = (path2) => path2 && !/^(?:[a-z]+:|\/)/i.test(path2) && !path2.split("/").some((p) => p === ".." || p.startsWith("."));
+  function boardImageTargets(source) {
+    return [...new Set([...String(source).matchAll(/!\[\[([^\]|#]+)(?:[^\]]*)\]\]|!\[[^\]]*\]\(([^\s)]+)\)/g)].map((m) => m[1] ?? m[2]).filter((path2) => safePath(path2) && /\.(?:png|jpe?g|gif|webp|svg)$/i.test(path2)))];
+  }
+  function stableBoardPreview(body = "") {
+    let value = body;
+    const mark = value.lastIndexOf("<mark");
+    if (mark > value.lastIndexOf("</mark>")) value = value.slice(0, mark);
+    const wiki = value.lastIndexOf("[[");
+    if (wiki > value.lastIndexOf("]]")) value = value.slice(0, wiki);
+    const display = [...value.matchAll(/\$\$/g)];
+    if (display.length % 2) value = value.slice(0, display.at(-1).index);
+    const inline = [...value.replace(/\$\$[^]*?\$\$/g, (match) => " ".repeat(match.length)).matchAll(/(?<!\\)\$/g)];
+    if (inline.length % 2) value = value.slice(0, inline.at(-1).index);
+    return value;
+  }
+  function renderBoardMarkdown(source, { exporting = false, assetUrls = {} } = {}) {
+    function inline(text3) {
+      const pattern = /<mark data-color="(blue|green|orange|pink)">([^]*?)<\/mark>|!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]|\[\[([^\]|]+)(?:\|([^\]]+))?\]\]|\[([^\]]+)\]\(([^\s)]+)\)|\*\*([^*]+)\*\*|`([^`\n]+)`|\$\$([^]*?)\$\$|\$([^$\n]+)\$/g;
+      let out2 = "", end = 0;
+      for (const m of text3.matchAll(pattern)) {
+        out2 += escapeHtml(text3.slice(end, m.index));
+        end = m.index + m[0].length;
+        if (m[1]) out2 += `<mark data-color="${m[1]}">${inline(m[2])}</mark>`;
+        else if (m[3] || m[5]) {
+          const path2 = m[3] ?? m[5], label = m[4] ?? m[6] ?? path2.split("/").pop().replace(/\.md$/, "");
+          const asset = assetUrls[path2];
+          out2 += m[3] && /^data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,/.test(asset ?? "") ? `<img class="nb-image" src="${escapeHtml(asset)}" alt="${escapeHtml(label)}">` : !exporting && safePath(path2) ? `<button class="nb-source-link" data-source="${escapeHtml(path2)}">${escapeHtml(label)}</button>` : `<span>${escapeHtml(label)}</span>`;
+        } else if (m[7]) out2 += /^https?:\/\//i.test(m[8]) ? `<a href="${escapeHtml(m[8])}" target="_blank" rel="noopener noreferrer">${escapeHtml(m[7])}</a>` : !exporting && safePath(m[8]) ? `<button class="nb-source-link" data-source="${escapeHtml(m[8])}">${escapeHtml(m[7])}</button>` : escapeHtml(m[7]);
+        else if (m[9]) out2 += `<strong>${escapeHtml(m[9])}</strong>`;
+        else if (m[10]) out2 += `<code>${escapeHtml(m[10])}</code>`;
+        else out2 += renderMath(m[11] ?? m[12], !!m[11]) ?? escapeHtml(m[0]);
+      }
+      return out2 + escapeHtml(text3.slice(end));
+    }
+    let inCode = false, code2 = [], out = [], list = false, inMath = false, math2 = [];
+    const lines = String(source ?? "").replace(/!\[([^\]]*)\]\(([^\s)]+)\)/g, "![[$2|$1]]").split("\n");
+    for (let index = 0; index < lines.length; index++) {
+      const line = lines[index];
+      if (line.trim() === "$$") {
+        if (inMath) {
+          out.push(renderMath(math2.join("\n"), true) ?? escapeHtml(math2.join("\n")));
+          math2 = [];
+        }
+        inMath = !inMath;
+        continue;
+      }
+      if (inMath) {
+        math2.push(line);
+        continue;
+      }
+      if (/^\s*```/.test(line)) {
+        if (inCode) {
+          out.push("<pre>" + escapeHtml(code2.join("\n")) + "</pre>");
+          code2 = [];
+        }
+        inCode = !inCode;
+        continue;
+      }
+      if (inCode) {
+        code2.push(line);
+        continue;
+      }
+      if (line.includes("|") && /^\s*\|?\s*:?-{3,}/.test(lines[index + 1] ?? "")) {
+        if (list) {
+          out.push("</ul>");
+          list = false;
+        }
+        const cells = (value) => value.trim().replace(/^\||\|$/g, "").split("|").map((cell) => inline(cell.trim()));
+        out.push("<table><thead><tr>" + cells(line).map((cell) => "<th>" + cell + "</th>").join("") + "</tr></thead><tbody>");
+        index++;
+        while (lines[index + 1]?.includes("|")) {
+          index++;
+          out.push("<tr>" + cells(lines[index]).map((cell) => "<td>" + cell + "</td>").join("") + "</tr>");
+        }
+        out.push("</tbody></table>");
+        continue;
+      }
+      if (/^\s*[-*] /.test(line)) {
+        if (!list) {
+          out.push("<ul>");
+          list = true;
+        }
+        out.push("<li>" + inline(line.replace(/^\s*[-*] /, "")) + "</li>");
+        continue;
+      }
+      if (list) {
+        out.push("</ul>");
+        list = false;
+      }
+      const heading2 = line.match(/^(#{1,6}) (.+)$/);
+      if (heading2) out.push("<h3>" + inline(heading2[2]) + "</h3>");
+      else if (line.trim()) out.push("<p>" + inline(line) + "</p>");
+    }
+    if (list) out.push("</ul>");
+    if (code2.length) out.push("<pre>" + escapeHtml(code2.join("\n")) + "</pre>");
+    if (math2.length) out.push("<pre>" + escapeHtml(math2.join("\n")) + "</pre>");
+    return out.join("");
+  }
+  function highlightBoardText(body, selected, color) {
+    if (color !== null && !HIGHLIGHTS.includes(color)) throw new Error("\u8BF7\u9009\u62E9\u4E00\u79CD\u9AD8\u4EAE\u989C\u8272\u3002");
+    if (!selected) return body;
+    const marked = new RegExp('<mark data-color="(?:blue|green|orange|pink)">' + selected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "</mark>", "g");
+    const matches = [...body.matchAll(marked)];
+    const replacement = color ? `<mark data-color="${color}">${selected}</mark>` : selected;
+    if (matches.length === 1) return body.slice(0, matches[0].index) + replacement + body.slice(matches[0].index + matches[0][0].length);
+    const at = body.indexOf(selected);
+    if (at < 0 || body.indexOf(selected, at + selected.length) !== -1 || /[<>]/.test(selected)) throw new Error("\u8BF7\u53EA\u9009\u62E9\u4E00\u5904\u5B8C\u6574\u7684\u666E\u901A\u6587\u5B57\uFF0C\u518D\u6DFB\u52A0\u9AD8\u4EAE\u3002");
+    const before = body.slice(0, at);
+    if (before.lastIndexOf("<mark") > before.lastIndexOf("</mark>")) throw new Error("\u8BF7\u9009\u4E2D\u8FD9\u6BB5\u9AD8\u4EAE\u7684\u5B8C\u6574\u6587\u5B57\u540E\u4FEE\u6539\u989C\u8272\u3002");
+    return body.slice(0, at) + replacement + body.slice(at + selected.length);
+  }
+  function exportBoard(board, options = {}) {
+    const blocks = board.blocks.filter((b) => !["hint", "reference", "attempt"].includes(b.kind) || options[b.kind] === true);
+    const markdown2 = "# \u8BFE\u5802\u7B14\u8BB0\n\n" + blocks.map((b) => `## ${b.title}
+
+${b.body}`).join("\n\n") + "\n";
+    const html2 = '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>\u8BFE\u5802\u7B14\u8BB0</title><style>body{max-width:820px;margin:60px auto;padding:0 24px;color:#30343b;background:white;font:18px/1.85 "Kaiti SC",STKaiti,serif}h1,h2{line-height:1.4}section{margin:2.5em 0}mark{color:inherit;background:#dcebfa}mark[data-color=green]{background:#d9eee1}mark[data-color=orange]{background:#fae3c9}mark[data-color=pink]{background:#f6dce5}pre{white-space:pre-wrap}img{max-width:100%}a{color:#426f93}' + (options.mathCss ?? "") + "</style><body><h1>\u8BFE\u5802\u7B14\u8BB0</h1>" + blocks.map((b) => `<section>${b.kind === "note" ? `<h2>${escapeHtml(b.title)}</h2>` : `<details><summary>${escapeHtml(b.title)}</summary>`}${renderBoardMarkdown(b.body, { exporting: true, assetUrls: options.assetUrls ?? {} })}${b.kind === "note" ? "" : "</details>"}</section>`).join("") + "</body></html>";
+    return { markdown: markdown2, html: html2 };
+  }
+
+  // examples/native-vault/board-stream.js
+  var current = /* @__PURE__ */ new Map();
+  var getBoardStream = (sessionId) => current.get(sessionId) ?? null;
+  function publishBoardStream(sessionId, value) {
+    const detail = { sessionId, ...value };
+    current.set(sessionId, detail);
+    window.dispatchEvent(new CustomEvent("notara-board-stream", { detail }));
+  }
+  function subscribeBoardStream(sessionId, receive) {
+    const listener = (event) => {
+      if (event.detail.sessionId === sessionId) receive(event.detail);
+    };
+    window.addEventListener("notara-board-stream", listener);
+    const cached = getBoardStream(sessionId);
+    if (cached) receive(cached);
+    return () => window.removeEventListener("notara-board-stream", listener);
+  }
+  function partialBoardArgs(raw = "") {
+    const values2 = {};
+    let i3 = 0, depth = 0;
+    function string2() {
+      let token = '"';
+      i3++;
+      while (i3 < raw.length) {
+        const c = raw[i3++];
+        if (c === '"') {
+          try {
+            return { value: JSON.parse(token + '"'), closed: true };
+          } catch {
+            return { value: "", closed: false };
+          }
+        }
+        if (c === "\\") {
+          const escape3 = raw[i3];
+          if (escape3 === void 0) break;
+          if (escape3 === "u") {
+            if (!/^[0-9a-f]{4}$/i.test(raw.slice(i3 + 1, i3 + 5))) break;
+            token += "\\" + raw.slice(i3, i3 + 5);
+            i3 += 5;
+          } else {
+            token += "\\" + escape3;
+            i3++;
+          }
+        } else token += c;
+      }
+      try {
+        return { value: JSON.parse(token + '"'), closed: false };
+      } catch {
+        return { value: "", closed: false };
+      }
+    }
+    while (i3 < raw.length) {
+      const c = raw[i3];
+      if (c === "{") {
+        depth++;
+        i3++;
+      } else if (c === "}") {
+        depth--;
+        i3++;
+      } else if (c === '"') {
+        const key = string2();
+        while (/\s/.test(raw[i3] ?? "") && i3 < raw.length) i3++;
+        if (depth === 1 && key.closed && raw[i3] === ":") {
+          i3++;
+          while (/\s/.test(raw[i3] ?? "") && i3 < raw.length) i3++;
+          if (raw[i3] === '"') {
+            const value = string2();
+            if (["title", "body", "kind"].includes(key.value) && (value.closed || key.value === "body")) values2[key.value] = value.value;
+          }
+        }
+      } else i3++;
+    }
+    return values2;
+  }
+  function createBoardEventTracker() {
+    let events = /* @__PURE__ */ new Map(), parts = /* @__PURE__ */ new Map(), revision = -1;
+    function accept(entry) {
+      const event = entry.event, d = event.data;
+      if (event.type === "assistant/live-chunk") {
+        const c = d.chunk, key = d.attemptId + ":" + c.index;
+        if (c.type === "tool-call-delta") {
+          const p = parts.get(key) ?? { callId: "", name: "", argsRaw: "" };
+          p.callId = p.callId || c.id;
+          p.name = c.name ?? p.name;
+          p.argsRaw += c.argumentsDelta;
+          parts.set(key, p);
+          if (p.name === "write_lesson_board") events.set(p.callId, { callId: p.callId, status: "streaming", ...partialBoardArgs(p.argsRaw) });
+        }
+      } else if (event.type === "assistant/message") {
+        for (const block of d.message?.content ?? []) if (block.type === "tool-call" && block.name === "write_lesson_board") events.set(block.id, { callId: block.id, status: d.interrupted ? "error" : "pending", ...partialBoardArgs(block.arguments) });
+      } else if (event.type === "tool/call" && d.name === "write_lesson_board") events.set(d.callId, { callId: d.callId, status: "pending", ...partialBoardArgs(d.arguments) });
+      else if (event.type === "tool/result") {
+        const id2 = d.message?.source?.callId, previous = events.get(id2);
+        if (previous) events.set(id2, { ...previous, status: d.message?.content?.[0]?.isError ? "error" : "completed" });
+      } else if (event.type === "turn/end") {
+        for (const [id2, value] of events) if (["streaming", "pending"].includes(value.status)) events.set(id2, { ...value, status: "error" });
+      }
+    }
+    return (window2) => {
+      if (window2.revision === revision) return events;
+      const append = revision >= 0 && window2.revision === revision + 1 && window2.change?.kind === "append";
+      if (!append) {
+        events = /* @__PURE__ */ new Map();
+        parts = /* @__PURE__ */ new Map();
+      }
+      for (const entry of append ? window2.change.entries : window2.entries) accept(entry);
+      revision = window2.revision;
+      return events;
+    };
+  }
+  function createBoardStream(React) {
+    return function BoardStream({ sessionId, ctx }) {
+      const binding = React.useSyncExternalStore((fn) => ctx.sessions.list.subscribe(fn), () => ctx.sessions.binding(sessionId));
+      const source = binding?.eventSource;
+      const tracker = React.useMemo(() => createBoardEventTracker(), [sessionId]);
+      const serialized = React.useSyncExternalStore((fn) => source?.subscribe(fn) ?? (() => {
+      }), () => source ? JSON.stringify([...tracker(source.getSnapshot())]) : "[]");
+      const seen = React.useRef(/* @__PURE__ */ new Map());
+      React.useEffect(() => {
+        seen.current = new Map(JSON.parse(serialized).filter(([, value]) => ["completed", "error"].includes(value.status)));
+        return () => {
+          current.delete(sessionId);
+        };
+      }, [sessionId]);
+      React.useEffect(() => {
+        const events = new Map(JSON.parse(serialized)), emit = (value) => publishBoardStream(sessionId, value);
+        for (const [id2, value] of events) {
+          const previous = seen.current.get(id2);
+          if (JSON.stringify(previous) !== JSON.stringify(value)) emit(value);
+        }
+        for (const [id2, value] of seen.current) if (!events.has(id2) && ["streaming", "pending"].includes(value.status)) emit({ ...value, status: "error" });
+        seen.current = events;
+      }, [sessionId, serialized]);
+      return null;
+    };
+  }
+
+  // examples/native-vault/board-client.js
+  var EMPTY = { revision: null, blocks: [], sources: [], edges: [] };
+  var unwrap = (result) => {
+    if (!result?.ok) throw new Error(result?.error?.message ?? "\u767D\u677F\u6682\u65F6\u65E0\u6CD5\u8BFB\u53D6\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002");
+    return result.value;
+  };
+  var colorNames2 = { blue: "\u84DD\u8272", green: "\u7EFF\u8272", orange: "\u6A59\u8272", pink: "\u7C89\u8272" };
+  function createLessonBoard(React) {
+    const h = React.createElement, { useState, useRef, useEffect, useMemo } = React;
+    function Block({ block, source, stream, onDrag, onSource, onReturn, onSelection, assetUrls }) {
+      const inner2 = h("div", { className: "nb-body", onMouseUp: (e) => onSelection(e, block, source), onClick: (e) => {
+        const link = e.target.closest("[data-source]");
+        if (link) {
+          e.preventDefault();
+          onSource(link.dataset.source);
+        }
+      }, dangerouslySetInnerHTML: { __html: renderBoardMarkdown(stream ? stableBoardPreview(block.body) : block.body, { assetUrls }) } });
+      return h(
+        "article",
+        { className: "nb-block", "data-block-id": block.id ?? block.path, "data-stream": stream ? "true" : void 0, style: { left: block.x, top: block.y, width: block.width } },
+        h("div", { className: "nb-block-tools" }, h("button", { className: "nb-grip", "aria-label": "\u79FB\u52A8 " + block.title, onPointerDown: (e) => onDrag(e, block, source) }, "\u283F \u62D6\u52A8"), source && block.missing ? h("span", null, "\u8D44\u6599\u5DF2\u79FB\u52A8\u6216\u4E0D\u53EF\u7528") : null),
+        stream && h("div", { className: "nb-live-label" }, stream === "streaming" ? "\u6B63\u5728\u677F\u4E66\u2026" : "\u7B49\u5F85\u4FDD\u5B58\u2026"),
+        block.kind && block.kind !== "note" ? h("details", null, h("summary", null, block.title), inner2) : h(React.Fragment, null, h("h2", null, block.title), inner2),
+        source && h("div", { className: "nb-source-actions" }, h("button", { disabled: block.missing, onClick: () => onSource(block.path) }, "\u6253\u5F00\u8D44\u6599"), ...block.usedBy.map((id2, index) => h("button", { key: id2, onClick: () => onReturn(id2) }, block.usedBy.length === 1 ? "\u56DE\u5230\u677F\u4E66" : "\u5F15\u7528\u4F4D\u7F6E " + (index + 1))))
+      );
+    }
+    return function Board({ ctx, sessionId, visible, openView }) {
+      const client = useMemo(() => createVaultClient(ctx, sessionId), [ctx, sessionId]);
+      const [board, setBoard] = useState(EMPTY), [face, setFace] = useState("board"), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [stream, setStream] = useState(() => getBoardStream(sessionId));
+      const [camera, setCamera] = useState({ board: { x: 0, y: 0, z: 1 }, sources: { x: 0, y: 0, z: 1 } }), [follow, setFollow] = useState(true), [exporting, setExporting] = useState(false), [include, setInclude] = useState({});
+      const [assetUrls, setAssetUrls] = useState({}), imagePaths = boardImageTargets(board.blocks.map((b) => b.body).join("\n")).join("\n");
+      useEffect(() => {
+        let alive = true;
+        for (const path2 of imagePaths.split("\n").filter(Boolean)) if (!assetUrls[path2]) client.readAsset({ path: path2 }).then(unwrap).then((asset) => {
+          if (alive && /^image\/(?:png|jpeg|gif|webp|svg\+xml)$/.test(asset.mime)) setAssetUrls((prev) => ({ ...prev, [path2]: asset.dataUrl }));
+        }).catch(() => {
+        });
+        return () => {
+          alive = false;
+        };
+      }, [imagePaths, client]);
+      const current2 = useRef(board), mounted = useRef(true), saving = useRef(false), viewport = useRef(null), gesture = useRef(null), selection = useRef(null), focusedCall = useRef(null), request = useRef(0), observed = useRef(false);
+      current2.current = board;
+      const cam = camera[face];
+      async function refresh() {
+        const serial = ++request.current;
+        try {
+          const value = unwrap(await client.board());
+          if (mounted.current && serial === request.current && !saving.current) {
+            setBoard(value);
+            if (!observed.current) {
+              observed.current = true;
+              setNotice("");
+            }
+          }
+        } catch (error) {
+          if (mounted.current) setNotice(error.message);
+        }
+      }
+      useEffect(() => {
+        mounted.current = true;
+        refresh();
+        return () => {
+          mounted.current = false;
+          request.current++;
+        };
+      }, [client]);
+      useEffect(() => {
+        if (!visible) return;
+        refresh();
+        const timer = setInterval(() => {
+          if (!saving.current && !gesture.current) refresh();
+        }, 2500);
+        return () => clearInterval(timer);
+      }, [visible, client]);
+      useEffect(() => subscribeBoardStream(sessionId, (value) => {
+        if (["completed", "error"].includes(value.status)) {
+          setStream(null);
+          refresh();
+          setNotice(value.status === "error" ? "\u8FD9\u6B21\u677F\u4E66\u672A\u4FDD\u5B58\uFF0C\u4FDD\u7559\u4E0A\u6B21\u4FDD\u5B58\u7684\u5185\u5BB9\u3002" : "");
+        } else {
+          setStream(value);
+          setNotice("");
+        }
+      }), [sessionId, client]);
+      async function save(target, patch, source = false) {
+        if (saving.current) {
+          setNotice("\u4E0A\u4E00\u5904\u8C03\u6574\u6B63\u5728\u4FDD\u5B58\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002");
+          return;
+        }
+        saving.current = true;
+        request.current++;
+        setBusy(true);
+        setNotice("");
+        try {
+          const result = unwrap(await client.mutateBoard({ expectedRevision: current2.current.revision, ...source ? { sourcePath: target.path } : { blockId: target.id }, patch }));
+          if (mounted.current) setBoard(result);
+        } catch (error) {
+          if (mounted.current) setNotice(error.message);
+        } finally {
+          saving.current = false;
+          if (mounted.current) {
+            setBusy(false);
+            refresh();
+          }
+        }
+      }
+      const moveCamera = (patch, target = face) => setCamera((prev) => ({ ...prev, [target]: { ...prev[target], ...patch } }));
+      const focus = (block, target = face) => {
+        const width = viewport.current?.clientWidth ?? 500, z = Math.min(1, Math.max(0.65, (width - 48) / block.width));
+        moveCamera({ x: 24 - block.x * z, y: 30 - block.y * z, z }, target);
+      };
+      let blocks = face === "board" ? board.blocks : board.sources;
+      if (face === "board" && stream && ["streaming", "pending"].includes(stream.status) && stream.title) {
+        const existing = blocks.find((b) => b.title === stream.title);
+        const preview = { ...existing ?? { id: "pending-" + stream.callId, x: 60 + blocks.length % 3 * 400, y: 60 + Math.floor(blocks.length / 3) * 320, width: 340, kind: stream.kind ?? "note" }, title: stream.title, body: stream.body ?? existing?.body ?? "", stream: stream.status };
+        blocks = existing ? blocks.map((b) => b.id === existing.id ? preview : b) : [...blocks, preview];
+      }
+      useEffect(() => {
+        if (!follow || !stream?.title || focusedCall.current === stream.callId) return;
+        const block = blocks.find((b) => b.title === stream.title);
+        if (block) {
+          focusedCall.current = stream.callId;
+          focus(block);
+        }
+      }, [stream?.callId, stream?.title, follow, face]);
+      const zoom = (delta) => {
+        setFollow(false);
+        const rect = viewport.current.getBoundingClientRect(), z = Math.max(0.3, Math.min(2, cam.z + delta));
+        moveCamera({ z, x: rect.width / 2 - (rect.width / 2 - cam.x) * z / cam.z, y: rect.height / 2 - (rect.height / 2 - cam.y) * z / cam.z });
+      };
+      const fit = () => {
+        setFollow(false);
+        if (!blocks.length) {
+          moveCamera({ x: 0, y: 0, z: 1 });
+          return;
+        }
+        const rect = viewport.current.getBoundingClientRect(), els = [...viewport.current.querySelectorAll(".nb-block")];
+        const left = Math.min(...blocks.map((b) => b.x)), top2 = Math.min(...blocks.map((b) => b.y)), right = Math.max(...blocks.map((b) => b.x + b.width)), bottom = Math.max(...blocks.map((b, i3) => b.y + (els[i3]?.offsetHeight ?? 260)));
+        const z = Math.max(0.3, Math.min(1, (rect.width - 60) / (right - left), (rect.height - 110) / (bottom - top2)));
+        moveCamera({ z, x: (rect.width - (right - left) * z) / 2 - left * z, y: 30 - top2 * z });
+      };
+      const dragBlock = (event, block, source) => {
+        if (saving.current || block.stream) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setFollow(false);
+        selection.current = null;
+        gesture.current = { type: "block", block, source, startX: event.clientX, startY: event.clientY, x: block.x, y: block.y };
+        viewport.current.setPointerCapture(event.pointerId);
+      };
+      const pointerMove = (event) => {
+        const g = gesture.current;
+        if (!g) return;
+        const dx = event.clientX - g.startX, dy = event.clientY - g.startY;
+        if (g.type === "pan") moveCamera({ x: g.x + dx, y: g.y + dy });
+        else {
+          g.patch = { x: Math.round(g.x + dx / cam.z), y: Math.round(g.y + dy / cam.z) };
+          setBoard((prev) => ({ ...prev, [g.source ? "sources" : "blocks"]: prev[g.source ? "sources" : "blocks"].map((b) => (b.id ?? b.path) === (g.block.id ?? g.block.path) ? { ...b, ...g.patch } : b) }));
+        }
+      };
+      const endGesture = (event) => {
+        const g = gesture.current;
+        gesture.current = null;
+        if (viewport.current.hasPointerCapture(event.pointerId)) viewport.current.releasePointerCapture(event.pointerId);
+        if (g?.type === "block" && g.patch) save(g.block, g.patch, g.source);
+      };
+      const selectText = (event, block, source) => {
+        const selected = window.getSelection();
+        if (!selected || selected.isCollapsed || !event.currentTarget.contains(selected.anchorNode) || !event.currentTarget.contains(selected.focusNode)) return;
+        selection.current = { block, source, text: selected.toString() };
+      };
+      const highlight = (color) => {
+        const selected = selection.current;
+        if (!selected) {
+          setNotice("\u5148\u9009\u4E2D\u677F\u4E66\u6216\u8D44\u6599\u8BF4\u660E\u4E2D\u7684\u6587\u5B57\uFF0C\u518D\u9009\u62E9\u989C\u8272\u3002");
+          return;
+        }
+        try {
+          const body = highlightBoardText(selected.block.body, selected.text, color);
+          save(selected.block, { body }, selected.source);
+          selection.current = { ...selected, block: { ...selected.block, body } };
+        } catch (error) {
+          setNotice(error.message);
+        }
+      };
+      function download(type) {
+        const output = exportBoard(board, { ...include, assetUrls, mathCss: document.querySelector("style[data-notara-math-styles]")?.textContent ?? "" });
+        const url = URL.createObjectURL(new Blob([type === "md" ? output.markdown : output.html], { type: type === "md" ? "text/markdown;charset=utf-8" : "text/html;charset=utf-8" }));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "\u8BFE\u5802\u7B14\u8BB0." + type;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1e3);
+        setExporting(false);
+      }
+      const sourceMap = new Map(board.sources.map((s) => [s.path, s]));
+      return h(
+        "div",
+        { className: "nb-board" },
+        h("style", null, board_client_default),
+        h("header", { className: "nb-head" }, h("div", { className: "nb-tabs", role: "tablist", "aria-label": "\u767D\u677F\u4E24\u9762" }, [["board", "\u8BFE\u5802\u677F\u4E66"], ["sources", "\u77E5\u8BC6\u89C6\u56FE"]].map(([id2, label]) => h("button", { key: id2, role: "tab", "aria-selected": face === id2, onClick: () => {
+          setFace(id2);
+          selection.current = null;
+        } }, label))), h("span", { className: "nb-status", role: "status" }, busy ? "\u6B63\u5728\u4FDD\u5B58\u2026" : stream && ["streaming", "pending"].includes(stream.status) ? "\u8001\u5E08\u6B63\u5728\u677F\u4E66" : board.revision ? "\u5DF2\u4FDD\u5B58" : ""), h("button", { onClick: () => setExporting(!exporting), "aria-expanded": exporting }, "\u5BFC\u51FA")),
+        notice && h("div", { className: "nb-notice", role: "status" }, notice),
+        h(
+          "div",
+          { className: "nb-viewport", ref: viewport, "aria-label": face === "board" ? "\u8BFE\u5802\u677F\u4E66\u753B\u5E03" : "\u672C\u8BFE\u8D44\u6599\u5173\u7CFB\u753B\u5E03", onPointerDown: (event) => {
+            if (event.target.closest(".nb-block,.nb-toolbar")) return;
+            setFollow(false);
+            gesture.current = { type: "pan", startX: event.clientX, startY: event.clientY, x: cam.x, y: cam.y };
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }, onPointerMove: pointerMove, onPointerUp: endGesture, onPointerCancel: endGesture, onWheel: (event) => {
+            if (event.ctrlKey || event.metaKey) {
+              zoom(event.deltaY > 0 ? -0.05 : 0.05);
+            } else {
+              setFollow(false);
+              moveCamera({ x: cam.x - event.deltaX, y: cam.y - event.deltaY });
+            }
+          } },
+          h("div", { className: "nb-world", style: { transform: `translate(${cam.x}px,${cam.y}px) scale(${cam.z})` } }, face === "sources" && h("svg", { className: "nb-edges" }, board.edges.map((edge, index) => {
+            const a = sourceMap.get(edge.from), b = sourceMap.get(edge.to);
+            if (!a || !b) return null;
+            const x = a.x + a.width, y = a.y + 80;
+            return h("g", { key: index }, h("path", { d: `M ${x} ${y} C ${x + 50} ${y},${b.x - 50} ${b.y + 80},${b.x} ${b.y + 80}` }), h("text", { x: (x + b.x) / 2, y: (y + b.y + 80) / 2 - 8 }, edge.label));
+          })), blocks.map((block) => h(Block, { key: block.id ?? block.path, block, assetUrls, source: face === "sources", stream: block.stream, onDrag: dragBlock, onSelection: selectText, onSource: (path2) => openView(VIEW_IDS.assets, path2), onReturn: (id2) => {
+            const target = board.blocks.find((b) => b.id === id2);
+            if (target) {
+              setFace("board");
+              setFollow(false);
+              focus(target, "board");
+            }
+          } }))),
+          h("div", { className: "nb-toolbar", role: "toolbar", "aria-label": "\u753B\u5E03\u63A7\u5236" }, h("button", { "aria-label": "\u7F29\u5C0F", onClick: () => zoom(-0.1) }, "\u2212"), h("button", { "aria-label": "\u91CD\u7F6E\u7F29\u653E", onClick: () => moveCamera({ z: 1 }) }, Math.round(cam.z * 100) + "%"), h("button", { "aria-label": "\u653E\u5927", onClick: () => zoom(0.1) }, "+"), h("button", { onClick: fit }, "\u5168\u89C8"), h("span", { className: "nb-sep" }), HIGHLIGHTS.map((color) => h("button", { key: color, className: "nb-color", "data-color": color, "aria-label": colorNames2[color] + "\u9AD8\u4EAE", onMouseDown: (e) => e.preventDefault(), onClick: () => highlight(color) })), h("button", { "aria-label": "\u6E05\u9664\u9AD8\u4EAE", onMouseDown: (e) => e.preventDefault(), onClick: () => highlight(null) }, "\u6E05\u9664"), h("span", { className: "nb-sep" }), h("button", { className: "nb-follow", "aria-pressed": follow, onClick: () => {
+            setFollow(!follow);
+            focusedCall.current = null;
+          } }, follow ? "\u8DDF\u968F\u4E2D" : "\u8DDF\u968F\u677F\u4E66"))
+        ),
+        exporting && h("div", { className: "nb-export", role: "dialog", "aria-label": "\u5BFC\u51FA\u8BFE\u5802\u7B14\u8BB0" }, h("strong", null, "\u5E26\u8D70\u8FD9\u4E00\u8BFE"), h("div", null, "\u9009\u62E9\u8981\u5305\u542B\u7684\u5185\u5BB9"), [["hint", "\u5DF2\u7ED9\u51FA\u7684\u63D0\u793A"], ["reference", "\u53C2\u8003\u63A8\u5BFC"], ["attempt", "\u4E2A\u4EBA\u5C1D\u8BD5"]].map(([key, label]) => h("label", { key }, h("input", { type: "checkbox", checked: !!include[key], onChange: (e) => setInclude((prev) => ({ ...prev, [key]: e.target.checked })) }), label)), h("div", { className: "nb-export-actions" }, h("button", { onClick: () => download("md") }, "Markdown"), h("button", { onClick: () => download("html") }, "HTML"), h("button", { onClick: () => setExporting(false) }, "\u53D6\u6D88")))
+      );
     };
   }
 
@@ -72761,7 +74278,11 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
       const React = require2("react");
       const { resolveSlotLabel } = require2("@deepseek-ai/dsh-client-ui-slots");
       const { useCallback, useEffect, useMemo, useRef, useState } = React;
-      const { IconButton, Menu, Dialog } = createVaultUI(React);
+      const { Icon, IconButton, Menu, Dialog } = createVaultUI(React);
+      const navigation = createVaultNavigation();
+      const TodayEntry = createTodayEntry(React, { Icon });
+      const LessonEntry = createLessonEntry(React, { Icon });
+      const { Sidebar, Today } = createVaultShell(React, { navigation, Icon, IconButton, Dialog, TodayEntry });
       const strictJsonSchema = {
         parse(value) {
           if (value === null || typeof value !== "object" || Array.isArray(value)) throw new TypeError("Remote input must be an object");
@@ -72784,24 +74305,24 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
       const STYLE = {
         page: { height: "100%", minHeight: 0, background: "var(--dsw-alias-bg-base)", color: "var(--dsw-alias-label-primary)", fontFamily: "var(--dsw-font-family, ui-sans-serif, system-ui, sans-serif)", display: "flex", flexDirection: "column" },
         brand: { fontSize: 16, letterSpacing: ".02em", color: "var(--dsw-alias-label-primary)", fontWeight: 650 },
-        search: { width: "100%", boxSizing: "border-box", border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 6, padding: "8px 10px", background: "var(--dsw-specific-input-major, var(--dsw-alias-bg-layer-1))", color: "var(--dsw-alias-label-primary)", marginBottom: 14, outline: "none" },
-        row: { width: "100%", boxSizing: "border-box", textAlign: "left", border: 0, background: "transparent", color: "var(--dsw-alias-label-primary)", padding: "7px 10px", borderRadius: 6, cursor: "pointer", fontSize: 13 },
+        search: { width: "100%", boxSizing: "border-box", border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 14, padding: "8px 10px", background: "var(--dsw-specific-input-major, var(--dsw-alias-bg-layer-1))", color: "var(--dsw-alias-label-primary)", marginBottom: 14, outline: "none" },
+        row: { width: "100%", boxSizing: "border-box", textAlign: "left", border: 0, background: "transparent", color: "var(--dsw-alias-label-primary)", padding: "7px 10px", borderRadius: 14, cursor: "pointer", fontSize: 13 },
         rowActive: { background: "var(--dsw-alias-interactive-bg-active)", color: "var(--dsw-alias-label-primary)", fontWeight: 600 },
         treeFolder: { color: "var(--dsw-alias-label-secondary)", padding: "8px 10px 4px", fontSize: 12 },
         path: { color: "var(--dsw-alias-label-secondary)", fontSize: 12, marginTop: 8 },
-        quiet: { border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 5, background: "transparent", color: "var(--dsw-alias-label-primary)", padding: "6px 10px", cursor: "pointer", font: "inherit", fontSize: 12 },
+        quiet: { border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 12, background: "var(--dsw-alias-bg-layer-2)", color: "var(--dsw-alias-label-primary)", padding: "7px 12px", cursor: "pointer", font: "inherit", fontSize: 12 },
         content: { marginTop: 26, fontSize: 15, lineHeight: 1.85, color: "var(--dsw-alias-label-primary)" },
         links: { display: "flex", flexWrap: "wrap", gap: 7, marginTop: 18 },
         link: { border: 0, background: "transparent", color: "var(--dsw-alias-label-link, var(--dsw-alias-label-primary))", cursor: "pointer", padding: 0, font: "inherit", fontSize: 13, textDecoration: "underline" },
         notice: { color: "var(--dsw-alias-label-secondary)", fontSize: 12, marginLeft: 4 },
         empty: { color: "var(--dsw-alias-label-secondary)", padding: 40, textAlign: "center" },
-        templateInput: { width: "100%", boxSizing: "border-box", border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 5, padding: "7px 8px", background: "var(--dsw-alias-bg-layer-1)", color: "var(--dsw-alias-label-primary)", marginBottom: 7, outline: "none" },
-        assetPreview: { marginTop: 26, minHeight: 420, border: "1px solid var(--dsw-alias-border-l1)", borderRadius: 6, overflow: "hidden", background: "var(--dsw-alias-bg-layer-2)" },
+        templateInput: { width: "100%", boxSizing: "border-box", border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 12, padding: "7px 8px", background: "var(--dsw-alias-bg-layer-1)", color: "var(--dsw-alias-label-primary)", marginBottom: 7, outline: "none" },
+        assetPreview: { marginTop: 26, minHeight: 420, border: "1px solid var(--dsw-alias-border-l1)", borderRadius: 14, overflow: "hidden", background: "var(--dsw-alias-bg-layer-2)" },
         assetFrame: { width: "100%", height: 620, border: 0, display: "block", background: "white" },
         assetImage: { maxWidth: "100%", maxHeight: 620, display: "block", margin: "0 auto" },
         assetVideo: { width: "100%", maxHeight: 620, display: "block" },
         assetTools: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, padding: 12, borderTop: "1px solid var(--dsw-alias-border-l1)" },
-        assetPage: { width: 70, boxSizing: "border-box", border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 5, padding: "6px 8px", background: "var(--dsw-alias-bg-layer-1)", color: "var(--dsw-alias-label-primary)" },
+        assetPage: { width: 70, boxSizing: "border-box", border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 12, padding: "6px 8px", background: "var(--dsw-alias-bg-layer-1)", color: "var(--dsw-alias-label-primary)" },
         pdfReader: { height: "100%", minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--dsw-alias-bg-layer-2)" },
         pdfToolbar: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, padding: 12, borderBottom: "1px solid var(--dsw-alias-border-l1)" },
         pdfScroll: { flex: 1, minWidth: 0, minHeight: 0, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", alignItems: "center" },
@@ -73388,6 +74909,7 @@ ${content2}
       const CalendarView = createVaultCalendar(React, { STYLE, IconButton });
       const { TeachingEntry, SummaryEntry } = createTeachingPanel(React, { STYLE, IconButton, Dialog });
       const { ClassroomView, WorkerToolRow } = createVaultClassroom(React, { STYLE, IconButton, Dialog, resolveSlotLabel });
+      const Board = createLessonBoard(React), BoardStream = createBoardStream(React);
       const Workspace = createVaultWorkspace(React, {
         App,
         GraphView,
@@ -73395,9 +74917,13 @@ ${content2}
         RoutesView,
         CalendarView,
         ClassroomView,
+        Board,
+        BoardStream,
         TeachingEntry,
         SummaryEntry,
         IconButton,
+        navigation,
+        Today,
         ensureSession: (ctx) => ensureTeachingSession(ctx),
         onBring: (ctx, sessionId, file, selection, page = 1, intent = "", openView) => insertVaultReference(ctx, sessionId, {
           kind: file.content !== void 0 ? "page" : "asset",
@@ -73415,11 +74941,30 @@ ${content2}
           const unmount = await ctx.remote.$mount(REMOTE_CONTRIBUTION);
           ctx.effect(() => unmount, "notara-vault-native: remote");
           ctx.plugin({
-            inject: ["slots", "remote.notaraVault", "inputTriggers", "conversation", "sessions"],
+            inject: ["slots", "remote.notaraVault", "inputTriggers", "conversation", "sessions", "theme", "layout", "uiWorkspace", "workspaces"],
             apply(scope) {
               console.info("notara-vault-native: apply");
+              installModernTheme(scope);
+              installStudentProjection(scope, React, navigation);
+              scope.effect(() => scope.slots.inject("conversation.hero.intro", () => scope.slots.register({
+                name: "conversation.hero.intro"
+              }, LessonEntry)));
+              scope.effect(() => () => navigation.dispose());
+              scope.effect(() => scope.slots.inject("sidebar.content", () => scope.slots.register({
+                name: "sidebar.content",
+                id: "notara-vault-sidebar"
+              }, (props) => React.createElement(Sidebar, { ...props, ctx: scope }))));
               scope.effect(() => registerVaultReference(scope), "notara-vault-native: conversation reference");
               scope.effect(() => installBashDisplay(scope.slots, React), "notara-vault-native: bash learning steps");
+              scope.effect(() => scope.slots.inject("tool.call.toolview", () => scope.slots.register({
+                name: "tool.call.toolview",
+                key: "write_lesson_board",
+                priority: -1
+              }, (props) => React.createElement(
+                "div",
+                { className: "nv-board-tool-row" },
+                props.block?.kind === "tool-result" ? props.block.isError ? "\u677F\u4E66\u672A\u4FDD\u5B58" : "\u5DF2\u66F4\u65B0\u677F\u4E66" : "\u6B63\u5728\u6574\u7406\u677F\u4E66\u2026"
+              ))));
               for (const key of ["ask_worker", "ask_solver"]) {
                 scope.effect(() => scope.slots.inject("tool.call.toolview", () => scope.slots.register({
                   name: "tool.call.toolview",

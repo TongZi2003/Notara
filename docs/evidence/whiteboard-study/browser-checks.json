@@ -1,0 +1,117 @@
+{
+  "date": "2026-09-24",
+  "scope": "synthetic free-canvas design; no production runtime or real model",
+  "checks": [
+    {
+      "name": "流式落在选定区域",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "补写保留原有一行",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "另一处板书内容不被改写",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "内容块真实拖动改变画布位置",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "手动拖动暂停跟随并提供返回入口",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "流式补写完成并保留手动视角",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "流式过程中草稿不丢失",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "下一轮切到另一指定区域",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "换区流式时画布没有浏览器滚动偏移",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "观点修订保留可折叠的早先认识",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "导出恢复阅读顺序且移除画布坐标",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "勾选后才加入个人修订",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "资料面保持3份本课示例材料",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "资料定位回到画布对应内容块",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "390px画布外壳无页面横向溢出",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "窄屏来回切换保留唯一草稿",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "窄屏可从同一输入框记录消息",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "320px资料面无横向溢出",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "250px画布外壳无横向溢出",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "数学推导在指定区域流式完成",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "键盘可微调内容块位置",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "自由画布控制台无错误或警告",
+      "pass": true,
+      "detail": "[]"
+    }
+  ],
+  "logs": []
+}

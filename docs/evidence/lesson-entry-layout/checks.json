@@ -1,0 +1,27 @@
+{
+  "origin": "http://127.0.0.1:60908",
+  "checks": [
+    {
+      "name": "Heading aligns with the writing surface",
+      "ok": true,
+      "detail": "{\"cardHeight\":197,\"headingX\":395,\"headingY\":144,\"inputX\":395}"
+    },
+    {
+      "name": "Course options open without moving the native input",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Narrow options stay inside the pane",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Native narrow-pane submission still works",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "consoleErrors": [],
+  "model": "synthetic echo adapter"
+}

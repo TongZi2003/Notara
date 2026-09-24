@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Notara · 双面白板设计</title>
+  <link rel="stylesheet" href="whiteboard-study.css">
+</head>
+<body>
+  <div class="study-bar">
+    <span><i></i>交互设计稿 <span class="study-note">· 合成课堂，不连接模型</span></span>
+    <div class="study-controls">
+      <select id="example" aria-label="选择示例课堂"><option value="history">历史 · 从交子到远距离供给</option><option value="math">数学 · 中点弦与点差法</option><option value="empty">新课堂 · 尚未形成板书</option></select>
+      <button id="restart" title="重置演示过程">重置</button>
+      <button id="advance">演示下一轮 <span aria-hidden="true">→</span></button>
+    </div>
+  </div>
+  <header class="app-header">
+    <div class="identity"><span class="wordmark">Notara<span>.</span></span><span class="slash">/</span><span id="lesson-title">货币、运输与国家能力</span></div>
+    <div class="header-actions"><button class="quiet" id="focus" aria-pressed="false">收起对话</button><button class="soft" id="export-open">导出笔记 <span aria-hidden="true">↗</span></button></div>
+  </header>
+  <main class="classroom" id="classroom" data-face="board">
+    <section class="workspace" aria-label="课堂白板">
+      <div class="workspace-bar">
+        <nav class="face-tabs" aria-label="白板视图">
+          <button class="active" data-face="board" aria-pressed="true">板书</button>
+          <button data-face="sources" aria-pressed="false">知识视图 <span id="source-count">3</span></button>
+          <button data-face="chat" class="mobile-chat" aria-pressed="false">对话</button>
+        </nav>
+        <span class="working-label" id="working-label">正在比较两种机制</span>
+      </div>
+      <div id="board" class="canvas-viewport" aria-label="可移动的白板画布">
+        <div class="canvas-help">拖动空白处移动 · 拖住块标题调整位置</div>
+        <article id="sheet" class="sheet canvas-world"></article>
+        <div class="canvas-tools" aria-label="画布控制">
+          <button id="zoom-out" aria-label="缩小画布">−</button><span id="zoom-level">100%</span><button id="zoom-in" aria-label="放大画布">+</button>
+          <span class="tool-divider"></span><button id="fit-canvas">全览</button>
+          <button id="follow-writing" class="follow active" aria-pressed="true">跟随板书</button>
+          <button id="highlight-open" aria-expanded="false" aria-controls="highlight-palette">高亮</button>
+        </div>
+        <div id="highlight-palette" class="highlight-palette" hidden aria-label="高亮颜色">
+          <span>选中文字后上色</span>
+          <button class="highlight-swatch" data-highlight="blue" aria-label="蓝色高亮" title="蓝色高亮"></button>
+          <button class="highlight-swatch" data-highlight="green" aria-label="绿色高亮" title="绿色高亮"></button>
+          <button class="highlight-swatch" data-highlight="orange" aria-label="橙色高亮" title="橙色高亮"></button>
+          <button class="highlight-swatch" data-highlight="pink" aria-label="粉色高亮" title="粉色高亮"></button>
+          <button data-highlight="clear" class="highlight-clear">清除</button>
+        </div>
+        <button id="writing-location" class="writing-location" hidden>↗ 回到正在板书的位置</button>
+      </div>
+      <div id="sources" class="canvas-viewport sources-view" aria-label="本课资料关系画布" hidden></div>
+    </section>
+    <aside class="conversation" id="conversation" aria-label="同一课堂对话">
+      <div class="conversation-heading"><span>课堂对话</span><span class="muted">与板书一起展开</span></div>
+      <div id="messages" class="messages" aria-live="polite"></div>
+      <form id="composer" class="composer">
+        <div id="reference" class="reference" hidden><span id="reference-text"></span><button type="button" id="reference-clear" aria-label="移除板书引用">×</button></div>
+        <label class="sr-only" for="draft">课堂消息</label>
+        <textarea id="draft" placeholder="写下你的想法，或选一处板书追问…" rows="3"></textarea>
+        <div class="composer-footer"><span>Enter 记录 · Shift + Enter 换行</span><button type="submit" class="send" aria-label="记录演示消息">↑</button></div>
+      </form>
+      <p class="demo-footnote">此处仅演示交互，输入不会发送给模型。</p>
+    </aside>
+  </main>
+  <dialog id="source-dialog" class="source-dialog"><div id="source-content"></div></dialog>
+  <dialog id="export-dialog" class="export-dialog">
+    <header class="dialog-heading"><div><p class="eyebrow">带走这节课</p><h2>导出课堂笔记</h2></div><button class="icon-button" data-close aria-label="关闭导出">×</button></header>
+    <p class="muted export-intro">按阅读顺序整理板书，保留图解、折叠和资料出处。</p>
+    <div class="export-options"><label><input id="include-attempts" type="checkbox"> 包含个人尝试与修订过程</label><label><input id="include-reference" type="checkbox"> 包含提示与参考推导</label></div>
+    <div class="export-preview" id="export-preview"></div>
+    <footer class="export-footer"><span>仅含演示材料；不打包原始对话。</span><button class="soft" id="download-md">Markdown ↓</button><button class="soft" id="download-html">HTML ↓</button></footer>
+  </dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script src="whiteboard-study.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+{
+  "scope": "Synthetic interactive prototype; board layout is explicitly a placeholder, not final design",
+  "checks": [
+    {
+      "name": "knowledge view only lesson sources",
+      "ok": true
+    },
+    {
+      "name": "source opens actual referenced section",
+      "ok": true
+    },
+    {
+      "name": "source returns to exact board block",
+      "ok": true
+    },
+    {
+      "name": "reference initially folded",
+      "ok": true
+    },
+    {
+      "name": "reference expands",
+      "ok": true
+    },
+    {
+      "name": "fold state survives face switch",
+      "ok": true
+    },
+    {
+      "name": "new note projects to board",
+      "ok": true
+    },
+    {
+      "name": "edited Markdown survives refresh",
+      "ok": true
+    },
+    {
+      "name": "block question enters shared composer",
+      "ok": true
+    },
+    {
+      "name": "board chat sends in existing conversation",
+      "ok": true
+    },
+    {
+      "name": "choice changes follow-up and board content",
+      "ok": true
+    },
+    {
+      "name": "default export removes student and reference blocks",
+      "ok": true
+    },
+    {
+      "name": "opt-in export includes attempts and reference",
+      "ok": true
+    },
+    {
+      "name": "portable Markdown has inline illustration and local citations",
+      "ok": true
+    },
+    {
+      "name": "new lesson board is empty",
+      "ok": true
+    },
+    {
+      "name": "new lesson sources empty",
+      "ok": true
+    },
+    {
+      "name": "conversation excerpt becomes board block",
+      "ok": true
+    },
+    {
+      "name": "pin preserves shared source without duplicate node",
+      "ok": true
+    },
+    {
+      "name": "whiteboard dark theme follows app tokens",
+      "ok": true
+    },
+    {
+      "name": "whiteboard notebook theme renders",
+      "ok": true
+    },
+    {
+      "name": "desktop no horizontal overflow",
+      "ok": true,
+      "detail": {
+        "height": 749,
+        "inputs": 1,
+        "overflow": false,
+        "width": 1155
+      }
+    },
+    {
+      "name": "one shared conversation composer",
+      "ok": true
+    },
+    {
+      "name": "no browser console errors or warnings",
+      "ok": true
+    },
+    {
+      "name": "route button opens companion from board",
+      "ok": true
+    },
+    {
+      "name": "block follow-up preserves existing draft",
+      "ok": true
+    }
+  ],
+  "passed": 25,
+  "total": 25,
+  "logs": [],
+  "blocked": [
+    "Viewport API did not change actual page dimensions; mobile behavior not verified.",
+    "Browser URL policy blocked direct blob HTML preview; export content checked by deterministic renderer checks, not exported-page browser proof."
+  ],
+  "not_run": [
+    "Real model teaching",
+    "Voice",
+    "Production runtime",
+    "Full legacy prototype suite"
+  ]
+}

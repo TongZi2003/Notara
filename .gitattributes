@@ -1,0 +1,2 @@
+# Stored patch evidence contains significant context-line spaces.
+/docs/evidence/modern-theme-polish/changes.patch -whitespace

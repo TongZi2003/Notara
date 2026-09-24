@@ -1,0 +1,1647 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-sf-style="modern">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notara · 拾页 — 前端重设计原型</title>
+<link rel="icon" href="data:,">
+<!--
+  Notara 前端重设计的可交互原型（设计稿，不是运行代码）。
+  基线：codex/notara-vault-clean @ native-vault-v0.14.9。设计说明见 docs/ui/notara-frontend-redesign.md。
+  当前只开放极简主题；手帐样式保留为后续润色素材，暂不提供切换入口。
+  全部数据为合成示例；「原型」按钮里的开关只属于原型，不是产品界面。
+-->
+<style>
+@font-face{font-family:"SF WenKai";src:url("../../packages/client/assets/notebook/fonts/wenkai.woff2") format("woff2");font-display:swap}
+:root{
+  --font:"Helvetica Neue",Helvetica,"Hiragino Sans GB","PingFang SC","Noto Sans SC","Microsoft YaHei UI",Arial,sans-serif;
+  --serif:"Times New Roman","Songti SC",serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  /* 纯白背景与浅灰操作面。现代主题不使用黄纸、紫色或黑色大按钮。 */
+  --bg:#ffffff;--surface:#ffffff;--side:#ffffff;--soft:#f4f5f6;--hover:#eceef0;--press:#e5e7ea;
+  --line:#e8ecf0;--line-2:#d8dee6;
+  --ink:#20252c;--ink-2:#525c69;--ink-3:#76808c;
+  --accent:#59626e;--accent-2:#343c46;--accent-soft:#f0f1f3;--on-accent:#ffffff;
+  --review:#687482;--review-soft:#eef1f5;
+  --lesson:#537d74;--lesson-soft:#eef5f3;
+  --summary:#6c7d96;--summary-soft:#eff2f7;
+  --daily:#6e7888;--daily-soft:#f0f2f5;
+  --danger:#a25454;--danger-soft:#f8efef;
+  --ok:#54836b;--ok-soft:#edf5f0;
+  --shadow-1:0 1px 3px rgba(30,45,65,.035);
+  --shadow-2:0 6px 24px rgba(30,45,65,.045),0 1px 3px rgba(30,45,65,.025);
+  --r-xs:6px;--r-sm:10px;--r-ctl:14px;--r-card:20px;--r-menu:18px;--r-input:24px;
+  --t-hero:32px;--t-page:22px;--t-section:16px;--t-item:15px;--t-ui:14px;--t-meta:12px;--t-read:15px;
+  --g-src:var(--accent);--g-leaf:var(--surface);--g-line:var(--accent);--g-ins:var(--review);
+  color-scheme:light;
+}
+[data-theme=dark]{
+  --bg:#15181d;--surface:#1d2128;--side:#1b1f25;--soft:#242a33;--hover:#2a323e;--press:#333e4c;
+  --line:#2b323d;--line-2:#3b4553;
+  --ink:#edf0f4;--ink-2:#bac3cf;--ink-3:#939eac;
+  --accent:#b5becb;--accent-2:#e0e5eb;--accent-soft:#2c323b;--on-accent:#18202b;
+  --review:#acb8c8;--review-soft:#29323f;
+  --lesson:#7cbba4;--lesson-soft:#152723;
+  --summary:#a8b0b7;--summary-soft:#232729;
+  --daily:#a2abb4;--daily-soft:#23272a;
+  --danger:#e08b80;--danger-soft:#331e1c;
+  --ok:#8dbb87;--ok-soft:#1c2a1b;
+  --shadow-1:0 1px 2px rgba(0,0,0,.35);
+  --shadow-2:0 14px 34px -18px rgba(0,0,0,.6),0 1px 4px rgba(0,0,0,.3);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:var(--t-ui)/1.5 var(--font);color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0;text-align:inherit}
+button:disabled{opacity:.4;cursor:default}
+:focus-visible{outline:2px solid var(--focus,var(--accent));outline-offset:2px}
+[hidden]{display:none!important}
+.ic{flex:none;display:block}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---------- 外壳 ---------- */
+.app{display:grid;grid-template-columns:232px minmax(0,1fr);height:100vh;overflow:hidden}
+.side{background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;padding:12px 10px 10px;z-index:45}
+.brand{display:flex;align-items:center;gap:9px;padding:4px 6px 14px}
+.brand-mark{width:24px;height:24px;border-radius:7px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-size:13px;font-weight:650}
+.brand-name{font-size:15px;font-weight:650;letter-spacing:.01em;white-space:nowrap}
+.brand-name em{font-style:normal;color:var(--ink-3);margin:0 3px;font-weight:400}
+.new-lesson{display:flex;align-items:center;gap:8px;width:100%;height:36px;padding:0 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line-2);box-shadow:var(--shadow-1);font-weight:600;color:var(--ink)}
+.new-lesson:hover{border-color:var(--accent);color:var(--accent)}
+.nav{display:grid;gap:2px;margin:14px 0 4px}
+.nav-row{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:8px;color:var(--ink-2);font-size:14px;width:100%;white-space:nowrap}
+.nav-row:hover{background:var(--hover);color:var(--ink)}
+.nav-row[aria-current=page]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:var(--shadow-1),inset 0 0 0 1px var(--line)}
+.nav-count{margin-left:auto;font-size:11px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--review-soft);color:var(--review);display:grid;place-items:center;font-weight:650}
+.side-label{font-size:12px;color:var(--ink-3);padding:16px 10px 6px}
+.side-lessons{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:1px}
+.lesson-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;color:var(--ink-2);width:100%}
+.lesson-row span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lesson-row time{font-size:11px;color:var(--ink-3);flex:none}
+.lesson-row:hover{background:var(--hover);color:var(--ink)}
+.lesson-row[aria-current=page]{background:var(--press);color:var(--ink);font-weight:550}
+.side-empty{padding:6px 10px;color:var(--ink-3);font-size:12px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--line-2);flex:none}
+.dot.live{background:var(--lesson);box-shadow:0 0 0 3px var(--lesson-soft)}
+.side-foot{border-top:1px solid var(--line);padding-top:8px;margin-top:8px;display:grid;gap:2px}
+.conn{font-size:11px;color:var(--ink-3);display:flex;align-items:center;gap:6px;padding:4px 10px;white-space:nowrap}
+.conn i{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+.main{min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.topbar{display:none;align-items:center;gap:8px;height:48px;padding:0 10px;border-bottom:1px solid var(--line);flex:none}
+.topbar b{font-size:15px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scrim{display:none}
+.page{flex:1;min-height:0;overflow:auto}
+.page.fill{display:flex;flex-direction:column;overflow:hidden}
+.page-head{display:flex;align-items:center;gap:12px;padding:12px 24px;border-bottom:1px solid var(--line);min-height:56px;flex-wrap:wrap;flex:none}
+.page-head h1{font-size:var(--t-page);font-weight:650;margin:0}
+.page-head .grow{flex:1}
+.page-body{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
+.page-body>*{flex:1;min-height:0}
+
+/* ---------- 控件 ---------- */
+.seg{display:inline-flex;padding:3px;border-radius:9px;background:var(--soft);border:1px solid var(--line);gap:2px;flex:none}
+.seg button{height:28px;padding:0 12px;border-radius:7px;color:var(--ink-2);font-size:13px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-selected=true]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:var(--shadow-1),0 0 0 1px var(--line)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:var(--r-ctl);border:1px solid var(--line-2);background:var(--surface);font-size:13px;color:var(--ink);white-space:nowrap;flex:none}
+.btn:hover{background:var(--hover)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.btn.primary:hover{background:var(--accent-2);border-color:var(--accent-2)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
+.btn.ghost:hover{background:var(--hover);color:var(--ink)}
+.btn.sm{height:28px;padding:0 10px;font-size:12.5px}
+.btn.block{width:100%}
+.icon-btn{width:32px;height:32px;border-radius:8px;display:inline-grid;place-items:center;color:var(--ink-2);flex:none}
+.icon-btn:hover,.icon-btn[aria-pressed=true]{background:var(--hover);color:var(--ink)}
+.icon-btn.sm{width:28px;height:28px}
+.chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:13px;background:var(--surface);border:1px solid var(--line-2);font-size:12.5px;color:var(--ink-2);white-space:nowrap;flex:none}
+button.chip:hover{color:var(--ink);border-color:var(--ink-3)}
+.chip[aria-pressed=true]{background:var(--accent-soft);border-color:transparent;color:var(--accent);font-weight:550}
+.badge{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:6px;font-size:11.5px;font-weight:550;white-space:nowrap;flex:none}
+.b-review{background:var(--review-soft);color:var(--review)}
+.b-lesson{background:var(--lesson-soft);color:var(--lesson)}
+.b-summary{background:var(--summary-soft);color:var(--summary)}
+.b-daily{background:var(--daily-soft);color:var(--daily)}
+.b-accent{background:var(--accent-soft);color:var(--accent)}
+.b-muted{background:var(--soft);color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--line)}
+.b-ok{background:var(--ok-soft);color:var(--ok)}
+.b-danger{background:var(--danger-soft);color:var(--danger)}
+.search{display:flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);color:var(--ink-3);width:240px;max-width:100%}
+.search:focus-within{border-color:var(--focus,var(--accent))}
+.search input{border:0;outline:0;background:transparent;flex:1;min-width:0;color:var(--ink)}
+.empty{padding:36px 20px;text-align:center;color:var(--ink-3);font-size:13px;line-height:1.7}
+.empty b{display:block;color:var(--ink-2);font-size:14px;margin-bottom:4px}
+.muted{color:var(--ink-3)}
+.hint{color:var(--ink-3);font-size:12.5px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card)}
+button.card:hover{border-color:var(--line-2);box-shadow:var(--shadow-2)}
+
+/* ---------- 今日 ---------- */
+.today{max-width:1120px;margin:0 auto;padding:40px clamp(18px,4vw,48px) 72px}
+.today-date{font-size:var(--t-meta);color:var(--ink-3);letter-spacing:.02em}
+.today h1{font-size:var(--t-hero);font-weight:650;margin:6px 0 20px;letter-spacing:-.01em}
+.launch{border:1px solid var(--line-2);border-radius:var(--r-input);background:var(--surface);box-shadow:var(--shadow-2);padding:14px 12px 10px 18px}
+.launch:focus-within{border-color:var(--focus,var(--accent))}
+.launch textarea,.composer textarea{width:100%;border:0;outline:0;resize:none;background:transparent;font-size:15px;line-height:1.6;display:block}
+.launch textarea{min-height:52px}
+.bar{display:flex;align-items:center;gap:6px}
+.send{width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;margin-left:auto;flex:none}
+.send:hover{background:var(--accent-2)}
+.quick{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 34px}
+.today-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px;align-items:start}
+.today-col{display:grid;gap:16px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:16px 18px;min-width:0}
+.panel-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;min-width:0}
+.panel-head h2{font-size:var(--t-section);margin:0;font-weight:650;white-space:nowrap}
+.panel-head .sub{color:var(--ink-3);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.panel-head .act{margin-left:auto}
+.stat{display:flex;gap:24px;margin:4px 0 12px}
+.stat b{font-size:26px;font-weight:650;display:block;line-height:1.15}
+.stat span{font-size:12px;color:var(--ink-3)}
+.rows{display:grid;grid-template-columns:minmax(0,1fr)}
+.row{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:8px;margin:0 -8px;min-width:0;width:calc(100% + 16px)}
+.row:hover{background:var(--soft)}
+.row-main{flex:1;min-width:0}
+.row-main b{font-weight:550;display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-main small{display:block;color:var(--ink-3);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.progress{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--soft);gap:2px;margin:8px 0 4px}
+.progress i{display:block;height:100%}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-3)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.lesson-today{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:inset 3px 0 0 var(--lesson)}
+.onboard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:6px}
+.onboard .card{padding:18px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.onboard h3{margin:0;font-size:var(--t-item)}
+.onboard p{margin:0;color:var(--ink-2);line-height:1.65;flex:1}
+.step-no{width:24px;height:24px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:650;font-size:12px}
+
+/* ---------- 课堂 ---------- */
+.lesson{display:flex;flex-direction:column;height:100%;min-height:0}
+.lesson-head{display:flex;align-items:center;gap:10px;padding:8px 14px 8px 24px;border-bottom:1px solid var(--line);min-height:58px;flex:none}
+.lh-title{flex:1;min-width:0}
+.lh-title h1{font-size:16px;font-weight:650;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lh-meta{display:flex;gap:6px;margin-top:3px;flex-wrap:nowrap;overflow:hidden}
+.lh-actions{display:flex;align-items:center;gap:4px;flex:none}
+.lesson-body{flex:1;min-height:0;display:grid;grid-template-rows:minmax(0,1fr);position:relative}
+.lesson-main{min-width:0;min-height:0;display:flex;flex-direction:column}
+.chat-scroll{flex:1;min-height:0;overflow:auto}
+.chat-col{max-width:760px;margin:0 auto;padding:24px 24px 8px}
+.msg-user{display:flex;flex-direction:column;align-items:flex-end;margin:18px 0;gap:6px}
+.msg-user .bubble{max-width:85%;background:var(--surface);border:1px solid var(--line);padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:var(--t-read);line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg-ai{display:flex;gap:12px;margin:18px 0}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:none;font-size:13px;font-weight:650}
+.msg-ai .body{flex:1;min-width:0;font-size:var(--t-read);line-height:1.85}
+.msg-ai .body p{margin:0 0 8px}
+.msg-ai .who{font-size:12px;color:var(--ink-3);margin-bottom:2px}
+.msg-ai .hint{font-size:13px}
+.typing{display:inline-flex;gap:4px;padding:6px 0}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--ink-3);animation:blink 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.step{margin:4px 0 4px 40px;font-size:12.5px;color:var(--ink-3)}
+.step summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:6px;padding:2px 6px;margin-left:-6px;border-radius:6px}
+.step summary::-webkit-details-marker{display:none}
+.step summary:hover{background:var(--soft);color:var(--ink-2)}
+.step[open] summary .ic{transform:rotate(90deg)}
+.step ul{margin:4px 0 0;padding:8px 12px 8px 26px;border-left:2px solid var(--line);list-style:disc}
+.worker-row{margin:10px 0 10px 40px;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft);font-size:13px}
+.worker-row .row-main small{white-space:normal}
+.receipt{margin:10px 0 10px 40px;border:1px solid var(--line);border-left:3px solid var(--ok);padding:10px 12px;border-radius:4px 10px 10px 4px;font-size:13px;line-height:1.9}
+.receipt .badge{vertical-align:1px}
+.sysrow{margin:6px 0;font-size:12px;color:var(--ink-3);font-family:var(--mono);border:1px dashed var(--line-2);padding:6px 10px;border-radius:8px}
+.composer-wrap{padding:6px 24px 14px;flex:none}
+.composer{max-width:760px;margin:0 auto;border:1px solid var(--line-2);border-radius:var(--r-input);background:var(--surface);box-shadow:var(--shadow-2);padding:10px 10px 8px 16px}
+.composer:focus-within{border-color:var(--focus,var(--accent))}
+.composer textarea{max-height:180px;min-height:26px}
+.refs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.refs:empty{display:none}
+.ref-chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 4px 0 8px;border-radius:7px;background:var(--accent-soft);color:var(--accent);font-size:12.5px;max-width:100%}
+.ref-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ref-chip button{width:20px;height:20px;border-radius:5px;display:grid;place-items:center}
+.ref-chip button:hover{background:color-mix(in srgb,var(--accent) 15%,transparent)}
+.msg-user .ref-chip{padding-right:8px}
+.model-btn{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px;border-radius:7px;color:var(--ink-2);font-size:12.5px;white-space:nowrap}
+.mlabel-short{display:none}
+.model-btn:hover{background:var(--hover);color:var(--ink)}
+.composer-note{max-width:760px;margin:6px auto 0;text-align:center;font-size:11.5px;color:var(--ink-3)}
+.hero{flex:1;display:flex;flex-direction:column;justify-content:center;padding:32px 24px;min-height:0;overflow:auto}
+.hero-inner{max-width:760px;width:100%;margin:0 auto}
+.hero h2{font-size:var(--t-hero);font-weight:650;margin:0 0 6px;letter-spacing:-.01em}
+.hero p{color:var(--ink-3);margin:0 0 20px}
+.split-handle{cursor:col-resize;background:var(--line);position:relative;z-index:2}
+.split-handle::after{content:'';position:absolute;inset:0 -4px}
+.split-handle:hover,.split-handle.drag{background:var(--accent)}
+.companion{min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--bg)}
+.comp-head{display:flex;align-items:center;gap:2px;padding:8px 8px 8px 12px;border-bottom:1px solid var(--line);min-height:48px;flex:none}
+.comp-head b{font-size:13px;margin-right:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.comp-body{flex:1;min-height:0;overflow:auto}
+.comp-actions{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+
+/* 教室 */
+.room{max-width:880px;margin:0 auto;padding:22px 24px 48px;display:grid;gap:16px}
+.teacher{display:flex;gap:14px;align-items:center;padding:16px 18px}
+.teacher .avatar{width:44px;height:44px;font-size:18px}
+.workers{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.worker{padding:12px 14px;display:grid;gap:4px}
+.worker b{font-size:14px}
+.worker p{margin:0;color:var(--ink-3);font-size:12px;line-height:1.55}
+
+/* ---------- 资料阅读 ---------- */
+.doc{max-width:760px;margin:0 auto;padding:28px clamp(18px,4vw,44px) 64px;font-size:var(--t-read);line-height:1.85}
+.doc.compact{padding:20px 20px 48px}
+.doc h1{font-size:24px;margin:0 0 10px;line-height:1.35;font-weight:650}
+.doc.compact h1{font-size:20px}
+.doc h2{font-size:17px;margin:24px 0 6px;font-weight:650}
+.doc p{margin:0 0 10px}
+.doc .meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.doc details{border:1px solid var(--line);border-radius:10px;padding:8px 14px;background:var(--soft);margin:8px 0}
+.doc summary{cursor:pointer;color:var(--ink-2);font-size:13px}
+.doc .src-line{font-size:12.5px;color:var(--ink-3);margin:-8px 0 14px}
+.doc .src-line button{color:var(--accent)}
+.doc .blank{color:var(--ink-3);font-style:italic}
+.m{font-family:var(--serif);font-style:italic;white-space:nowrap}
+.m sub{font-size:.68em;font-style:normal;vertical-align:-.25em;line-height:0}
+.pdf{background:var(--soft);min-height:100%;display:flex;flex-direction:column}
+.pdf-bar{display:flex;align-items:center;gap:4px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--surface);flex-wrap:wrap;position:sticky;top:0;z-index:1}
+.pdf-stage{padding:20px;display:flex;justify-content:center;flex:1}
+.pdf-page{width:min(560px,100%);aspect-ratio:1/1.3;background:#fff;color:#222;box-shadow:0 2px 14px rgba(0,0,0,.14);padding:9% 10%;position:relative;font-family:var(--serif)}
+.pdf-page h3{font-size:22px;margin:0 0 14px;font-weight:600}
+.pdf-page p{font-size:13px;line-height:1.8;margin:0 0 10px}
+/* 框选区域兜底值（手帐主题沿用蓝墨）；现代主题在「现代简约主题」一段覆盖为荧光标记 */
+.pdf-sel{position:absolute;left:9%;top:30%;width:82%;height:22%;border:2px solid #4b5bd6;background:rgba(75,91,214,.14);border-radius:2px}
+.pdf-bottom{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--line);background:var(--bg);flex-wrap:wrap;position:sticky;bottom:0}
+
+/* ---------- 资料库 ---------- */
+.lib-files{display:grid;grid-template-columns:236px minmax(0,1fr) 280px;grid-template-rows:minmax(0,1fr);height:100%;min-height:0}
+.tree{border-right:1px solid var(--line);overflow:auto;padding:10px 8px 24px}
+.tree-folder{display:flex;align-items:center;gap:6px;padding:8px 8px 4px;font-size:12px;color:var(--ink-3);width:100%}
+.tree-folder .ic{transition:transform .12s}
+.tree-folder[aria-expanded=false] .ic{transform:rotate(-90deg)}
+.tree-folder em{font-style:normal;margin-left:auto}
+.tree-file{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;border-radius:7px;width:100%;color:var(--ink-2);font-size:13px}
+.tree-file span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tree-file:hover{background:var(--hover);color:var(--ink)}
+.tree-file[aria-current=true]{background:var(--accent-soft);color:var(--accent);font-weight:550}
+.reader{overflow:auto;min-width:0}
+.mobile-picker{display:none;padding:10px 16px;border-bottom:1px solid var(--line)}
+.mobile-picker select{width:100%;height:34px;border:1px solid var(--line-2);border-radius:8px;background:var(--bg);padding:0 8px}
+.inspector{border-left:1px solid var(--line);overflow:auto;padding:18px 18px 32px}
+.inspector h3{font-size:12px;color:var(--ink-3);font-weight:550;margin:18px 0 8px}
+.inspector h3:first-child{margin-top:0}
+.props{margin:0;display:grid;gap:7px}
+.props div{display:grid;grid-template-columns:70px minmax(0,1fr);gap:8px;font-size:12.5px;align-items:start}
+.props dt{color:var(--ink-3)}
+.props dd{margin:0;display:flex;flex-wrap:wrap;gap:4px;min-width:0}
+.link-list{display:grid;grid-template-columns:minmax(0,1fr);gap:2px}
+.link-list button{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;font-size:13px;color:var(--ink-2);width:100%}
+.link-list button:hover{background:var(--hover);color:var(--ink)}
+.stack{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+.filterbar{display:flex;align-items:center;gap:8px;padding:10px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.filterbar .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
+.cards-scroll{overflow:auto;flex:1;min-height:0}
+.group-title{font-size:12px;color:var(--ink-3);padding:16px 24px 0}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:12px 24px 12px}
+.kcard{padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.kcard .top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.kcard h3{font-size:var(--t-item);margin:0;font-weight:600}
+.kcard p{margin:0;color:var(--ink-2);font-size:13px;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.kcard .src{font-size:12px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.graph-wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;grid-template-rows:minmax(0,1fr);height:100%;min-height:0}
+.graph-canvas{position:relative;overflow:hidden;background-color:var(--bg);background-image:radial-gradient(var(--line-2) 1px,transparent 1px);background-size:20px 20px;min-height:320px}
+.graph-canvas>svg{width:100%;height:100%;display:block}
+.graph-legend svg{flex:none}
+.g-edge{stroke:var(--ink-3);stroke-opacity:.55;stroke-width:1.3;fill:none}
+.g-edge.ref{stroke-dasharray:3 4}
+.g-node{cursor:pointer}
+.g-hit{fill:transparent;pointer-events:all}
+.g-node:focus-visible{outline:none}
+.g-node:focus-visible .g-hit{stroke:var(--accent);stroke-width:2}
+.g-node text{font-size:12px;fill:var(--ink-2);paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+.g-node .core{fill:var(--g-src)}
+.g-node .ring{fill:none;stroke:var(--g-src);stroke-width:1.6}
+.g-node .hollow{fill:var(--g-leaf);stroke:var(--g-line);stroke-width:1.6}
+.g-node .halo{fill:var(--g-src);opacity:.14}
+.g-node .iso{fill:var(--bg);stroke:var(--ink-3);stroke-width:1.4;stroke-dasharray:2 2}
+.g-node .ins{fill:var(--g-ins)}
+.g-node:hover text,.g-node.sel text{fill:var(--ink);font-weight:600}
+.g-node.sel .hollow,.g-node.sel .ring{stroke-width:2.6}
+svg.hovering .g-node:not(.near){opacity:.25}
+svg.hovering .g-edge:not(.near){stroke-opacity:.12}
+.graph-tools{position:absolute;left:12px;top:12px;right:12px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none}
+.graph-tools>*{pointer-events:auto}
+.graph-legend{position:absolute;left:12px;bottom:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:11.5px;color:var(--ink-2);display:grid;grid-template-columns:auto auto;gap:4px 14px}
+.graph-legend span{display:inline-flex;align-items:center;gap:6px}
+.graph-detail{border-left:1px solid var(--line);overflow:auto;padding:18px}
+.graph-detail h2{font-size:18px;margin:4px 0 4px}
+
+/* ---------- 计划 ---------- */
+.routes{display:grid;grid-template-columns:260px minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:100%;min-height:0}
+.route-list{border-right:1px solid var(--line);padding:14px;overflow:auto;display:grid;align-content:start;gap:8px}
+.route-item{padding:12px 14px;display:grid;gap:4px;width:100%}
+.route-item b{font-size:14px}
+.route-item[aria-current=true]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.route-main{position:relative;min-width:0;min-height:0;display:flex;flex-direction:column}
+.route-goal{padding:16px 24px 4px;color:var(--ink-2);line-height:1.7;max-width:900px}
+.route-goal b{color:var(--ink)}
+.lanes{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(230px,1fr);padding:12px 12px 20px;overflow:auto;flex:1;align-content:start;background-image:radial-gradient(var(--line-2) 1px,transparent 1px);background-size:20px 20px}
+.lane{padding:0 12px;border-left:1px dashed var(--line-2);min-width:0}
+.lane:first-child{border-left:0}
+.lane-title{font-size:12px;color:var(--ink-3);margin:4px 0 12px;display:flex;gap:6px;align-items:center}
+.lane-title b{color:var(--ink-2);font-weight:600}
+.node{width:100%;padding:12px 12px 10px;margin-bottom:10px;display:grid;gap:6px;position:relative}
+.node b{font-size:14px;font-weight:600;line-height:1.4}
+.node .kind{font-size:11.5px;color:var(--ink-3)}
+.node.branch{border-style:dashed;width:calc(100% - 16px);margin-left:16px}
+.node.branch::before{content:'';position:absolute;left:-12px;top:-10px;width:10px;height:28px;border-left:1.5px solid var(--line-2);border-bottom:1.5px solid var(--line-2);border-bottom-left-radius:6px}
+.node[aria-current=true]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.node .state{display:flex;gap:6px;flex-wrap:wrap}
+.drawer{position:absolute;right:0;top:0;bottom:0;width:min(360px,100%);background:var(--bg);border-left:1px solid var(--line);box-shadow:var(--shadow-2);padding:18px 20px;overflow:auto;z-index:5}
+.drawer h2{font-size:18px;margin:2px 0 6px}
+.drawer .stack{margin:14px 0}
+.drawer .note{font-size:12.5px;color:var(--ink-3);line-height:1.7;background:var(--soft);border-radius:8px;padding:8px 10px}
+.logs{border-top:1px solid var(--line);padding:10px 24px;flex:none}
+.logs summary{cursor:pointer;color:var(--ink-2);font-size:13px}
+.calendar{display:grid;grid-template-columns:minmax(0,1fr) 340px;grid-template-rows:minmax(0,1fr);height:100%;min-height:0}
+.month{padding:18px 24px;overflow:auto}
+.month-head{display:flex;align-items:center;gap:6px;margin-bottom:12px}
+.month-head b{font-size:16px;margin-right:auto}
+.month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.wday{font-size:12px;color:var(--ink-3);padding:4px 8px}
+.day{min-height:68px;border-radius:10px;border:1px solid transparent;padding:6px 8px;display:flex;flex-direction:column;justify-content:space-between;gap:4px}
+.day:hover{background:var(--soft)}
+.day[data-out]{opacity:.4}
+.day[aria-pressed=true]{border-color:var(--accent);background:var(--accent-soft)}
+.dnum{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:13px}
+.day[data-today] .dnum{background:var(--accent);color:var(--on-accent);font-weight:650}
+.ddots{display:flex;gap:3px;flex-wrap:wrap}
+.ddots i{width:6px;height:6px;border-radius:50%}
+.k-lesson{background:var(--lesson)}.k-log{background:var(--summary)}.k-due{background:var(--review)}.k-review{background:var(--accent)}.k-daily{background:var(--daily)}
+.agenda{border-left:1px solid var(--line);padding:18px 20px;overflow:auto}
+.agenda h2{font-size:17px;margin:0 0 2px}
+.ev{display:flex;gap:10px;align-items:flex-start;padding:10px 8px;margin:0 -8px;border-radius:8px;width:calc(100% + 16px)}
+.ev:hover{background:var(--soft)}
+.ev i{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none}
+.review{display:grid;grid-template-columns:minmax(280px,380px) minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:100%;min-height:0}
+.review-list{border-right:1px solid var(--line);overflow:auto;padding:8px 12px 24px}
+.review-item{display:flex;gap:10px;align-items:center;padding:10px;border-radius:9px;width:100%}
+.review-item:hover{background:var(--soft)}
+.review-item[aria-current=true]{background:var(--accent-soft)}
+.review-detail{overflow:auto;padding:22px clamp(18px,3vw,36px) 48px}
+.review-detail h2{font-size:20px;margin:0 0 6px}
+.box{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:14px}
+.box h3{font-size:13px;margin:0 0 10px;color:var(--ink-2);font-weight:600}
+.hist{border-left:2px solid var(--line);padding:2px 0 2px 12px;margin:0 0 12px}
+.hist-items{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.ability{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;margin-bottom:8px}
+.ability input{height:32px;border:1px solid var(--line-2);border-radius:8px;padding:0 10px;background:var(--surface);outline:0;min-width:0}
+.ability input:focus,.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--focus,var(--accent))}
+.seg.small button{height:26px;padding:0 9px;font-size:12px}
+
+/* ---------- 浮层 ---------- */
+.overlay{position:fixed;inset:0;background:rgba(15,18,24,.34);display:grid;place-items:center;z-index:60;padding:20px}
+.dialog{width:min(540px,100%);max-height:calc(100vh - 40px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-2);padding:22px 24px}
+.dialog h2{margin:0 0 4px;font-size:18px}
+.dialog .desc{color:var(--ink-3);margin:0 0 18px;font-size:13px;line-height:1.6}
+.field{display:grid;gap:6px;margin-bottom:14px}
+.field>label,.field>span{font-size:12.5px;color:var(--ink-2);font-weight:550}
+.field input,.field select,.field textarea{border:1px solid var(--line-2);border-radius:8px;padding:8px 10px;background:var(--surface);outline:0;width:100%}
+.field textarea{resize:vertical;line-height:1.6}
+.field small{color:var(--ink-3);font-size:12px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dialog-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.radio-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.radio-cards label{position:relative;border:1px solid var(--line-2);border-radius:10px;padding:10px 12px;display:grid;gap:2px;cursor:pointer}
+.radio-cards label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.radio-cards label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.radio-cards input{position:absolute;opacity:0;pointer-events:none}
+.radio-cards small{color:var(--ink-3);font-size:12px;line-height:1.5}
+.menu{position:fixed;z-index:70;min-width:230px;max-width:340px;max-height:min(460px,calc(100vh - 24px));overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-menu);box-shadow:var(--shadow-2);padding:6px}
+.menu-item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:8px;font-size:13px;color:var(--ink)}
+.menu-item:hover{background:var(--hover)}
+.menu-item small{display:block;color:var(--ink-3);font-size:11.5px}
+.menu-label{font-size:11.5px;color:var(--ink-3);padding:8px 10px 4px}
+.menu-sep{height:1px;background:var(--line);margin:4px 6px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:10px;font-size:13px;z-index:80;box-shadow:var(--shadow-2);max-width:calc(100vw - 40px)}
+.proto{position:fixed;right:14px;bottom:14px;z-index:55;font-size:12px}
+.proto>button{height:30px;padding:0 12px;border-radius:15px;background:var(--ink);color:var(--bg);font-weight:600;box-shadow:var(--shadow-2)}
+.proto-panel{position:absolute;right:0;bottom:38px;width:250px;background:var(--bg);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-2);padding:12px;display:grid;gap:10px}
+.proto-panel p{margin:0;color:var(--ink-3);line-height:1.55}
+
+/* ---------- 现代简约：白灰、轻边界、集中构图 ---------- */
+[data-sf-style=modern]{--focus:#809bbe;--mark-wash:rgb(134 165 206 / .18);--mark-line:#8ba6c9}
+[data-sf-style=modern][data-theme=dark]{--focus:#a1b9d9;--mark-wash:rgb(134 165 206 / .22);--mark-line:#829fc5}
+[data-sf-style=modern] :is(.brand-name,.today h1,.hero h2,.page-head h1,.panel-head h2,.lh-title h1,.doc h1,.doc h2,.dialog h2,.drawer h2,.agenda h2,.month-head b,.review-detail h2,.graph-detail h2,.kcard h3,.box h3){font-weight:600;letter-spacing:-.015em}
+[data-sf-style=modern] :is(.brand-mark,.new-lesson,.btn,.stat b,.nav-row[aria-current=page],.lesson-row[aria-current=page],.nav-count,.seg button[aria-selected=true],.chip[aria-pressed=true],.badge,.row-main b,.review-item b,.avatar,.comp-head b,.node b,.route-item b){font-weight:500}
+[data-sf-style=modern] :is(.stat b,.nav-count,.lesson-row time,.dnum){font-variant-numeric:tabular-nums}
+[data-sf-style=modern] .app{grid-template-columns:228px minmax(0,1fr)}
+[data-sf-style=modern] .side{margin:12px 0 12px 12px;padding:18px 10px 12px;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow-2)}
+[data-sf-style=modern] .brand{padding:0 8px 22px;gap:10px}
+[data-sf-style=modern] .brand-mark{width:28px;height:28px;background:transparent;color:var(--ink);border:1px solid var(--line-2);border-radius:9px}
+[data-sf-style=modern] .brand-name{font-size:15px;letter-spacing:-.025em}
+[data-sf-style=modern] .new-lesson{height:38px;border-radius:13px;background:var(--soft);color:var(--ink-2);border-color:transparent;box-shadow:none}
+[data-sf-style=modern] .new-lesson:hover{background:var(--accent-soft);border-color:var(--line-2);color:var(--accent-2)}
+[data-sf-style=modern] .nav{gap:5px;margin:22px 0 8px}
+[data-sf-style=modern] .nav-row{height:40px;border-radius:12px;padding:0 12px}
+[data-sf-style=modern] .nav-row[aria-current=page]{background:var(--accent-soft);color:var(--accent-2);box-shadow:none}
+[data-sf-style=modern] .nav-count{background:transparent;color:inherit;font-size:12px}
+[data-sf-style=modern] .side-label{padding:22px 12px 10px;font-size:11px;letter-spacing:.06em}
+[data-sf-style=modern] .lesson-row{padding:10px 12px;border-radius:10px;font-size:12px}
+[data-sf-style=modern] .lesson-row[aria-current=page]{background:var(--soft)}
+[data-sf-style=modern] .side-foot{border:0}
+[data-sf-style=modern] .conn{font-size:10px}
+/* 首页先留出一个完整的输入空间，学习记录在其下方展开。 */
+[data-sf-style=modern] .today{max-width:1100px;width:100%;padding:76px clamp(24px,5vw,64px) 72px}
+[data-sf-style=modern] .today-date{text-align:center;letter-spacing:.04em;font-size:12px}
+[data-sf-style=modern] .today h1{text-align:center;margin:14px 0 34px;line-height:1.35;letter-spacing:-.025em}
+[data-sf-style=modern] .launch{max-width:720px;margin:0 auto;padding:22px 20px 16px;border-color:var(--line);box-shadow:var(--shadow-2)}
+[data-sf-style=modern] .launch textarea{min-height:72px;font-size:16px;line-height:1.7}
+[data-sf-style=modern] .launch textarea::placeholder,[data-sf-style=modern] .composer textarea::placeholder{color:var(--ink-3)}
+[data-sf-style=modern] .quick{max-width:740px;justify-content:center;margin:18px auto 76px;gap:4px 16px}
+[data-sf-style=modern] .quick .chip{border:0;background:none;padding:0 4px;color:var(--ink-3);font-size:12px;height:30px}
+[data-sf-style=modern] .quick .chip:hover{color:var(--accent-2)}
+[data-sf-style=modern] .today-grid{gap:44px;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+[data-sf-style=modern] .today-col{gap:36px}
+[data-sf-style=modern] .panel{background:none;border:0;border-radius:0;padding:0}
+[data-sf-style=modern] .panel-head{margin-bottom:18px}
+[data-sf-style=modern] .panel-head .sub{font-size:11px}
+[data-sf-style=modern] .stat{gap:26px;margin-bottom:16px}
+[data-sf-style=modern] .stat>div{display:flex;align-items:baseline;gap:7px}
+[data-sf-style=modern] .stat b{font-size:24px}
+[data-sf-style=modern] .stat span{font-size:11px}
+[data-sf-style=modern] .today .row{padding-top:12px;padding-bottom:12px}
+[data-sf-style=modern] .today .row+.row{border-top:1px solid var(--line)}
+[data-sf-style=modern] .today .row-main small{margin-top:4px;font-size:11px}
+[data-sf-style=modern] .today .row-main b{font-size:13px}
+[data-sf-style=modern] .today .rows .btn{border:0;background:none;padding:0 4px;color:var(--accent);font-size:11px}
+[data-sf-style=modern] .lesson-today{padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:none}
+[data-sf-style=modern] .onboard{gap:28px}
+[data-sf-style=modern] .onboard .card{border:0;border-top:1px solid var(--line);border-radius:0;background:none;padding:18px 0 0}
+/* 圆角服务于输入和操作；阅读内容保留平整的纸面。 */
+[data-sf-style=modern] :is(.row,.icon-btn,.model-btn,.tree-file,.link-list button,.menu-item,.review-item,.ev){border-radius:var(--r-sm)}
+[data-sf-style=modern] .btn{background:var(--soft);border-color:transparent;transition:background .15s,border-color .15s,color .15s}
+[data-sf-style=modern] .btn:hover{background:var(--hover);border-color:transparent}
+[data-sf-style=modern] .btn.ghost{background:transparent;border-color:transparent}
+[data-sf-style=modern] .btn.ghost:hover{background:var(--soft)}
+[data-sf-style=modern] .btn.primary{background:var(--accent-soft);border-color:transparent;color:var(--accent-2);font-weight:500}
+[data-sf-style=modern] .btn.primary:hover{background:var(--press);color:var(--accent-2)}
+[data-sf-style=modern] .send{background:var(--soft);color:var(--ink-2);border:1px solid var(--line);box-shadow:var(--shadow-1);width:36px;height:36px;transition:background .15s,transform .15s}
+[data-sf-style=modern] .send:hover{background:var(--accent-soft);color:var(--accent-2);transform:translateY(-1px)}
+[data-sf-style=modern] .send:active{transform:none}
+[data-sf-style=modern] .seg{border-radius:14px;background:var(--soft);border-color:transparent}
+[data-sf-style=modern] .seg button{border-radius:11px}
+[data-sf-style=modern] .chip{border-radius:14px;border-color:var(--line)}
+[data-sf-style=modern] .badge{border-radius:5px;font-size:11px;padding:2px 6px}
+[data-sf-style=modern] :is(.b-summary,.b-daily,.b-muted){background:var(--soft);color:var(--ink-2);box-shadow:none}
+[data-sf-style=modern] .progress{height:3px;border-radius:2px;gap:1px}
+[data-sf-style=modern] .legend{font-size:10px}
+[data-sf-style=modern] :is(.btn,.btn.primary):disabled{background:var(--soft);border-color:var(--line);color:var(--ink-3);opacity:.6}
+[data-sf-style=modern] :is(.search,.field input,.field select,.field textarea,.ability input,.mobile-picker select){border-radius:12px}
+[data-sf-style=modern] .page-head{padding-top:18px;padding-bottom:18px}
+[data-sf-style=modern] .companion{background:var(--surface)}
+[data-sf-style=modern] .comp-head{min-height:54px}
+[data-sf-style=modern] .comp-actions{border-bottom:0}
+[data-sf-style=modern] .msg-user .bubble{background:var(--soft);border:0;border-radius:18px 18px 6px 18px}
+[data-sf-style=modern] .receipt{border:0;border-left:2px solid var(--line-2);border-radius:0;background:none}
+[data-sf-style=modern] .worker-row{padding:8px 0;background:none;border:0;border-radius:0}
+[data-sf-style=modern] .doc details{background:var(--soft);border:0;border-radius:12px}
+[data-sf-style=modern] .composer{border-color:var(--line);box-shadow:var(--shadow-2);padding:14px 12px 10px 18px}
+[data-sf-style=modern] .composer-note{font-size:10px}
+[data-sf-style=modern] .card{border-color:var(--line);box-shadow:none}
+[data-sf-style=modern] .box{border:0;border-top:1px solid var(--line);border-radius:0;padding:16px 0 0}
+[data-sf-style=modern] :is(.graph-canvas,.lanes){background-size:24px 24px}
+[data-sf-style=modern] ::selection{background-color:var(--mark-wash)}
+[data-sf-style=modern] .pdf-sel{border-color:var(--mark-line);background:var(--mark-wash)}
+[data-sf-style=modern] .proto>button{background:var(--surface);color:var(--ink-3);border:1px solid var(--line);box-shadow:var(--shadow-1);font-weight:400}
+@media (max-width:1100px){
+  [data-sf-style=modern] .today-grid{grid-template-columns:1fr;gap:36px}
+  [data-sf-style=modern] .quick{margin-bottom:56px}
+}
+@media (max-width:960px){
+  [data-sf-style=modern] .app{grid-template-columns:204px minmax(0,1fr)}
+  [data-sf-style=modern] .today{padding:52px 28px 60px}
+  [data-sf-style=modern] .today h1{font-size:28px}
+}
+@media (max-width:760px){
+  [data-sf-style=modern] .app{grid-template-columns:1fr}
+  [data-sf-style=modern] .side{margin:0;inset:8px auto 8px 8px;border-radius:18px;padding:18px 10px 12px;transform:translateX(calc(-100% - 16px))}
+  [data-sf-style=modern] .today{padding:38px 22px 56px}
+  [data-sf-style=modern] .today h1{font-size:26px;margin-bottom:26px}
+  [data-sf-style=modern] .launch{padding:18px 16px 14px}
+  [data-sf-style=modern] .launch textarea{font-size:15px}
+  [data-sf-style=modern] .quick{gap:2px 12px;margin-bottom:42px}
+  [data-sf-style=modern] .quick .chip{font-size:11px}
+  [data-sf-style=modern] .today .row{flex-wrap:wrap;gap:6px}
+  [data-sf-style=modern] .today .row-main{flex-basis:50%}
+}
+
+/* ---------- 手写手帐主题：只改外观，全部限定在 data-sf-style=notebook ---------- */
+[data-sf-style=notebook]{
+  --font:"SF WenKai","LXGW WenKai","Kaiti SC","STKaiti","KaiTi",serif;
+  --surface:var(--card);
+  --bg:#fbf7ee;--side:#f3ecdb;--soft:#f3eddf;--hover:#ece4d1;--press:#e6dcc5;
+  --line:#e4dbc6;--line-2:#d2c6a9;
+  --ink:#2e3548;--ink-2:#5b5f70;--ink-3:#958f7e;
+  --accent:#34589c;--accent-2:#274a8a;--accent-soft:#e3e8f2;--on-accent:#fbf7ee;
+  --review:#b0621a;--review-soft:#fbe6bf;
+  --lesson:#2d7a64;--lesson-soft:#d9eee3;
+  --summary:#7a55a6;--summary-soft:#ebe1f3;
+  --daily:#6b6250;--daily-soft:#ece5d4;
+  --danger:#c0392b;--danger-soft:#f8e0da;
+  --ok:#3b7a3f;--ok-soft:#e1efd9;
+  --card:#fffdf7;--note:#fff3bf;--note-blue:#e6effb;--hl:rgba(252,214,92,.5);--tape:rgba(214,196,140,.55);
+  --rule:#dde3ef;--margin-rule:#f0c2bb;
+  --lines:repeating-linear-gradient(to bottom,transparent 0 31px,var(--rule) 31px 32px);
+  --shadow-1:0 1px 0 rgba(90,70,30,.08);
+  --shadow-2:0 6px 18px rgba(90,70,30,.14),0 1px 2px rgba(90,70,30,.1);
+  --r-ctl:4px;--r-card:6px;--r-menu:8px;--r-input:8px;
+  --t-hero:30px;--t-page:22px;--t-section:18px;--t-item:16px;--t-ui:15px;--t-meta:14px;--t-read:16px;
+  --g-src:#e9a93c;--g-leaf:#bfe0f2;--g-line:#ffffff;--g-ins:#ee8a7f;
+}
+[data-sf-style=notebook][data-theme=dark]{
+  --bg:#23211c;--side:#1d1b17;--soft:#2a2822;--hover:#322f28;--press:#39362e;
+  --line:#3a362d;--line-2:#4a4539;
+  --ink:#ebe4d3;--ink-2:#bdb5a2;--ink-3:#8c8575;
+  --accent:#9db4e8;--accent-2:#b3c6f0;--accent-soft:#2c3346;--on-accent:#1d1b17;
+  --review:#f0b060;--review-soft:#3e2f18;--lesson:#72c9a8;--lesson-soft:#1e352c;
+  --summary:#c3a5ec;--summary-soft:#33284a;--daily:#c9bfa6;--daily-soft:#34302a;
+  --danger:#ff9180;--danger-soft:#3e231f;--ok:#8fd08a;--ok-soft:#223520;
+  --card:#2a2822;--note:#4a4128;--note-blue:#28303d;--hl:rgba(200,160,60,.28);--tape:rgba(160,140,90,.35);
+  --rule:#34373f;--margin-rule:#5a3531;
+  --g-src:#d9a24a;--g-leaf:#3f5b6b;--g-line:#23211c;--g-ins:#d9776d;
+}
+[data-sf-style=notebook] body{letter-spacing:.02em}
+[data-sf-style=notebook] :is(.nav-row,.lesson-row span){font-size:16px}
+[data-sf-style=notebook] :is(.lesson-row time,.conn){font-size:13px}
+[data-sf-style=notebook] :is(.btn,.seg button,.model-btn,.menu-item,.tree-file){font-size:15px}
+[data-sf-style=notebook] .btn.sm{font-size:14px}
+[data-sf-style=notebook] :is(.chip,.ref-chip){font-size:14px}
+[data-sf-style=notebook] .badge{font-size:13px;font-weight:400;height:22px;border-radius:3px 8px 4px 9px/8px 3px 9px 4px}
+[data-sf-style=notebook] :is(.hint,.row-main small,.panel-head .sub,.stat span,.legend,.side-label,.menu-label,.tree-folder,.kcard .src,.today-date,.composer-note,.msg-ai .who,.step,.lane-title,.wday,.props div,.menu-item small,.radio-cards small,.field small){font-size:14px}
+[data-sf-style=notebook] :is(.row-main b,.kcard p,.worker-row,.receipt,.review-item b){font-size:15px}
+/* 纸面：只给滚动的文档根铺横线，控件和画布保留自己的底色 */
+[data-sf-style=notebook] :is(.page,.chat-scroll,.reader,.cards-scroll,.review-detail,.agenda,.comp-body,.hero,.tree,.inspector,.review-list){background-color:var(--bg);background-image:var(--lines);background-attachment:local}
+[data-sf-style=notebook] .chat-scroll{background-image:linear-gradient(to right,transparent 56px,var(--margin-rule) 56px 57px,transparent 57px),var(--lines)}
+[data-sf-style=notebook] :is(.page-head,.filterbar,.lesson-head,.comp-head,.comp-actions,.pdf-bar){background:var(--bg)}
+/* 侧栏：线圈本装订孔 */
+[data-sf-style=notebook] .side{padding-right:24px;background-color:var(--side);background-image:radial-gradient(circle at calc(100% - 9px) 50%,var(--bg) 0 3.5px,var(--line-2) 4px 4.8px,transparent 5.2px);background-size:100% 28px;border-right:1px solid var(--line-2)}
+[data-sf-style=notebook] .brand-mark{background:transparent;color:var(--danger);border:1.6px solid var(--danger);border-radius:50%;transform:rotate(-8deg);font-size:14px}
+[data-sf-style=notebook] .brand-name{font-size:18px}
+[data-sf-style=notebook] .new-lesson{background:var(--note);border:0;border-radius:2px;box-shadow:0 2px 5px rgba(90,70,30,.16);transform:rotate(-.8deg);font-size:16px;height:40px}
+[data-sf-style=notebook] .new-lesson:hover{color:var(--accent);transform:rotate(0)}
+[data-sf-style=notebook] :is(.nav-row,.lesson-row,.tree-file,.review-item,.seg button)[aria-current=page],
+[data-sf-style=notebook] :is(.tree-file,.review-item)[aria-current=true],
+[data-sf-style=notebook] .seg button[aria-selected=true],
+[data-sf-style=notebook] .chip[aria-pressed=true]{background:var(--hl);color:var(--ink);box-shadow:none;border-color:transparent;border-radius:3px 12px 4px 14px/12px 3px 14px 4px}
+[data-sf-style=notebook] .nav-count{border-radius:50% 45% 55% 48%;background:transparent;color:var(--danger);box-shadow:0 0 0 1.4px var(--danger)}
+/* 控件：细线、小圆角 */
+[data-sf-style=notebook] .seg{background:transparent;border:0;padding:0;gap:4px}
+[data-sf-style=notebook] .seg button{border-radius:3px}
+[data-sf-style=notebook] .btn{border-color:var(--ink-3);background:var(--card)}
+[data-sf-style=notebook] .btn.ghost{background:transparent;border-color:transparent}
+[data-sf-style=notebook] .btn.primary{background:var(--accent);border-color:var(--accent);border-radius:4px 10px 5px 12px/10px 4px 12px 5px}
+[data-sf-style=notebook] .chip{border-radius:4px;background:var(--card)}
+[data-sf-style=notebook] .search{border-style:dashed;background:var(--card)}
+[data-sf-style=notebook] :is(.field input,.field select,.field textarea,.ability input){border-radius:3px;border-color:var(--ink-3);background:var(--card)}
+/* 纸片、胶带、便签 */
+[data-sf-style=notebook] :is(.panel,.card){background-color:var(--card);border-color:var(--line-2)}
+[data-sf-style=notebook] .panel{position:relative}
+[data-sf-style=notebook] .panel::before{content:'';position:absolute;top:-10px;left:50%;width:92px;height:20px;transform:translateX(-50%) rotate(-2.5deg);background:var(--tape)}
+[data-sf-style=notebook] .today-grid{gap:24px}
+[data-sf-style=notebook] .today-col{gap:28px}
+[data-sf-style=notebook] .today-col>.panel:nth-child(odd){transform:rotate(-.35deg)}
+[data-sf-style=notebook] .today-col>.panel:nth-child(even){transform:rotate(.3deg)}
+[data-sf-style=notebook] .today-col>.panel:nth-child(even)::before{left:22%;transform:rotate(3deg)}
+[data-sf-style=notebook] .panel[aria-label="今天要复习"]{background:var(--note)}
+[data-sf-style=notebook] .today h1{display:inline-block;text-decoration:underline wavy var(--review);text-decoration-thickness:1.5px;text-underline-offset:10px}
+[data-sf-style=notebook] :is(.launch,.composer){background:var(--card);border:1.5px solid var(--ink-3);border-radius:6px 14px 8px 16px/14px 6px 16px 8px;box-shadow:3px 3px 0 var(--line)}
+[data-sf-style=notebook] :is(.launch,.composer) textarea{font-size:17px;line-height:32px;background-image:var(--lines);background-attachment:local}
+/* 对话：整页横线，正文按 32px 行距落在线上 */
+[data-sf-style=notebook] .chat-col{padding-top:32px}
+[data-sf-style=notebook] :is(.msg-ai,.msg-user){margin:32px 0}
+[data-sf-style=notebook] .msg-ai .body{line-height:32px;font-size:17px}
+[data-sf-style=notebook] .msg-ai .body p{margin:0}
+[data-sf-style=notebook] .msg-ai .who{line-height:32px;margin:0}
+[data-sf-style=notebook] .msg-user .bubble{background:var(--note);border:0;border-radius:2px;box-shadow:0 2px 6px rgba(90,70,30,.15);transform:rotate(.6deg);line-height:30px;font-size:16px}
+[data-sf-style=notebook] .avatar{background:transparent;box-shadow:inset 0 0 0 1.5px var(--accent);color:var(--accent)}
+[data-sf-style=notebook] .msg-ai .avatar{transform:rotate(-6deg)}
+[data-sf-style=notebook] .worker-row{background:var(--card);border-style:dashed;border-radius:4px}
+[data-sf-style=notebook] .receipt{position:relative;background:var(--card);border:1px solid var(--line-2);border-radius:2px;padding-right:96px;box-shadow:var(--shadow-1)}
+[data-sf-style=notebook] .receipt::before{content:'';position:absolute;top:-9px;left:24px;width:70px;height:18px;background:var(--tape);transform:rotate(-4deg)}
+[data-sf-style=notebook] .receipt::after{content:'已记录';position:absolute;right:14px;top:50%;width:62px;height:62px;margin-top:-31px;box-shadow:0 0 0 2px var(--danger);border-radius:50%;color:var(--danger);display:grid;place-items:center;font-size:15px;font-weight:700;transform:rotate(-14deg);opacity:.78;letter-spacing:.1em}
+/* 阅读与卡片 */
+[data-sf-style=notebook] .doc{line-height:32px;font-size:17px}
+[data-sf-style=notebook] .doc :is(p,h2){margin:0}
+[data-sf-style=notebook] .doc h2{line-height:48px;padding-top:16px}
+[data-sf-style=notebook] .doc details{background:var(--card);border-style:dashed;border-radius:4px}
+[data-sf-style=notebook] .kcard{border-top:3px solid var(--margin-rule);border-radius:2px}
+[data-sf-style=notebook] .cards-grid .kcard:nth-child(3n+1){transform:rotate(-.4deg)}
+[data-sf-style=notebook] .cards-grid .kcard:nth-child(3n+2){transform:rotate(.35deg)}
+[data-sf-style=notebook] .cards-grid .kcard:hover{transform:translateY(-2px)}
+/* 图谱：彩色贴纸；路线：便签加胶带；两者仍用点阵画布 */
+[data-sf-style=notebook] .g-node{filter:drop-shadow(0 1px 1.5px rgba(80,60,20,.25))}
+[data-sf-style=notebook] .g-node .hollow{stroke-width:2.5}
+[data-sf-style=notebook] .g-node .ring{stroke-width:2.2}
+[data-sf-style=notebook] .g-node text{font-size:15px}
+[data-sf-style=notebook] .g-edge{stroke:var(--ink-2);stroke-opacity:.5;stroke-linecap:round}
+[data-sf-style=notebook] .graph-legend{background:var(--card);border-radius:4px}
+[data-sf-style=notebook] .node{background:var(--note);border:0;border-radius:2px;box-shadow:0 2px 6px rgba(90,70,30,.16);transform:rotate(-.6deg)}
+[data-sf-style=notebook] .lane .node:nth-child(even){transform:rotate(.7deg)}
+[data-sf-style=notebook] .node.branch{background:var(--note-blue);border:1.5px dashed var(--line-2)}
+[data-sf-style=notebook] .node::after{content:'';position:absolute;top:-8px;left:50%;width:48px;height:14px;background:var(--tape);transform:translateX(-50%) rotate(2deg)}
+[data-sf-style=notebook] .node[aria-current=true]{box-shadow:0 0 0 2px var(--accent),0 4px 10px rgba(90,70,30,.2)}
+[data-sf-style=notebook] .day{border-radius:4px}
+[data-sf-style=notebook] .dnum{font-size:16px}
+[data-sf-style=notebook] .day[data-today] .dnum{background:transparent;color:var(--danger);box-shadow:0 0 0 1.6px var(--danger);border-radius:50% 44% 56% 47%;transform:rotate(-8deg)}
+[data-sf-style=notebook] .day[aria-pressed=true]{background:var(--hl);border-color:transparent}
+/* 浮层 */
+[data-sf-style=notebook] .dialog{background:var(--card);border-radius:6px;border-color:var(--line-2)}
+[data-sf-style=notebook] .radio-cards label{border-radius:4px;background:var(--card)}
+[data-sf-style=notebook] .radio-cards label:has(input:checked){background:var(--hl);border-color:var(--ink-3)}
+[data-sf-style=notebook] .menu{background:var(--card)}
+[data-sf-style=notebook] .overlay{background:rgba(60,45,15,.28)}
+[data-sf-style=notebook] .toast{background:var(--note);color:var(--ink);border-radius:2px;transform:translateX(-50%) rotate(-1deg)}
+[data-sf-style=notebook] .proto>button{background:var(--accent);color:var(--on-accent)}
+
+/* ---------- 响应式 ---------- */
+@media (max-width:1180px){
+  .lib-files{grid-template-columns:220px minmax(0,1fr)}
+  .lib-files .inspector{display:none}
+  .graph-wrap{grid-template-columns:minmax(0,1fr) 260px}
+}
+@media (max-width:960px){
+  .app{grid-template-columns:204px minmax(0,1fr)}
+  .side{padding:12px 8px 10px}
+  .comp-head{gap:1px;padding:8px 6px 8px 10px}
+  .comp-head b{margin-right:4px}
+  .comp-head .icon-btn.sm{width:26px;height:26px}
+  .today-grid{grid-template-columns:1fr}
+  .onboard{grid-template-columns:1fr}
+  .calendar,.review{grid-template-columns:1fr;grid-template-rows:auto;height:auto}
+  .calendar .agenda{border-left:0;border-top:1px solid var(--line)}
+  .review-list{border-right:0;border-bottom:1px solid var(--line);max-height:300px}
+  .page-body.scroll-narrow{overflow:auto}
+  .routes{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+  .route-list{border-right:0;border-bottom:1px solid var(--line);grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);overflow-x:auto}
+  .graph-wrap{grid-template-columns:1fr;grid-template-rows:minmax(320px,1fr) auto}
+  .graph-detail{border-left:0;border-top:1px solid var(--line);max-height:42%}
+}
+@media (max-width:880px){
+  /* 输入框里的模型控件改用短标签，避免窄中屏被压成竖排 */
+  .mlabel{display:none}
+  .mlabel-short{display:inline}
+}
+@media (max-width:760px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;inset:0 auto 0 0;width:276px;transform:translateX(-100%);transition:transform .18s ease;box-shadow:var(--shadow-2)}
+  .app[data-side-open] .side{transform:none}
+  .app[data-side-open] .scrim{display:block;position:fixed;inset:0;background:rgba(15,18,24,.3);z-index:44}
+  .topbar{display:flex}
+  .page-head{padding:10px 16px;gap:8px}
+  .page-head h1{display:none}
+  .search{width:100%;order:9}
+  .lib-files{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+  .lib-files .tree{display:none}
+  .mobile-picker{display:block}
+  .lesson-head{padding:8px 10px 8px 16px}
+  .lesson-head .lh-title{display:none}
+  .lh-actions{flex:1;justify-content:space-between}
+  .lh-actions .label{display:none}
+  .lesson-body[data-companion] .companion{position:absolute;inset:0;z-index:6}
+  .lesson-body[data-companion] .split-handle{display:none}
+  .chat-col{padding:16px 14px 8px}
+  .composer-wrap{padding:6px 10px 10px}
+  .step,.worker-row,.receipt{margin-left:0}
+  .two,.radio-cards{grid-template-columns:1fr}
+  .filterbar{padding:10px 16px}
+  .cards-grid{padding:12px 16px;grid-template-columns:1fr}
+  .today{padding-top:22px}
+  .ability{grid-template-columns:1fr auto}
+  .ability .seg{grid-column:1/-1;order:3}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<link rel="stylesheet" href="notara-whiteboard.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="主导航"></aside>
+  <div class="scrim" data-act="side-close"></div>
+  <main class="main" id="main"></main>
+</div>
+<div id="layer"></div>
+<div class="proto" id="proto"></div>
+
+<script src="notara-whiteboard.js"></script>
+<script>
+'use strict';
+/* ============================ 合成示例数据 ============================ */
+const TODAY = '2026-09-24';
+const INTERVALS = [1, 3, 7, 16, 35];
+const TYPE_LABEL = { page:'页面', pdf:'PDF', card:'知识卡片', topic:'教学专题', insight:'锦囊', route:'学习路线', 'lesson-summary':'课堂小结', 'learner-profile':'学情条目', daily:'日记' };
+const FOLDERS = ['知识','媒体','专题','卡片','锦囊','路线','课堂小结','学情','日记'];
+const OUTCOME = { demonstrated:['已表现','b-ok'], needs_practice:['需练习','b-review'], not_observed:['尚未观察','b-muted'] };
+
+const cardBody = (content, reference, student) => `
+  <h2>内容</h2>${content}
+  <h2>参考理解</h2><details><summary>展开参考理解（默认折叠）</summary>${reference}</details>
+  <h2>学生理解</h2>${student || '<p class="blank">还没有学生自己的表达。</p>'}`;
+
+const FILES = [
+  { id:'k-conic', folder:'知识', title:'圆锥曲线', type:'page', tags:['数学','圆锥曲线'], excerpt:'定义、标准方程、弦与斜率。',
+    body:'<h2>定义</h2><p>平面内到两定点距离之和为常数（大于两定点距离）的点的轨迹是椭圆。</p><h2>点差法</h2><p>设弦的两端点都在曲线上，把两点坐标分别代入方程后相减，二次项会分解出“和”与“差”两个因子：和与中点有关，差的比就是斜率。</p><h2>焦点弦</h2><p>过焦点的弦，长度可以用焦半径公式表达。</p>' },
+  { id:'k-vector', folder:'知识', title:'向量', type:'page', tags:['数学','向量'], excerpt:'坐标语言、基底、数量积。',
+    body:'<h2>基底</h2><p>平面内任意两个不共线的向量都可以作为一组基底，平面内任一向量都能唯一地表示成它们的线性组合。</p>' },
+  { id:'k-seq', folder:'知识', title:'数列求和', type:'page', tags:['数学','数列'], excerpt:'裂项相消、错位相减。',
+    body:'<h2>裂项</h2><p>把通项拆成两项之差，使求和时中间项成对抵消。</p><h2>错位相减</h2><p>等差乘等比型数列：乘公比后错一位相减。</p>' },
+  { id:'m-vector', folder:'媒体', title:'向量讲义', type:'pdf', tags:['数学','向量'], pages:2, excerpt:'2 页 PDF' },
+  { id:'m-essay', folder:'媒体', title:'秋天的怀念（原文）', type:'pdf', tags:['语文'], pages:3, excerpt:'3 页 PDF' },
+  { id:'t-chord', folder:'专题', title:'中点弦问题', type:'topic', tags:['数学','圆锥曲线'], excerpt:'同类题的共同结构：和与差。',
+    body:'<p>这一类题都给出弦的中点，问斜率或方程。共同结构是“两式相减 → 和 × 差 = 0”。</p>' },
+  { id:'c-midchord', folder:'卡片', title:'中点弦的斜率', type:'card', tags:['数学','圆锥曲线'], parent:'t-chord', source:{ file:'k-conic', where:'点差法' },
+    review:{ learned:true, mastery:1, next:'2026-09-23' },
+    history:[{ date:'2026-09-22', actor:'课堂评估', items:[['识别中点弦题型','demonstrated'],['用两式相减建立斜率与中点的关系','needs_practice']], note:'老师提示“把两式相减”后，学生自己完成因式分解；没有提示时先尝试联立展开。' }],
+    excerpt:'椭圆中已知弦中点求斜率。',
+    body:cardBody('<p>椭圆 <span class="m">x²/4 + y²/3 = 1</span> 中，弦 AB 的中点为 <span class="m">M(1, ½)</span>，求直线 AB 的斜率。</p>',
+      '<p>设 <span class="m">A(x₁, y₁)</span>、<span class="m">B(x₂, y₂)</span>，两式相减得 <span class="m">(x₁+x₂)(x₁−x₂)/4 + (y₁+y₂)(y₁−y₂)/3 = 0</span>，代入 <span class="m">x₁+x₂ = 2</span>、<span class="m">y₁+y₂ = 1</span> 得 <span class="m">k = −3/2</span>。</p>',
+      '<p><b>9月22日</b>：先设直线方程联立，展开后放弃；老师提示“两式相减”后，自己完成因式分解，并说出 <span class="m">x₁+x₂ = 2x₀</span>。</p><p><b>9月24日</b>：自己接上中点关系并求出 <span class="m">k = −3/2</span>；“相减”这一步仍由老师提示。</p>') },
+  { id:'c-focal', folder:'卡片', title:'焦点弦长', type:'card', tags:['数学','圆锥曲线'], parent:'t-chord', source:{ file:'k-conic', where:'焦点弦' },
+    review:{ learned:false }, history:[], excerpt:'过焦点的弦长如何表达。',
+    body:cardBody('<p>过椭圆 <span class="m">x²/4 + y²/3 = 1</span> 左焦点、倾斜角 45° 的弦长是多少？</p>','<p>用焦半径公式或联立后用弦长公式。</p>','') },
+  { id:'c-ellipse', folder:'卡片', title:'椭圆的第一定义', type:'card', tags:['数学','圆锥曲线'], source:{ file:'k-conic', where:'定义' },
+    review:{ learned:true, mastery:2, next:'2026-09-22' },
+    history:[{ date:'2026-09-19', actor:'课堂评估', items:[['用定义判断轨迹','demonstrated']], note:'独立完成。' }],
+    excerpt:'到两定点距离之和为常数。', body:cardBody('<p>说明为什么要求“常数大于两定点距离”。</p>','<p>等于时轨迹是线段，小于时不存在。</p>','<p>能用三角形两边之和解释。</p>') },
+  { id:'c-basis', folder:'卡片', title:'基底与坐标表示', type:'card', tags:['数学','向量'], source:{ file:'m-vector', where:'第 1 页区域' },
+    review:{ learned:true, mastery:2, next:'2026-09-24' },
+    history:[{ date:'2026-09-23', actor:'自评', items:[['用两个不共线向量表示任一向量','demonstrated']], note:'自己做了讲义第 1 页的例题。' },
+             { date:'2026-09-21', actor:'课堂评估', items:[['用两个不共线向量表示任一向量','demonstrated'],['说明表示的唯一性','not_observed']], note:'唯一性由老师讲解，学生还没有自己说明。' }],
+    excerpt:'两个不共线向量可以表示平面内任一向量。',
+    body:cardBody('<p>为什么两个不共线向量可以表示平面内任一向量？表示为什么唯一？</p>','<p>存在性用平行四边形法则；唯一性用反证：两种表示相减得零向量的非平凡组合，与不共线矛盾。</p>','<p>能画图说明存在性；唯一性还没有自己说过。</p>') },
+  { id:'c-telescope', folder:'卡片', title:'裂项相消求和', type:'card', tags:['数学','数列'], source:{ file:'k-seq', where:'裂项' },
+    review:{ learned:true, mastery:4, next:'2026-09-30' },
+    history:[{ date:'2026-09-14', actor:'课堂评估', items:[['构造裂项','demonstrated'],['检查首尾剩余项','demonstrated']], note:'换题面后独立完成。' }],
+    excerpt:'1/(n(n+1)) 型求和。', body:cardBody('<p>求 <span class="m">Σ 1/(n(n+1))</span> 的前 n 项和。</p>','<p>拆成 <span class="m">1/n − 1/(n+1)</span>。</p>','<p>能自己想到拆项并检查首尾。</p>') },
+  { id:'c-shift', folder:'卡片', title:'错位相减求和', type:'card', tags:['数学','数列'], source:{ file:'k-seq', where:'错位相减' },
+    review:{ learned:false }, history:[], excerpt:'等差乘等比型数列。', body:cardBody('<p>求 <span class="m">Σ n·2ⁿ</span> 的前 n 项和。</p>','<p>乘 2 后错一位相减。</p>','') },
+  { id:'c-detail', folder:'卡片', title:'细节描写：以小见大', type:'card', tags:['语文','作文'], source:{ file:'m-essay', where:'第 2 页区域' },
+    review:{ learned:true, mastery:3, next:'2026-09-24' },
+    history:[{ date:'2026-09-21', actor:'课堂评估', items:[['找出承载情感的细节','demonstrated'],['在自己的作文里使用细节','needs_practice']], note:'能分析原文；自己的初稿仍以直接抒情为主。' }],
+    excerpt:'用一个具体动作承载情感。', body:cardBody('<p>“她忽然不说了”——这个细节承载了什么？</p>','<p>母亲回避“跑”“踩”等字眼，体现对儿子的体贴。</p>','<p>能说出回避的原因；自己写作时还不常用细节。</p>') },
+  { id:'c-thread', folder:'卡片', title:'记叙文的情感线索', type:'card', tags:['语文','作文'], source:{ file:'m-essay', where:'第 1 页' },
+    review:{ learned:false }, history:[], excerpt:'看花 → 未能看花 → 看花。', body:cardBody('<p>梳理《秋天的怀念》中“看花”的线索。</p>','<p>三次“看花”对应情感的变化。</p>','') },
+  { id:'i-diff', folder:'锦囊', title:'二次式相减会暴露线性关系', type:'insight', tags:['数学','方法'], links:['c-midchord','c-focal'],
+    excerpt:'和与差的因式分解，是许多“中点”问题的共同入口。', body:'<h2>内容</h2><p>两个满足同一二次方程的点，相减后二次项分解成“和 × 差”。和常与中点有关，差的比常是斜率。</p><h2>案例</h2><p>中点弦的斜率；焦点弦长。</p>' },
+  { id:'r-conic', folder:'路线', title:'圆锥曲线', type:'route', tags:['数学'], excerpt:'3 个阶段 · 6 节课', body:'<h2>目标</h2><p>能独立处理直线与圆锥曲线的常见综合题，并解释点差法为什么成立。</p>' },
+  { id:'r-vector', folder:'路线', title:'向量入门', type:'route', tags:['数学'], excerpt:'2 个阶段 · 3 节课', body:'<h2>目标</h2><p>用坐标语言描述向量，能说明基底表示的存在性与唯一性。</p>' },
+  { id:'s-0922', folder:'课堂小结', title:'向量 · 基底', type:'lesson-summary', tags:['数学'], date:'2026-09-22', excerpt:'能用两个不共线向量表示任一向量；唯一性还需要自己说一遍。',
+    body:'<p>能用两个不共线向量表示平面内任一向量，并画图说明。唯一性由老师讲解，学生还没有自己说明，下次先请学生讲。</p>' },
+  { id:'s-0918', folder:'课堂小结', title:'椭圆的定义与标准方程', type:'lesson-summary', tags:['数学'], date:'2026-09-18', excerpt:'能用定义判断轨迹；标准方程推导跟着老师完成。',
+    body:'<p>能用定义判断轨迹，并解释常数为什么要大于两定点距离。标准方程的推导跟着老师完成。</p>' },
+  { id:'s-0915', folder:'课堂小结', title:'向量与坐标', type:'lesson-summary', tags:['数学'], date:'2026-09-15', excerpt:'坐标运算熟练。', body:'<p>坐标运算熟练，能说明向量相等与坐标相等的关系。</p>' },
+  { id:'p-profile', folder:'学情', title:'倾向先代数展开', type:'learner-profile', tags:[], excerpt:'2026 年 9 月的三次任务中，先尝试代数展开。',
+    body:'<p>2026 年 9 月的三次任务中，倾向先进行代数展开，尚未主动调用几何表征。这是一条观察，等待后续复核。</p>' },
+  { id:'d-0920', folder:'日记', title:'2026-09-20', type:'daily', tags:[], date:'2026-09-20', excerpt:'周末把数列题整理了一遍。', body:'<p>周末把数列题整理了一遍，错位相减还是容易漏项。</p>' },
+];
+
+const LESSONS = [
+  { id:'l1', seed:true, title:'圆锥曲线 · 中点弦与点差法', when:'今天', live:true, route:'r-conic', node:'n2',
+    settings:{ goal:'会用点差法处理中点弦问题', method:'socratic', subject:'数学', deadline:'', minutes:'40', note:'', persona:'' },
+    messages:[
+      { role:'user', refs:[{ file:'k-conic', label:'圆锥曲线 · 点差法' }], text:'椭圆 x²/4 + y²/3 = 1 中，弦 AB 的中点是 M(1, ½)，求直线 AB 的斜率。我设了直线方程代进去，算得很乱。' },
+      { role:'step', label:'查看相关卡片与学情', items:['卡片「中点弦的斜率」','学情条目「倾向先代数展开」'] },
+      { role:'ai', html:'<p>先不急着展开。把 <span class="m">A(x₁, y₁)</span>、<span class="m">B(x₂, y₂)</span> 分别代进椭圆方程，你会得到两个式子。</p><p><b>如果把这两个式子相减</b>，你觉得会出现什么结构？</p><p class="hint">小提示：看看 <span class="m">x₁² − x₂²</span> 能写成什么形状。</p>' },
+      { role:'user', text:'相减得 (x₁² − x₂²)/4 + (y₁² − y₂²)/3 = 0，然后因式分解？x₁ + x₂ 就是 2，y₁ + y₂ 是 1。' },
+      { role:'worker', worker:'题目研究员', state:'分析完成 · 已交给老师' },
+      { role:'ai', html:'<p>对，中点关系是你自己接上的。现在式子里还剩 <span class="m">(x₁ − x₂)</span> 和 <span class="m">(y₁ − y₂)</span>——斜率就藏在它们的比里。你来写出 <span class="m">k</span>。</p>' },
+      { role:'user', text:'2(x₁ − x₂)/4 + (y₁ − y₂)/3 = 0，所以 k = −3/2。' },
+      { role:'receipt', file:'c-midchord', items:[['用两式相减建立斜率与中点的关系','demonstrated'],['未经提示主动想到相减','not_observed']] },
+      { role:'ai', html:'<p><span class="m">k = −3/2</span>，完全正确。</p><p>我在题卡里补上了你今天的思路变化。下次复习会换一个题面，看看你能不能<b>不经提示</b>就想到相减。</p>' },
+    ] },
+  { id:'l2', seed:true, title:'向量 · 基底', when:'9月22日', route:'r-vector', node:'v2', summary:'s-0922',
+    settings:{ goal:'理解基底表示', method:'feynman', subject:'数学', deadline:'', minutes:'', note:'', persona:'' },
+    messages:[{ role:'user', text:'为什么两个不共线的向量就能表示所有向量？' },{ role:'ai', html:'<p>你先试着用自己的话讲一遍：给你一个任意向量，你会怎么把它“拆”到这两个方向上？</p>' }] },
+  { id:'l3', seed:true, title:'作文批改：秋天的怀念', when:'9月21日',
+    settings:{ goal:'学会用细节承载情感', method:'structural', subject:'语文', deadline:'', minutes:'', note:'', persona:'' },
+    messages:[{ role:'user', text:'这是我的初稿，老师说太空了。' },{ role:'ai', html:'<p>先找一句你最想让读者感受到的话。我们看看能不能把它换成一个具体的动作或画面。</p>' }] },
+  { id:'l4', seed:true, title:'数列求和练习', when:'9月19日',
+    settings:{ goal:'', method:'socratic', subject:'数学', deadline:'', minutes:'', note:'', persona:'' },
+    messages:[{ role:'user', text:'错位相减总是漏最后一项。' },{ role:'ai', html:'<p>我们把相减后的两行对齐写出来，你来标一标哪些项能配对。</p>' }] },
+  { id:'l5', seed:true, title:'椭圆的定义与标准方程', when:'9月18日', route:'r-conic', node:'n1', summary:'s-0918',
+    settings:{ goal:'', method:'lecture', subject:'数学', deadline:'', minutes:'', note:'', persona:'' },
+    messages:[{ role:'user', text:'椭圆的定义里为什么要求常数大于两定点距离？' },{ role:'ai', html:'<p>好问题。先想想：如果正好等于，动点会在哪里？</p>' }] },
+];
+
+const ROUTES = [
+  { id:'r-conic', seed:true, title:'圆锥曲线', goal:'能独立处理直线与圆锥曲线的常见综合题，并解释点差法为什么成立。', stages:['定义与方程','弦与斜率','综合与拓展'],
+    nodes:[
+      { id:'n1', stage:0, title:'椭圆的定义与标准方程', pathway:'main', lesson:'l5', summary:'s-0918', date:'2026-09-18' },
+      { id:'n2', stage:1, title:'中点弦与点差法', pathway:'main', lesson:'l1', date:'2026-09-22', prereq:['n1'] },
+      { id:'n2b', stage:1, title:'点差法变式练习', pathway:'remedial', condition:'中点弦仍需要提示“两式相减”时再走' },
+      { id:'n3', stage:1, title:'焦点弦与弦长', pathway:'main', date:'2026-09-24', prereq:['n1'] },
+      { id:'n4', stage:2, title:'直线与圆锥曲线综合', pathway:'main', prereq:['n2','n3'] },
+      { id:'n5', stage:2, title:'极点与极线', pathway:'extension', condition:'想继续追问“为什么点差能工作”时' },
+    ] },
+  { id:'r-vector', seed:true, title:'向量入门', goal:'用坐标语言描述向量，能说明基底表示的存在性与唯一性。', stages:['坐标语言','运算'],
+    nodes:[
+      { id:'v1', stage:0, title:'向量与坐标', pathway:'main', summary:'s-0915', date:'2026-09-15' },
+      { id:'v2', stage:0, title:'基底', pathway:'main', lesson:'l2', summary:'s-0922', date:'2026-09-22' },
+      { id:'v3', stage:1, title:'数量积', pathway:'main', prereq:['v2'] },
+    ] },
+];
+
+const TEACHING_CHOICES = [
+  ['socratic','苏格拉底','从学生能动手的一小步开始，一次一个问题，观察他的独立表现。'],
+  ['feynman','费曼法','先让学生用自己的话讲清楚，再一起找出解释里的缺口。'],
+  ['lecture','讲解式','先讲清结构与完整例子，再用独立任务检验理解。'],
+  ['structural','结构分析','先看清条件、目标与不变关系，再决定表示和方法。'],
+];
+const SKILLS = ['找卡片与资料','书籍拆解与资料整理','作文批改','讲义整理','学习经历与方法整理','学习复盘与建议','备课','路线规划'];
+const MORE_SKILLS = ['教学反思与沉淀','数学关注','物理关注','化学关注','计算机关注','语文关注','英语关注','其他自然科学与综合探究','其他人文与语言学习','后台任务编排','Vault 工作流'];
+const WORKERS = [
+  ['题目研究员','独立研究一道完整题，理解原解并交付题卡。','b-ok','分析完成'],
+  ['课时备课员','按课程框架完善一节课的讲练与教师参考。','b-muted','待命'],
+  ['核验员','针对具体疑点核对原文和产物，给出依据与修改建议。','b-muted','待命'],
+  ['通用工作员','独立研究完整知识单元，解释动机、条件与联系；也可查阅资料和整理证据。','b-muted','待命'],
+  ['出题员','围绕学习目标设计小测和变式，并先自行检查解答。','b-danger','未启用'],
+];
+const TEMPLATES = [['知识卡片','一题一卡：内容 / 参考理解 / 学生理解'],['锦囊','可迁移的方法或洞见'],['教学专题','把同类题挂在一起'],['学情条目','一条有日期、有证据的观察'],['备课页','一节课的目标、任务与教师参考'],['课堂剧本','分阶段的课堂脚本'],['学习路线','阶段、主线与先修'],['源目录','原书结构']];
+
+// 公式片段里的 Unicode 下标换成 <sub>，避免衬线斜体缺字形时回退到间距不一致的字体。
+const mathSubs = html => html.replace(/<span class="m">([^<]*)<\/span>/g, (_, s) => `<span class="m">${s.replace(/[₀-₉]/g, c => `<sub>${c.charCodeAt(0) - 0x2080}</sub>`)}</span>`);
+for (const f of FILES) if (f.body) f.body = mathSubs(f.body);
+for (const l of LESSONS) for (const m of l.messages) if (m.html) m.html = mathSubs(m.html);
+
+/* ============================ 状态 ============================ */
+const S = {
+  route:{ name:'today' }, theme:'light', style:'modern',
+  debug:false, empty:false, sideOpen:false, protoOpen:false,
+  lib:{ view:'files', file:'c-midchord', type:'all', status:'all', tag:null, query:'', group:false, collapsed:{}, graphSel:'c-midchord', graphTag:null, graphCenter:null, pdfSelect:false },
+  plan:{ view:'routes', route:'r-conic', node:null, month:'2026-09', date:TODAY, filter:'due', sel:'c-midchord' },
+  lessonTab:{}, companion:{ l1:{ view:'file', file:'c-midchord' } }, split:46,
+  drafts:{}, refs:{}, reviewForm:null, moreSkills:false, lastLesson:'l1', scrollChat:true, created:0,
+};
+
+/* ============================ 工具 ============================ */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const ICON = {
+  today:'M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0',
+  library:'M4 19.5V5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-1.5ZM4 19.5A2 2 0 0 1 6 18h12M9 7h5',
+  plan:'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM6 15V9a4 4 0 0 1 4-4h6M18 9v6a4 4 0 0 1-4 4H8',
+  plus:'M12 5v14M5 12h14', search:'M21 21l-5-5M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0', more:'M5 12h.01M12 12h.01M19 12h.01',
+  close:'m6 6 12 12M18 6 6 18', menu:'M4 6h16M4 12h16M4 18h16', split:'M12 3v18M3 3h18v18H3z',
+  chat:'M21 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 19 0Z', graph:'M12 5 5 19m7-14 7 14M5 19h14M10 3h4v4h-4zM3 17h4v4H3zM17 17h4v4h-4z',
+  cards:'M4 8h12v12H4zM8 4h12v12', calendar:'M4 5h16v16H4zM4 10h16M8 3v4M16 3v4', file:'M14 3H6v18h12V7zM14 3v4h4',
+  settings:'M4 8h9M17 8h3M4 16h3M11 16h9M15 5v6M7 13v6', gear:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1',
+  up:'M12 19V5M5 12l7-7 7 7', clip:'M21 11.5 12.6 20a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L15.5 7.5',
+  slash:'m7 17 6-10M3 5h18v14H3z', right:'m9 6 6 6-6 6', left:'m15 6-6 6 6 6', down:'m6 9 6 6 6-6', check:'M5 12l5 5L20 7',
+  target:'M12 2v4M12 18v4M2 12h4M18 12h4M19 12a7 7 0 1 1-14 0 7 7 0 0 1 14 0', users:'M16 20v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 20v-1a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
+  log:'M5 4h14v16H5zM8 9h8M8 13h8M8 17h5', upload:'M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5', extract:'M4 3h16v18H4zM8 7h8M8 11h8M8 15h4',
+  minus:'M5 12h14', fit:'M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5', copy:'M8 8h13v13H8zM16 8V3H3v13h5', undo:'M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3',
+  folder:'M3 6h6l2 2h10v11H3z', sparkle:'M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2 2M16 16l2 2M6 18l2-2M16 8l2-2', flag:'M5 21V4h12l-2 4 2 4H5',
+};
+function icon(name, size = 16) {
+  return `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[name] || ICON.more}"/></svg>`;
+}
+const act = (name, arg = '', extra = '') => `data-act="${name}"${arg !== '' ? ` data-arg="${esc(arg)}"` : ''} ${extra}`;
+function addDays(day, n) { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+function diffDays(a, b) { return Math.round((new Date(a + 'T12:00:00Z') - new Date(b + 'T12:00:00Z')) / 86400000); }
+function md(day) { const [, m, d] = day.split('-').map(Number); return `${m}月${d}日`; }
+function wd(day) { return '星期' + '日一二三四五六'[new Date(day + 'T12:00:00Z').getUTCDay()]; }
+
+const files = () => S.empty ? FILES.filter(f => f.created) : FILES;
+const file = id => FILES.find(f => f.id === id);
+const lessons = () => S.empty ? LESSONS.filter(l => !l.seed) : LESSONS;
+const lesson = id => LESSONS.find(l => l.id === id);
+const routes = () => S.empty ? ROUTES.filter(r => !r.seed) : ROUTES;
+const route = id => ROUTES.find(r => r.id === id);
+const fileLabel = f => f.type === 'pdf' ? `${f.title}.pdf` : f.title;
+
+function reviewState(f) {
+  const r = f.review; if (!r) return null;
+  if (!r.learned) return { key:'pending', label:'待评估', cls:'b-muted' };
+  const late = diffDays(TODAY, r.next);
+  if (late >= 0) return { key:'due', label: late > 0 ? `逾期 ${late} 天` : '今日到期', cls:'b-review' };
+  return { key: r.mastery >= 4 ? 'familiar' : 'learning', label:`第 ${r.mastery} 档 · ${md(r.next)}`, cls:'b-muted' };
+}
+function reviewCards(filter) {
+  return files().filter(f => f.type === 'card' && f.review).filter(f => {
+    const r = f.review;
+    if (filter === 'all') return true;
+    if (filter === 'pending') return !r.learned;
+    if (!r.learned) return false;
+    if (filter === 'due') return r.next <= TODAY;
+    if (filter === 'learning') return r.mastery <= 3;
+    return r.mastery >= 4;
+  }).sort((a, b) => (a.review.next || '9') .localeCompare(b.review.next || '9'));
+}
+function nodeState(n) {
+  if (n.summary) return { key:'summary', label:'有小结', cls:'b-summary' };
+  if (n.lesson) return { key:'open', label:'已开课', cls:'b-lesson' };
+  if (n.date) return { key:'scheduled', label:`已安排 ${md(n.date)}`, cls:'b-accent' };
+  return { key:'plan', label:'计划中', cls:'b-muted' };
+}
+const PATHWAY = { main:'主线', remedial:'条件补练', extension:'拓展' };
+function calendarEvents() {
+  const ev = [];
+  for (const r of routes()) for (const n of r.nodes) if (n.date) ev.push({ kind:'lesson', date:n.date, title:n.title, sub:`课程安排 · ${r.title}`, route:r.id, node:n.id });
+  for (const f of files()) {
+    if (f.type === 'lesson-summary') ev.push({ kind:'log', date:f.date, title:f.title, sub:'课堂小结', file:f.id });
+    if (f.type === 'daily') ev.push({ kind:'daily', date:f.date, title:`${md(f.date)} 日记`, sub:'日记', file:f.id });
+    if (f.review?.learned) ev.push({ kind:'due', date:f.review.next, title:f.title, sub:`到期复习 · 第 ${f.review.mastery} 档`, card:f.id });
+    for (const h of f.history || []) ev.push({ kind:'review', date:h.date, title:f.title, sub:`评估记录 · ${h.actor}`, card:f.id });
+  }
+  return ev;
+}
+const KIND = { lesson:['课程安排','k-lesson'], log:['课堂小结','k-log'], due:['到期复习','k-due'], review:['评估记录','k-review'], daily:['日记','k-daily'] };
+
+/* ============================ 渲染：侧栏 ============================ */
+function sideHTML() {
+  const r = S.route.name, dueCount = reviewCards('due').length;
+  const ls = lessons(), live = ls.filter(l => l.live), recent = ls.filter(l => !l.live);
+  const row = l => `<button class="lesson-row" ${act('nav', '#/lesson/' + l.id)} ${S.route.name === 'lesson' && S.route.id === l.id ? 'aria-current="page"' : ''} title="${esc(l.title)}"><i class="dot${l.live ? ' live' : ''}"></i><span>${esc(l.title)}</span><time>${esc(l.when)}</time></button>`;
+  return `
+    <div class="brand"><span class="brand-mark" aria-hidden="true">拾</span><span class="brand-name">Notara<em>·</em>拾页</span></div>
+    <button class="new-lesson" ${act('new-lesson')}>${icon('plus')}新的一课</button>
+    <nav class="nav" aria-label="学习导航">
+      <button class="nav-row" ${act('nav', '#/today')} ${r === 'today' ? 'aria-current="page"' : ''}>${icon('today')}今日${dueCount ? `<span class="nav-count" title="${dueCount} 张卡片今日到期">${dueCount}</span>` : ''}</button>
+      <button class="nav-row" ${act('nav', '#/library/' + S.lib.view)} ${r === 'library' ? 'aria-current="page"' : ''}>${icon('library')}资料库</button>
+      <button class="nav-row" ${act('nav', '#/plan/' + S.plan.view)} ${r === 'plan' ? 'aria-current="page"' : ''}>${icon('plan')}计划</button>
+    </nav>
+    <div class="side-label">课堂</div>
+    <div class="side-lessons">
+      ${ls.length ? `${live.map(row).join('')}${recent.map(row).join('')}` : '<div class="side-empty">还没有课堂。点「新的一课」开始。</div>'}
+    </div>
+    <div class="side-foot">
+      <button class="nav-row" ${act('app-settings')}>${icon('gear')}设置</button>
+      <div class="conn"><i></i>已连接 · Notara Vault</div>
+    </div>`;
+}
+
+/* ============================ 渲染：今日 ============================ */
+function todayHTML() {
+  const head = `
+    <div class="today-date">${md(TODAY)} ${wd(TODAY)}</div>
+    <h1>今天想学点什么？</h1>
+    <form class="launch" data-form="launch">
+      <label class="sr" for="launch-input">开始新的一课</label>
+      <textarea id="launch-input" name="text" rows="2" placeholder="输入一道题和你的尝试，或者说说今天想学什么…">${esc(S.drafts.launch || '')}</textarea>
+      <div class="bar">
+        <button type="button" class="icon-btn sm" title="添加附件" aria-label="添加附件" ${act('toast', '（原型）打开原生附件选择')}>${icon('clip')}</button>
+        <button type="button" class="model-btn" ${act('skills', 'launch')}>${icon('slash', 14)}指令</button>
+        <button type="submit" class="send" aria-label="开始新的一课">${icon('up')}</button>
+      </div>
+    </form>
+    <div class="quick">
+      <button class="chip" ${act('nav', '#/library/files')}>${icon('upload', 14)}从一份资料开始</button>
+      <button class="chip" ${act('launch-skill', '路线规划')}>${icon('plan', 14)}规划一条学习路线</button>
+      <button class="chip" ${act('launch-skill', '学习复盘与建议')}>${icon('sparkle', 14)}复盘最近的学习</button>
+    </div>`;
+  if (S.empty) return `<div class="today">${head}
+    <div class="panel"><div class="panel-head"><h2>这是一个全新的学习空间</h2><span class="sub">学到的东西都会保存成你自己的 Markdown 文件</span></div>
+      <div class="onboard">
+        <div class="card"><span class="step-no">1</span><h3>从一道题开始</h3><p>在上面的输入框写下题目和你的尝试。老师会从你能自己动手的那一步开始。</p><button class="btn sm" ${act('focus-launch')}>写一道题</button></div>
+        <div class="card"><span class="step-no">2</span><h3>带一份资料</h3><p>把讲义、课本 PDF 放进资料库，再带入对话一起拆书、讨论。</p><button class="btn sm" ${act('nav', '#/library/files')}>打开资料库</button></div>
+        <div class="card"><span class="step-no">3</span><h3>规划一条路线</h3><p>告诉老师你的目标和时间，一起排出阶段、主线和需要先补的内容。</p><button class="btn sm" ${act('launch-skill', '路线规划')}>让老师规划</button></div>
+      </div></div></div>`;
+
+  const due = reviewCards('due'), pending = reviewCards('pending');
+  const todays = calendarEvents().filter(e => e.date === TODAY && e.kind === 'lesson');
+  const recent = lessons().slice(0, 3);
+  const logs = files().filter(f => f.type === 'lesson-summary').sort((a, b) => b.date.localeCompare(a.date)).slice(0, 2);
+  const daily = files().find(f => f.type === 'daily' && f.date === TODAY);
+  const reviewPanel = `<section class="panel" aria-label="今天要复习">
+      <div class="panel-head"><h2>今天要复习</h2><span class="sub">按间隔复习排期</span><button class="btn sm act" ${act('nav', '#/plan/review')}>全部复习</button></div>
+      <div class="stat"><div><b>${due.length}</b><span>张到期（含逾期）</span></div><div><b>${pending.length}</b><span>张待评估</span></div></div>
+      <div class="rows">${due.length ? due.slice(0, 4).map(f => { const st = reviewState(f); return `
+        <div class="row"><div class="row-main"><b>${esc(f.title)}</b><small>${esc(f.tags.join(' · '))}</small></div>
+          <span class="badge ${st.cls}">${st.label}</span>
+          <button class="btn sm" ${act('bring', f.id, `data-intent="review"`)}>让老师带我复习</button></div>`; }).join('') : '<div class="empty"><b>今天没有到期的卡片</b>可以去资料库看看待评估的卡片。</div>'}</div>
+    </section>`;
+  const continuePanel = `<section class="panel" aria-label="继续学习">
+      <div class="panel-head"><h2>继续学习</h2></div>
+      <div class="rows">${recent.map(l => `<button class="row" ${act('nav', '#/lesson/' + l.id)}>
+          <i class="dot${l.live ? ' live' : ''}"></i><div class="row-main"><b>${esc(l.title)}</b><small>${esc(lastLine(l))}</small></div><span class="muted">${esc(l.when)}</span></button>`).join('')}</div>
+    </section>`;
+  const lessonPanel = `<section class="panel" aria-label="今天的课">
+      <div class="panel-head"><h2>今天的课</h2></div>
+      ${todays.length ? todays.map(e => { const r = route(e.route), n = r.nodes.find(x => x.id === e.node); return `
+        <div class="lesson-today"><div class="row-main"><b>${esc(n.title)}</b><small>${esc(r.title)} · ${PATHWAY[n.pathway]} · 第 ${r.nodes.indexOf(n) + 1} 节</small></div>
+        ${n.lesson ? `<button class="btn sm" ${act('nav', '#/lesson/' + n.lesson)}>回到这节课</button>` : `<button class="btn sm primary" ${act('node-start', r.id + ':' + n.id)}>开始这节课</button>`}</div>`; }).join('')
+        : `<div class="empty"><b>今天没有安排课程</b><button class="btn sm" ${act('nav', '#/plan/calendar')}>去日历安排</button></div>`}
+    </section>`;
+  const routePanel = `<section class="panel" aria-label="路线">
+      <div class="panel-head"><h2>路线</h2><button class="btn sm ghost act" ${act('nav', '#/plan/routes')}>查看</button></div>
+      ${routes().map(r => { const total = r.nodes.length, c = k => r.nodes.filter(n => nodeState(n).key === k).length;
+        const next = r.nodes.find(n => n.pathway === 'main' && !n.lesson && !n.summary);
+        return `<button class="row" ${act('route-open', r.id)} style="display:block">
+          <div class="row-main"><b>${esc(r.title)}</b><small>${total} 节 · 有小结 ${c('summary')} · 已开课 ${c('open')}</small></div>
+          <div class="progress" aria-hidden="true"><i style="width:${c('summary') / total * 100}%;background:var(--summary)"></i><i style="width:${c('open') / total * 100}%;background:var(--lesson)"></i><i style="width:${c('scheduled') / total * 100}%;background:var(--accent);opacity:.55"></i></div>
+          ${next ? `<small class="muted">下一节（计划）：${esc(next.title)}</small>` : ''}</button>`; }).join('')}
+      <div class="legend" style="margin-top:8px"><span><i style="background:var(--summary)"></i>有小结</span><span><i style="background:var(--lesson)"></i>已开课</span><span><i style="background:var(--accent);opacity:.55"></i>已安排</span></div>
+      <p class="hint" style="margin:8px 0 0">进度只统计开课与小结，不代表已经掌握。</p>
+    </section>`;
+  const logPanel = `<section class="panel" aria-label="最近的课堂小结">
+      <div class="panel-head"><h2>最近的课堂小结</h2></div>
+      <div class="rows">${logs.map(f => `<button class="row" ${act('open-file', f.id)}><div class="row-main"><b>${esc(f.title)}</b><small>${esc(f.excerpt)}</small></div><span class="muted">${md(f.date)}</span></button>`).join('')}</div>
+    </section>`;
+  const dailyPanel = `<section class="panel" aria-label="今日日记"><div class="panel-head"><h2>日记</h2><span class="sub">${daily ? '今天已经写过' : '今天还没有日记'}</span>
+      <button class="btn sm act" ${act('open-daily', TODAY)}>${daily ? '打开今天的日记' : '新建今天的日记'}</button></div></section>`;
+  return `<div class="today">${head}<div class="today-grid"><div class="today-col">${reviewPanel}${continuePanel}</div><div class="today-col">${lessonPanel}${routePanel}${logPanel}${dailyPanel}</div></div></div>`;
+}
+function lastLine(l) {
+  const m = [...l.messages].reverse().find(x => x.role === 'ai' || x.role === 'user');
+  if (!m) return '还没有开始';
+  return (m.text || m.html.replace(/<[^>]+>/g, '')).slice(0, 40);
+}
+
+/* ============================ 渲染：课堂 ============================ */
+function lessonHTML(id) {
+  const L = lesson(id);
+  if (!L || (S.empty && L.seed)) return `<div class="empty" style="margin-top:80px"><b>这节课已经不在列表里</b><button class="btn sm" ${act('nav', '#/today')}>回到今日</button></div>`;
+  const tab = S.lessonTab[id] || (id === 'l1' ? 'board' : 'chat'), comp = tab === 'board' ? null : S.companion[id];
+  const choice = TEACHING_CHOICES.find(c => c[0] === L.settings.method);
+  const tabs = [['board', '白板'], ['chat', '对话'], ['room', '教室']]; if (S.debug) tabs.push(['trace', '轨迹']);
+  const cols = comp ? `minmax(0,${100 - S.split}fr) 1px minmax(0,${S.split}fr)` : 'minmax(0,1fr)';
+  return `<div class="lesson">
+    <header class="lesson-head">
+      <div class="lh-title"><h1>${esc(L.title)}</h1>
+        <div class="lh-meta"><span class="badge b-accent">${esc(choice ? choice[1] : '教学')}</span>${L.settings.goal ? `<span class="badge b-muted">目标：${esc(L.settings.goal)}</span>` : ''}${L.route ? `<button class="badge b-muted" ${act('companion', 'route')}>${icon('plan', 12)}${esc(route(L.route).title)} · 第 ${route(L.route).nodes.findIndex(n => n.id === L.node) + 1} 节</button>` : ''}</div></div>
+      <div class="lh-actions">
+        <div class="seg" role="tablist" aria-label="课堂视图">${tabs.map(([k, v]) => `<button role="tab" aria-selected="${tab === k}" ${act('lesson-tab', k)}>${v}</button>`).join('')}</div>
+        <button class="btn ghost" ${act('teaching-settings', id)} title="教学设置">${icon('settings')}<span class="label">教学设置</span></button>
+        <button class="btn ghost" ${act('summary', id)} title="总结本课">${icon('log')}<span class="label">总结本课</span></button>
+        <button class="icon-btn" ${act('companion-toggle')} aria-pressed="${!!comp}" title="${comp ? '收起资料面板' : '打开资料面板'}" aria-label="${comp ? '收起资料面板' : '打开资料面板'}">${icon('split')}</button>
+      </div>
+    </header>
+    <div class="lesson-body" style="grid-template-columns:${cols}" ${comp ? 'data-companion' : ''}>
+      <section class="lesson-main" aria-label="${tab === 'board' ? '课堂白板' : tab === 'chat' ? '对话' : tab === 'room' ? '教室' : '轨迹'}">${tab === 'board' ? WB.html(L) : tab === 'chat' ? chatHTML(L) : tab === 'room' ? roomHTML(L) : traceHTML()}</section>
+      ${comp ? `<div class="split-handle" role="separator" aria-orientation="vertical" aria-label="调整资料面板宽度" tabindex="0"></div><aside class="companion" aria-label="资料面板">${companionHTML(L, comp)}</aside>` : ''}
+    </div></div>`;
+}
+function refChip(ref, removable, lessonId, i) {
+  const f = file(ref.file);
+  return `<span class="ref-chip" title="${esc(ref.label)}">${icon(f && f.type === 'pdf' ? 'file' : 'cards', 13)}<span>${esc(ref.label)}</span>${removable ? `<button type="button" aria-label="移除引用" ${act('remove-ref', lessonId + ':' + i)}>${icon('close', 12)}</button>` : ''}</span>`;
+}
+function composerHTML(L, hero) {
+  const refs = S.refs[L.id] || [];
+  return `<form class="composer" data-form="send" data-arg="${L.id}">
+    <div class="refs">${refs.map((r, i) => refChip(r, true, L.id, i)).join('')}</div>
+    <label class="sr" for="draft-${L.id}">给老师发消息</label>
+    <textarea id="draft-${L.id}" name="text" rows="${hero ? 3 : 1}" data-draft="${L.id}" placeholder="${hero ? '输入一道题和你的尝试，或者说说今天想学什么…' : '说说你的想法，或者用 @ 带入资料…'}">${esc(S.drafts[L.id] || '')}</textarea>
+    <div class="bar">
+      <button type="button" class="icon-btn sm" title="添加附件" aria-label="添加附件" ${act('toast', '（原型）打开原生附件选择')}>${icon('clip')}</button>
+      <button type="button" class="model-btn" ${act('skills', L.id)}>${icon('slash', 14)}指令</button>
+      <button type="button" class="model-btn" style="margin-left:auto" ${act('toast', '（原型）模型选择沿用原生控件')}><span class="mlabel">主教师模型 · 高推理</span><span class="mlabel-short">模型</span>${icon('down', 12)}</button>
+      <button type="submit" class="send" style="margin-left:0" aria-label="发送">${icon('up')}</button>
+    </div></form>`;
+}
+function chatHTML(L) {
+  if (!L.messages.length) return `<div class="hero"><div class="hero-inner"><h2>今天想学什么？</h2><p>写下题目和你的尝试。老师会先看你的思路，再决定从哪里开始。</p>${composerHTML(L, true)}
+    <div class="quick" style="margin-bottom:0"><button class="chip" ${act('pick-skill', L.id + ':路线规划')}>路线规划</button><button class="chip" ${act('pick-skill', L.id + ':书籍拆解与资料整理')}>书籍拆解</button><button class="chip" ${act('pick-skill', L.id + ':作文批改')}>作文批改</button><button class="chip" ${act('companion', 'file')}>从资料库带入</button></div></div></div>`;
+  const sys = S.debug ? `<div class="sysrow">系统提示 · 教学预设与本课背景（调试模式可见）</div><div class="sysrow">上下文注入 · 路线节点、学情摘要（调试模式可见）</div>` : '';
+  return `<div class="chat-scroll" id="chat-scroll"><div class="chat-col">${sys}${L.messages.map(m => msgHTML(m, L)).join('')}${L.typing ? `<div class="msg-ai"><span class="avatar">鱼</span><div class="body"><div class="who">大肥鱼 · 老师</div><span class="typing" aria-label="老师正在回复"><i></i><i></i><i></i></span></div></div>` : ''}</div></div>
+    <div class="composer-wrap">${composerHTML(L, false)}<div class="composer-note">老师写入资料前会先征求你的同意 · 学习记录保存在你自己的资料库</div></div>`;
+}
+function msgHTML(m, L) {
+  if (m.role === 'user') return `<div class="msg-user">${(m.refs || []).length ? `<div class="refs">${m.refs.map(r => refChip(r, false)).join('')}</div>` : ''}${m.text ? `<div class="bubble">${esc(m.text)}</div>` : ''}</div>`;
+  if (m.role === 'ai') return `<div class="msg-ai"><span class="avatar" aria-hidden="true">鱼</span><div class="body"><div class="who">大肥鱼 · 老师</div>${m.html}</div></div>`;
+  if (m.role === 'step') return `<details class="step"><summary>${icon('right', 12)}${esc(m.label)}</summary><ul>${m.items.map(x => `<li>${esc(x)}</li>`).join('')}${S.debug ? '<li class="muted">（调试模式）完整命令与输出</li>' : ''}</ul></details>`;
+  if (m.role === 'worker') return `<div class="worker-row">${icon('users')}<div class="row-main"><b>${esc(m.worker)} · ${esc(m.state)}</b><small>后台结果只交给老师，老师会用自己的方式讲给你。</small></div><button class="btn sm ghost" ${act('lesson-tab', 'room')}>查看教室</button></div>`;
+  if (m.role === 'receipt') { const f = file(m.file); return `<div class="receipt">${icon('check', 14)} 已记录本题评估：${m.items.map(([a, o]) => `「${esc(a)}」<span class="badge ${OUTCOME[o][1]}">${OUTCOME[o][0]}</span>`).join('　')}<br>已更新题卡 <button class="btn sm ghost" style="height:24px;padding:0 6px;color:var(--accent)" ${act('companion-file', f.id)}>《${esc(f.title)}》</button><span class="muted">没有实际困难时不会提前推迟复习。</span></div>`; }
+  return '';
+}
+function roomHTML(L) {
+  return `<div style="overflow:auto;height:100%"><div class="room">
+    <div style="display:flex;align-items:center;gap:8px"><div class="seg small" aria-label="教室视图"><button aria-selected="true">列表</button><button aria-selected="false" ${act('toast', '像素视图由可选插件提供，沿用现有实现')}>像素</button></div><span class="grow" style="flex:1"></span><button class="btn sm" ${act('classroom-settings')}>${icon('settings', 14)}教室设置</button></div>
+    <div class="card teacher"><span class="avatar">鱼</span><div class="row-main"><b style="font-size:16px">大肥鱼 · 主教师</b><small style="white-space:normal">爱吃白饭的鲸鱼娘女仆，陪你理清思路、一步步学会。</small></div><span class="badge b-lesson">${L.typing ? '正在回复' : '等待你的消息'}</span></div>
+    <div><div class="menu-label" style="padding-left:0">后台工作员 · 结果只交给老师</div><div class="workers">${WORKERS.map(([n, d, c, s]) => `<div class="card worker"><div style="display:flex;align-items:center;gap:6px"><b>${n}</b><span class="badge ${c}" style="margin-left:auto">${s}</span></div><p>${d}</p></div>`).join('')}</div></div>
+    <div class="card" style="padding:14px 16px"><div class="panel-head" style="margin-bottom:6px"><h2 style="font-size:14px">后台任务</h2><span class="sub">每个课堂同时一个后台任务</span></div>
+      <div class="row"><div class="row-main"><b>中点弦斜率：独立解题并核对原解</b><small>题目研究员 · 14:26 · 已交给老师</small></div><span class="badge b-ok">分析完成</span><button class="btn sm ghost" ${act('toast', '（原型）打开原生只读子记录')}>查看分析（含完整解法）</button></div></div>
+    <p class="hint">完整解法默认不展示；需要时由你主动打开。</p></div></div>`;
+}
+function traceHTML() { return `<div class="empty" style="margin-top:60px"><b>轨迹（调试模式）</b>这里挂原生轨迹视图，只在「设置 → 调试模式」打开时出现。</div>`; }
+
+function companionHTML(L, comp) {
+  const views = [['file', 'file', '资料'], ['cards', 'cards', '卡片'], ['graph', 'graph', '图谱'], ['route', 'plan', '路线'], ['calendar', 'calendar', '日历']];
+  const title = views.find(v => v[0] === comp.view)[2];
+  let body = '';
+  if (comp.view === 'file') {
+    const f = comp.file && file(comp.file);
+    body = f ? `<div class="comp-actions"><button class="btn sm" ${act('bring-here', f.id)}>${icon('chat', 14)}带入对话</button><button class="btn sm ghost" ${act('open-file', f.id, 'data-global="1"')}>在资料库打开</button></div>${f.type === 'pdf' ? pdfHTML(f) : docHTML(f, true)}`
+      : `<div class="comp-actions"><div class="search" style="width:100%">${icon('search', 14)}<input placeholder="搜索资料…" aria-label="搜索资料" data-bind="lib.query" id="comp-search" value="${esc(S.lib.query)}"></div></div>${fileListHTML(true)}`;
+  } else if (comp.view === 'cards') body = `<div class="rows" style="padding:8px 16px">${files().filter(f => ['card', 'insight', 'topic'].includes(f.type)).map(f => { const st = reviewState(f); return `<button class="row" ${act('companion-file', f.id)}><div class="row-main"><b>${esc(f.title)}</b><small>${TYPE_LABEL[f.type]} · ${esc(f.tags.join(' · '))}</small></div>${st ? `<span class="badge ${st.cls}">${st.label}</span>` : ''}</button>`; }).join('') || '<div class="empty">还没有卡片</div>'}</div>`;
+  else if (comp.view === 'graph') body = `<div class="graph-canvas" style="height:100%;min-height:360px">${graphSVG(true)}</div>`;
+  else if (comp.view === 'route') {
+    const r = L.route ? route(L.route) : routes()[0];
+    body = r ? `<div style="padding:14px 16px"><div class="panel-head"><h2 style="font-size:15px">${esc(r.title)}</h2><button class="btn sm ghost act" ${act('route-open', r.id)}>在计划中打开</button></div>${r.nodes.map((n, i) => { const st = nodeState(n); return `<div class="row" style="${n.id === L.node ? 'background:var(--accent-soft)' : ''}"><span class="muted" style="width:18px">${i + 1}</span><div class="row-main"><b>${esc(n.title)}</b><small>${r.stages[n.stage]} · ${PATHWAY[n.pathway]}</small></div><span class="badge ${st.cls}">${n.id === L.node ? '本节' : st.label}</span></div>`; }).join('')}</div>` : '<div class="empty">还没有学习路线</div>';
+  } else body = `<div style="padding:14px 16px">${agendaHTML(TODAY, true)}</div>`;
+  return `<div class="comp-head"><b>${title}</b>${views.map(([k, ic, lb]) => `<button class="icon-btn sm" ${act('companion', k)} aria-pressed="${comp.view === k}" title="${lb}" aria-label="${lb}">${icon(ic)}</button>`).join('')}<span style="flex:1"></span>
+    ${comp.view === 'file' && comp.file ? `<button class="icon-btn sm" ${act('companion-file', '')} title="返回资料列表" aria-label="返回资料列表">${icon('left')}</button>` : ''}
+    <button class="icon-btn sm" ${act('companion-close')} title="关闭资料面板" aria-label="关闭资料面板">${icon('close')}</button></div><div class="comp-body">${body}</div>`;
+}
+
+/* ============================ 渲染：资料 ============================ */
+function docHTML(f, compact) {
+  const st = reviewState(f), src = f.source && file(f.source.file), parent = f.parent && file(f.parent);
+  return `<article class="doc${compact ? ' compact' : ''}">
+    <h1>${esc(f.title)}</h1>
+    <div class="meta"><span class="badge b-accent">${TYPE_LABEL[f.type]}</span>${f.tags.map(t => `<span class="badge b-muted">#${esc(t)}</span>`).join('')}${st ? `<span class="badge ${st.cls}">${st.label}</span>` : ''}</div>
+    ${src ? `<div class="src-line">↩ 来源：<button ${act(compact ? 'companion-file' : 'open-file', src.id)}>${esc(fileLabel(src))}</button> · ${esc(f.source.where)}${parent ? ` · 属于专题 <button ${act(compact ? 'companion-file' : 'open-file', parent.id)}>${esc(parent.title)}</button>` : ''}</div>` : ''}
+    ${f.body || `<p class="muted">${esc(f.excerpt || '')}</p>`}
+  </article>`;
+}
+function pdfHTML(f) {
+  const sel = S.lib.pdfSelect;
+  return `<div class="pdf"><div class="pdf-bar">
+      <button class="icon-btn sm" aria-label="上一页" disabled>${icon('left')}</button><button class="icon-btn sm" aria-label="下一页">${icon('right')}</button>
+      <span class="hint">第 1 / ${f.pages} 页</span><span style="flex:1"></span>
+      <button class="icon-btn sm" aria-label="缩小">${icon('minus')}</button><span class="hint">110%</span><button class="icon-btn sm" aria-label="放大">${icon('plus')}</button><button class="icon-btn sm" aria-label="适应宽度">${icon('fit')}</button>
+      <button class="btn sm${sel ? ' primary' : ''}" ${act('pdf-select')} aria-pressed="${sel}">${icon('extract', 14)}框选原文区域</button></div>
+    <div class="pdf-stage"><div class="pdf-page" role="img" aria-label="${esc(f.title)} 第 1 页">
+      ${f.id === 'm-essay' ? '<h3>秋天的怀念</h3><p>双腿瘫痪后，我的脾气变得暴怒无常。望着望着天上北归的雁阵，我会突然把面前的玻璃砸碎……</p><p>她忽然不说了。对于“跑”和“踩”一类的字眼儿，她比我还敏感。</p><p>又是秋天，妹妹推我去北海看了菊花。</p>'
+        : '<h3>向量基础</h3><p>基底给出一种坐标语言。平面内任意两个不共线的向量 e₁、e₂ 都可以作为一组基底。</p><p>对平面内任一向量 a，有且只有一对实数 λ₁、λ₂，使 a = λ₁e₁ + λ₂e₂。</p><p>拖拽框选这段原文，可以带入对话或创建区域引用卡片。</p>'}
+      ${sel ? '<div class="pdf-sel" aria-label="已框选区域"></div>' : ''}</div></div>
+    ${sel ? `<div class="pdf-bottom"><span class="hint" style="flex:1;min-width:180px">第 1 页原始区域；公式和图形按原版引用。</span>
+      <button class="btn sm" ${act('bring', f.id, 'data-label="' + esc(f.title) + ' · 第 1 页区域"')}>${icon('chat', 14)}带入选区对话</button>
+      <button class="btn sm" ${act('toast', '（原型）保存高亮：写入 PDF 批注层，绑定当前版本')}>保存高亮</button>
+      <button class="btn sm primary" ${act('toast', '（原型）创建区域引用卡片：保留页码、区域与原版图像')}>创建区域引用卡片</button></div>` : ''}</div>`;
+}
+function fileListHTML(compact) {
+  const q = S.lib.query.trim(), list = files().filter(f => !q || (f.title + (f.excerpt || '') + f.tags.join('')).includes(q));
+  if (!files().length) return `<div class="empty"><b>资料库还是空的</b>导入讲义或新建页面，就会出现在这里。</div>`;
+  return FOLDERS.map(folder => {
+    const items = list.filter(f => f.folder === folder); if (!items.length) return '';
+    const open = S.lib.collapsed[folder] !== true || !!q;
+    return `<div><button class="tree-folder" ${act('fold', folder)} aria-expanded="${open}">${icon('down', 12)}${folder}<em>${items.length}</em></button>
+      ${open ? items.map(f => `<button class="tree-file" ${act(compact ? 'companion-file' : 'open-file', f.id)} ${!compact && S.lib.file === f.id ? 'aria-current="true"' : ''}>${icon(f.type === 'pdf' ? 'file' : f.type === 'route' ? 'plan' : f.type === 'card' ? 'cards' : 'file', 14)}<span>${esc(fileLabel(f))}</span></button>`).join('') : ''}</div>`;
+  }).join('') || '<div class="empty">没有找到匹配的资料</div>';
+}
+function libraryHTML() {
+  const v = S.lib.view;
+  const views = [['files', '文件'], ['cards', '卡片'], ['graph', '图谱']];
+  const body = v === 'files' ? libFilesHTML() : v === 'cards' ? libCardsHTML() : libGraphHTML();
+  return `<div class="page fill"><header class="page-head"><h1>资料库</h1>
+      <div class="seg" role="tablist" aria-label="资料库视图">${views.map(([k, l]) => `<button role="tab" aria-selected="${v === k}" ${act('nav', '#/library/' + k)}>${l}</button>`).join('')}</div>
+      <span class="grow"></span>
+      <div class="search">${icon('search', 14)}<input placeholder="搜索标题、内容或标签…" aria-label="搜索资料库" data-bind="lib.query" id="lib-search" value="${esc(S.lib.query)}"></div>
+      <button class="btn" ${act('new-menu')}>${icon('plus', 14)}新建</button>
+      <button class="btn" ${act('toast', '（原型）导入媒体文件：PDF、图片、音视频、HTML')}>${icon('upload', 14)}导入</button>
+    </header><div class="page-body">${body}</div></div>`;
+}
+function libFilesHTML() {
+  const f = file(S.lib.file), visible = f && files().includes(f);
+  const links = visible ? FILES.filter(x => x.parent === f.id || x.source?.file === f.id || (x.links || []).includes(f.id)) : [];
+  const out = visible ? [f.parent && file(f.parent), f.source && file(f.source.file), ...(f.links || []).map(file)].filter(Boolean) : [];
+  const st = visible && reviewState(f);
+  return `<div class="lib-files">
+    <nav class="tree" aria-label="文件">${fileListHTML(false)}</nav>
+    <div class="reader">
+      <div class="mobile-picker"><select aria-label="选择文件" data-bind="lib.file">${files().map(x => `<option value="${x.id}" ${x.id === S.lib.file ? 'selected' : ''}>${esc(x.folder)} / ${esc(fileLabel(x))}</option>`).join('')}</select></div>
+      ${visible ? (f.type === 'pdf' ? pdfHTML(f) : docHTML(f, false)) : `<div class="empty" style="margin-top:80px"><b>${files().length ? '选择一份资料' : '资料库还是空的'}</b>${files().length ? '' : '导入讲义或新建页面开始。'}</div>`}
+    </div>
+    <aside class="inspector" aria-label="属性">${visible ? `
+      <h3>操作</h3><div class="stack"><button class="btn primary block" ${act('bring', f.id)}>${icon('chat', 14)}带入对话</button>
+        <div style="display:flex;gap:6px"><button class="btn sm" style="flex:1" ${act('graph-focus', f.id)}>${icon('graph', 14)}在图谱中</button>${f.review ? `<button class="btn sm" style="flex:1" ${act('review-open', f.id)}>${icon('calendar', 14)}复习安排</button>` : ''}</div></div>
+      <h3>属性</h3><dl class="props"><div><dt>类型</dt><dd>${TYPE_LABEL[f.type]}</dd></div><div><dt>位置</dt><dd>${esc(f.folder)}</dd></div>
+        ${f.tags.length ? `<div><dt>标签</dt><dd>${f.tags.map(t => `<span class="badge b-muted">#${esc(t)}</span>`).join('')}</dd></div>` : ''}
+        ${st ? `<div><dt>复习</dt><dd><span class="badge ${st.cls}">${st.label}</span></dd></div><div><dt>已开始复习</dt><dd>${f.review.learned ? '是' : '否'}</dd></div>` : ''}</dl>
+      ${out.length ? `<h3>来源与上级</h3><div class="link-list">${out.map(x => `<button ${act('open-file', x.id)}>${icon('right', 12)}${esc(fileLabel(x))}</button>`).join('')}</div>` : ''}
+      ${links.length ? `<h3>拆出与被引用 · ${links.length}</h3><div class="link-list">${links.map(x => `<button ${act('open-file', x.id)}>${icon('cards', 13)}${esc(x.title)}</button>`).join('')}</div>` : ''}` : ''}
+    </aside></div>`;
+}
+function libCardsHTML() {
+  const L = S.lib, q = L.query.trim();
+  const all = files().filter(f => ['card', 'insight', 'topic'].includes(f.type));
+  const tags = [...new Set(all.flatMap(f => f.tags))];
+  const list = all.filter(f => (L.type === 'all' || f.type === L.type) && (!L.tag || f.tags.includes(L.tag)) && (L.status === 'all' || reviewState(f)?.key === L.status) && (!q || (f.title + f.excerpt).includes(q)));
+  const card = f => { const st = reviewState(f), src = f.source && file(f.source.file); return `<button class="card kcard" ${act('open-file', f.id)}>
+      <div class="top"><span class="badge ${f.type === 'insight' ? 'b-review' : f.type === 'topic' ? 'b-summary' : 'b-accent'}">${TYPE_LABEL[f.type]}</span>${st ? `<span class="badge ${st.cls}">${st.label}</span>` : ''}</div>
+      <h3>${esc(f.title)}</h3><p>${esc(f.excerpt)}</p>
+      <div class="src">${src ? `↩ ${esc(fileLabel(src))} · ${esc(f.source.where)}` : f.tags.map(t => '#' + t).join(' ')}</div></button>`; };
+  let grid;
+  if (!all.length) grid = `<div class="empty" style="margin-top:60px"><b>还没有卡片</b>在对话里讨论题目，老师会按模板保存题卡；也可以从 PDF 框选创建区域引用卡片。</div>`;
+  else if (!list.length) grid = `<div class="empty">当前筛选下没有卡片 <button class="btn sm" ${act('cards-clear')}>清除筛选</button></div>`;
+  else if (L.group) { const byTopic = new Map(); for (const f of list) { const k = f.parent ? file(f.parent).title : '未归入专题'; byTopic.set(k, [...(byTopic.get(k) || []), f]); }
+    grid = [...byTopic].map(([k, v]) => `<div class="group-title">${esc(k)} · ${v.length}</div><div class="cards-grid">${v.map(card).join('')}</div>`).join(''); }
+  else grid = `<div class="cards-grid">${list.map(card).join('')}</div>`;
+  return `<div style="display:flex;flex-direction:column;height:100%"><div class="filterbar">
+      ${[['all', '全部'], ['card', '知识卡片'], ['insight', '锦囊'], ['topic', '教学专题']].map(([k, l]) => `<button class="chip" aria-pressed="${L.type === k}" ${act('card-type', k)}>${l}</button>`).join('')}
+      <span class="sep"></span>
+      <select aria-label="复习状态" data-bind="lib.status" class="chip" style="padding-right:4px">${[['all', '全部复习状态'], ['due', '今日到期'], ['pending', '待评估'], ['learning', '复习中'], ['familiar', '熟悉']].map(([k, l]) => `<option value="${k}" ${L.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      ${tags.map(t => `<button class="chip" aria-pressed="${L.tag === t}" ${act('card-tag', t)}>#${esc(t)}</button>`).join('')}
+      <span style="flex:1"></span><label class="hint" style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" data-bind="lib.group" ${L.group ? 'checked' : ''}>按专题分组</label><span class="hint">${list.length} 张</span>
+    </div><div class="cards-scroll">${grid}</div></div>`;
+}
+
+const GRAPH = {
+  pos:{ 'k-conic':[300,170], 't-chord':[470,250], 'c-midchord':[640,200], 'c-focal':[620,330], 'c-ellipse':[210,300], 'i-diff':[800,260], 'k-vector':[140,460], 'm-vector':[300,470], 'c-basis':[440,440],
+    'k-seq':[820,440], 'c-telescope':[700,500], 'c-shift':[900,540], 'm-essay':[120,120], 'c-detail':[80,230], 'c-thread':[230,60], 'p-profile':[560,560], 'r-conic':[930,120] },
+};
+function graphData() {
+  const nodes = files().filter(f => GRAPH.pos[f.id]);
+  const has = id => nodes.some(n => n.id === id), edges = [];
+  for (const f of nodes) {
+    if (f.source && has(f.source.file)) edges.push([f.source.file, f.id, 'split']);
+    if (f.parent && has(f.parent)) edges.push([f.parent, f.id, 'split']);
+    for (const l of f.links || []) if (has(l)) edges.push([f.id, l, 'ref']);
+  }
+  edges.push(...[['k-conic', 't-chord', 'split'], ['c-basis', 'k-vector', 'ref']].filter(([a, b]) => has(a) && has(b)));
+  return { nodes, edges };
+}
+function graphRole(id, edges) {
+  const f = file(id);
+  if (f.type === 'insight') return 'insight';
+  const out = edges.filter(e => e[0] === id && e[2] === 'split').length, any = edges.some(e => e[0] === id || e[1] === id);
+  if (!any) return 'iso';
+  if (out && !edges.some(e => e[1] === id && e[2] === 'split')) return 'source';
+  return out ? 'mid' : 'leaf';
+}
+function graphSVG(compact) {
+  const { nodes, edges } = graphData();
+  if (!nodes.length) return '<div class="empty" style="padding-top:80px"><b>图谱还是空的</b>资料之间有拆分或引用后，这里会出现关系。</div>';
+  const L = S.lib, center = L.graphCenter;
+  const keep = id => { const f = file(id);
+    if (L.graphTag && !f.tags.includes(L.graphTag)) return false;
+    if (center && id !== center && !edges.some(e => (e[0] === center && e[1] === id) || (e[1] === center && e[0] === id))) return false;
+    return true; };
+  const shown = nodes.filter(n => keep(n.id)), ids = new Set(shown.map(n => n.id));
+  const shape = (id, role) => role === 'source' ? '<circle class="halo" r="16"/><circle class="core" r="9"/>' : role === 'mid' ? '<circle class="ring" r="10"/><circle class="core" r="5"/>' : role === 'insight' ? '<rect class="ins" x="-6" y="-6" width="12" height="12" rx="2" transform="rotate(45)"/>' : role === 'iso' ? '<circle class="iso" r="7"/>' : '<circle class="hollow" r="7"/>';
+  return `<svg viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet" role="img" aria-label="资料关系图谱" data-graph="${compact ? 'compact' : 'full'}">
+    ${edges.filter(e => ids.has(e[0]) && ids.has(e[1])).map(([a, b, k]) => { const [x1, y1] = GRAPH.pos[a], [x2, y2] = GRAPH.pos[b]; return `<line class="g-edge ${k}" data-a="${a}" data-b="${b}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`; }).join('')}
+    ${shown.map(n => { const [x, y] = GRAPH.pos[n.id], role = graphRole(n.id, edges), w = Math.max(36, n.title.length * 14 + 12), ty = role === 'source' ? 32 : 26; return `<g class="g-node${!compact && L.graphSel === n.id ? ' sel' : ''}" data-gnode="${n.id}" transform="translate(${x} ${y})" ${act(compact ? 'companion-file' : 'graph-node', n.id)} tabindex="0" role="button" aria-label="${esc(n.title)}"><rect class="g-hit" x="${-w / 2}" y="-18" width="${w}" height="${ty + 24}" rx="6"/>${shape(n.id, role)}<text y="${ty}" text-anchor="middle">${esc(n.title)}</text></g>`; }).join('')}
+  </svg>`;
+}
+function libGraphHTML() {
+  const L = S.lib, { edges } = graphData(), f = L.graphSel && files().includes(file(L.graphSel)) ? file(L.graphSel) : null;
+  const tags = [...new Set(files().flatMap(x => x.tags))];
+  const children = f ? FILES.filter(x => x.parent === f.id || x.source?.file === f.id) : [];
+  return `<div class="graph-wrap"><div class="graph-canvas">${graphSVG(false)}
+      <div class="graph-tools">${tags.map(t => `<button class="chip" aria-pressed="${L.graphTag === t}" ${act('graph-tag', t)}>#${esc(t)}</button>`).join('')}${L.graphCenter ? `<button class="chip" aria-pressed="true" ${act('graph-center', '')}>${icon('target', 13)}以「${esc(file(L.graphCenter).title)}」为中心 · 清除</button>` : ''}</div>
+      <div class="graph-legend" aria-label="图例"><span><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" style="fill:var(--g-src)"/></svg>来源</span><span><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" style="fill:none;stroke:var(--g-src);stroke-width:1.5"/><circle cx="7" cy="7" r="2.5" style="fill:var(--g-src)"/></svg>有子卡的卡片</span><span><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="4.5" style="fill:var(--g-leaf);stroke:var(--g-line);stroke-width:1.5"/></svg>卡片</span><span><svg width="14" height="14" aria-hidden="true"><rect x="3" y="3" width="8" height="8" transform="rotate(45 7 7)" style="fill:var(--g-ins)"/></svg>锦囊</span><span><svg width="20" height="8" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--ink-3);stroke-width:1.4"/></svg>拆分</span><span><svg width="20" height="8" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" style="stroke:var(--ink-3);stroke-width:1.4;stroke-dasharray:3 3"/></svg>引用</span></div>
+    </div>
+    <aside class="graph-detail" aria-label="节点详情">${f ? `<span class="badge b-accent">${TYPE_LABEL[f.type]}</span><h2>${esc(f.title)}</h2><p class="hint" style="margin:0 0 12px">${esc(f.excerpt || '')}</p>
+      <div class="stack"><button class="btn primary block" ${act('bring', f.id)}>${icon('chat', 14)}带入对话</button><div style="display:flex;gap:6px"><button class="btn sm" style="flex:1" ${act('open-file', f.id)}>打开</button><button class="btn sm" style="flex:1" ${act('graph-center', f.id)}>${icon('target', 13)}以此为中心</button></div></div>
+      <h3 class="menu-label" style="padding-left:0">直接子卡 · ${children.length}</h3><div class="link-list">${children.map(c => `<button ${act('graph-node', c.id)}>${icon('cards', 13)}${esc(c.title)}</button>`).join('') || '<span class="hint">没有拆出的子卡</span>'}</div>
+      ${f.source ? `<h3 class="menu-label" style="padding-left:0">来源</h3><div class="link-list"><button ${act('graph-node', f.source.file)}>${icon('right', 12)}${esc(fileLabel(file(f.source.file)))} · ${esc(f.source.where)}</button></div>` : ''}
+      <p class="hint" style="margin-top:14px">${edges.filter(e => e[0] === f.id || e[1] === f.id).length} 条关系 · 单击选中，悬停高亮相邻节点</p>` : '<div class="empty">点一个节点查看详情</div>'}</aside></div>`;
+}
+
+/* ============================ 渲染：计划 ============================ */
+function planHTML() {
+  const v = S.plan.view, views = [['routes', '路线'], ['calendar', '日历'], ['review', '复习']];
+  const body = v === 'routes' ? routesHTML() : v === 'calendar' ? calendarHTML() : reviewHTML();
+  return `<div class="page fill"><header class="page-head"><h1>计划</h1>
+      <div class="seg" role="tablist" aria-label="计划视图">${views.map(([k, l]) => `<button role="tab" aria-selected="${v === k}" ${act('nav', '#/plan/' + k)}>${l}${k === 'review' && reviewCards('due').length ? ` <span class="badge b-review" style="height:18px">${reviewCards('due').length}</span>` : ''}</button>`).join('')}</div>
+      <span class="grow"></span>
+      ${v === 'routes' ? `<button class="btn" ${act('launch-skill', '路线规划')}>${icon('sparkle', 14)}让老师规划路线</button>` : ''}
+      ${v === 'calendar' ? `<button class="btn" ${act('schedule-dialog')}>${icon('calendar', 14)}安排课程</button>` : ''}
+    </header><div class="page-body scroll-narrow">${body}</div></div>`;
+}
+function routesHTML() {
+  const rs = routes();
+  if (!rs.length) return `<div class="empty" style="margin-top:80px"><b>还没有学习路线</b>告诉老师你的目标、时间和资料，老师会和你一起排出阶段与主线。<br><br><button class="btn primary" ${act('launch-skill', '路线规划')}>让老师规划路线</button></div>`;
+  const r = route(S.plan.route) && rs.includes(route(S.plan.route)) ? route(S.plan.route) : rs[0];
+  const n = S.plan.node && r.nodes.find(x => x.id === S.plan.node);
+  const lanes = r.stages.map((s, i) => { const ns = r.nodes.filter(x => x.stage === i); return `<div class="lane"><div class="lane-title"><b>阶段 ${i + 1}</b>${esc(s)}</div>
+      ${ns.map(x => { const st = nodeState(x); return `<button class="card node${x.pathway !== 'main' ? ' branch' : ''}" ${act('node-select', x.id)} ${n && n.id === x.id ? 'aria-current="true"' : ''}>
+        <span class="kind">${PATHWAY[x.pathway]}${x.prereq ? ` · 先修 ${x.prereq.length}` : ''}</span><b>${esc(x.title)}</b><span class="state"><span class="badge ${st.cls}">${st.label}</span>${x.lesson && lesson(x.lesson)?.live ? '<span class="badge b-lesson">进行中</span>' : ''}</span></button>`; }).join('')}</div>`; }).join('');
+  return `<div class="routes"><nav class="route-list" aria-label="学习路线">${rs.map(x => { const c = k => x.nodes.filter(y => nodeState(y).key === k).length; return `<button class="card route-item" ${act('route-select', x.id)} ${x.id === r.id ? 'aria-current="true"' : ''}><b>${esc(x.title)}</b><span class="hint">${x.stages.length} 个阶段 · ${x.nodes.length} 节 · 有小结 ${c('summary')}</span>
+      <div class="progress" aria-hidden="true"><i style="width:${c('summary') / x.nodes.length * 100}%;background:var(--summary)"></i><i style="width:${c('open') / x.nodes.length * 100}%;background:var(--lesson)"></i></div></button>`; }).join('')}</nav>
+    <div class="route-main"><div class="route-goal"><b>目标：</b>${esc(r.goal)}</div>
+      <div class="legend" style="padding:6px 24px 0"><span><i style="background:var(--summary)"></i>有小结</span><span><i style="background:var(--lesson)"></i>已开课</span><span><i style="background:var(--accent)"></i>已安排</span><span><i style="background:var(--line-2)"></i>计划中</span><span>虚线框：条件补练 / 拓展</span><span>有小结不等于已掌握</span></div>
+      <div class="lanes">${lanes}</div>
+      <details class="logs"><summary>课堂日志 · ${r.nodes.filter(x => x.summary).length} 次课堂小结</summary><div class="rows" style="margin-top:6px">${r.nodes.filter(x => x.summary).map(x => `<button class="row" ${act('open-file', x.summary)}><div class="row-main"><b>${esc(file(x.summary).title)}</b><small>${esc(file(x.summary).excerpt)}</small></div><span class="muted">${md(file(x.summary).date)}</span></button>`).join('')}</div></details>
+      ${n ? nodeDrawerHTML(r, n) : ''}</div></div>`;
+}
+function nodeDrawerHTML(r, n) {
+  const st = nodeState(n);
+  return `<aside class="drawer" aria-label="课程详情"><div style="display:flex;align-items:center"><span class="badge ${st.cls}">${st.label}</span><span style="flex:1"></span><button class="icon-btn sm" ${act('node-select', '')} aria-label="关闭详情">${icon('close')}</button></div>
+    <h2>${esc(n.title)}</h2><div class="hint">${esc(r.title)} · 阶段 ${n.stage + 1}「${esc(r.stages[n.stage])}」 · ${PATHWAY[n.pathway]}</div>
+    ${n.condition ? `<p class="note" style="margin-top:12px">条件：${esc(n.condition)}（满足课程说明里的条件时再走）</p>` : ''}
+    ${n.prereq ? `<p class="note" style="margin-top:12px">先修：${n.prereq.map(id => esc(r.nodes.find(x => x.id === id).title)).join('、')}（需要先具备的知识，不限制开课）</p>` : ''}
+    <div class="stack">
+      ${n.lesson ? `<button class="btn primary block" ${act('nav', '#/lesson/' + n.lesson)}>回到这节课</button>` : `<button class="btn primary block" ${act('node-start', r.id + ':' + n.id)}>开始这节课</button>`}
+      ${n.summary ? `<button class="btn block" ${act('node-start', r.id + ':' + n.id + ':again')}>再学一次</button>` : ''}
+      <label class="field" style="margin:4px 0 0"><span>安排日期</span><input type="date" value="${n.date || ''}" data-node-date="${r.id}:${n.id}"></label>
+    </div>
+    <div class="link-list"><button ${act('open-file', r.id)}>${icon('file', 13)}查看规划</button>${n.summary ? `<button ${act('open-file', n.summary)}>${icon('log', 13)}查看小结</button>` : ''}${n.date ? `<button ${act('cal-open', n.date)}>${icon('calendar', 13)}在日历中查看</button>` : ''}
+      <button ${act('bring', r.id, 'data-intent="route"')}>${icon('sparkle', 13)}请老师规划或调整</button></div>
+    <p class="hint" style="margin-top:14px">安排、修改日期不会自动开课，也不会标记完成。</p></aside>`;
+}
+function monthDays(month) {
+  const first = month + '-01', wdFirst = new Date(first + 'T12:00:00Z').getUTCDay(), start = addDays(first, -((wdFirst + 6) % 7));
+  return Array.from({ length: 42 }, (_, i) => addDays(start, i));
+}
+function agendaHTML(day, compact) {
+  const ev = calendarEvents().filter(e => e.date === day).sort((a, b) => Object.keys(KIND).indexOf(a.kind) - Object.keys(KIND).indexOf(b.kind));
+  const daily = files().find(f => f.type === 'daily' && f.date === day);
+  return `<h2 style="${compact ? 'font-size:15px' : ''}">${md(day)} ${wd(day)}${day === TODAY ? ' · 今天' : ''}</h2><p class="hint" style="margin:0 0 10px">${ev.length ? `${ev.length} 项学习安排与记录` : '这天没有学习安排或记录'}</p>
+    ${ev.map(e => `<button class="ev" ${act('event', JSON.stringify(e))}><i class="${KIND[e.kind][1]}"></i><div class="row-main"><b>${esc(e.title)}</b><small>${esc(e.sub)}</small></div></button>`).join('')}
+    ${compact ? '' : `<div class="stack" style="margin-top:14px"><button class="btn block" ${act('open-daily', day)}>${daily ? '打开这天的日记' : '新建这天的日记'}</button><button class="btn block" ${act('schedule-dialog')}>把一节课安排到这天</button></div>
+    <p class="hint" style="margin-top:14px">日历只读取资料里已有的记录：课程日期、课堂小结、卡片到期日、评估记录与日记。</p>`}`;
+}
+function calendarHTML() {
+  const P = S.plan, days = monthDays(P.month), ev = calendarEvents(), byDay = new Map();
+  for (const e of ev) byDay.set(e.date, new Set([...(byDay.get(e.date) || []), e.kind]));
+  const [y, m] = P.month.split('-').map(Number);
+  return `<div class="calendar"><section class="month" aria-label="月历"><div class="month-head"><b>${y} 年 ${m} 月</b>
+      <button class="icon-btn sm" ${act('cal-move', -1)} aria-label="上个月">${icon('left')}</button><button class="btn sm" ${act('cal-open', TODAY)}>今天</button><button class="icon-btn sm" ${act('cal-move', 1)} aria-label="下个月">${icon('right')}</button></div>
+      <div class="month-grid">${'一二三四五六日'.split('').map(d => `<span class="wday">${d}</span>`).join('')}
+      ${days.map(d => `<button class="day" ${act('cal-day', d)} aria-label="${md(d)}${byDay.has(d) ? '，有学习安排或记录' : ''}" ${d.slice(0, 7) !== P.month ? 'data-out' : ''} ${d === TODAY ? 'data-today' : ''} aria-pressed="${d === P.date}"><span class="dnum">${Number(d.slice(8))}</span><span class="ddots">${[...(byDay.get(d) || [])].map(k => `<i class="${KIND[k][1]}" title="${KIND[k][0]}"></i>`).join('')}</span></button>`).join('')}</div>
+      <div class="legend" style="margin-top:14px">${Object.values(KIND).map(([l, c]) => `<span><i class="${c}" style="border-radius:50%"></i>${l}</span>`).join('')}</div></section>
+    <aside class="agenda" aria-label="当天安排">${agendaHTML(P.date, false)}</aside></div>`;
+}
+function reviewHTML() {
+  const P = S.plan, filters = [['due', '今日到期'], ['pending', '待评估'], ['learning', '复习中'], ['familiar', '熟悉'], ['all', '全部']];
+  const list = reviewCards(P.filter), f = file(P.sel), shown = f && files().includes(f) && f.review;
+  if (!S.reviewForm || S.reviewForm.path !== P.sel) S.reviewForm = { path:P.sel, items:[{ ability:'', outcome:'not_observed' }], note:'' };
+  const F = S.reviewForm, ready = F.note.trim() && F.items.every(x => x.ability.trim()) && new Set(F.items.map(x => x.ability.trim())).size === F.items.length;
+  const st = shown && reviewState(f);
+  return `<div class="review"><section class="review-list" aria-label="复习队列">
+      <div style="display:flex;gap:4px;flex-wrap:wrap;padding:8px 0 10px">${filters.map(([k, l]) => `<button class="chip" aria-pressed="${P.filter === k}" ${act('review-filter', k)}>${l} ${reviewCards(k).length}</button>`).join('')}</div>
+      ${list.length ? list.map(x => { const s = reviewState(x); return `<button class="review-item" ${act('review-select', x.id)} ${x.id === P.sel ? 'aria-current="true"' : ''}><div class="row-main"><b style="font-size:14px;display:block">${esc(x.title)}</b><small class="muted">${esc(x.tags.join(' · '))}</small></div><span class="badge ${s.cls}">${s.label}</span></button>`; }).join('')
+        : `<div class="empty"><b>${P.filter === 'due' ? '今天没有到期的卡片' : '这里还没有卡片'}</b>${files().length ? '换一个筛选看看。' : '讨论题目后，老师会把题卡保存在资料库。'}</div>`}
+    </section>
+    <section class="review-detail" aria-label="复习详情">${shown ? `
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="badge ${st.cls}">${st.label}</span>${f.review.learned ? `<span class="badge b-muted">复习档位 ${f.review.mastery} / 5</span><span class="badge b-muted">下次 ${md(f.review.next)}</span>` : '<span class="badge b-muted">尚未开始复习</span>'}</div>
+      <h2 style="margin-top:10px">${esc(f.title)}</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn primary" ${act('bring', f.id, 'data-intent="review"')}>${icon('chat', 14)}让老师带我复习</button><button class="btn" ${act('open-file', f.id)}>打开原文</button>${f.history.length ? `<button class="btn ghost" ${act('review-undo', f.id)}>${icon('undo', 14)}撤销最近一次评估</button>` : ''}</div>
+      <p class="hint" style="margin:8px 0 0">复习档位只决定下次什么时候复习，不代表已经掌握。</p>
+      <div class="box"><h3>评估经历</h3>${f.history.length ? f.history.map(h => `<div class="hist"><b>${md(h.date)}</b> <span class="muted">· ${esc(h.actor)}</span><div class="hist-items">${h.items.map(([a, o]) => `<span class="badge ${OUTCOME[o][1]}">${OUTCOME[o][0]}</span><span>${esc(a)}</span>`).join('<span class="muted">·</span>')}</div><div class="hint">${esc(h.note)}</div></div>`).join('') : '<p class="hint" style="margin:0">还没有评估记录。</p>'}</div>
+      <form class="box" data-form="review"><h3>自评</h3><p class="hint" style="margin:-4px 0 10px">写下这次检验的具体能力和你的实际表现。“尚未观察”不算失败。</p>
+        ${F.items.map((x, i) => `<div class="ability"><input aria-label="能力 ${i + 1}" placeholder="具体能力，例如：未经提示想到两式相减" value="${esc(x.ability)}" data-ability="${i}">
+          <div class="seg small" role="radiogroup" aria-label="观察结果">${Object.entries(OUTCOME).map(([k, [l]]) => `<button type="button" role="radio" aria-selected="${x.outcome === k}" aria-checked="${x.outcome === k}" ${act('outcome', i + ':' + k)}>${l}</button>`).join('')}</div>
+          <button type="button" class="icon-btn sm" ${act('ability-remove', i)} aria-label="删除这项能力" ${F.items.length === 1 ? 'disabled' : ''}>${icon('close')}</button></div>`).join('')}
+        <button type="button" class="btn sm ghost" ${act('ability-add')} ${F.items.length >= 8 ? 'disabled' : ''}>${icon('plus', 13)}添加能力</button>
+        <label class="field" style="margin-top:10px"><span>证据说明</span><textarea rows="3" data-review-note placeholder="谁完成了哪一步、得到了什么提示、依据是什么">${esc(F.note)}</textarea></label>
+        <div style="display:flex;justify-content:flex-end"><button class="btn primary" type="submit" ${ready ? '' : 'disabled'}>保存评估</button></div></form>` : `<div class="empty" style="margin-top:60px"><b>选择一张卡片</b>查看评估经历并记录这次复习。</div>`}
+    </section></div>`;
+}
+
+/* ============================ 浮层 ============================ */
+function openMenu(anchor, html) {
+  const layer = $('#layer'); layer.innerHTML = `<div class="menu" role="menu" id="menu">${html}</div>`;
+  const m = $('#menu'), r = anchor.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+  let left = Math.min(r.left, innerWidth - w - 12), top = r.bottom + 6;
+  if (top + h > innerHeight - 12) top = Math.max(12, r.top - h - 6);
+  m.style.left = Math.max(12, left) + 'px'; m.style.top = top + 'px';
+  m.querySelector('button')?.focus({ preventScroll:true });
+}
+function openDialog(html) { $('#layer').innerHTML = `<div class="overlay" data-overlay><div class="dialog" role="dialog" aria-modal="true">${html}</div></div>`; $('#layer').querySelector('input,select,textarea,button')?.focus(); }
+function closeLayer() { $('#layer').innerHTML = ''; }
+let toastTimer;
+function toast(text) {
+  let t = $('#toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; t.setAttribute('role', 'status'); document.body.append(t); }
+  t.textContent = text; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
+}
+function skillMenu(target) {
+  return `<div class="menu-label">常用</div>${SKILLS.map(s => `<button class="menu-item" ${act('pick-skill', target + ':' + s)}>${icon('slash', 14)}${s}</button>`).join('')}
+    <div class="menu-sep"></div><button class="menu-item" ${act('more-skills', target)}>${icon(S.moreSkills ? 'down' : 'right', 14)}更多技能<small style="margin-left:auto">教法、学科关注与辅助工作流</small></button>
+    ${S.moreSkills ? MORE_SKILLS.map(s => `<button class="menu-item" ${act('pick-skill', target + ':' + s)}>${icon('slash', 14)}${s}</button>`).join('') : ''}`;
+}
+function teachingDialog(L) {
+  const s = L.settings;
+  return `<form data-form="teaching" data-arg="${L.id}"><h2>教学设置</h2><p class="desc">只影响这一节课。保存后，下一次提问就会用上新设置。</p>
+    <div class="field"><label for="ts-goal">学习目标</label><input id="ts-goal" name="goal" value="${esc(s.goal)}" placeholder="这节课想学会什么"></div>
+    <div class="two"><div class="field"><label for="ts-deadline">期限（可选）</label><input id="ts-deadline" name="deadline" type="date" value="${esc(s.deadline)}"></div>
+      <div class="field"><label for="ts-min">每天学习时长（可选）</label><input id="ts-min" name="minutes" inputmode="numeric" value="${esc(s.minutes)}" placeholder="分钟"></div></div>
+    <div class="field"><label for="ts-subject">科目（可选）</label><input id="ts-subject" name="subject" value="${esc(s.subject)}" placeholder="如：数学、物理"></div>
+    <div class="field"><span>教法</span><div class="radio-cards">${TEACHING_CHOICES.map(([k, t, d]) => `<label><input type="radio" name="method" value="${k}" ${s.method === k ? 'checked' : ''}><b>${t}</b><small>${d}</small></label>`).join('')}</div></div>
+    <div class="field"><label for="ts-note">本课临时要求</label><textarea id="ts-note" name="note" rows="2" placeholder="只影响这一节课，例如：先让我自己试">${esc(s.note)}</textarea></div>
+    <div class="field"><label for="ts-persona">老师人格（可选）</label><textarea id="ts-persona" name="persona" rows="2" placeholder="留空用默认形象；填写后只改称呼与语气，不改教学职责与权限">${esc(s.persona)}</textarea></div>
+    <div class="dialog-foot"><button type="button" class="btn ghost" ${act('close')}>取消</button><button type="submit" class="btn primary">保存设置</button></div></form>`;
+}
+
+/* ============================ 路由与主渲染 ============================ */
+function parseHash() {
+  const [, a, b] = (location.hash || '#/today').split('/');
+  if (a === 'library') { S.route = { name:'library' }; if (['files', 'cards', 'graph'].includes(b)) S.lib.view = b; }
+  else if (a === 'plan') { S.route = { name:'plan' }; if (['routes', 'calendar', 'review'].includes(b)) S.plan.view = b; }
+  else if (a === 'lesson' && b) { S.route = { name:'lesson', id:b }; S.lastLesson = b; S.scrollChat = true; }
+  else S.route = { name:'today' };
+}
+function go(hash) { if (location.hash !== hash) history.pushState(null, '', hash); parseHash(); render(); }
+function titleOf() { const r = S.route; return r.name === 'today' ? '今日' : r.name === 'library' ? '资料库' : r.name === 'plan' ? '计划' : (lesson(r.id)?.title || '课堂'); }
+function render() {
+  WB.capture();
+  const focus = document.activeElement, fid = focus && focus.id, sel = fid && 'selectionStart' in focus ? [focus.selectionStart, focus.selectionEnd] : null;
+  document.documentElement.dataset.theme = S.theme === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : S.theme;
+  document.documentElement.dataset.sfStyle = S.style;
+  $('#app').toggleAttribute('data-side-open', S.sideOpen);
+  $('#side').innerHTML = sideHTML();
+  const r = S.route.name;
+  const content = r === 'today' ? `<div class="page">${todayHTML()}</div>` : r === 'library' ? libraryHTML() : r === 'plan' ? planHTML() : lessonHTML(S.route.id);
+  $('#main').innerHTML = `<div class="topbar"><button class="icon-btn" ${act('side-open')} aria-label="打开导航">${icon('menu')}</button><b>${esc(titleOf())}</b>${r === 'lesson' ? `<button class="icon-btn" ${act('companion-toggle')} aria-label="资料面板">${icon('split')}</button>` : ''}</div>${content}`;
+  document.title = `${titleOf()} · Notara · 拾页`;
+  $('#proto').innerHTML = `<button ${act('proto')} aria-expanded="${S.protoOpen}">原型</button>${S.protoOpen ? `<div class="proto-panel"><b>原型控制</b><p>只属于原型，不是产品界面。</p>
+    <div class="seg small"><button aria-selected="${!S.empty}" ${act('proto-empty', '0')}>示例数据</button><button aria-selected="${S.empty}" ${act('proto-empty', '1')}>空白学习空间</button></div>
+    <div class="seg small"><button aria-selected="${S.theme === 'light'}" ${act('theme', 'light')}>浅色</button><button aria-selected="${S.theme === 'dark'}" ${act('theme', 'dark')}>深色</button><button aria-selected="${S.theme === 'system'}" ${act('theme', 'system')}>跟随系统</button></div>
+    <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" ${S.debug ? 'checked' : ''} data-bind="debug">调试模式</label></div>` : ''}`;
+  if (fid) { const el = document.getElementById(fid); if (el && el !== document.body) { el.focus({ preventScroll:true }); if (sel && 'setSelectionRange' in el) try { el.setSelectionRange(sel[0], sel[1]); } catch { /* not a text input */ } } }
+  const chat = $('#chat-scroll'); if (chat && S.scrollChat) { chat.scrollTop = chat.scrollHeight; S.scrollChat = false; }
+  document.querySelectorAll('textarea[data-draft]').forEach(grow);
+  WB.restore();
+}
+function grow(t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 180) + 'px'; }
+
+/* ============================ 行为 ============================ */
+function createLesson(opts = {}) {
+  const id = 'n' + (++S.created);
+  const L = { id, title:opts.title || '新的一课', when:'刚刚', live:true, route:opts.route, node:opts.node, settings:{ goal:'', method:'socratic', subject:'', deadline:'', minutes:'', note:'', persona:'' }, messages:[] };
+  LESSONS.forEach(l => { l.live = false; }); LESSONS.unshift(L); return L;
+}
+function sendMessage(id, text) {
+  const L = lesson(id), refs = S.refs[id] || [];
+  if (!L || (!text.trim() && !refs.length)) return;
+  L.messages.push({ role:'user', text:text.trim(), refs:[...refs] });
+  if (L.title === '新的一课') L.title = (text.trim() || refs[0].label).replace(/\s+/g, ' ').slice(0, 18);
+  S.refs[id] = []; S.drafts[id] = ''; L.typing = true; L.when = '刚刚'; S.scrollChat = true;
+  LESSONS.forEach(l => { l.live = l === L; });
+  render();
+  setTimeout(() => {
+    L.typing = false; S.scrollChat = true;
+    const card = refs.map(r => file(r.file)).find(f => f && f.review);
+    L.messages.push({ role:'ai', html: card
+      ? `<p>好，我们来复习《${esc(card.title)}》。先别看卡片——试着自己说说这类题的第一步是什么？</p><p class="hint">这次我会优先看上次“尚未观察”的那项能力，提示不会让你“扣分”。</p>`
+      : `<p>收到。我先看看你的思路：你已经试过什么？卡在哪一步？</p><p class="hint">我会从你能自己动手的那一步开始，不会直接给答案。</p>` });
+    if (S.route.name === 'lesson' && S.route.id === id) render(); else { render(); toast(`「${L.title}」老师已回复`); }
+  }, 900);
+}
+function addRef(lessonId, fid, label, intent) {
+  const f = file(fid); const ref = { file:fid, label:label || fileLabel(f) };
+  const list = S.refs[lessonId] = S.refs[lessonId] || [];
+  if (!list.some(r => r.file === ref.file && r.label === ref.label)) list.push(ref);
+  if (intent === 'review') S.drafts[lessonId] = '请围绕这张卡片带我回忆或练习，先让我尝试，不要提前展示答案。';
+  if (intent === 'route') S.drafts[lessonId] = '请结合真实学习记录检查这份路线的目标、顺序、先修和练习安排，按需要局部调整未来课程，保留已开展课堂与原有记录。';
+}
+function startNode(arg) {
+  const [rid, nid, again] = arg.split(':'), r = route(rid), n = r.nodes.find(x => x.id === nid);
+  if (n.lesson && !again) return go('#/lesson/' + n.lesson);
+  const L = createLesson({ title:(again ? '再学：' : '') + n.title, route:rid, node:nid });
+  if (!again) n.lesson = L.id;
+  L.settings.goal = n.title; S.plan.node = null;
+  go('#/lesson/' + L.id);
+}
+function recordReview(f) {
+  const F = S.reviewForm, items = F.items.map(x => [x.ability.trim(), x.outcome]), r = f.review, before = { ...r };
+  const need = items.some(x => x[1] === 'needs_practice'), all = items.every(x => x[1] === 'demonstrated');
+  let changed = false;
+  if (need) { r.mastery = r.learned ? Math.max(1, r.mastery - 1) : 1; r.learned = true; r.next = addDays(TODAY, INTERVALS[r.mastery - 1]); changed = true; }
+  else if (all && !r.learned) { r.learned = true; r.mastery = 1; r.next = addDays(TODAY, 1); changed = true; }
+  else if (all && TODAY >= r.next) { r.mastery = Math.min(5, r.mastery + 1); r.next = addDays(TODAY, INTERVALS[r.mastery - 1]); changed = true; }
+  f.history.unshift({ date:TODAY, actor:'自评', items, note:F.note.trim(), before, after:{ ...r } });
+  S.reviewForm = null;
+  toast(changed ? '已保存能力评估并更新复习安排。' : '已保存能力评估，原复习安排保持不变。');
+}
+function setBind(key, value) {
+  if (key === 'debug') S.debug = value;
+  else if (key === 'lib.group') S.lib.group = value;
+  else if (key.startsWith('lib.')) S.lib[key.slice(4)] = value;
+}
+
+const A = {
+  nav:a => { S.sideOpen = false; closeLayer(); go(a); },
+  'side-open':() => { S.sideOpen = true; render(); }, 'side-close':() => { S.sideOpen = false; render(); },
+  'new-lesson':() => { S.sideOpen = false; const L = createLesson(); go('#/lesson/' + L.id); requestAnimationFrame(() => $('#draft-' + L.id)?.focus()); },
+  'focus-launch':() => $('#launch-input')?.focus(),
+  'launch-skill':a => { const L = createLesson(); S.drafts[L.id] = `【${a}】`; go('#/lesson/' + L.id); requestAnimationFrame(() => $('#draft-' + L.id)?.focus()); },
+  'lesson-tab':a => { S.lessonTab[S.route.id] = a; S.scrollChat = true; render(); },
+  'companion-toggle':() => { const id = S.route.id; if ((S.lessonTab[id] || (id === 'l1' ? 'board' : 'chat')) === 'board') return WB.sources(); S.companion[id] = S.companion[id] ? null : { view:'file', file:null }; render(); },
+  companion:a => { const id = S.route.id; S.lessonTab[id] = 'chat'; S.companion[id] = { ...(S.companion[id] || {}), view:a }; render(); },
+  'companion-file':a => { const id = S.route.id; if ((S.lessonTab[id] || (id === 'l1' ? 'board' : 'chat')) === 'board' && a) return WB.source(a); S.companion[id] = { view:'file', file:a || null }; S.lib.pdfSelect = false; render(); },
+  'companion-close':() => { S.companion[S.route.id] = null; render(); },
+  'open-file':(a, el) => { S.lib.file = a; S.lib.pdfSelect = false; closeLayer(); if (S.route.name === 'lesson' && !el.dataset.global) return A['companion-file'](a); go('#/library/files'); },
+  fold:a => { S.lib.collapsed[a] = S.lib.collapsed[a] === false || S.lib.collapsed[a] === undefined; render(); },
+  'pdf-select':() => { S.lib.pdfSelect = !S.lib.pdfSelect; render(); },
+  bring:(a, el) => {
+    const label = el.dataset.label, intent = el.dataset.intent || '';
+    if (S.route.name === 'lesson') { addRef(S.route.id, a, label, intent); S.lessonTab[S.route.id] = 'chat'; render(); $('#draft-' + S.route.id)?.focus(); return toast('已放进输入框'); }
+    const cur = lessons().find(l => l.id === S.lastLesson) || lessons()[0];
+    openMenu(el, `<div class="menu-label">带入到</div>${cur ? `<button class="menu-item" ${act('bring-to', cur.id, `data-file="${a}" data-label="${esc(label || '')}" data-intent="${intent}"`)}>${icon('chat', 14)}<span>当前课堂<small>${esc(cur.title)}</small></span></button>` : ''}
+      <button class="menu-item" ${act('bring-to', 'new', `data-file="${a}" data-label="${esc(label || '')}" data-intent="${intent}"`)}>${icon('plus', 14)}<span>新的一课<small>资料会放进输入框，由你决定何时发送</small></span></button>`);
+  },
+  'bring-to':(a, el) => { closeLayer(); const L = a === 'new' ? createLesson() : lesson(a); addRef(L.id, el.dataset.file, el.dataset.label, el.dataset.intent); S.lessonTab[L.id] = 'chat'; go('#/lesson/' + L.id); requestAnimationFrame(() => $('#draft-' + L.id)?.focus()); },
+  'bring-here':a => { addRef(S.route.id, a); S.lessonTab[S.route.id] = 'chat'; render(); $('#draft-' + S.route.id)?.focus(); toast('已放进输入框'); },
+  'remove-ref':a => { const [id, i] = a.split(':'); S.refs[id].splice(Number(i), 1); render(); },
+  skills:(a, el) => openMenu(el, skillMenu(a)),
+  'more-skills':(a, el) => { S.moreSkills = !S.moreSkills; const anchor = document.querySelector(`[data-act="skills"][data-arg="${a}"]`) || el; openMenu(anchor, skillMenu(a)); },
+  'pick-skill':a => { closeLayer(); const [target, name] = a.split(':'); if (target === 'launch') return A['launch-skill'](name); S.drafts[target] = `【${name}】` + (S.drafts[target] || ''); render(); $('#draft-' + target)?.focus(); },
+  'teaching-settings':a => openDialog(teachingDialog(lesson(a))),
+  summary:a => openDialog(`<h2>总结本课</h2><p class="desc">请老师在本课收尾：整理这节课的进展、证据和下一步，保存为课堂小结。对话会保留，之后还可以继续交流。</p><div class="dialog-foot"><button class="btn ghost" ${act('close')}>取消</button><button class="btn primary" ${act('summary-go', a)}>请老师总结</button></div>`),
+  'summary-go':a => { closeLayer(); toast('已请老师在本课收尾并总结'); const L = lesson(a); L.typing = true; S.scrollChat = true; render(); setTimeout(() => { L.typing = false; S.scrollChat = true; L.messages.push({ role:'ai', html:'<p>本课小结已保存到资料库。要点：中点关系能自己接上；“两式相减”仍需要提示。下次复习换题面检验。</p>' }); render(); }, 900); },
+  'classroom-settings':() => openDialog(`<h2>教室设置</h2><p class="desc">每位后台工作员各有自己的模型与资料范围。这里的选择只影响这位工作员，不改变老师使用的模型。</p>
+    <div class="field"><label for="cs-w">选择工作员</label><select id="cs-w">${WORKERS.map(w => `<option>${w[0]}</option>`).join('')}</select></div>
+    <div class="two"><div class="field"><label for="cs-m">模型</label><select id="cs-m"><option>恢复默认自动匹配</option></select></div><div class="field"><label for="cs-r">推理等级</label><select id="cs-r"><option>高</option><option>中</option></select></div></div>
+    <div class="field"><span>资料范围</span><div class="radio-cards"><label><input type="radio" name="scope" checked><b>可读取资料</b><small>可读取原文、搜索资料和查看图片</small></label><label><input type="radio" name="scope"><b>不读文件</b><small>不读文件，只用老师交付的材料</small></label></div></div>
+    <div class="field"><label for="cs-p">独立人格（可选）</label><textarea id="cs-p" rows="2" placeholder="留空只用这位工作员的角色职责"></textarea></div>
+    <div class="dialog-foot"><button class="btn ghost" ${act('close')}>取消</button><button class="btn primary" ${act('toast-close', '已保存，下一次后台分析会用这个设置。')}>保存</button></div>`),
+  close:() => closeLayer(),
+  toast:a => toast(a), 'toast-close':a => { closeLayer(); toast(a); },
+  'new-menu':(a, el) => openMenu(el, `<button class="menu-item" ${act('toast', '（原型）新建空白页面')}>${icon('file', 14)}新建页面</button><div class="menu-sep"></div><div class="menu-label">从模板新建</div>${TEMPLATES.map(([n, d]) => `<button class="menu-item" ${act('toast', `（原型）从模板「${n}」新建`)}>${icon('cards', 14)}<span>${n}<small>${d}</small></span></button>`).join('')}`),
+  'card-type':a => { S.lib.type = a; render(); }, 'card-tag':a => { S.lib.tag = S.lib.tag === a ? null : a; render(); },
+  'cards-clear':() => { Object.assign(S.lib, { type:'all', tag:null, status:'all', query:'' }); render(); },
+  'graph-node':a => { S.lib.graphSel = a; render(); }, 'graph-tag':a => { S.lib.graphTag = S.lib.graphTag === a ? null : a; render(); },
+  'graph-center':a => { S.lib.graphCenter = a || null; if (a) S.lib.graphSel = a; render(); },
+  'graph-focus':a => { S.lib.graphSel = a; S.lib.graphCenter = null; S.lib.graphTag = null; go('#/library/graph'); },
+  'review-open':a => { S.plan.sel = a; S.plan.filter = 'all'; go('#/plan/review'); },
+  'route-open':a => { S.plan.route = a; S.plan.node = null; go('#/plan/routes'); },
+  'route-select':a => { S.plan.route = a; S.plan.node = null; render(); }, 'node-select':a => { S.plan.node = a || null; render(); },
+  'node-start':a => startNode(a),
+  'cal-move':a => { const [y, m] = S.plan.month.split('-').map(Number), d = new Date(Date.UTC(y, m - 1 + Number(a), 1)); S.plan.month = d.toISOString().slice(0, 7); render(); },
+  'cal-day':a => { S.plan.date = a; if (a.slice(0, 7) !== S.plan.month) S.plan.month = a.slice(0, 7); render(); },
+  'cal-open':a => { S.plan.date = a; S.plan.month = a.slice(0, 7); go('#/plan/calendar'); },
+  event:a => { const e = JSON.parse(a);
+    if (e.kind === 'lesson') { const n = route(e.route).nodes.find(x => x.id === e.node); if (n.lesson) return go('#/lesson/' + n.lesson); S.plan.route = e.route; S.plan.node = e.node; return go('#/plan/routes'); }
+    if (e.card) return A['review-open'](e.card);
+    A['open-file'](e.file, { dataset:{ global:'1' } }); },
+  'open-daily':a => { let f = FILES.find(x => x.type === 'daily' && x.date === a && (!S.empty || x.created));
+    if (!f) { f = { id:'d-' + a, folder:'日记', title:a, type:'daily', tags:[], date:a, created:true, excerpt:'', body:'<p class="blank">写点今天的学习吧。</p>' }; FILES.push(f); toast(`已新建 ${md(a)} 的日记`); }
+    A['open-file'](f.id, { dataset:{ global:'1' } }); },
+  'schedule-dialog':() => { const opts = routes().flatMap(r => r.nodes.filter(n => !n.lesson && !n.summary).map(n => `<option value="${r.id}:${n.id}">${esc(r.title)} · ${esc(n.title)}${n.date ? `（已安排 ${md(n.date)}）` : ''}</option>`)).join('');
+    openDialog(`<h2>安排课程</h2><p class="desc">把路线里的一节课安排到 ${md(S.plan.date)}。安排日期不会自动开课，也不会标记完成。</p>${opts ? `<div class="field"><label for="sch">课程</label><select id="sch">${opts}</select></div><div class="dialog-foot"><button class="btn ghost" ${act('close')}>取消</button><button class="btn primary" ${act('schedule-go')}>安排</button></div>` : `<p class="hint">没有可以安排的课程。先让老师规划一条路线。</p><div class="dialog-foot"><button class="btn" ${act('close')}>好</button></div>`}`); },
+  'schedule-go':() => { const [rid, nid] = $('#sch').value.split(':'); route(rid).nodes.find(n => n.id === nid).date = S.plan.date; closeLayer(); toast('已安排课程。'); render(); },
+  'review-filter':a => { S.plan.filter = a; render(); }, 'review-select':a => { S.plan.sel = a; render(); },
+  outcome:a => { const [i, k] = a.split(':'); S.reviewForm.items[Number(i)].outcome = k; render(); },
+  'ability-add':() => { S.reviewForm.items.push({ ability:'', outcome:'not_observed' }); render(); },
+  'ability-remove':a => { S.reviewForm.items.splice(Number(a), 1); render(); },
+  'review-undo':a => { const f = file(a), last = f.history.find(h => h.before);
+    if (!last) return toast('最近一次评估不是在这里记录的，原型里不能撤销。');
+    Object.assign(f.review, last.before); f.history.splice(f.history.indexOf(last), 1); toast('已撤销最近一次评估，恢复原来的复习安排。'); render(); },
+  'app-settings':() => openDialog(`<h2>设置</h2><p class="desc">外观和调试开关。模型与密钥、权限沿用原生设置页。主题只改变外观，不改变布局和学习记录。</p>
+    <div class="field"><span>界面主题</span><span>极简</span></div>
+    <div class="field"><span>颜色</span><div class="seg"><button aria-selected="${S.theme === 'light'}" ${act('theme', 'light')}>浅色</button><button aria-selected="${S.theme === 'dark'}" ${act('theme', 'dark')}>深色</button><button aria-selected="${S.theme === 'system'}" ${act('theme', 'system')}>跟随系统</button></div></div>
+    <div class="field"><span>学习空间</span><div class="hint">Notara Vault（当前）</div></div>
+    <label class="field" style="grid-template-columns:auto 1fr;align-items:center"><input type="checkbox" data-bind="debug" ${S.debug ? 'checked' : ''}><span>调试模式：显示轨迹、系统提示与完整工具记录</span></label>
+    <div class="dialog-foot"><button class="btn primary" ${act('close')}>完成</button></div>`),
+  theme:a => { S.theme = a; const open = $('.overlay'); render(); if (open) A['app-settings'](); },
+  proto:() => { S.protoOpen = !S.protoOpen; render(); },
+  'proto-empty':a => { S.empty = a === '1'; if (S.route.name === 'lesson' && !lessons().some(l => l.id === S.route.id)) return go('#/today'); render(); },
+};
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  const inMenu = !!e.target.closest('#menu');
+  if ($('#menu') && !inMenu && !(el && ['skills', 'bring', 'new-menu'].includes(el.dataset.act))) closeLayer();
+  if (e.target.matches('[data-overlay]')) return closeLayer();
+  if (!el) return;
+  const fn = A[el.dataset.act]; if (!fn) return;
+  if (inMenu && el.dataset.act !== 'more-skills') closeLayer();
+  e.preventDefault(); fn(el.dataset.arg ?? '', el, e);
+});
+document.addEventListener('submit', e => {
+  const form = e.target, kind = form.dataset.form; e.preventDefault();
+  if (kind === 'launch') { const text = form.text.value; if (!text.trim()) return form.text.focus(); S.drafts.launch = ''; const L = createLesson(); go('#/lesson/' + L.id); sendMessage(L.id, text); }
+  else if (kind === 'send') sendMessage(form.dataset.arg, form.text.value);
+  else if (kind === 'teaching') { const L = lesson(form.dataset.arg), d = new FormData(form); const m = String(d.get('minutes') || '').trim();
+    if (m && (!/^\d+$/.test(m) || Number(m) > 1440)) return toast(Number(m) > 1440 ? '每天学习时长最多 1440 分钟。' : '每天学习时长请填整数分钟。');
+    Object.assign(L.settings, { goal:d.get('goal'), deadline:d.get('deadline'), minutes:m, subject:d.get('subject'), method:d.get('method'), note:d.get('note'), persona:d.get('persona') });
+    closeLayer(); toast('已保存，下一次提问就会用上新设置。'); render(); }
+  else if (kind === 'review') { const f = file(S.plan.sel); if (f) { recordReview(f); render(); } }
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.draft) { S.drafts[t.dataset.draft] = t.value; grow(t); return; }
+  if (t.id === 'launch-input') { S.drafts.launch = t.value; return; }
+  if (t.dataset.ability !== undefined) { S.reviewForm.items[Number(t.dataset.ability)].ability = t.value; updateReviewReady(); return; }
+  if (t.dataset.reviewNote !== undefined) { S.reviewForm.note = t.value; updateReviewReady(); return; }
+  if (t.dataset.bind === 'lib.query') { S.lib.query = t.value; render(); }
+});
+function updateReviewReady() { const F = S.reviewForm, b = $('[data-form="review"] [type=submit]'); if (b) b.disabled = !(F.note.trim() && F.items.every(x => x.ability.trim()) && new Set(F.items.map(x => x.ability.trim())).size === F.items.length); }
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.bind && t.dataset.bind !== 'lib.query') { setBind(t.dataset.bind, t.type === 'checkbox' ? t.checked : t.value); const open = $('.overlay'); render(); if (open && t.dataset.bind === 'debug') A['app-settings'](); }
+  if (t.dataset.nodeDate) { const [rid, nid] = t.dataset.nodeDate.split(':'); route(rid).nodes.find(n => n.id === nid).date = t.value || undefined; toast(t.value ? '已安排课程。' : '已清除日期。'); render(); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if ($('#layer').innerHTML) closeLayer(); else if (S.sideOpen) { S.sideOpen = false; render(); } return; }
+  const t = e.target;
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && (t.dataset.draft || t.id === 'launch-input')) { e.preventDefault(); t.form.requestSubmit(); }
+  if ((e.key === 'Enter' || e.key === ' ') && t.matches('g[data-act]')) { e.preventDefault(); t.dispatchEvent(new MouseEvent('click', { bubbles:true })); }
+  if (t.classList.contains('split-handle') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { S.split = Math.max(28, Math.min(70, S.split + (e.key === 'ArrowLeft' ? 4 : -4))); render(); $('.split-handle')?.focus(); }
+});
+document.addEventListener('mouseover', e => {
+  const g = e.target.closest('g[data-gnode]'), svg = e.target.closest('svg[data-graph]');
+  document.querySelectorAll('svg.hovering').forEach(s => { if (s !== svg || !g) { s.classList.remove('hovering'); s.querySelectorAll('.near').forEach(x => x.classList.remove('near')); } });
+  if (!g || !svg) return;
+  const id = g.dataset.gnode; svg.classList.add('hovering'); g.classList.add('near');
+  svg.querySelectorAll('line').forEach(l => { if (l.dataset.a === id || l.dataset.b === id) { l.classList.add('near'); svg.querySelector(`[data-gnode="${l.dataset.a === id ? l.dataset.b : l.dataset.a}"]`)?.classList.add('near'); } });
+});
+document.addEventListener('pointerdown', e => {
+  const h = e.target.closest('.split-handle'); if (!h) return;
+  const body = h.parentElement, rect = body.getBoundingClientRect(); h.classList.add('drag'); h.setPointerCapture(e.pointerId);
+  const move = ev => { S.split = Math.max(28, Math.min(70, (rect.right - ev.clientX) / rect.width * 100)); body.style.gridTemplateColumns = `minmax(0,${100 - S.split}fr) 1px minmax(0,${S.split}fr)`; };
+  const up = () => { h.classList.remove('drag'); h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up); };
+  h.addEventListener('pointermove', move); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (S.theme === 'system') render(); });
+window.addEventListener('hashchange', () => { parseHash(); render(); });
+window.addEventListener('popstate', () => { parseHash(); render(); });
+WB.install(A);
+parseHash(); render();
+</script>
+</body>
+</html>

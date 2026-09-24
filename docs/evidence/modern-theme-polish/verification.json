@@ -1,0 +1,159 @@
+{
+  "scope": "Interactive HTML prototype only; final white/gray palette rechecked after preceding 26 interaction/layout checks",
+  "browser": "Codex in-app browser through cua_repl",
+  "url": "http://127.0.0.1:55927/docs/ui/notara-frontend-prototype.html#/today",
+  "checks": [
+    {
+      "name": "today heading",
+      "ok": true
+    },
+    {
+      "name": "modern white gray palette",
+      "ok": true,
+      "detail": {
+        "accent": "#557398",
+        "bg": "#f9fafb",
+        "font": "\"Helvetica Neue\", Helvetica, \"Hiragino Sans GB\", \"PingFang SC\", \"Noto Sans SC\", \"Microsoft YaHei UI\", Arial, sans-serif",
+        "overflow": false,
+        "panelBorder": "0px",
+        "primary": "rgb(234, 241, 249)",
+        "scriptErrorsVisible": false,
+        "width": 1155
+      }
+    },
+    {
+      "name": "today no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "today sections without card borders",
+      "ok": true
+    },
+    {
+      "name": "lesson opens with material",
+      "ok": true
+    },
+    {
+      "name": "reference fold opens",
+      "ok": true
+    },
+    {
+      "name": "prototype message and reply",
+      "ok": true
+    },
+    {
+      "name": "library file navigation",
+      "ok": true
+    },
+    {
+      "name": "graph rendered",
+      "ok": true
+    },
+    {
+      "name": "graph node selection",
+      "ok": true
+    },
+    {
+      "name": "plan route loaded",
+      "ok": true
+    },
+    {
+      "name": "calendar loaded",
+      "ok": true
+    },
+    {
+      "name": "calendar next month",
+      "ok": true
+    },
+    {
+      "name": "dark theme selected",
+      "ok": true
+    },
+    {
+      "name": "notebook switch preserved",
+      "ok": true
+    },
+    {
+      "name": "mobile today no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "mobile drawer fully hidden",
+      "ok": true
+    },
+    {
+      "name": "mobile navigation opens",
+      "ok": true
+    },
+    {
+      "name": "mobile material overlay closes",
+      "ok": true
+    },
+    {
+      "name": "mobile lesson no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "mobile send button inside viewport",
+      "ok": true
+    },
+    {
+      "name": "desktop 1440 no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "801px controls remain single line",
+      "ok": true,
+      "detail": {
+        "modelWhiteSpace": "nowrap",
+        "overflow": false,
+        "titleHeight": 19.5,
+        "titleWhiteSpace": "nowrap"
+      }
+    },
+    {
+      "name": "801px lesson no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "browser console no errors or warnings",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "modern no handwriting font",
+      "ok": true,
+      "detail": "\"Helvetica Neue\", Helvetica, \"Hiragino Sans GB\", \"PingFang SC\", \"Noto Sans SC\", \"Microsoft YaHei UI\", Arial, sans-serif"
+    },
+    {
+      "name": "final white background and gray buttons",
+      "ok": true,
+      "detail": {
+        "background": "rgb(255, 255, 255)",
+        "overflow": false,
+        "primary": "rgb(240, 241, 243)",
+        "secondary": "rgb(244, 245, 246)",
+        "send": "rgb(244, 245, 246)"
+      }
+    },
+    {
+      "name": "final homepage no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "final browser console",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "passed": 29,
+  "total": 29,
+  "logs": [],
+  "artifact_sha256": "147113cddac559ce8c26bc4cc4b70689f468c95b575671616209c41cf921eb07",
+  "static_checks": {
+    "node": "v24.13.0",
+    "inline_script_syntax": "PASS",
+    "postcss_parse": "PASS",
+    "css_rules": 595
+  }
+}

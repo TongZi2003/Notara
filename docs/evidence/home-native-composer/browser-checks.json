@@ -1,0 +1,53 @@
+{
+  "five": {
+    "centered": "center",
+    "composerY": 148.484375,
+    "headerBottom": 123.484375,
+    "nativeInputs": 1,
+    "position": "2 / 7",
+    "rows": 1,
+    "title": "椭圆的定义与标准方程"
+  },
+  "restoredDraft": "原生输入框草稿验证",
+  "afterSend": {
+    "home": 0,
+    "inputs": 1
+  },
+  "emptyBoard": {
+    "blocks": 0,
+    "emptyCopy": 0,
+    "status": ""
+  },
+  "emptySources": {
+    "blocks": 0,
+    "emptyCopy": 0
+  },
+  "six": "2 / 3",
+  "queueReset": {
+    "active": "今日到期 6",
+    "query": "",
+    "rows": 6
+  },
+  "lessonCenter": {
+    "descriptionAlign": "center",
+    "inputs": 1,
+    "offset": 0,
+    "title": "新的一课"
+  },
+  "lessonNarrow": {
+    "menuLeft": 71,
+    "menuRight": 365,
+    "pageWidth": 390,
+    "titleOffset": 0,
+    "viewport": 390
+  },
+  "homeNarrow": {
+    "center": "center",
+    "inputs": 1,
+    "pageWidth": 390,
+    "summary": "12 张卡片待复习",
+    "viewport": 390
+  },
+  "errors": [],
+  "assertions": "PASS"
+}

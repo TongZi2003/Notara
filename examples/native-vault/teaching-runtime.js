@@ -14,6 +14,7 @@ import { assembleTeachingContext } from './teaching-context.js';
 import { installSolver } from './solver-runtime.js';
 import { createReviewRuntime } from './review-runtime.js';
 import { createRouteInVault, safeTitlePath as titlePath } from './file-operations.js';
+import { createBoardRuntime,readBoardDocument,boardPath } from './board-runtime.js';
 
 const fail=code=>{throw new Error(code);};
 const summaryTitle=session=>session.snapshotEvents().filter(e=>e.type==='session/title').at(-1)?.data?.title??'课堂小结';
@@ -42,8 +43,11 @@ export class NotaraTeaching extends Service {
     super(ctx,'notaraTeaching');this.root=resolve(root);this.internals=internals;this.prepared=new WeakMap();this.requests=new Map();this.routeLocks=new Map();this.summaryLocks=new Map();this.operations=new Map();
     this.nativeArchive=internals.archive??(ctx.get('workspaceRegistry')?.archiveSession.bind(ctx.workspaceRegistry));
     this.review=createReviewRuntime(this);
+    this.lessonBoard=createBoardRuntime(this);
   }
   isTeaching(agent) {return agent?.session?.header?.agentPreset===TEACHING_PRESET;}
+  async board(input) {return this.lessonBoard.read(input);}
+  async mutateBoard(input) {return this.lessonBoard.mutate(input);}
   async classroom(input) {return this.solver.read(input);}
   async solverTask(input) {return this.solver.task(input);}
   async configureSolver(input) {return this.solver.configure(input);}
@@ -257,6 +261,7 @@ export class NotaraTeaching extends Service {
     return {queued:true};
   }
   async executeTool(name,args,exec) {
+    if(name==='write_lesson_board')return this.lessonBoard.write(exec,args);
     if(name==='save_lesson_summary')return this.saveSummary(exec,args);
     if(name==='open_learning_lesson'){
       const path=safeRelativePath(args.path?.startsWith('vault/')?args.path.slice(6):args.path);
@@ -324,6 +329,10 @@ export function installTeachingRuntime(ctx,config={}) {
         catch(error){if(error.message!=='vault_scope_unavailable')throw error;}
       }
       memory=await assembleTeachingContext({readers,settings:{...settings,learningGoal:null,temporaryInstructions:''}});
+      const board=await readBoardDocument(io,agent.session.id);
+      service.prepared.get(agent).boardRevision=board.revision;
+      // Semantic titles let the teacher target a region without inventing IDs or coordinates.
+      memory.text+='\n\n当前板书区域：'+JSON.stringify(board.board.blocks.map(({title,kind})=>({title,kind})))+'。同名写入会替换该区域全文；只写已向学生公开的内容。需核对已有正文时读取 '+resolve(io.workspace.path,'vault',boardPath(agent.session.id))+'。';
     }
     catch(error){if(!['vault_scope_unavailable','vault_session_required'].includes(error.message))throw error;memory={text:'当前课堂尚未连接学习集，可以继续讨论题目；资料和学习记录需要先通过原生工作区入口接入，不能推测已有记录。'};}
     // Bindings and navigation are separate from the L0 memory budget. No script

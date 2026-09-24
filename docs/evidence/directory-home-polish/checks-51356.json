@@ -1,0 +1,48 @@
+{
+  "origin": "http://127.0.0.1:51356",
+  "checks": [
+    {
+      "name": "Learning starter fills a draft without submitting",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Existing draft is protected from another starter",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Empty second directory excludes first directory sessions",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Second directory shows only its own lesson",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Returning directory hides foreign lessons",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Original lesson draft survives directory switches",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Today recent lessons match current directory",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Narrow pane fonts shrink with the pane width",
+      "ok": false,
+      "detail": ""
+    }
+  ],
+  "notes": [
+    "Narrow typography assertion exposed malformed named container query; fixed in the next build."
+  ]
+}

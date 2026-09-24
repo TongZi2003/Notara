@@ -62,7 +62,7 @@ export function previewFrontmatter(content) {
 // own line closes it. A comment nobody terminated stays readable as source
 // instead of swallowing the lesson, the brief and everything after it; HTML is
 // still never interpreted or executed.
-const CLOSED_METADATA_MARKER = /^<!--[ \t]*notara:(?:route-node(?::end)?|route-log(?::end)?|lesson-summary:end)\b[^\n]*?-->/;
+const CLOSED_METADATA_MARKER = /^<!--[ \t]*(?:notara:(?:route-node(?::end)?|route-log(?::end)?|lesson-summary:end)|notara-board)\b[^\n]*?-->/;
 const SUMMARY_BEGIN_MARKER = /^<!--[ \t]*notara:lesson-summary\b/;
 
 /** How many characters of one HTML block are the note's own machine marker. */
@@ -173,7 +173,7 @@ function tagPill(text, handler) {
 
 class PropertiesWidget extends WidgetType {
   kind = 'properties';
-  constructor(properties) { super(); this.properties = properties; }
+  constructor(properties) { super(); this.properties = properties.type==='lesson-board'?Object.fromEntries(Object.entries(properties).filter(([key])=>!['session','sourceNotes'].includes(key))):properties; }
   eq(other) { return JSON.stringify(this.properties) === JSON.stringify(other.properties); }
   toDOM(view) {
     const tagHandler = view.state.facet(onTag);

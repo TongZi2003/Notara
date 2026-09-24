@@ -40,6 +40,9 @@ export interface ScriptedCall {
   arguments?: unknown;
   /** Exact model transport bytes, including intentionally malformed JSON. */
   rawArguments?: string;
+  /** Synthetic transport timing for real tool-input stream acceptance. */
+  chunkSize?: number;
+  chunkDelayMs?: number;
 }
 
 /**
@@ -64,6 +67,8 @@ function scriptedCalls(value: readonly unknown[]): ScriptedCall[] {
     calls.push({ name: record.name,
       ...(Object.hasOwn(record, 'arguments') ? { arguments: record.arguments } : {}),
       ...(typeof record.rawArguments === 'string' ? { rawArguments: record.rawArguments } : {}),
+      ...(typeof record.chunkSize === 'number' ? { chunkSize: Math.max(1, record.chunkSize) } : {}),
+      ...(typeof record.chunkDelayMs === 'number' ? { chunkDelayMs: Math.max(0, record.chunkDelayMs) } : {}),
     });
   }
   return calls;
@@ -161,7 +166,11 @@ export function apply(ctx: Context, config: VaultTestModelConfig): void {
       if (call) {
         const id = ToolCallId(crypto.randomUUID()), args = call.rawArguments ?? JSON.stringify(call.arguments ?? {});
         yield { type: 'block-start', index: 0, blockType: 'tool-call' };
-        yield { type: 'tool-call-delta', index: 0, id, name: call.name, argumentsDelta: args };
+        const size = call.chunkSize ?? args.length;
+        for (let offset=0;offset<args.length;offset+=size) {
+          if (call.chunkDelayMs) await delay(call.chunkDelayMs, undefined, options.signal ? { signal: options.signal } : undefined);
+          yield { type: 'tool-call-delta', index: 0, id, name: call.name, argumentsDelta: args.slice(offset,offset+size) };
+        }
         yield { type: 'block-end', index: 0, block: { type: 'tool-call', id, name: call.name, arguments: args } };
         yield { type: 'finish', reason: { kind: 'tool-calls' } };
         return;

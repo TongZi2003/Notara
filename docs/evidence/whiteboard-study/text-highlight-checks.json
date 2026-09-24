@@ -1,0 +1,47 @@
+{
+  "date": "2026-09-24",
+  "scope": "synthetic prototype; character streaming, handwritten type, color highlights",
+  "checks": [
+    {
+      "name": "白色点阵且没有笔画渲染器",
+      "pass": true
+    },
+    {
+      "name": "四种高亮已用于板书",
+      "pass": true
+    },
+    {
+      "name": "指定区域是文字流式中间态",
+      "pass": true
+    },
+    {
+      "name": "流式完成且带色高亮保留",
+      "pass": true
+    },
+    {
+      "name": "选中文字可手动增加高亮",
+      "pass": true
+    },
+    {
+      "name": "已有高亮可改色",
+      "pass": true
+    },
+    {
+      "name": "可清除高亮而不删文字",
+      "pass": true
+    },
+    {
+      "name": "导出预览保留颜色与可读内容",
+      "pass": true
+    },
+    {
+      "name": "当前页面无控制台异常",
+      "pass": true
+    },
+    {
+      "name": "250px工具条和高亮面板保持在视口内",
+      "pass": true
+    }
+  ],
+  "logs": []
+}

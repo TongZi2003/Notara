@@ -14,7 +14,7 @@ test('teaching tools register native validated schemas and require approval for 
   const service={isTeaching:()=>true,executeTool:async(name,args)=>{calls.push({name,args});return {saved:true};}};
   module.installAgentTools(ctx,service);
   const names=ctx.tools.schemas().map(x=>x.name);
-  assert.deepEqual(names.sort(),['open_learning_lesson','save_lesson_summary','set_teaching_settings']);
+  assert.deepEqual(names.sort(),['open_learning_lesson','save_lesson_summary','set_teaching_settings','write_lesson_board']);
   const result=await ctx.tools.execute({name:'save_lesson_summary',callId:'write-denied-without-approval',arguments:{body:'已完成的真实课堂进度。'},signal:new AbortController().signal});
   assert.equal(result.isError,true);
   assert.equal(calls.length,0);

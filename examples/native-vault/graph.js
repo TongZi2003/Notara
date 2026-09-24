@@ -30,7 +30,7 @@ export const MATERIAL_TYPES = Object.freeze(new Set([SOURCE_TYPE, TOPIC_TYPE]));
 // will use, so the edge is a reference: a route listing a PDF must never make
 // that PDF look like a content child of the plan page, and plan relations never
 // enter the knowledge split depth or the child-card count.
-const PLAN_TYPES = new Set(['route', 'lesson', 'lesson-summary']);
+const PLAN_TYPES = new Set(['route', 'lesson', 'lesson-summary', 'lesson-board']);
 // The graph's adjacency is exactly these two directed relations; traversal and
 // slicing both read them as undirected reachability.
 const RELATION_KINDS = new Set(['split', 'reference']);
