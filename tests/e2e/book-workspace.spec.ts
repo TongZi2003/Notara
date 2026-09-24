@@ -32,20 +32,19 @@ test('book expands along its real tree, opens a card and its original in place, 
     content: CardContentSchema.parse({ title: '定义域卡片', front: '自变量允许的范围', chapter: '函数/定义域', sources: [source] }) } }));
   await page.setViewportSize({ width: 1440, height: 950 });
   await enterClassroom(page, classroom.authUrl);
+  // 手帐主题入口已下线（本轮只发布极简主题）：仍走一遍外观面板的返回路径，
+  // 纸面与贴纸配色等手帐专属断言由 notebook-theme.spec.ts 的 deferred 用例覆盖。
   await openAppearance(page);
-  await page.getByTestId('theme-notebook').click();
-  await page.getByTestId('notebook-tone').selectOption('white');
   await closeAppearance(page);
   await page.getByRole('button', { name: '资料', exact: true }).first().click();
   await openMaterial(page, '函数原文');
 
   // A real map: the book root alone, with the breakdown action on it.
   const nodes = page.getByTestId('book-nodes');
-  await expect(nodes).toHaveCSS('background-color', 'rgb(255, 255, 255)');
-  await expect(nodes).toHaveCSS('background-image', 'none');
+  // 已发布主题把书节点画成一张独立卡片；纸面/贴纸配色不再由本用例承担。
+  await expect(nodes.locator('[data-kind="book"]')).toHaveCSS('border-top-left-radius', '14px');
   await expect(nodes.locator('[data-kind]')).toHaveCount(1);
   await expect(nodes.locator('[data-kind="book"]')).toContainText('函数原文');
-  await expect(nodes.locator('[data-kind="book"]')).toHaveCSS('background-color', 'rgb(253, 241, 176)');
   await nodes.locator('[data-kind="book"]').getByTestId('mindmap-node').click();
   await expect(nodes.getByRole('button', { name: '细分目录', exact: true })).toHaveCount(1);
   await expect(nodes.getByRole('button', { name: '拆成题卡', exact: true })).toHaveCount(1);

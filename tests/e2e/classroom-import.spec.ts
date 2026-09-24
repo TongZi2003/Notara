@@ -73,9 +73,8 @@ test('empty desk imports a dropped batch even when its first saved file replaces
   await openLessonMaterials(page);
   const empty = page.getByTestId('lesson-materials-empty');
   await expect(empty).toBeVisible();
+  // 手帐主题入口已下线（本轮只发布极简主题）：保留外观面板的往返，不再切换主题。
   await openAppearance(page);
-  await page.getByTestId('theme-notebook').click();
-  await page.getByTestId('notebook-tone').selectOption('white');
   await closeAppearance(page);
   await page.getByTestId('notebook-sidebar').getByRole('button', { name: /回到这节课/u }).click();
   await expect(empty).toBeVisible();

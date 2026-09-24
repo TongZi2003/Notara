@@ -1,4 +1,4 @@
-import { test, expect, enterClassroom, sendInput, openAppearance, closeAppearance } from './fixtures/classroom.ts';
+import { test, expect, enterClassroom, sendInput } from './fixtures/classroom.ts';
 import type { MaterialView } from '@studyforge/contracts/material-records';
 import type { PlanView } from '@studyforge/contracts/plans';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
@@ -12,10 +12,7 @@ test('plan confirmations show the actual dates and reading positions before savi
   const book = imported.value;
   const source = (line: number) => ({ materialId: book.materialId, versionId: book.currentVersion.versionId, locator: { kind: 'text', start: { line, column: 0 }, end: { line, column: 4 } } });
   await enterClassroom(page, classroom.authUrl);
-  // The dashed paper-slip border is a notebook-theme style; modern has none.
-  await openAppearance(page);
-  await page.getByTestId('theme-notebook').click();
-  await closeAppearance(page);
+  // 手帐主题入口已下线（本轮只发布极简主题）：确认单走已发布主题的实心卡片样式。
   await sendInput(page, '[tools]' + JSON.stringify([
     { name: 'propose_plan', arguments: { action: 'create', content: { kind: 'book', title: '两次阅读', materialId: book.materialId, entries: [
       { date: '2026-10-01', sources: [source(1)] }, { date: '2026-10-03', sources: [source(2)] },
@@ -29,7 +26,7 @@ test('plan confirmations show the actual dates and reading positions before savi
   const campaign = page.getByTestId('inline-proposal').filter({ hasText: '指定复习日' });
   await expect(campaign).toContainText('2026-10-02 · 这天不安排卡片');
   await expect(campaign).not.toContainText('每天 9 张');
-  await expect(reading.getByTestId('proposal-slip')).toHaveCSS('border-top-style', 'dashed');
+  await expect(reading.getByTestId('proposal-slip')).toHaveCSS('border-top-style', 'solid');
   await page.screenshot({ path: info.outputPath('plan-confirmations.png'), fullPage: true });
   await reading.getByTestId('proposal-confirm').click();
   await expect(reading.locator('summary')).toContainText('已经保存');

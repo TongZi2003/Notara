@@ -67,7 +67,8 @@ test('learning modes stay inside the native composer and real recommendations hi
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await expect(page.getByTestId('learning-entry')).toHaveCount(0); await expect(mode).toBeVisible();
   await openRoot(page, '首页');
-  await openAppearance(page); await page.getByTestId('theme-notebook').click(); await page.getByTestId('notebook-tone').selectOption('white'); await closeAppearance(page);
+  // 手帐主题入口已下线（本轮只发布极简主题）：只保留外观面板往返，不切换主题。
+  await openAppearance(page); await closeAppearance(page);
   await page.setViewportSize({ width: 500, height: 800 });
   await expect(mode).toBeVisible();
   await page.screenshot({ path: info.outputPath('home-modes-narrow.png'), fullPage: true });

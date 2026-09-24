@@ -56,9 +56,10 @@ test('teaching editor and selected rows remain legible in both themes and light/
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await enterClassroom(page, classroom.authUrl);
-  for (const theme of ['modern', 'notebook'] as const) {
+  // 手帐主题暂缓，只验收已发布主题在明暗两种外观下的可读性。
+  for (const theme of ['modern'] as const) {
     await openAppearance(page);
-    await page.getByTestId(`theme-${theme}`).click();
+    await expect(page.getByTestId('notebook-style')).toHaveText('当前主题：极简');
     await closeAppearance(page);
     await page.getByTestId('notebook-sidebar').getByRole('button', { name: '教法', exact: true }).click();
     const panel = page.getByTestId('studyforge-teaching-page');

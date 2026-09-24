@@ -1,7 +1,9 @@
 import { openAppearance, closeAppearance } from './fixtures/classroom.ts';
 import { test, expect, enterClassroom, sendInput, typeInput } from './fixtures/classroom.ts';
 
-test('written baselines follow the ruled page through scrolling, font changes and expansion', async ({ page, classroom }, info) => {
+// 手帐主题入口已下线（本轮只发布极简主题）：本用例度量的是手帐横线纸的行基线，
+// 属于手帐专属外观，待手帐主题重新开放后再启用。
+test.skip('written baselines follow the ruled page through scrolling, font changes and expansion', async ({ page, classroom }, info) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await enterClassroom(page, classroom.authUrl);
   await openAppearance(page); await page.getByTestId('theme-notebook').click(); await closeAppearance(page);

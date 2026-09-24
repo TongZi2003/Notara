@@ -8,10 +8,12 @@ import type { SessionListValue } from '@deepseek-ai/dsh-api-session-controller';
 
 function value<T>(reply: RemoteResult<T>): T { if (!reply.ok) throw new Error(JSON.stringify(reply.error)); return reply.value; }
 
-test('notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft', async ({ page, classroom }, info) => {
+// 手帐主题入口已下线（本轮只发布极简主题）：本用例断言的全是手帐专属外观
+// （手写字体、纸面纹理、纸色/纸面控件与深色纸面），待手帐主题重新开放后再启用。
+test.skip('notebook fonts, paper controls and browser routes preserve the actual native lesson and its draft', async ({ page, classroom }, info) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await enterClassroom(page, classroom.authUrl);
-  await openAppearance(page); await page.getByTestId('theme-notebook').click(); await closeAppearance(page);
+  await openAppearance(page); await closeAppearance(page);
   await expect(page.locator('body')).toHaveAttribute('data-sf-notebook', 'on');
   await sendInput(page, '求单调区间之前，我先把定义域写出来。');
   await expect(page.locator('[data-conversation-scroll]').getByText('已收到：求单调区间之前，我先把定义域写出来。', { exact: true })).toBeVisible();
@@ -90,7 +92,8 @@ test('notebook fonts, paper controls and browser routes preserve the actual nati
 test('notebook card slips open the real card and its source returns to the originating lesson without recording study', async ({ page, classroom }, info) => {
   const client = await connectRuntime(classroom);
   await enterClassroom(page, classroom.authUrl);
-  await openAppearance(page); await page.getByTestId('theme-notebook').click(); await closeAppearance(page);
+  // 手帐主题入口已下线（本轮只发布极简主题）：本用例只验收卡面与来源回跳。
+  await openAppearance(page); await closeAppearance(page);
   await sendInput(page, '从函数这一节开始。');
   await expect(page.locator('[data-conversation-scroll]').getByText('已收到：从函数这一节开始。', { exact: true })).toBeVisible();
   const book = value(await client.rpc<MaterialView>('studyforgeMaterials/import', { input: { operationId: 'notebook-book', material: { title: '函数笔记', fileName: '函数.md', mediaType: 'text/markdown' }, base64: Buffer.from('先写定义域，再讨论单调性。').toString('base64') } }));

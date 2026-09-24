@@ -3,7 +3,9 @@ import { test, expect, enterClassroom, sendInput } from './fixtures/classroom.ts
 import type { SessionListValue } from '@deepseek-ai/dsh-api-session-controller';
 import { connectRuntime } from '../fixtures/http-runtime.ts';
 
-test('the whole conversation uses paper, wide tables stay inside, and confirmation uses the original loose slip', async ({ page, classroom }, info) => {
+// 手帐主题入口已下线（本轮只发布极简主题）：本用例断言纸面纹理、纸色、表格字迹与
+// 手帐活页确认单，全部属于手帐专属外观，待手帐主题重新开放后再启用。
+test.skip('the whole conversation uses paper, wide tables stay inside, and confirmation uses the original loose slip', async ({ page, classroom }, info) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await enterClassroom(page, classroom.authUrl);
   await openAppearance(page); await page.getByTestId('theme-notebook').click(); await closeAppearance(page);

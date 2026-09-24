@@ -38,18 +38,23 @@ test('three peer views preserve the native draft through docking, resizing, hidi
   expect(errors).toEqual([]);
 });
 
-test('two themes remember the notebook paper choice independently', async ({ page, classroom }, info) => {
+// 手帐主题入口已下线（本轮只发布极简主题）：外观面板不再提供主题切换，
+// 且旧的浏览器偏好不能把已下线的手帐主题拉回来。
+test('the appearance page offers no theme switcher and an old paper preference restores the minimal theme', async ({ page, classroom }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 }); await enterClassroom(page, classroom.authUrl);
   await page.goto(new URL('/#studyforge/appearance', classroom.authUrl).href);
-  await expect(page.getByTestId('theme-modern')).toHaveAttribute('aria-checked', 'true');
-  await page.getByTestId('theme-notebook').click(); await page.getByTestId('notebook-tone').selectOption('white');
-  await page.getByTestId('theme-modern').click();
-  await page.reload(); await expect(page.getByTestId('theme-modern')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('notebook-appearance')).toBeVisible();
+  await expect(page.getByTestId('theme-modern')).toHaveCount(0);
+  await expect(page.getByTestId('theme-notebook')).toHaveCount(0);
+  await expect(page.getByTestId('notebook-style')).toHaveText('当前主题：极简');
+  await page.evaluate(() => localStorage.setItem('studyforge.notebook.appearance', JSON.stringify({ style: 'notebook', tone: 'white', paper: 'fangge' })));
+  await page.reload();
+  await expect(page.locator('body')).toHaveAttribute('data-sf-style', 'modern');
+  await expect(page.getByTestId('notebook-tone')).toHaveCount(0);
+  await expect(page.getByTestId('notebook-style')).toHaveText('当前主题：极简');
   await page.goto(new URL('/#studyforge/classroom', classroom.authUrl).href);
   await expect(page.locator('body')).toHaveAttribute('data-sf-style', 'modern');
-  await page.screenshot({ path: info.outputPath('modern-home.png'), fullPage: true });
-  await page.goto(new URL('/#studyforge/appearance', classroom.authUrl).href); await page.getByTestId('theme-notebook').click();
-  await expect(page.locator('body')).toHaveAttribute('data-sf-style', 'notebook'); await expect(page.getByTestId('notebook-tone')).toHaveValue('white');
+  await page.screenshot({ path: info.outputPath('minimal-home.png'), fullPage: true });
 });
 
 test('layout menu supports every pair and the native conversation returns when the workspace plugin unloads', async ({ page, classroom }) => {

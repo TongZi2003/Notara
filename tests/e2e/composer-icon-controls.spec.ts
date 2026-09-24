@@ -55,8 +55,9 @@ test('narrow composer keeps a real glyph on every icon control and restores labe
     await separate();
   };
   let naturalSplit = true;
-  for (const style of ['modern', 'notebook'] as const) {
-    await openAppearance(page); await page.getByTestId(`theme-${style}`).click(); await closeAppearance(page);
+  // 手帐主题入口已下线（本轮只发布极简主题）：分栏图标控件只在已发布主题下验收。
+  for (const style of ['modern'] as const) {
+    await openAppearance(page); await closeAppearance(page);
     // 1. The reported split: 1154x747 with the materials workbench open leaves a
     // composer above the trigger's own 360px icon breakpoint, where the native
     // trigger hides its icon and only the label would remain.

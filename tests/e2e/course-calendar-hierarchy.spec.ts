@@ -19,8 +19,9 @@ test('one collapsible course tree shares details with the map, without duplicate
   value(await client.rpc('studyforgeOrganization/openPlannedLesson', { input: { operationId: 'open-one', nodeId: root.id } }));
   const stored = value(await client.rpc<RouteView>('studyforgeOrganization/route', {}));
   await page.setViewportSize({ width: 802, height: 747 }); await enterClassroom(page, classroom.authUrl);
-  for (const style of ['modern', 'notebook'] as const) {
-    await openAppearance(page); await page.getByTestId(`theme-${style}`).click(); await closeAppearance(page); await openCoursesList(page);
+  // 手帐主题入口已下线（本轮只发布极简主题）：课程树只在已发布主题下验收。
+  for (const style of ['modern'] as const) {
+    await openAppearance(page); await closeAppearance(page); await openCoursesList(page);
     const tree = page.getByTestId('roadmap-nodes');
     await expect(tree.getByTestId('roadmap-node-title')).toHaveText(['三角恒等变换', '独立的复习课']);
     await expect(tree.getByTestId('roadmap-node-edit')).toHaveCount(0);
@@ -29,7 +30,7 @@ test('one collapsible course tree shares details with the map, without duplicate
     await expect(tree.getByTestId('roadmap-node-title')).toHaveText(['三角恒等变换', '两角和差公式', '独立的复习课']);
     await tree.getByRole('button', { name: '展开两角和差公式', exact: true }).click();
     await expect(tree.getByTestId('roadmap-node-title')).toHaveCount(4);
-    await expect(tree.getByTestId('roadmap-node-title').first()).toHaveCSS('font-size', style === 'modern' ? '15px' : '16px');
+    await expect(tree.getByTestId('roadmap-node-title').first()).toHaveCSS('font-size', '15px');
     await page.screenshot({ path: info.outputPath(`${style}-course-tree-802.png`) });
     await tree.getByRole('button', { name: '查看三角恒等变换', exact: true }).click();
     const detail = page.getByTestId('course-node-detail');
@@ -134,9 +135,10 @@ test('calendar groups real saved cards under their classroom and keeps outside n
   value(await client.rpc<CardView>('studyforgeLearning/createCard', { input: { operationId: 'outside', content: { title: '课外整理的提醒', front: '先检查定义域。' } } }));
   const day = value(await client.rpc<CalendarDay>('studyforgeCalendar/day', { query: { date, timeZone: 'Asia/Shanghai' } }));
   expect(day.activity.filter(item => item.kind === 'card' && item.sourceRefs.includes('session:' + sessionId))).toHaveLength(2);
-  for (const style of ['modern', 'notebook'] as const) {
+  // 手帐主题入口已下线（本轮只发布极简主题）：日历分组只在已发布主题下验收。
+  for (const style of ['modern'] as const) {
     await page.setViewportSize({ width: 802, height: 747 });
-    await openAppearance(page); await page.getByTestId(`theme-${style}`).click(); await closeAppearance(page); await openRoot(page, '日历');
+    await openAppearance(page); await closeAppearance(page); await openRoot(page, '日历');
     await page.getByRole('button', { name: '今天', exact: true }).click();
     const owner = page.getByTestId('calendar-activity-group').filter({ hasText: '三角恒等变换专题' });
     await expect(owner).toHaveCount(1);
@@ -144,7 +146,7 @@ test('calendar groups real saved cards under their classroom and keeps outside n
     await owner.locator('summary').click();
     await expect(owner.getByTestId('calendar-activity-item')).toHaveCount(2);
     await expect(owner.getByTestId('calendar-activity-item').first()).toContainText('题卡');
-    await expect(owner.getByTestId('calendar-activity-item').first().locator('button')).toHaveCSS('font-size', style === 'modern' ? '13px' : '15px');
+    await expect(owner.getByTestId('calendar-activity-item').first().locator('button')).toHaveCSS('font-size', '13px');
     const outside = page.getByTestId('calendar-activity-group').filter({ hasText: '课外记录' });
     await outside.locator('summary').click();
     await expect(outside).toContainText('课外整理的提醒');

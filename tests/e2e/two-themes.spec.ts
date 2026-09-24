@@ -5,7 +5,9 @@ import type { CardView } from '@studyforge/contracts/cards';
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 const value = <T,>(result: RemoteResult<T>): T => { if (!result.ok) throw new Error(JSON.stringify(result.error)); return result.value; };
 
-test('two complete themes preserve paper preferences, native drafts, menus and responsive settings', async ({ page, classroom }, info) => {
+// 手帐主题入口已下线（本轮只发布极简主题）：外观面板只保留已发布主题的说明，
+// 旧的浏览器偏好也不能把手帐主题拉回来；手帐专属外观由 notebook-*.spec.ts 的 deferred 用例覆盖。
+test('the released minimal theme is the only appearance and offers no switcher', async ({ page, classroom }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1117, height: 747 });
   await enterClassroom(page, classroom.authUrl);
@@ -14,41 +16,36 @@ test('two complete themes preserve paper preferences, native drafts, menus and r
   await expect(page.locator('[data-composer-card]')).toHaveCSS('border-top-left-radius', '22px');
   const home = page.getByTestId('notebook-sidebar').getByRole('button', { name: '首页', exact: true });
   await home.hover(); await expect(home).toHaveCSS('background-color', 'rgb(229, 231, 235)');
-  await page.screenshot({ path: info.outputPath('modern-home.png'), fullPage: true });
-  await typeInput(page, '主题切换时保留这条草稿');
+  await page.screenshot({ path: info.outputPath('minimal-home.png'), fullPage: true });
+  await typeInput(page, '打开外观面板后仍保留这条草稿');
   await openAppearance(page);
-  await expect(page.getByRole('radiogroup', { name: '界面主题' }).getByRole('radio')).toHaveCount(2);
+  await expect(page.getByRole('radiogroup', { name: '界面主题' })).toHaveCount(0);
+  await expect(page.getByTestId('theme-modern')).toHaveCount(0);
+  await expect(page.getByTestId('theme-notebook')).toHaveCount(0);
+  await expect(page.getByTestId('notebook-style')).toHaveText('当前主题：极简');
   await expect(page.getByTestId('notebook-tone')).toHaveCount(0);
-  await page.getByTestId('theme-notebook').click();
-  await page.getByTestId('notebook-tone').selectOption('yellow');
-  await page.getByTestId('notebook-paper').selectOption('fangge');
-  await page.getByTestId('notebook-scheme').selectOption('bing');
-  await page.screenshot({ path: info.outputPath('theme-settings.png'), fullPage: true });
+  await page.screenshot({ path: info.outputPath('minimal-appearance.png'), fullPage: true });
   await closeAppearance(page);
-  await expect(page.locator('[data-composer-input]')).toContainText('主题切换时保留这条草稿');
-  await expect(page.locator('[data-composer-input]')).toHaveCSS('font-family', /SF WenKai/);
-  await expect(page.getByTestId('agent-role')).toHaveCSS('font-family', /SF WenKai/);
-  await expect(page.locator('[data-slot="conversation.input.model"] button').first()).toHaveCSS('font-family', /SF WenKai/);
-  await expect(page.locator('.sf-notebook-welcome')).toHaveCSS('font-size', '30px');
-  await openAppearance(page); await page.getByTestId('theme-modern').click(); await closeAppearance(page);
-  await expect(page.locator('[data-composer-input]')).toContainText('主题切换时保留这条草稿');
+  await expect(page.locator('[data-composer-input]')).toContainText('打开外观面板后仍保留这条草稿');
   await expect(page.locator('[data-composer-input]')).toHaveCSS('background-image', 'none');
   await expect(page.locator('[data-composer-input]')).toHaveCSS('font-family', /system-ui/);
   await page.getByTestId('agent-role').click();
   await expect(page.getByRole('dialog', { name: '智能体身份' })).toHaveCSS('border-top-left-radius', '14px');
   await page.keyboard.press('Escape');
+  // 旧的浏览器偏好不能把已下线的手帐主题拉回来。
+  await page.evaluate(() => localStorage.setItem('studyforge.notebook.appearance', JSON.stringify({ style: 'notebook', tone: 'white', paper: 'fangge', scheme: 'bing', size: 'l' })));
+  await page.reload();
+  await expect(page.locator('body')).toHaveAttribute('data-sf-style', 'modern');
+  await expect(page.locator('[data-composer-input]')).toHaveCSS('font-family', /system-ui/);
   await page.setViewportSize({ width: 390, height: 844 }); await openAppearance(page);
   await expect.poll(async () => page.getByTestId('notebook-appearance').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
-  await expect(page.getByTestId('theme-modern')).toBeVisible(); await expect(page.getByTestId('theme-notebook')).toBeVisible();
-  await page.screenshot({ path: info.outputPath('modern-settings-mobile.png'), fullPage: true });
-  await page.reload(); await openAppearance(page);
-  await expect(page.getByTestId('theme-modern')).toHaveAttribute('aria-checked', 'true');
-  await page.getByTestId('theme-notebook').click();
-  await expect(page.getByTestId('notebook-paper')).toHaveValue('fangge'); await expect(page.getByTestId('notebook-scheme')).toHaveValue('bing');
+  await expect(page.getByTestId('theme-modern')).toHaveCount(0); await expect(page.getByTestId('theme-notebook')).toHaveCount(0);
+  await expect(page.getByTestId('notebook-paper')).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('minimal-appearance-mobile.png'), fullPage: true });
   expect(errors).toEqual([]);
 });
 
-test('both themes cover every root page, real card editor, material reader and workbench nodes', async ({ page, classroom }, info) => {
+test('the released minimal theme covers every root page, real card editor, material reader and workbench nodes', async ({ page, classroom }, info) => {
   test.setTimeout(150_000);
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 960 }); await enterClassroom(page, classroom.authUrl);
@@ -58,8 +55,9 @@ test('both themes cover every root page, real card editor, material reader and w
   const book = value(await client.rpc<MaterialView>('studyforgeMaterials/import', { input: { operationId: 'theme-book', material: { title: '三角函数讲义', fileName: '三角函数.md', mediaType: 'text/markdown' }, base64: Buffer.from('# 两角和差公式\n观察角之间的关系。\n').toString('base64') } }));
   value(await client.rpc('studyforgeOrganization/createSet', { input: { operationId: 'theme-set', set: { name: '高考数学', subjects: ['数学'] } } }));
   value(await client.rpc<CardView>('studyforgeLearning/createCard', { input: { operationId: 'theme-card', content: { title: '先观察角之间的关系', front: '如何选择合适的两角和差公式？', sources: [{ materialId: book.materialId, versionId: book.currentVersion.versionId, locator: { kind: 'text', start: { line: 2, column: 0 }, end: { line: 2, column: 9 } } }] } } }));
-  for (const style of ['modern', 'notebook'] as const) {
-    await openAppearance(page); await page.getByTestId(`theme-${style}`).click(); await closeAppearance(page);
+  // 手帐主题入口已下线（本轮只发布极简主题）。
+  for (const style of ['modern'] as const) {
+    await openAppearance(page); await closeAppearance(page);
     for (const [label, route] of [['课程','courses'],['资料','materials'],['学习集','sets'],['日历','calendar'],['学情','memory']] as const) {
       await openRoot(page, label); const root = page.getByTestId(`studyforge-page-studyforge.${route}`);
       await expect(root).toBeVisible();
@@ -78,7 +76,6 @@ test('both themes cover every root page, real card editor, material reader and w
         .filter(el => el.getClientRects().length && el.textContent?.trim())
         .map(el => ({ text: el.textContent?.trim().slice(0, 35), font: getComputedStyle(el).fontFamily, size: parseFloat(getComputedStyle(el).fontSize) })));
       expect(type.filter(item => item.size > 22), `${style} ${route}: oversized interface text`).toEqual([]);
-      if (style === 'notebook') expect(type.filter(item => !/SF Kalam|SF Long Cang/.test(item.font)), `${route}: mixed notebook fonts`).toEqual([]);
       if (route === 'calendar') {
         await root.locator('.cal-c.today').click();
         const detail = page.getByTestId('calendar-detail');
@@ -97,18 +94,7 @@ test('both themes cover every root page, real card editor, material reader and w
     }
     await openCards(page); const row = page.getByTestId('card-row').first(); await expect(row).toBeVisible();
     await row.getByTestId('card-row-open').click(); await expect(page.getByTestId('card-detail')).toBeVisible();
-    if (style === 'notebook') {
-      await expect(page.getByTestId('card-detail-front')).toHaveCSS('font-family', /SF Kalam/);
-      await openAppearance(page); await page.getByTestId('notebook-face').selectOption('print'); await closeAppearance(page);
-      await expect(page.getByTestId('card-detail-front')).toHaveCSS('font-family', /Songti/);
-      await openAppearance(page); await page.getByTestId('notebook-face').selectOption('hand'); await closeAppearance(page);
-      await expect(page.getByTestId('card-detail-front')).toHaveCSS('font-family', /SF Kalam/);
-    }
     await page.getByTestId('card-detail-edit').click(); await expect(page.getByTestId('card-editor')).toBeVisible();
-    if (style === 'notebook') {
-      const editorFonts = await page.getByTestId('card-editor').locator('input,textarea,label,h2').evaluateAll(els => els.filter(el => el.getClientRects().length).map(el => getComputedStyle(el).fontFamily));
-      expect(editorFonts.filter(font => !/SF Kalam|SF Long Cang/.test(font))).toEqual([]);
-    }
     await page.screenshot({ path: info.outputPath(`${style}-card-editor.png`), fullPage: true });
     await openRoot(page, '首页');
     await page.getByTestId('workspace-open-materials').click();
@@ -128,7 +114,7 @@ test('both themes cover every root page, real card editor, material reader and w
   expect(errors).toEqual([]);
 });
 
-test('modern conversation and pending/saved confirmation do not inherit paper or handwriting', async ({ page, classroom }, info) => {
+test('minimal conversation and pending/saved confirmation do not inherit paper or handwriting', async ({ page, classroom }, info) => {
   await page.setViewportSize({ width: 1117, height: 747 }); await enterClassroom(page, classroom.authUrl);
   await sendInput(page, '[tool]' + JSON.stringify({ name: 'propose_card', arguments: { kind: 'card', title: '角度转换', front: '| 条件 | 结论 |\n|---|---|\n| 两角之和 | 使用和角公式 |\n\n$\\sin(\\alpha+\\beta)$' } }));
   const proposal = page.getByTestId('inline-proposal').filter({ hasText: '角度转换' });
@@ -139,10 +125,8 @@ test('modern conversation and pending/saved confirmation do not inherit paper or
   await proposal.getByTestId('proposal-confirm').click(); await expect(proposal).not.toHaveAttribute('open');
   await proposal.locator('summary').click();
   await expect(proposal.getByTestId('proposal-item-status')).toHaveCSS('transform', 'none');
-  await openAppearance(page); await page.getByTestId('theme-notebook').click(); await closeAppearance(page);
-  await expect(proposal.getByTestId('proposal-item-status')).not.toHaveCSS('transform', 'none');
-  await expect(proposal.locator('summary').first()).toHaveCSS('font-family', /SF Kalam/);
-  await expect(proposal.getByTestId('proposal-content')).toHaveCSS('font-size', '16px');
-  await openAppearance(page); await page.getByTestId('theme-modern').click(); await closeAppearance(page);
+  // 手帐主题入口已下线（本轮只发布极简主题）：确认单不随已下线的主题变化。
+  await expect(proposal.getByTestId('proposal-item-status')).toHaveCSS('transform', 'none');
+  await expect(proposal.getByTestId('proposal-content')).toHaveCSS('font-family', /system-ui/);
   await expect.poll(async () => page.locator('[data-chat-flow] [style*="--sf-ink-shift"]').count()).toBe(0);
 });

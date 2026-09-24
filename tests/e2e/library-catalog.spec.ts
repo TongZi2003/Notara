@@ -28,8 +28,10 @@ test('library hierarchy, direct tags, shared identity and mobile preview work in
     operationId: seed.title, content: { ...seed, front: '先观察已知角与目标角，再选择公式。' },
   } })));
   await page.setViewportSize({ width: 1154, height: 747 }); await enterClassroom(page, classroom.authUrl);
-  for (const style of ['modern', 'notebook'] as const) {
-    await openAppearance(page); await page.getByTestId(`theme-${style}`).click(); await closeAppearance(page); await openRoot(page, '资料');
+  // 手帐主题入口已下线（本轮只发布极简主题）：这里仍按已发布主题逐个跑一遍，
+  // 手帐主题重新开放后把 'notebook' 加回这个列表即可恢复双主题覆盖。
+  for (const style of ['modern'] as const) {
+    await openAppearance(page); await closeAppearance(page); await openRoot(page, '资料');
     const catalog = page.getByTestId('materials-list'), first = page.getByTestId('library-source-group').filter({ has: page.locator(`[data-material-title="${books[0]!.title}"]`) }), second = page.getByTestId('library-source-group').filter({ has: page.locator(`[data-material-title="${books[1]!.title}"]`) });
     await expect(page.getByRole('combobox', { name: '筛选标签' })).toBeVisible();
     await expect(page.getByTestId('library-source-group')).toHaveCount(2);
@@ -44,8 +46,8 @@ test('library hierarchy, direct tags, shared identity and mobile preview work in
     await first.getByRole('button', { name: '象限', exact: true }).click();
     await expect(first.locator('.sf-library-item')).toHaveCount(2);
     await expect(catalog.locator('.sf-linear-tree')).toHaveCount(0);
-    await expect(first.locator('.sf-library-source-open strong')).toHaveCSS('font-size', style === 'modern' ? '16px' : '18px');
-    await expect(first.locator('.sf-library-item-open').first()).toHaveCSS('font-size', style === 'modern' ? '15px' : '16px');
+    await expect(first.locator('.sf-library-source-open strong')).toHaveCSS('font-size', '16px');
+    await expect(first.locator('.sf-library-item-open').first()).toHaveCSS('font-size', '15px');
     await page.screenshot({ path: info.outputPath(`${style}-library.png`), fullPage: true });
     await first.locator('.sf-library-source-open').click();
     await expect(first.locator('.sf-library-item')).toHaveCount(0);
