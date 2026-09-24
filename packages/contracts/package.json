@@ -56,6 +56,10 @@
       "types": "./lib/types/teaching-rounds.d.ts",
       "default": "./lib/types/teaching-rounds.js"
     },
+    "./vault": {
+      "types": "./lib/types/vault.d.ts",
+      "default": "./lib/types/vault.js"
+    },
     "./changes": {
       "types": "./lib/types/changes.d.ts",
       "default": "./lib/types/changes.js"

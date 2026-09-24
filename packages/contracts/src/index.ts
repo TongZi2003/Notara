@@ -26,6 +26,7 @@ export * from './handoffs.ts';
 export * from './tool-facades.ts';
 export * from './atlas.ts';
 export * from './teaching-rounds.ts';
+export * from './vault.ts';
 
 import { z } from 'zod';
 import { CardContentSchema, CardPatchSchema, CardRecordSchema, CardViewSchema,
@@ -52,6 +53,7 @@ import { BookStructureSchema, BookBreakdownIntentSchema } from './book-explorati
 import { DateQuerySchema, CalendarDaySchema, RoadmapDateFilterSchema, RoadmapFilterResultSchema, DailyReportSettingsSchema, DailyReportSchema } from './calendar.ts';
 import { TeachingChoiceSchema, TeachingManifestSchema } from './teaching.ts';
 import { TeachingRoundRecordSchema, TeachingRoundViewSchema, RoundOpenInputSchema } from './teaching-rounds.ts';
+import { VaultListInputSchema, VaultReadInputSchema, VaultSaveInputSchema, VaultSearchInputSchema, VaultQueryInputSchema } from './vault.ts';
 
 /** Only authoring inputs belong in the model-facing set. Native envelopes are Host-owned. */
 export const MODEL_CONTENT_SCHEMAS = {
@@ -90,6 +92,8 @@ export const CONTRACT_SCHEMAS = {
   'memory-search-input': MemorySearchInputSchema, 'memory-search-result': MemorySearchResultSchema, 'memory-basis': MemoryBasisViewSchema,
   'handoff-record': HandoffRecordSchema, 'handoff-view': HandoffViewSchema, 'handoff-close-input': HandoffCloseInputSchema, 'handoff-close-result': HandoffCloseResultSchema,
   'teaching-round-record': TeachingRoundRecordSchema, 'teaching-round-view': TeachingRoundViewSchema, 'teaching-round-open': RoundOpenInputSchema,
+  'vault-list-input': VaultListInputSchema, 'vault-read-input': VaultReadInputSchema, 'vault-save-input': VaultSaveInputSchema,
+  'vault-search-input': VaultSearchInputSchema, 'vault-query-input': VaultQueryInputSchema,
 } as const;
 /** JSON structural rules and TS come from Zod; cross-field refinements run at the Host boundary. */
 export const CONTRACT_JSON_SCHEMAS = Object.fromEntries(Object.entries(CONTRACT_SCHEMAS)
