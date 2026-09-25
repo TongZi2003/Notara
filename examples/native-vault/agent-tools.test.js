@@ -20,6 +20,14 @@ test('teaching tools register native validated schemas and require approval for 
   assert.equal(calls.length,0);
 });
 
+test('write_lesson_board exposes only the controlled math interaction contract', async () => {
+  const contract = module.VAULT_TOOL_CONTRACTS.find(item => item.name === 'write_lesson_board');
+  assert.ok(contract);
+  assert.ok(contract.parameters.properties.interactive);
+  assert.equal(contract.parameters.properties.interactive.properties.provider.enum[0], 'math');
+  assert.deepEqual(contract.parameters.properties.interactive.properties.preset.enum, ['parabola']);
+});
+
 test('read-only subagents cannot write teaching facts even through a callable tool',async()=>{
   assert.equal(typeof module.installAgentTools,'function');
   const ctx=new Context();

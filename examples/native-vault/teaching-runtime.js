@@ -4,7 +4,7 @@ import { isAbsolute,relative,resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createAgentVaultIO,createEditorVaultIO,vaultScopes,sourceRef } from './agent-io.js';
 import { serializeFrontmatter } from './frontmatter.js';
-import { safeRelativePath } from './vault.js';
+import { safeRelativePath, resolveVaultRoot } from './vault.js';
 import { lessonLog,parseLessonSummaries,upsertLessonSummary,parseRoute,renderRoute } from './lesson-data.js';
 import { TEACHING_PRESET,teachingManifest,teachingResource,teachingResourcePath,currentTeachingBody } from './teaching-catalog.js';
 import { readTeachingSettings,updateTeachingSettings,validateTeachingPatch,bindTeachingLesson,appendTeachingEvent,teachingCutoff,LESSON_EVENT,SUMMARY_EVENT } from './teaching-state.js';
@@ -17,6 +17,11 @@ import { createRouteInVault, safeTitlePath as titlePath } from './file-operation
 import { createBoardRuntime,readBoardDocument,boardPath } from './board-runtime.js';
 
 const fail=code=>{throw new Error(code);};
+/** One root for the Bash environment and the per-turn context. */
+function materialRoot(workspacePath){
+  const root=resolveVaultRoot(workspacePath);
+  return {path:root,prefix:resolve(root)===resolve(workspacePath)?'':'vault/'};
+}
 const summaryTitle=session=>session.snapshotEvents().filter(e=>e.type==='session/title').at(-1)?.data?.title??'课堂小结';
 const summaryRecords=session=>session.snapshotEvents().filter(event=>event.type===SUMMARY_EVENT&&event.seq>=(session.inheritedEventCount??0));
 function pendingInputs(session) {
@@ -48,6 +53,7 @@ export class NotaraTeaching extends Service {
   isTeaching(agent) {return agent?.session?.header?.agentPreset===TEACHING_PRESET;}
   async board(input) {return this.lessonBoard.read(input);}
   async mutateBoard(input) {return this.lessonBoard.mutate(input);}
+  async mutateBoardInteraction(input) {return this.lessonBoard.mutateInteraction(input);}
   async classroom(input) {return this.solver.read(input);}
   async solverTask(input) {return this.solver.task(input);}
   async configureSolver(input) {return this.solver.configure(input);}
@@ -91,11 +97,11 @@ export class NotaraTeaching extends Service {
       workspace=vaultScopes(this.ctx,exec)[0];
       if(isAbsolute(path)){
         workspace=vaultScopes(this.ctx,exec,'all').find(row=>{
-          const rel=relative(resolve(row.path,'vault'),path);
+          const rel=relative(resolveVaultRoot(row.path),path);
           return rel&&!rel.startsWith('..')&&!isAbsolute(rel);
         });
         if(!workspace)fail('vault_scope_unavailable');
-        path=relative(resolve(workspace.path,'vault'),path);
+        path=relative(resolveVaultRoot(workspace.path),path);
       }else if(path.startsWith('vault/'))path=path.slice(6);
       script=await createAgentVaultIO(this.ctx,exec,{scope:workspace.id}).read(safeRelativePath(path));
       if(script.type!=='lesson')fail('lesson_script_required');
@@ -291,6 +297,8 @@ export function installTeachingRuntime(ctx,config={}) {
       DSH_NOTARA_NODE:{description:'Node executable for the bundled Notara helper.'},
       DSH_NOTARA_CLI:{description:'Bundled helper entry; invoke help for progressive command disclosure.'},
       DSH_NOTARA_WORKSPACE:{description:'Current registered classroom workspace root.'},
+      DSH_NOTARA_VAULT_ROOT:{description:'Current classroom material root; use this path for Bash reads and writes.'},
+      DSH_NOTARA_VAULT_PREFIX:{description:'Legacy relative path prefix for the material root; empty when the selected workspace is itself the Vault.'},
       DSH_NOTARA_WORKSPACE_ID:{description:'Current registered workspace identity, provided by Host.'},
       DSH_NOTARA_CALL_ID:{description:'Current native shell call identity, provided by Host.'},
       DSH_NOTARA_LESSON:{description:'Bound lesson location and revision, provided by Host; do not construct or override.'},
@@ -299,10 +307,11 @@ export function installTeachingRuntime(ctx,config={}) {
     resolve(exec){
       if(!service.isTeaching(exec.agent)||exec.agent.session.header.origin==='subagent')return {};
       const workspace=vaultScopes(ctx,exec)[0];
+      const vaultRoot=materialRoot(workspace.path);
       const settings=readTeachingSettings(exec.agent.session);
       const bound=settings.scriptPath?vaultScopes(ctx,exec,'all').find(item=>item.id===(settings.scriptWorkspaceId??workspace.id)):null;
       const lesson=bound?JSON.stringify({workspacePath:bound.path,workspaceId:bound.id,path:settings.scriptPath,revision:settings.scriptRevision}):'';
-      return {DSH_NOTARA_NODE:process.execPath,DSH_NOTARA_CLI:fileURLToPath(new URL('./vault-cli.js',import.meta.url)),DSH_NOTARA_WORKSPACE:workspace.path,DSH_NOTARA_WORKSPACE_ID:workspace.id,DSH_NOTARA_CALL_ID:exec.callId??'',DSH_NOTARA_LESSON:lesson,DSH_NOTARA_TEACHING:teachingResourcePath('.')};
+      return {DSH_NOTARA_NODE:process.execPath,DSH_NOTARA_CLI:fileURLToPath(new URL('./vault-cli.js',import.meta.url)),DSH_NOTARA_WORKSPACE:workspace.path,DSH_NOTARA_VAULT_ROOT:vaultRoot.path,DSH_NOTARA_VAULT_PREFIX:vaultRoot.prefix,DSH_NOTARA_WORKSPACE_ID:workspace.id,DSH_NOTARA_CALL_ID:exec.callId??'',DSH_NOTARA_LESSON:lesson,DSH_NOTARA_TEACHING:teachingResourcePath('.')};
     },
   })));
 
@@ -312,6 +321,9 @@ export function installTeachingRuntime(ctx,config={}) {
     // The fixed solver owns its own prompt and receives only supplied material.
     if(agent.session.header.origin==='subagent') return '';
     const settings=readTeachingSettings(agent.session);
+    // No workspace lookup here: this section must compose before any learning
+    // set is registered. The concrete material root travels in the per-turn
+    // context below, and the path rule itself lives in the teaching resources.
     return teacherPersona(settings,teachingResource('persona.md'))+'\n\n'+teachingResource('base.md')+'\n\n'+currentTeachingBody(settings.teachingRef);
   }}));
   ctx.on('system-prompt/assemble',async(assembly,context,next)=>{
@@ -319,9 +331,10 @@ export function installTeachingRuntime(ctx,config={}) {
     if(!service.isTeaching(agent)||agent.session.header.origin==='subagent') return result;
     const settings=readTeachingSettings(agent.session);
     service.prepared.set(agent,{revision:settings.revision,cutoff:teachingCutoff(agent.session)});
-    let memory;
+    let memory,materialsRoot=null;
     try{
       const exec={agent,signal:context.signal},io=createAgentVaultIO(ctx,exec),readers=[{scope:io.workspace,read:io.read}];
+      materialsRoot=materialRoot(io.workspace.path);
       // Explicitly bound cross-set scripts retain their scope. Never substitute
       // a same-named file from the current learning set.
       if(settings.scriptWorkspaceId&&settings.scriptWorkspaceId!==io.workspace.id){
@@ -332,15 +345,15 @@ export function installTeachingRuntime(ctx,config={}) {
       const board=await readBoardDocument(io,agent.session.id);
       service.prepared.get(agent).boardRevision=board.revision;
       // Semantic titles let the teacher target a region without inventing IDs or coordinates.
-      memory.text+='\n\n当前板书区域：'+JSON.stringify(board.board.blocks.map(({title,kind})=>({title,kind})))+'。同名写入会替换该区域全文；只写已向学生公开的内容。需核对已有正文时读取 '+resolve(io.workspace.path,'vault',boardPath(agent.session.id))+'。';
+      memory.text+='\n\n当前板书区域：'+JSON.stringify(board.board.blocks.map(({title,kind})=>({title,kind})))+'。同名写入会替换该区域全文；只写已向学生公开的内容。需核对已有正文时读取 '+resolve(io.rootPath,boardPath(agent.session.id))+'。';
     }
     catch(error){if(!['vault_scope_unavailable','vault_session_required'].includes(error.message))throw error;memory={text:'当前课堂尚未连接学习集，可以继续讨论题目；资料和学习记录需要先通过原生工作区入口接入，不能推测已有记录。'};}
     // Bindings and navigation are separate from the L0 memory budget. No script
     // body (including legacy snapshots) is injected before a stage is read.
     const bound=settings.scriptPath?ctx.get('workspaceRegistry')?.list().find(item=>item.id===settings.scriptWorkspaceId):null;
-    const readPath=bound?resolve(bound.path,'vault',settings.scriptPath):settings.scriptWorkspaceId?null:settings.scriptPath;
+    const readPath=bound?resolve(resolveVaultRoot(bound.path),settings.scriptPath):settings.scriptWorkspaceId?null:settings.scriptPath;
     const course=await service.routeContext({agent,signal:context.signal},settings);
-    const background={learningGoal:settings.learningGoal,temporaryInstructions:settings.temporaryInstructions,subjects:settings.subjects,course,script:settings.scriptPath?{...memory.script,path:settings.scriptPath,readPath,workspaceId:settings.scriptWorkspaceId,boundRevision:settings.scriptRevision,bodyRead:false}:null,previousLesson:settings.continuation,materials:settings.materials};
+    const background={learningGoal:settings.learningGoal,temporaryInstructions:settings.temporaryInstructions,subjects:settings.subjects,materialsRoot:materialsRoot?{env:'DSH_NOTARA_VAULT_ROOT',path:materialsRoot.path,legacyPrefix:materialsRoot.prefix}:null,course,script:settings.scriptPath?{...memory.script,path:settings.scriptPath,readPath,workspaceId:settings.scriptWorkspaceId,boundRevision:settings.scriptRevision,bodyRead:false}:null,previousLesson:settings.continuation,materials:settings.materials};
     return {...result,contexts:[...result.contexts,{name:'notara:learning-context',text:memory.text},{name:'notara:lesson-background',text:JSON.stringify(background)}]};
   });
   ctx.on('session/event',(session,event)=>{if(event.type==='turn/end'){service.requests.delete(session.id);for(const key of service.operations.keys())if(key.startsWith(session.id+':'))service.operations.delete(key);}});

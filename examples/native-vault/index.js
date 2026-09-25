@@ -2,7 +2,7 @@ import { TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createVaultStore, safeRelativePath } from './vault.js';
+import { createVaultStore, safeRelativePath, resolveVaultRoot } from './vault.js';
 import { installTeachingRuntime } from './teaching-runtime.js';
 import { VAULT_REMOTE_METHODS } from './remote-client.js';
 import { createPdfAnnotationStore } from './pdf-annotations.js';
@@ -93,7 +93,7 @@ export class NotaraVaultRemote extends TypertRemoteService {
   async storeFor(input) {
     const editor = await this.editorFor(input), workspacePath = editor?.workspace?.path;
     if (typeof workspacePath !== 'string' || !workspacePath) fail('vault_workspace_unavailable');
-    const root = join(workspacePath, 'vault');
+    const root = resolveVaultRoot(workspacePath);
     let store = this.stores.get(root);
     if (!store) { store = createVaultStore(root, this.templatesRoot); this.stores.set(root, store); }
     return store;
@@ -128,6 +128,7 @@ export class NotaraVaultRemote extends TypertRemoteService {
   async teachingSettings(input) {return this.teachingCall('settings',exactInput(input,['sessionId']));}
   async board(input) {return this.teachingCall('board',exactInput(input,['sessionId']));}
   async mutateBoard(input) {return this.teachingCall('mutateBoard',exactInput(input,['sessionId','expectedRevision','patch'],['blockId','sourcePath']));}
+  async mutateBoardInteraction(input) {return this.teachingCall('mutateBoardInteraction',exactInput(input,['sessionId','boardRevision','interactionId','interactionRevision','patch']));}
   async classroom(input) {return this.teachingCall('classroom',exactInput(input,['sessionId']));}
   async solverTask(input) {return this.teachingCall('solverTask',exactInput(input,['sessionId','taskId']));}
   async configureSolver(input) {return this.teachingCall('configureSolver',exactInput(input,['sessionId','expectedRevision','preset','route','tools'],['persona']));}
@@ -167,7 +168,7 @@ export class NotaraVaultRemote extends TypertRemoteService {
   }
 
   async annotationStoreFor(input) {
-    const editor=await this.editorFor(input),root=join(editor.workspace.path,'vault');
+    const editor=await this.editorFor(input),root=resolveVaultRoot(editor.workspace.path);
     let store=this.annotationStores.get(root);
     if(!store){store=createPdfAnnotationStore(root);this.annotationStores.set(root,store);}
     return store;

@@ -40,6 +40,14 @@ test('every Vault method carries the pinned session into the request', async () 
   assert.equal(calls.find(call => call.method === 'tasks').input.sessionId, 'lesson-math');
 });
 
+test('client exposes the board interaction mutation seam', async () => {
+  const { ctx, calls } = remoteHarness();
+  const vault = createVaultClient(ctx, 'lesson-math');
+  await vault.mutateBoardInteraction({ boardRevision: 1, interactionId: '123e4567-e89b-12d3-a456-426614174000', interactionRevision: 1, patch: { parameters: { a: 1.2 } } });
+  assert.equal(calls.at(-1).method, 'mutateBoardInteraction');
+  assert.equal(calls.at(-1).input.sessionId, 'lesson-math');
+});
+
 test('no session yet means no sessionId key, never a fabricated one', async () => {
   const { ctx, calls } = remoteHarness();
   for (const sessionId of [undefined, '', null, 0]) {
