@@ -4,7 +4,7 @@ import { CLASSROOM_VIEW } from './classroom-client.js';
 import { attachConversationFileNavigation } from './conversation-file-navigation.js';
 
 /** One keyed seat per view. Navigation changes visibility, never clones a composer/editor. */
-export function createVaultWorkspace(React,{App,GraphView,CardsView,RoutesView,CalendarView,ClassroomView,Board,BoardStream,TeachingEntry,SummaryEntry,IconButton,onBring,ensureSession=async()=>undefined,navigation,Today}) {
+export function createVaultWorkspace(React,{App,GraphView,CardsView,RoutesView,CalendarView,ClassroomView,Board,BoardStream,TeachingEntry,SummaryEntry,IconButton,onBring,onBringMany,onDiscuss,ensureSession=async()=>undefined,navigation,Today}) {
   const h=React.createElement,{useState,useRef,useEffect,useCallback,useSyncExternalStore}=React;
   const choices=[['chat','对话'],['board','白板'],['trajectory','轨迹'],[VIEW_IDS.assets,'文件'],[VIEW_IDS.graph,'图谱'],[VIEW_IDS.cards,'卡片'],[VIEW_IDS.routes,'路线'],[VIEW_IDS.calendar,'日历'],[CLASSROOM_VIEW,'教室']];
   const components={board:Board,[VIEW_IDS.assets]:App,[VIEW_IDS.graph]:GraphView,[VIEW_IDS.cards]:CardsView,[VIEW_IDS.routes]:RoutesView,[VIEW_IDS.calendar]:CalendarView,[CLASSROOM_VIEW]:ClassroomView};
@@ -107,7 +107,7 @@ export function createVaultWorkspace(React,{App,GraphView,CardsView,RoutesView,C
           const request=globalView===id?nav.request:requests[id];
           const childProps={...props,key:sessionId,global:!!globalView,visible:!!side,viewRequest:request,completeViewRequest:()=>globalView===id?navigation.complete():setRequests(prev=>({...prev,[id]:null})),
             ...(id===VIEW_IDS.calendar&&globalView?{mode:nav.plan==='review'?'review':'calendar',hideModes:true}:{}),
-            openView:(target,focus)=>openView(side??'left',target,focus),onBring:(file,selection,page,intent)=>onBring(ctx,sessionId,file,selection,page,intent,(target,focus)=>openView(side??'left',target,focus))};
+            openView:(target,focus)=>openView(side??'left',target,focus),onDiscuss:(text)=>onDiscuss?.(ctx,sessionId,text,(target,focus)=>openView(side??'left',target,focus)),onBring:(file,selection,page,intent)=>onBring(ctx,sessionId,file,selection,page,intent,(target,focus)=>openView(side??'left',target,focus)),onBringMany:(pins,intent)=>onBringMany?.(ctx,sessionId,pins,intent,(target,focus)=>openView(side??'left',target,focus))};
           return h('section',{key:id,className:'nv-pane','aria-label':label+'区域','aria-hidden':!side,...(!side?{inert:''}:{}),
             style:{display:side?'flex':'none',gridColumn:side==='right'?3:1,gridRow:1,'--nv-row':side==='right'?3:1}},
             side&&!globalView&&!(narrow&&layout.left==='board')&&(!teaching||side==='right')&&bar(side),

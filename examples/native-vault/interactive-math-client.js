@@ -74,10 +74,11 @@ export function createMathInteractive(React, { scene: input, expanded = false, o
   const h = React.createElement, { useEffect, useRef, useState } = React;
   const [scene, setScene] = useState(() => normalizeMathScene(input));
   const [dragging, setDragging] = useState(false);
-  const latest = useRef(scene);
+  const latest = useRef(scene), pending = useRef(null), timer = useRef(null);
   latest.current = scene;
   useEffect(() => { setScene(normalizeMathScene(input)); }, [JSON.stringify(input)]);
-  const commit = next => { const normalized = normalizeMathScene(next); setScene(normalized); latest.current = normalized; onChange({ parameters: normalized.parameters, observation: normalized.observation }); };
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const commit = next => { const normalized = normalizeMathScene(next); setScene(normalized); latest.current = normalized; pending.current = normalized; clearTimeout(timer.current); timer.current = setTimeout(() => { const value = pending.current; pending.current = null; onChange({ parameters: value.parameters, observation: value.observation }); }, 240); };
   const vertex = event => {
     if (event.type === 'start') { setDragging(true); return; }
     if (event.type === 'end') { setDragging(false); return; }
@@ -85,8 +86,8 @@ export function createMathInteractive(React, { scene: input, expanded = false, o
     commit({ ...latest.current, parameters: { ...latest.current.parameters, h: event.point.h, k: event.point.k } });
   };
   const updateA = event => commit({ ...latest.current, parameters: { ...latest.current.parameters, a: Number(event.target.value) } });
-  const updateObservation = event => setScene(current => ({ ...current, observation: event.target.value }));
-  const saveObservation = () => commit(latest.current);
+  const updateObservation = event => setScene(current => { const next = { ...current, observation: event.target.value }; latest.current = next; return next; });
+  const saveObservation = () => { clearTimeout(timer.current); pending.current = null; onChange({ parameters: latest.current.parameters, observation: latest.current.observation }); };
   const content = [
     h('div', { className: 'nb-interactive-head', key: 'head' }, h('div', null, h('strong', null, '抛物线的形状'), h('small', null, sceneEquation(scene))), h('span', { className: 'nb-interactive-chip' }, expanded ? '完整互动' : '互动块')),
     graph(React, scene, expanded, vertex),

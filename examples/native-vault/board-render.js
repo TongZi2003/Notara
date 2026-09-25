@@ -1,4 +1,5 @@
 import { renderMath } from './math-latex.js';
+import { mathSceneSummary } from './interactive-data.js';
 export const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const HIGHLIGHTS=['blue','green','orange','pink'];
 const safePath=path=>path&&!/^(?:[a-z]+:|\/)/i.test(path)&&!path.split('/').some(p=>p==='..'||p.startsWith('.'));
@@ -59,9 +60,14 @@ export function highlightBoardText(body,selected,color) {
   const before=body.slice(0,at);if(before.lastIndexOf('<mark')>before.lastIndexOf('</mark>'))throw new Error('请选中这段高亮的完整文字后修改颜色。');
   return body.slice(0,at)+replacement+body.slice(at+selected.length);
 }
+export function renderInteractiveSnapshot(scene) {
+  if(!scene||scene.kind!=='math'||scene.preset!=='parabola')return '';
+  const equation=escapeHtml(mathSceneSummary(scene)),observation=scene.observation?`<p>${escapeHtml(scene.observation)}</p>`:'';
+  return `<figure class="nb-interactive-snapshot"><figcaption>互动数学图 · ${equation}</figcaption><div class="nb-interactive-snapshot-chart" aria-label="${equation}"><span class="nb-interactive-snapshot-curve"></span></div>${observation}</figure>`;
+}
 export function exportBoard(board,options={}) {
   const blocks=board.blocks.filter(b=>!['hint','reference','attempt'].includes(b.kind)||options[b.kind]===true);
-  const markdown='# 课堂笔记\n\n'+blocks.map(b=>`## ${b.title}\n\n${b.body}`).join('\n\n')+'\n';
-  const html='<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>课堂笔记</title><style>body{max-width:820px;margin:60px auto;padding:0 24px;color:#30343b;background:white;font:18px/1.85 "Kaiti SC",STKaiti,serif}h1,h2{line-height:1.4}section{margin:2.5em 0}mark{color:inherit;background:#dcebfa}mark[data-color=green]{background:#d9eee1}mark[data-color=orange]{background:#fae3c9}mark[data-color=pink]{background:#f6dce5}pre{white-space:pre-wrap}img{max-width:100%}a{color:#426f93}'+(options.mathCss??'')+'</style><body><h1>课堂笔记</h1>'+blocks.map(b=>`<section>${b.kind==='note'?`<h2>${escapeHtml(b.title)}</h2>`:`<details><summary>${escapeHtml(b.title)}</summary>`}${renderBoardMarkdown(b.body,{exporting:true,assetUrls:options.assetUrls??{}})}${b.kind==='note'?'':'</details>'}</section>`).join('')+'</body></html>';
+  const markdown='# 课堂笔记\n\n'+blocks.map(b=>`## ${b.title}\n\n${b.body}${b.interactiveScene?`\n\n> 互动数学图：${mathSceneSummary(b.interactiveScene)}${b.interactiveScene.observation?`\n> 观察：${b.interactiveScene.observation}`:''}`:''}`).join('\n\n')+'\n';
+  const html='<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>课堂笔记</title><style>body{max-width:820px;margin:60px auto;padding:0 24px;color:#30343b;background:white;font:18px/1.85 "Kaiti SC",STKaiti,serif}h1,h2{line-height:1.4}section{margin:2.5em 0}mark{color:inherit;background:#dcebfa}mark[data-color=green]{background:#d9eee1}mark[data-color=orange]{background:#fae3c9}mark[data-color=pink]{background:#f6dce5}pre{white-space:pre-wrap}img{max-width:100%}a{color:#426f93}.nb-interactive-snapshot{margin:1.2em 0;padding:1em;border:1px solid #dce5ec;border-radius:12px;background:#f8fbfd}.nb-interactive-snapshot figcaption{font-size:.82em;color:#55718f}.nb-interactive-snapshot-chart{position:relative;height:120px;margin:.7em 0;background:linear-gradient(#dfe8f0 1px,transparent 1px),linear-gradient(90deg,#dfe8f0 1px,transparent 1px);background-size:24px 24px;overflow:hidden}.nb-interactive-snapshot-curve{position:absolute;left:18%;right:18%;top:20%;height:70%;border-top:3px solid #5d82ae;border-radius:50% 50% 0 0;transform:rotate(0deg);clip-path:polygon(0 70%,10% 45%,20% 25%,30% 10%,40% 2%,50% 0,60% 2%,70% 10%,80% 25%,90% 45%,100% 70%,100% 76%,90% 51%,80% 31%,70% 16%,60% 8%,50% 6%,40% 8%,30% 16%,20% 31%,10% 51%,0 76%)}' +(options.mathCss??'')+'</style><body><h1>课堂笔记</h1>'+blocks.map(b=>`<section>${b.kind==='note'?`<h2>${escapeHtml(b.title)}</h2>`:`<details><summary>${escapeHtml(b.title)}</summary>`}${renderBoardMarkdown(b.body,{exporting:true,assetUrls:options.assetUrls??{}})}${b.interactiveScene?renderInteractiveSnapshot(b.interactiveScene):''}${b.kind==='note'?'':'</details>'}</section>`).join('')+'</body></html>';
   return {markdown,html};
 }

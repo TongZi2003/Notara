@@ -44,6 +44,12 @@ test('safe HTML, recoloring and export physically exclude private kinds',()=>{
   for(const value of Object.values(exportBoard(board))){assert.ok(value.includes('结论'));assert.ok(!value.includes('私密'));assert.ok(!value.includes('提示答案'));}
   assert.ok(exportBoard(board,{attempt:true}).html.includes('私密尝试'));
 });
+test('interactive board export is a static snapshot and contains no executable HTML',()=>{
+  const board={blocks:[{title:'抛物线',kind:'note',body:'观察开口变化',interactiveScene:{kind:'math',preset:'parabola',viewport:[-5,5,5,-5],parameters:{a:.8,h:0,k:0},observation:''}}]};
+  const output=exportBoard(board).html;
+  assert.match(output,/y = 0\.8\(x - 0\)² \+ 0/);
+  assert.doesNotMatch(output,/<script|<iframe|javascript:/i);
+});
 test('native session event source streams before any chat node and settles without replay',()=>{
   const track=createBoardEventTracker(),entries=[];let revision=0;
   const append=event=>{const entry={event};entries.push(entry);return track({revision:revision++,entries,change:{kind:'append',entries:[entry]}});};
