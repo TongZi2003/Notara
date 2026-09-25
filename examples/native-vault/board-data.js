@@ -1,4 +1,5 @@
 import { parseFrontmatter, serializeFrontmatter } from './frontmatter.js';
+import { validateInteractiveRef } from './interactive-data.js';
 
 export const BOARD_KINDS = ['note','question','hint','reference','attempt'];
 const fail = code => { throw new Error(code); };
@@ -24,10 +25,11 @@ export function parseBoard(content,sessionId) {
     try{meta=JSON.parse(match[1]);}catch{fail('board_format_invalid');}
     if(!validObject(meta)||!idPattern.test(meta.id)||seen.has(meta.id)||!BOARD_KINDS.includes(meta.kind))fail('board_format_invalid');
     validateLayout(meta);seen.add(meta.id);
+    const interactive=meta.interactive===undefined?undefined:validateInteractiveRef(meta.interactive);
     const text=body.slice(match.index+match[0].length,matches[i+1]?.index??body.length).trim();
     const heading=text.match(/^## ([^\n]+)\n?([\s\S]*)$/);
     if(!heading)fail('board_format_invalid');
-    blocks.push({id:meta.id,kind:meta.kind,x:meta.x??60,y:meta.y??60,width:meta.width??340,title:heading[1].trim(),body:validateBoardBody(heading[2].trim())});
+    blocks.push({id:meta.id,kind:meta.kind,x:meta.x??60,y:meta.y??60,width:meta.width??340,title:heading[1].trim(),body:validateBoardBody(heading[2].trim()),...(interactive?{interactive}: {})});
   }
   const sourceNotes=frontmatter.sourceNotes??{};
   if(!validObject(sourceNotes))fail('board_format_invalid');
@@ -36,17 +38,18 @@ export function parseBoard(content,sessionId) {
 }
 export function renderBoard(board) {
   const header=serializeFrontmatter({type:'lesson-board',title:'课堂板书',session:board.sessionId,sourceNotes:board.sourceNotes});
-  return header+'\n'+board.blocks.map(({id,kind,x,y,width,title,body})=>`<!-- notara-board ${JSON.stringify({id,kind,x,y,width})} -->\n## ${title}\n\n${body}\n`).join('\n');
+  return header+'\n'+board.blocks.map(({id,kind,x,y,width,title,body,interactive})=>`<!-- notara-board ${JSON.stringify({id,kind,x,y,width,...(interactive?{interactive}: {})})} -->\n## ${title}\n\n${body}\n`).join('\n');
 }
 export function upsertBoard(board,args,id) {
-  if(!validObject(args)||Object.keys(args).some(key=>!['title','body','kind','placement'].includes(key)))fail('board_content_invalid');
+  if(!validObject(args)||Object.keys(args).some(key=>!['title','body','kind','placement','interactive'].includes(key)))fail('board_content_invalid');
   if(typeof args.title!=='string'||!args.title.trim()||args.title.length>160||/[\r\n]/.test(args.title))fail('board_content_invalid');
   validateBoardBody(args.body);
   if(args.kind!==undefined&&!BOARD_KINDS.includes(args.kind))fail('board_content_invalid');
+  const interactive=args.interactive===undefined?undefined:validateInteractiveRef(args.interactive);
   const title=args.title.trim(),matches=board.blocks.filter(block=>block.title===title);
   if(matches.length>1)fail('board_title_ambiguous');
   const existing=matches[0];
-  if(existing){existing.body=args.body;existing.kind=args.kind??existing.kind;return existing;}
+  if(existing){existing.body=args.body;existing.kind=args.kind??existing.kind;if(interactive)existing.interactive=interactive;return existing;}
   let x=60+(board.blocks.length%3)*400,y=60;
   const height=block=>100+Math.ceil(block.body.length/22)*25;
   const column=board.blocks.filter(block=>Math.abs(block.x-x)<200);
@@ -59,7 +62,7 @@ export function upsertBoard(board,args,id) {
     x=anchor.x+(p.position==='beside'?anchor.width+60:0);y=anchor.y+(p.position==='below'?height(anchor)+50:0);
     while(board.blocks.some(block=>Math.abs(block.x-x)<340&&y<block.y+height(block)+30&&y+150>block.y))y+=180;
   }
-  const block={id,title,body:args.body,kind:args.kind??'note',x,y,width:340};board.blocks.push(block);return block;
+  const block={id,title,body:args.body,kind:args.kind??'note',x,y,width:340,...(interactive?{interactive}: {})};board.blocks.push(block);return block;
 }
 
 /** Only explicit references in the committed board count as used material. */
