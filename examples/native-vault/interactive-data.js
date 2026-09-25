@@ -2,6 +2,7 @@ export const INTERACTIVE_PROVIDERS = Object.freeze(['math']);
 export const INTERACTIVE_PRESETS = Object.freeze(['parabola']);
 const DEFAULT_VIEWPORT = Object.freeze([-5, 5, 5, -5]);
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+const REVISION = /^[a-f0-9]{24}$/i;
 const fail = code => { throw new Error(code); };
 const plain = value => value && typeof value === 'object' && !Array.isArray(value);
 const finite = value => typeof value === 'number' && Number.isFinite(value);
@@ -22,7 +23,7 @@ export function validateInteractiveRef(value) {
   exactKeys(value, ['provider', 'interactionId', 'revision', 'preset'], 'interactive_ref_invalid');
   if (!INTERACTIVE_PROVIDERS.includes(value.provider) || !INTERACTIVE_PRESETS.includes(value.preset)
     || typeof value.interactionId !== 'string' || !UUID.test(value.interactionId)
-    || !Number.isSafeInteger(value.revision) || value.revision < 0) fail('interactive_ref_invalid');
+    || typeof value.revision !== 'string' || !REVISION.test(value.revision)) fail('interactive_ref_invalid');
   return { provider: value.provider, interactionId: value.interactionId, revision: value.revision, preset: value.preset };
 }
 
@@ -46,7 +47,9 @@ export function validateMathScene(value) {
 export function mathSceneSummary(scene) {
   const normalized = validateMathScene(scene);
   const { a, h, k } = normalized.parameters;
-  return `y = ${a}(x - ${h})² + ${k}`;
+  const xPart = h < 0 ? `(x + ${Math.abs(h)})` : `(x - ${h})`;
+  const yPart = k < 0 ? `- ${Math.abs(k)}` : `+ ${k}`;
+  return `y = ${a}${xPart}² ${yPart}`;
 }
 
 export function interactionSceneProvider(ref) {

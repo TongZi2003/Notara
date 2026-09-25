@@ -24,3 +24,11 @@ test('rejects arbitrary HTML, scripts, external URLs and invalid parameters', ()
 test('rejects an interaction reference with a non-whitelisted provider', () => {
   assert.throws(() => validateInteractiveRef({ provider: 'html', interactionId: 'x', revision: 0, preset: 'parabola' }), /interactive_ref_invalid/);
 });
+
+test('accepts a Host content revision in an interaction reference', () => {
+  assert.deepEqual(validateInteractiveRef({
+    provider: 'math', interactionId: '123e4567-e89b-12d3-a456-426614174000', revision: 'a'.repeat(24), preset: 'parabola',
+  }), {
+    provider: 'math', interactionId: '123e4567-e89b-12d3-a456-426614174000', revision: 'a'.repeat(24), preset: 'parabola',
+  });
+});

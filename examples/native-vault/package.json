@@ -1,9 +1,9 @@
 {
   "name": "@notara/vault-native",
-  "version": "0.16.14",
+  "version": "0.16.18",
   "type": "module",
   "main": "index.js",
-  "files": ["index.js", "client.js", "vault.js", "frontmatter.js", "media.js", "pdf.js", "pdf-annotations.js", "graph.js", "templates", "teaching", "presets", "teacher.js", "persona.js", "teaching-context.js", "teaching-catalog.js", "teaching-state.js", "teaching-runtime.js", "solver-runtime.js", "worker-catalog.js", "solver-policy.js", "solver-sources.js", "board-data.js", "board-runtime.js", "agent-tools.js", "agent-io.js", "agent-media.js", "learning-data.js", "lesson-data.js", "lesson-script.js", "route-plan.js", "review-data.js", "review-runtime.js", "calendar-data.js", "remote-client.js", "vault-cli.js", "file-operations.js"],
+  "files": ["index.js", "client.js", "vault.js", "frontmatter.js", "media.js", "pdf.js", "pdf-annotations.js", "graph.js", "templates", "teaching", "presets", "teacher.js", "persona.js", "teaching-context.js", "teaching-catalog.js", "teaching-state.js", "teaching-runtime.js", "solver-runtime.js", "worker-catalog.js", "solver-policy.js", "solver-sources.js", "board-data.js", "board-runtime.js", "interactive-data.js", "interactive-runtime.js", "interactive-math-client.js", "agent-tools.js", "agent-io.js", "agent-media.js", "learning-data.js", "lesson-data.js", "lesson-script.js", "route-plan.js", "review-data.js", "review-runtime.js", "calendar-data.js", "remote-client.js", "vault-cli.js", "file-operations.js"],
   "exports": {
     ".": "./index.js",
     "./teacher": "./teacher.js",

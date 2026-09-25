@@ -22,9 +22,9 @@ test('Markdown is the only body; revisions preserve stable identities and manual
 });
 test('board markers preserve a host-generated interactive reference',()=>{
   const board=parseBoard(null,'lesson');
-  upsertBoard(board,{title:'抛物线',body:'观察开口变化',interactive:{provider:'math',interactionId:'123e4567-e89b-12d3-a456-426614174000',revision:1,preset:'parabola'}},'block-one');
+  upsertBoard(board,{title:'抛物线',body:'观察开口变化',interactive:{provider:'math',interactionId:'123e4567-e89b-12d3-a456-426614174000',revision:'a'.repeat(24),preset:'parabola'}},'block-one');
   const restored=parseBoard(renderBoard(board),'lesson');
-  assert.deepEqual(restored.blocks[0].interactive,{provider:'math',interactionId:'123e4567-e89b-12d3-a456-426614174000',revision:1,preset:'parabola'});
+  assert.deepEqual(restored.blocks[0].interactive,{provider:'math',interactionId:'123e4567-e89b-12d3-a456-426614174000',revision:'a'.repeat(24),preset:'parabola'});
 });
 test('knowledge face only projects actual references and drops retracted sources',()=>{
   const board=parseBoard(null,'lesson');upsertBoard(board,{title:'比较',body:'[[A|资料甲]] 与 [[B.md|资料乙]]'},'one');

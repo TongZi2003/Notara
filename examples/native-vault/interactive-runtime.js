@@ -19,9 +19,11 @@ function parseDocument(content, sessionId, interactionId) {
 
 async function readDocument(io, sessionId, interactionId) {
   let document;
-  try { document = await io.read(interactionPath(sessionId, interactionId)); }
+  try { document = await io.readJson(interactionPath(sessionId, interactionId)); }
   catch (error) { if (error.message === 'vault_file_not_found') fail('interaction_missing'); throw error; }
-  return { ...parseDocument(document.content, sessionId, interactionId), revision: document.revision };
+  const parsed = parseDocument(document.content, sessionId, interactionId);
+  const ref = validateInteractiveRef({ provider: parsed.provider, interactionId: parsed.interactionId, revision: document.revision, preset: parsed.preset });
+  return { ...parsed, revision: document.revision, ref };
 }
 
 function patchScene(scene, patch) {
@@ -34,7 +36,7 @@ export function createInteractionRuntime(service) {
   const editor = sessionId => service.editorFor({ sessionId });
   const save = async (io, sessionId, interactionId, scene, revision) => {
     const content = JSON.stringify({ type: 'lesson-interaction', session: sessionId, interactionId, provider: 'math', preset: scene.preset, scene });
-    const saved = await io.save(interactionPath(sessionId, interactionId), content, revision);
+    const saved = await io.saveJson(interactionPath(sessionId, interactionId), content, revision);
     const ref = validateInteractiveRef({ provider: 'math', interactionId, revision: saved.revision, preset: scene.preset });
     return { ref, revision: saved.revision, scene };
   };

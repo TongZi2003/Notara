@@ -88,12 +88,22 @@ export function createMathInteractive(React, { scene: input, expanded = false, o
   const updateA = event => commit({ ...latest.current, parameters: { ...latest.current.parameters, a: Number(event.target.value) } });
   const updateObservation = event => setScene(current => { const next = { ...current, observation: event.target.value }; latest.current = next; return next; });
   const saveObservation = () => { clearTimeout(timer.current); pending.current = null; onChange({ parameters: latest.current.parameters, observation: latest.current.observation }); };
+  const close = () => {
+    if (pending.current) {
+      clearTimeout(timer.current);
+      const value = pending.current;
+      pending.current = null;
+      onChange({ parameters: value.parameters, observation: value.observation });
+    }
+    onClose();
+  };
   const content = [
     h('div', { className: 'nb-interactive-head', key: 'head' }, h('div', null, h('strong', null, '抛物线的形状'), h('small', null, sceneEquation(scene))), h('span', { className: 'nb-interactive-chip' }, expanded ? '完整互动' : '互动块')),
     graph(React, scene, expanded, vertex),
     h('div', { className: 'nb-interactive-controls', key: 'controls' }, h('label', null, '开口 a', h('input', { type: 'range', min: '0.1', max: '3', step: '0.1', value: scene.parameters.a, onChange: updateA }), h('b', null, numberText(scene.parameters.a))), h('span', { className: 'nb-interactive-status' }, dragging ? '正在移动顶点' : '拖动顶点或调整参数')),
   ];
   if (expanded) content.push(h('label', { className: 'nb-interactive-observation', key: 'observation' }, '观察记录', h('textarea', { value: scene.observation, onChange: updateObservation, placeholder: '记录你从图像变化中看到的现象…' })));
-  content.push(h('div', { className: 'nb-interactive-actions', key: 'actions' }, expanded ? h('button', { onClick: saveObservation }, '保存观察') : null, h('button', { onClick: () => onDiscuss(`${sceneEquation(scene)}。${scene.observation}`) }, '带入对话'), h('button', { onClick: expanded ? onClose : onExpand }, expanded ? '收起' : '展开互动图 ↗')));
+  const toggle = expanded ? event => { event.preventDefault(); close(); } : onExpand;
+  content.push(h('div', { className: 'nb-interactive-actions', key: 'actions' }, expanded ? h('button', { onClick: saveObservation }, '保存观察') : null, h('button', { onClick: () => onDiscuss(`${sceneEquation(scene)}。${scene.observation}`) }, '带入对话'), h('button', { onPointerDown: expanded ? toggle : undefined, onClick: toggle }, expanded ? '收起' : '展开互动图 ↗')));
   return h('section', { className: `nb-interactive ${expanded ? 'is-expanded' : ''}`, 'data-interactive-provider': 'math', 'data-interactive-preset': scene.preset }, content);
 }
