@@ -179,7 +179,7 @@ export class NotaraTeaching extends Service {
       const route=parseRoute(document);routes.push({path:document.path,title:route.title,revision:document.revision,ref:document.ref,overview:route.overview??''});
       for(const node of route.nodes){
         const summary=summaries.find(hit=>hit.sessionId===node.sessionId);
-        nodes.push({...node,routePath:document.path,routeRevision:document.revision,parent:node.parent??null,scriptPath:node.scriptPath||null,sessionId:node.sessionId||null,summary:summary?{path:summary.path,anchor:summary.anchor,title:summary.title,continuation:summary.continuation}:null});
+        nodes.push({...node,routePath:document.path,routeRevision:document.revision,parent:node.parent??null,scriptPath:node.scriptPath||null,sessionId:node.sessionId||null,summary:summary?{path:summary.path,anchor:summary.anchor,title:summary.title,continuation:summary.continuation,savedAt:summary.savedAt||summary.throughAt||null}:null});
       }
       edges.push(...route.edges.map(edge=>({...edge,routePath:document.path})));
     }

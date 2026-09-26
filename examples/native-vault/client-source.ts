@@ -19,6 +19,7 @@ import { installBashDisplay } from './bash-display-client.js';
 import { createPdfAnnotations } from './pdf-annotations-client.js';
 import { quoteFromItems } from './pdf.js';
 import { installModernTheme } from './modern-theme.js';
+import { createAppearance } from './appearance-client.js';
 import { createVaultNavigation, createVaultShell, installStudentProjection } from './shell-client.js';
 import { createTodayEntry } from './today-entry-client.js';
 import { createLessonEntry } from './lesson-entry-client.js';
@@ -36,6 +37,7 @@ window.__ModuleLoader__.load({
     const { useCallback, useEffect, useMemo, useRef, useState } = React;
     const { Icon, IconButton, Menu, Dialog } = createVaultUI(React);
     const navigation = createVaultNavigation();
+    const appearance = createAppearance();
     const TodayEntry = createTodayEntry(React, { Icon });
     const LessonEntry = createLessonEntry(React, { Icon });
     const { Sidebar, Today } = createVaultShell(React, { navigation, Icon, IconButton, Dialog, TodayEntry });
@@ -627,8 +629,8 @@ window.__ModuleLoader__.load({
           inject: ['slots', 'remote.notaraVault', 'inputTriggers', 'conversation', 'sessions', 'theme', 'layout', 'uiWorkspace', 'workspaces'],
           apply(scope) {
             console.info('notara-vault-native: apply');
-            installModernTheme(scope);
-            installStudentProjection(scope, React, navigation);
+            installModernTheme(scope, appearance);
+            installStudentProjection(scope, React, navigation, appearance);
             scope.effect(() => scope.slots.inject('conversation.hero.intro', () => scope.slots.register({
               name: 'conversation.hero.intro',
             }, LessonEntry)));

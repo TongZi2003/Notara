@@ -1,0 +1,215 @@
+/* 手帐 (docs/ui/notara-frontend-redesign.md §5.4) over the minimal layout.
+   Everything is scoped to body[data-notara-style=notebook]: the minimal
+   structure, containers and control sizes stay the base, this layer only
+   repaints paper, ink, notes, tape and marks. Colours come from the token
+   layer (theme-tokens.js), so light and dark need no second selector set.
+   Rotation is decoration only; it never moves a coordinate-laid element. */
+@font-face{font-family:"Notara WenKai";src:url("/notara/vault/fonts/wenkai.woff2") format("woff2");font-weight:400;font-display:swap}
+
+body[data-notara-style=notebook]{
+  --nv-r-sm:3px;--nv-r-md:4px;--nv-r-lg:6px;--nv-r-xl:8px;--nv-control-radius:4px;--nv-card-radius:6px;--nv-input-radius:8px;
+  --nv-shadow-sm:var(--nb-shadow-1);--nv-shadow-md:var(--nb-shadow-2);--nv-shadow-lg:0 18px 48px rgba(60,45,15,.22);
+  --nv-thumb:var(--nb-hl);--nv-focus:color-mix(in srgb,var(--nb-accent) 22%,transparent);
+  --nb-lines:repeating-linear-gradient(to bottom,transparent 0 31px,var(--nb-rule) 31px 32px);
+  --nb-scribble:3px 12px 4px 14px/12px 3px 14px 4px;
+  --nb-note-shadow:0 2px 6px rgba(90,70,30,.16);
+  letter-spacing:.02em;
+}
+body[data-notara-style=notebook][data-ds-dark-theme]{--nv-shadow-lg:0 18px 48px rgba(0,0,0,.5);--nb-note-shadow:0 2px 6px rgba(0,0,0,.35)}
+body[data-notara-style=notebook] ::selection{background:var(--nb-hl)}
+body[data-notara-style=notebook] :is(.nv-workspace,.nv-sidebar,.nv-dialog,.nv-menu) :is(button,input,select,textarea){letter-spacing:inherit}
+body[data-notara-style=notebook] .nv-workspace button{font-weight:400}
+/* Formulas, code and originals keep their own faces. */
+body[data-notara-style=notebook] :is(code,pre,kbd,samp,.katex,.cm-editor .cm-line code){font-family:ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:0}
+body[data-notara-style=notebook] .katex{font-family:KaTeX_Main,"Times New Roman",serif}
+
+/* ---- 侧栏：线圈本的装订孔、印章、便签 ---- */
+body[data-notara-style=notebook] .pI_x6G_sidebarCol{border-right-color:transparent}
+body[data-notara-style=notebook] .nv-sidebar{border-radius:6px;border-color:var(--dsw-alias-border-l2);padding-right:26px;font-size:15px;box-shadow:var(--nb-shadow-1);
+  background-color:var(--dsw-specific-sidebar-fill);
+  background-image:radial-gradient(circle at calc(100% - 11px) 50%,var(--nb-hole) 0 3.5px,var(--dsw-alias-border-l2) 4px 4.8px,transparent 5.2px);background-size:100% 28px}
+body[data-notara-style=notebook] .nv-sidebar[data-collapsed=true]{padding-right:4px;background-image:none}
+body[data-notara-style=notebook] .nv-sidebar-brand{font-size:17px;font-weight:400}
+body[data-notara-style=notebook] .nv-brand-mark{border:1.6px solid var(--nb-seal);border-radius:50%;color:var(--nb-seal);background:transparent;transform:rotate(-8deg);font-size:14px}
+body[data-notara-style=notebook] .nv-new-lesson{min-height:40px;background:var(--nb-note);border-radius:2px;box-shadow:var(--nb-note-shadow);transform:rotate(-.8deg);font-size:16px;font-weight:400;transition:transform .14s,color .14s}
+body[data-notara-style=notebook] .nv-new-lesson:hover{background:var(--nb-note);color:var(--nb-accent);transform:rotate(0)}
+body[data-notara-style=notebook] :is(.nv-nav-button,.nv-session-row){font-size:15px}
+body[data-notara-style=notebook] :is(.nv-nav-button,.nv-session-row)[aria-current=page]{background:var(--nb-hl);color:var(--dsw-alias-label-primary)!important;border-radius:var(--nb-scribble)}
+body[data-notara-style=notebook] .nv-sidebar-label{font-size:13px}
+body[data-notara-style=notebook] .nv-session-row time{font-size:12px}
+body[data-notara-style=notebook] .nv-directory-button{border-style:dashed;border-color:var(--dsw-alias-border-l3);background:transparent}
+body[data-notara-style=notebook] .nv-directory-button>span:first-of-type{font-size:14px}
+body[data-notara-style=notebook] .nv-sidebar-foot{font-size:14px}
+
+/* ---- 页面标题与分段控件：荧光笔标出选中 ---- */
+body[data-notara-style=notebook] .nv-shell-heading{background:var(--dsw-alias-bg-base);border-bottom-color:var(--dsw-alias-border-l2)}
+body[data-notara-style=notebook] .nv-shell-heading h1{font-size:22px;font-weight:400;letter-spacing:.04em}
+body[data-notara-style=notebook] .nv-workspace :is(h1,h2,h3){letter-spacing:.02em}
+body[data-notara-style=notebook] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views){background:transparent;padding:0;gap:4px}
+body[data-notara-style=notebook] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) button{height:30px;padding:0 12px;border-radius:3px;font-size:15px;font-weight:400}
+body[data-notara-style=notebook] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) button:hover{background:var(--dsw-alias-interactive-bg-hover)}
+body[data-notara-style=notebook] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) button:is([aria-selected=true],[aria-pressed=true]){background:var(--nb-hl);color:var(--dsw-alias-label-primary);box-shadow:none;border-radius:var(--nb-scribble)}
+body[data-notara-style=notebook] .nv-workspace-tabs button{font-size:15px;font-weight:400}
+body[data-notara-style=notebook] .nv-workspace-tabs button:is([aria-selected=true],[aria-pressed=true]){background:var(--nb-hl);border-radius:var(--nb-scribble)}
+
+/* ---- 控件：细线、小圆角 ---- */
+body[data-notara-style=notebook] .nv-quiet{border:1px solid var(--dsw-alias-border-l3);background:var(--nb-card);font-size:15px;font-weight:400;border-radius:4px}
+body[data-notara-style=notebook] .nv-quiet:not(:disabled):hover{background:var(--dsw-alias-interactive-bg-hover)}
+body[data-notara-style=notebook] .nv-menu .nv-quiet{border:0}
+body[data-notara-style=notebook] .nv-link{color:var(--nb-accent);text-decoration:underline dotted var(--dsw-alias-border-l3);text-underline-offset:4px}
+body[data-notara-style=notebook] .nv-link:hover{text-decoration-color:currentColor}
+body[data-notara-style=notebook] :is(.nv-workspace,.nv-dialog,.nv-sidebar) :is(select,input:is([type=text],[type=search],[type=date],[type=number],:not([type])),textarea):not(.cm-editor *,[data-composer-card] *,.nb-board *){border-radius:3px;border-color:var(--dsw-alias-border-l3);background-color:var(--nb-card);font-size:15px}
+body[data-notara-style=notebook] :is(.nv-workspace,.nv-dialog,.nv-sidebar) :is(select,input,textarea):not(.cm-editor *,[data-composer-card] *,.nb-board *):focus{border-color:var(--nb-accent)}
+body[data-notara-style=notebook] input:is([type=checkbox],[type=radio]){accent-color:var(--nb-accent)}
+body[data-notara-style=notebook] :is(.nv-workspace,.nv-sidebar,.nv-dialog) :is(button,a,input,select,textarea,summary):focus-visible{outline:2px solid var(--nb-seal);outline-offset:3px}
+
+/* ---- 浮层 ---- */
+body[data-notara-style=notebook] :is(.nv-menu,.nv-popover-panel){background:var(--nb-card);border-color:var(--dsw-alias-border-l2);border-radius:8px}
+body[data-notara-style=notebook] :is(.nv-menu,.nv-popover-panel) button{font-size:15px;border-radius:3px}
+body[data-notara-style=notebook] .nv-dialog>section{background:var(--nb-card);border-color:var(--dsw-alias-border-l2);border-radius:6px}
+body[data-notara-style=notebook] .VOzbGW_panel{border-radius:8px;background:var(--nb-card);border-color:var(--dsw-alias-border-l2)}
+body[data-notara-style=notebook] .VOzbGW_nav{background:var(--dsw-specific-sidebar-fill)}
+body[data-notara-style=notebook] .VOzbGW_navTitle{font-size:17px;font-weight:400}
+body[data-notara-style=notebook] .VOzbGW_navCell{font-size:15px;border-radius:3px}
+body[data-notara-style=notebook] .VOzbGW_navCell.VOzbGW_active{background:var(--nb-hl);border-radius:var(--nb-scribble);font-weight:400}
+body[data-notara-style=notebook] .nv-appearance-option{border-radius:4px;background:var(--nb-card)}
+body[data-notara-style=notebook] .nv-appearance-option[data-selected=true]{background:var(--nb-hl);border-color:var(--dsw-alias-border-l3)}
+body[data-notara-style=notebook] .nv-appearance-option b{font-size:15px;font-weight:400}
+body[data-notara-style=notebook] .nv-appearance-option small{font-size:14px}
+
+/* ---- 首页：波浪线标题、纸面输入、贴胶带的便签 ---- */
+body[data-notara-style=notebook] .nv-today{background-color:var(--dsw-alias-bg-base);background-image:var(--nb-lines);background-attachment:local}
+body[data-notara-style=notebook] .nv-home{font-size:16px}
+body[data-notara-style=notebook] .nv-home-welcome time{font-size:14px}
+body[data-notara-style=notebook] .nv-home-welcome h1{display:inline-block;font-size:clamp(22px,4cqw,30px);font-weight:400;letter-spacing:.04em;text-decoration:underline wavy var(--nb-wave);text-decoration-thickness:1.5px;text-underline-offset:10px}
+body[data-notara-style=notebook] .nv-home .wSkVaW_root[data-phase=hero] [data-composer-card],body[data-notara-style=notebook] .wSkVaW_root[data-phase=hero] [data-composer-card]{background:var(--nb-card);border:1.5px solid var(--dsw-alias-label-caption);border-radius:6px 14px 8px 16px/14px 6px 16px 8px;box-shadow:3px 3px 0 var(--dsw-alias-border-l1)}
+body[data-notara-style=notebook] .wSkVaW_root[data-phase=hero] [data-composer-card]:focus-within{border-color:var(--nb-accent)}
+body[data-notara-style=notebook] .wSkVaW_root[data-phase=hero] [data-composer-input]{font-size:17px;line-height:32px}
+body[data-notara-style=notebook] .nv-home-agenda h2{font-size:14px}
+body[data-notara-style=notebook] .nv-home-controls>span{font-size:13px}
+body[data-notara-style=notebook] .nv-home-ticker{overflow:visible;padding-top:10px}
+body[data-notara-style=notebook] .nv-home-task{position:relative;background:var(--nb-note);border-radius:2px;box-shadow:var(--nb-note-shadow);transform:rotate(-.35deg);padding:14px 16px}
+body[data-notara-style=notebook] .nv-home-task::before{content:'';position:absolute;top:-9px;left:50%;width:84px;height:18px;transform:translateX(-50%) rotate(-2.5deg);background:var(--nb-tape);pointer-events:none}
+body[data-notara-style=notebook] .nv-home-task:hover{background:var(--nb-note);transform:rotate(0)}
+body[data-notara-style=notebook] .nv-home-task-text strong{font-size:16px;font-weight:400}
+body[data-notara-style=notebook] .nv-home-task-text small{font-size:14px}
+body[data-notara-style=notebook] .nv-home-task-action{font-size:14px;color:var(--nb-accent)}
+body[data-notara-style=notebook] .nv-home-empty{font-size:14px}
+
+/* ---- 课堂：顶栏、横线对话纸、学生便签 ---- */
+body[data-notara-style=notebook] .nv-class-topbar{background:var(--dsw-alias-bg-base);border-bottom-color:var(--dsw-alias-border-l2)}
+body[data-notara-style=notebook] .nv-class-native :is(.wSkVaW_crumbs,.wSkVaW_crumbCurrent){font-size:16px;font-weight:400}
+body[data-notara-style=notebook] .nv-lesson-entry h1{font-weight:400;letter-spacing:.04em}
+body[data-notara-style=notebook] .nv-lesson-entry-lead{font-size:14px}
+body[data-notara-style=notebook] .nv-lesson-entry-options{font-size:14px}
+/* The page is plain paper with a red margin line. The teacher's reply carries
+   its own rules at a fixed 32px line, so every written line sits on one no
+   matter what process rows, tool rows or turn tails sit between replies. */
+body[data-notara-style=notebook] [data-conversation-scroll]{--dsh-content-font-size:16px;background-color:var(--dsw-alias-bg-base);
+  background-image:linear-gradient(to right,transparent 40px,var(--nb-margin) 40px 41px,transparent 41px);background-attachment:local}
+body[data-notara-style=notebook] .hWmORq_body{font-size:16px;line-height:32px}
+/* Each text block rules its own lines from its own top, so a display formula,
+   table or tall inline formula never shifts the lines of the next block. The
+   blank line between blocks is padding, so it is ruled too. */
+body[data-notara-style=notebook] .hWmORq_body :is(p,ul,ol,h1,h2,h3,h4,h5,h6){margin:0;padding-bottom:32px;line-height:32px;background-image:linear-gradient(to bottom,transparent 0 25px,var(--nb-rule) 25px 26px,transparent 26px);background-size:100% 32px}
+body[data-notara-style=notebook] .hWmORq_body :is(li,li p){line-height:32px;margin:0;padding-bottom:0;background:none}
+body[data-notara-style=notebook] .hWmORq_body :is(h1,h2,h3,h4,h5,h6){font-size:18px;line-height:32px;font-weight:600}
+body[data-notara-style=notebook] .hWmORq_body :is(blockquote,table,pre,.katex-display,hr){margin:0 0 32px}
+/* The native markdown wrapper sets its own 24px line; the blocks carry 32px themselves. */
+body[data-notara-style=notebook] .hWmORq_body :is(p,ul,ol,h1,h2,h3,h4,h5,h6,blockquote,table,pre,.katex-display,hr):last-child{margin-bottom:0;padding-bottom:0}
+body[data-notara-style=notebook] .hWmORq_body :is(pre,table,blockquote){background-color:var(--nb-card)}
+body[data-notara-style=notebook] .Sixlwa_bubble{background:var(--nb-note);border-radius:2px;box-shadow:var(--nb-note-shadow);transform:rotate(.6deg);font-size:16px;line-height:30px}
+body[data-notara-style=notebook] .wSkVaW_root:not([data-phase=hero]) [data-composer-card]{background:var(--nb-card);border:1.5px solid var(--dsw-alias-label-caption);border-radius:6px 12px 7px 14px/12px 6px 14px 7px;box-shadow:2px 2px 0 var(--dsw-alias-border-l1)}
+body[data-notara-style=notebook] .nv-board-tool-row{font-size:14px}
+
+/* ---- 资料库：文件、索引卡、贴纸图谱、纸上的森林 ---- */
+body[data-notara-style=notebook] .nv-file-rail button[aria-current=true]{background:var(--nb-hl)!important;border-radius:var(--nb-scribble)!important;color:var(--dsw-alias-label-primary)!important}
+body[data-notara-style=notebook] .nv-file-rail :is(button,summary){font-size:14px!important}
+body[data-notara-style=notebook] .nv-document article{font-size:16px}
+body[data-notara-style=notebook] .nv-card{background:var(--nb-card);border-color:var(--dsw-alias-border-l2);border-top:3px solid var(--nb-margin);border-radius:2px;box-shadow:var(--nb-shadow-1);transition:transform .14s}
+body[data-notara-style=notebook] .nv-card-grid>.nv-card:nth-child(3n+1){transform:rotate(-.4deg)}
+body[data-notara-style=notebook] .nv-card-grid>.nv-card:nth-child(3n+2){transform:rotate(.35deg)}
+body[data-notara-style=notebook] .nv-card-grid>.nv-card:hover{transform:translateY(-2px)}
+body[data-notara-style=notebook] .nv-card h3{font-size:17px;font-weight:600}
+body[data-notara-style=notebook] .nv-card p{font-size:15px}
+body[data-notara-style=notebook] .nv-card-kind{background:var(--nb-note-blue);border-radius:3px;font-size:13px}
+body[data-notara-style=notebook] :is(.nv-card-review,.nv-card-source){font-size:13px}
+body[data-notara-style=notebook] :is(.nv-card-filters,.nv-review-filters,.nv-calendar-modes) button{font-size:14px;border-radius:3px}
+body[data-notara-style=notebook] :is(.nv-card-filters,.nv-review-filters,.nv-calendar-modes) button[aria-pressed=true]{background:var(--nb-hl);color:var(--dsw-alias-label-primary);border-radius:var(--nb-scribble)}
+body[data-notara-style=notebook] .nv-tag-filter-list>button{font-size:13px;border-radius:3px;background:var(--nb-card);border:1px solid var(--dsw-alias-border-l1)}
+body[data-notara-style=notebook] .nv-tag-filter-list>button[aria-pressed=true]{background:var(--nb-hl);border-color:transparent}
+body[data-notara-style=notebook] .nv-tag-group{border-radius:4px;border-style:dashed;background:var(--nb-card)}
+body[data-notara-style=notebook] .nv-graph-board{background-color:var(--dsw-alias-bg-base);background-image:radial-gradient(var(--dsw-alias-border-l3) .8px,transparent .8px)}
+body[data-notara-style=notebook] .nv-graph-node{font-size:14px}
+body[data-notara-style=notebook] .nv-graph-node svg{filter:drop-shadow(0 1px 1.5px rgba(80,60,20,.28))}
+body[data-notara-style=notebook] .nv-graph-node span{text-shadow:0 0 3px var(--dsw-alias-bg-base),0 0 6px var(--dsw-alias-bg-base)}
+body[data-notara-style=notebook] .nv-graph-pane{background:var(--nb-card)}
+body[data-notara-style=notebook] .nv-graph-pane h2{font-size:20px;font-weight:600}
+body[data-notara-style=notebook] .nv-resize{background:var(--dsw-alias-border-l2)}
+body[data-notara-style=notebook] .nv-resize:hover{background:var(--nb-accent)}
+body[data-notara-style=notebook] .nv-legend{font-size:13px}
+body[data-notara-style=notebook] .nv-star-board[data-sky=forest]{background-color:var(--dsw-alias-bg-base);background-image:radial-gradient(var(--dsw-alias-border-l2) .8px,transparent .8px);background-size:22px 22px}
+body[data-notara-style=notebook] :is(.nv-star-board,.nv-star-legend)[data-sky=forest]{--nv-sky-edge:var(--dsw-alias-bg-layer-2)}
+body[data-notara-style=notebook] .nv-star-legend{font-size:14px}
+body[data-notara-style=notebook] .nv-star-legend small{font-size:13px}
+body[data-notara-style=notebook] .nv-star-reading{font-size:14px}
+body[data-notara-style=notebook] .nv-star-reading p{font-size:13px}
+
+/* ---- 计划：贴胶带的路线便签、红笔圈出的今天 ---- */
+body[data-notara-style=notebook] .nv-route-rail{background:var(--dsw-specific-sidebar-fill)}
+body[data-notara-style=notebook] .nv-route-card{border-radius:3px;background:var(--nb-card)}
+body[data-notara-style=notebook] .nv-route-card[aria-current=true]{background:var(--nb-hl);border-color:transparent;box-shadow:none}
+body[data-notara-style=notebook] .nv-route-card b{font-size:16px;font-weight:400}
+body[data-notara-style=notebook] .nv-route-lane-head{font-size:14px}
+body[data-notara-style=notebook] .nv-route-node{background:var(--nb-note);border:0;border-radius:2px;box-shadow:var(--nb-note-shadow);transform:rotate(-.6deg);margin-top:14px}
+body[data-notara-style=notebook] .nv-route-node:nth-of-type(even){transform:rotate(.7deg)}
+body[data-notara-style=notebook] .nv-route-node::after{content:'';position:absolute;top:-8px;left:50%;width:48px;height:14px;background:var(--nb-tape);transform:translateX(-50%) rotate(2deg);pointer-events:none}
+body[data-notara-style=notebook] .nv-route-node:is([data-pathway=remedial],[data-pathway=extension]){background:var(--nb-note-blue);border:1.5px dashed var(--dsw-alias-border-l3)}
+body[data-notara-style=notebook] .nv-route-node[aria-pressed=true]{box-shadow:0 0 0 2px var(--nb-accent),0 4px 10px rgba(90,70,30,.2)}
+body[data-notara-style=notebook] .nv-route-node b{font-size:16px;font-weight:400}
+body[data-notara-style=notebook] .nv-route-node small{font-size:13px}
+body[data-notara-style=notebook] .nv-month-head{font-size:19px;font-weight:400}
+body[data-notara-style=notebook] .nv-month-day{font-size:16px;border-radius:4px}
+body[data-notara-style=notebook] .nv-month-day[aria-current=date]{box-shadow:none;font-weight:400;color:var(--nb-seal)}
+body[data-notara-style=notebook] .nv-month-day[aria-current=date]::before{content:'';position:absolute;left:50%;top:50%;width:34px;height:30px;margin:-17px 0 0 -17px;border:1.6px solid var(--nb-seal);border-radius:50% 44% 56% 47%;transform:rotate(-8deg);pointer-events:none}
+body[data-notara-style=notebook] .nv-month-day[aria-pressed=true]{background:var(--nb-hl);color:var(--dsw-alias-label-primary)}
+body[data-notara-style=notebook] .nv-month-weekday{font-size:14px}
+body[data-notara-style=notebook] .nv-calendar-hint{font-size:13px}
+body[data-notara-style=notebook] .nv-review-row{font-size:15px}
+body[data-notara-style=notebook] .nv-review-row[aria-pressed=true]{background:var(--nb-hl);border-radius:var(--nb-scribble)}
+body[data-notara-style=notebook] .nv-review-row small{font-size:13px}
+body[data-notara-style=notebook] .nv-review-detail h2{font-size:20px}
+body[data-notara-style=notebook] .nv-review-history :is(summary,li){font-size:14px}
+
+/* ---- 白板：一张浅色暖纸，两种深浅色下都保持浅色（板书墨色是固定的） ---- */
+body[data-notara-style=notebook] .nb-board{background:#fbf7ee;color:#2e3548;font-family:"Notara WenKai","LXGW WenKai","Kaiti SC","STKaiti","KaiTi",serif;font-size:15px;letter-spacing:.02em}
+body[data-notara-style=notebook] .nb-head{border-bottom-color:#e4dbc6}
+body[data-notara-style=notebook] .nb-board button{background:#efe7d4;color:#5b5f70;border-radius:4px;font-size:15px}
+body[data-notara-style=notebook] .nb-board button:hover{background:#e6dcc5}
+body[data-notara-style=notebook] .nb-board button:focus-visible{outline-color:#c0392b}
+body[data-notara-style=notebook] .nb-tabs{background:transparent;padding:0;gap:4px}
+body[data-notara-style=notebook] .nb-tabs button{background:transparent;border-radius:3px;height:30px}
+body[data-notara-style=notebook] .nb-tabs button[aria-selected=true]{background:rgba(252,214,92,.5);color:#2e3548;box-shadow:none;border-radius:var(--nb-scribble)}
+body[data-notara-style=notebook] .nb-status{font-size:13px;color:#958f7e}
+body[data-notara-style=notebook] .nb-viewport{background-color:#fbf7ee;background-image:radial-gradient(#d8ccb0 .8px,transparent .8px)}
+body[data-notara-style=notebook] .nb-block{font-family:"Notara WenKai","Kaiti SC","STKaiti","KaiTi",serif;border-radius:4px}
+body[data-notara-style=notebook] .nb-block:hover{border-color:#e4dbc6}
+body[data-notara-style=notebook] .nb-block[data-stream=true]{border-color:#c2b594;border-style:dashed;background:#fffdf7b3}
+body[data-notara-style=notebook] :is(.nb-block h2,.nb-block h3,.nb-interactive-head strong){font-family:"Notara WenKai","Kaiti SC","STKaiti","KaiTi",serif;color:#2e3548}
+body[data-notara-style=notebook] .nb-block-tools{font:13px/1.3 "Notara WenKai","Kaiti SC",serif}
+body[data-notara-style=notebook] .nb-block .nb-source-link{background:none;color:#34589c;border-bottom-color:#c2b594}
+body[data-notara-style=notebook] .nb-edges path{stroke:#b9ab88}
+body[data-notara-style=notebook] .nb-edges text{fill:#7d7867;stroke:#fbf7ee;font-family:"Notara WenKai","Kaiti SC",serif}
+body[data-notara-style=notebook] .nb-toolbar{background:#fffdf7f2;border-color:#d2c6a9;border-radius:8px;box-shadow:0 6px 18px rgba(90,70,30,.14)}
+body[data-notara-style=notebook] .nb-toolbar button{background:transparent}
+body[data-notara-style=notebook] .nb-toolbar .nb-color{border-color:#fffdf7;outline-color:#d2c6a9}
+body[data-notara-style=notebook] .nb-sep{background:#e4dbc6}
+body[data-notara-style=notebook] .nb-notice{background:#f3eddf;color:#5b5f70;font-size:14px}
+body[data-notara-style=notebook] .nb-export{background:#fffdf7;border-color:#d2c6a9;border-radius:6px;box-shadow:0 6px 18px rgba(90,70,30,.14)}
+body[data-notara-style=notebook] .nb-live-label{font:13px "Notara WenKai","Kaiti SC",serif;color:#7d7867}
+body[data-notara-style=notebook] .nb-interactive{position:relative;background:#fffdf7;border-color:#d2c6a9;border-radius:3px;box-shadow:3px 3px 0 #e4dbc6;font-family:"Notara WenKai","Kaiti SC",serif}
+body[data-notara-style=notebook] .nb-interactive:not(.is-expanded)::before{content:'';position:absolute;top:-9px;left:28px;width:74px;height:18px;background:rgba(214,196,140,.55);transform:rotate(-4deg);pointer-events:none}
+body[data-notara-style=notebook] .nb-interactive-head small{font:13px "Notara WenKai","Kaiti SC",serif;color:#958f7e}
+body[data-notara-style=notebook] .nb-interactive-graph{background:#fbf7ee;border-color:#e4dbc6}
+
+@media(prefers-reduced-motion:reduce){body[data-notara-style=notebook] *{transition:none!important;animation:none!important}}

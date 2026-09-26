@@ -6,6 +6,7 @@ import { createVaultStore, safeRelativePath, resolveVaultRoot } from './vault.js
 import { installTeachingRuntime } from './teaching-runtime.js';
 import { VAULT_REMOTE_METHODS } from './remote-client.js';
 import { createPdfAnnotationStore } from './pdf-annotations.js';
+import { installFontRoute } from './font-route.js';
 
 const REMOTE_METHOD_DESCRIPTOR = '@deepseek-ai/dsh-typert-protocol/remote-methods';
 const MAX_CONTENT_LENGTH = 2_000_000;
@@ -211,6 +212,14 @@ export class NotaraVaultRemote extends TypertRemoteService {
     return store.graph();
   }
 
+  async learningStars(input) {
+    // Read-only: leaf BKT states and parent aggregates over the whole vault, so a
+    // filter or a collapsed layer in the client never changes a star's light.
+    const data = exactInput(input, [], ['sessionId']);
+    const store = await this.storeFor(data);
+    return store.learningStars();
+  }
+
   async templates(input) {
     const data = exactInput(input, [], ['sessionId']);
     const store = await this.storeFor(data);
@@ -272,6 +281,7 @@ Object.defineProperty(NotaraVaultRemote.prototype, REMOTE_METHOD_DESCRIPTOR, {
 
 export function apply(ctx) {
   ctx.plugin(NotaraVaultRemote);
+  installFontRoute(ctx);
   // A Cordis plugin body must not return the service instance as a disposable.
   ctx.inject(['tools','systemPrompt','fs','sessions','sessionController','skills','workspaceRegistry','llm','subagents'],scope=>{installTeachingRuntime(scope);});
 }

@@ -19,7 +19,7 @@
 export const VAULT_REMOTE_METHODS = Object.freeze([
   'pdfAnnotations', 'updatePdfAnnotations',
   'board', 'mutateBoard', 'mutateBoardInteraction',
-  'list', 'read', 'readAsset', 'save', 'saveAsset', 'search', 'query', 'links', 'graph', 'templates', 'createFromTemplate', 'tasks', 'toggleTask',
+  'list', 'read', 'readAsset', 'save', 'saveAsset', 'search', 'query', 'links', 'graph', 'learningStars', 'templates', 'createFromTemplate', 'tasks', 'toggleTask',
   // 回收站: one file at a time, always recoverable. Delete proves the revision it
   // saw; restore refuses any name that already exists.
   'trashFile', 'listTrash', 'restoreFile',

@@ -7,6 +7,7 @@
  * editing remain one continuous action.
  */
 import katex from 'katex';
+import 'katex/contrib/mhchem';
 import { WidgetType } from '@codemirror/view';
 
 export const MATH_INLINE = 'VaultMathInline';
@@ -28,6 +29,39 @@ function usable(source) {
   return Boolean(source) && !/^\s/.test(source) && !/\s$/.test(source);
 }
 
+function isEscapedText(text, pos) {
+  let backslashes = 0;
+  for (let scan = pos - 1; scan >= 0 && text.charCodeAt(scan) === BACKSLASH; scan -= 1) backslashes += 1;
+  return backslashes % 2 === 1;
+}
+
+/** Split a short visible label into ordinary text and safe TeX segments. This
+ * is shared by wiki links, Markdown links and card excerpts so link labels do
+ * not fall back to raw dollar delimiters while the document body is rendered.
+ */
+export function mathLabelParts(value) {
+  const text = String(value ?? ''), parts = [];
+  let plainStart = 0, index = 0;
+  const pushText = end => { if (end > plainStart) parts.push({ kind: 'text', value: text.slice(plainStart, end) }); };
+  while (index < text.length) {
+    if (text.charCodeAt(index) !== DOLLAR || isEscapedText(text, index)) { index += 1; continue; }
+    const display = text.charCodeAt(index + 1) === DOLLAR, width = display ? 2 : 1;
+    let close = -1;
+    for (let scan = index + width; scan < text.length - (width - 1); scan += 1) {
+      if (text.charCodeAt(scan) !== DOLLAR || (display && text.charCodeAt(scan + 1) !== DOLLAR) || isEscapedText(text, scan)) continue;
+      close = scan; break;
+    }
+    if (close < 0) { index += width; continue; }
+    const source = text.slice(index + width, close);
+    if (!usable(source)) { index = close + width; continue; }
+    pushText(index);
+    parts.push({ kind: 'math', display, source });
+    index = close + width; plainStart = index;
+  }
+  pushText(text.length);
+  return parts.length ? parts : [{ kind: 'text', value: text }];
+}
+
 // `$…$` and inline `$$…$$` are one-line by construction; a paragraph that is
 // nothing but `$$…$$` is handled as a display block by the decoration builder.
 export const mathSyntax = {
@@ -36,7 +70,7 @@ export const mathSyntax = {
     name: MATH_DISPLAY,
     parse(cx, next, pos) {
       if (next !== DOLLAR || cx.char(pos + 1) !== DOLLAR || isEscaped(cx, pos)) return -1;
-      const match = /^\$\$([^\n]+?)\$\$(?!\$)/.exec(cx.slice(pos, cx.end));
+      const match = /^\$\$([\s\S]+?)\$\$(?!\$)/.exec(cx.slice(pos, cx.end));
       if (!match || !usable(match[1])) return -1;
       return cx.addElement(cx.elt(MATH_DISPLAY, pos, pos + match[0].length));
     },

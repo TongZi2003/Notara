@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Notara 极简主题润色 · 前后对比</title>
+<style>
+:root{color-scheme:light;font:14px/1.6 "Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB",sans-serif;color:#20252c;background:#f4f5f6}
+body{margin:0}
+header{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 28px;background:#fff;border-bottom:1px solid #e8ecf0}
+h1{font-size:16px;font-weight:600;margin:0 auto 0 0}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:13px;background:#f0f1f3}
+.seg button{height:28px;padding:0 12px;border:0;border-radius:10px;background:transparent;color:#525c69;font:500 13px/1 inherit;cursor:pointer}
+.seg button[aria-pressed=true]{background:#fff;color:#20252c;box-shadow:0 1px 2px rgba(20,28,38,.06)}
+nav{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px}
+nav a{color:#697482;text-decoration:none}nav a:hover{color:#20252c;text-decoration:underline}
+main{max-width:1680px;margin:0 auto;padding:20px 28px 60px;display:grid;gap:28px}
+section{background:#fff;border:1px solid #e8ecf0;border-radius:14px;padding:16px 18px}
+section h2{font-size:14px;font-weight:600;margin:0 0 12px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pair figure{margin:0}
+.pair figcaption{font-size:12px;color:#697482;margin-bottom:6px}
+.pair img{display:block;width:100%;border:1px solid #e8ecf0;border-radius:10px}
+.narrow .pair{grid-template-columns:repeat(2,minmax(0,390px));justify-content:start}
+body[data-mode=flip] .pair{grid-template-columns:1fr;max-width:1280px}
+body[data-mode=flip] .pair figure:not(.on){display:none}
+body[data-mode=flip] .pair img{cursor:pointer}
+.notes{font-size:13px;color:#525c69;columns:2 360px;margin:0;padding-left:18px}
+.notes li{break-inside:avoid;margin-bottom:4px}
+</style>
+</head>
+<body data-mode="side">
+<header>
+  <h1>极简主题润色（左：润色前，右：润色后（正式实现））</h1>
+  <div class="seg" role="group" aria-label="对比方式">
+    <button type="button" data-mode="side" aria-pressed="true">左右对比</button>
+    <button type="button" data-mode="flip" aria-pressed="false">单图切换（点图片）</button>
+  </div>
+</header>
+<main>
+  <section>
+    <h2>这一版改了什么</h2>
+    <ul class="notes">
+      <li>圆角收成 4 档：8 / 10 / 14 / 20px（标签 · 控件 · 卡片与菜单 · 侧栏、弹窗与输入框），原来有十多种。</li>
+      <li>去掉侧栏卡片外的那条整高竖线，侧栏只保留一层边界。</li>
+      <li>悬停色和选中色的深浅关系原来是反的（选中比悬停还浅），已理顺；深色模式的选中块从偏蓝的亮块改为中性灰。</li>
+      <li>分段切换统一成同一种“浅灰底槽 + 白色滑块”：资料库/计划页签、路线视图、课堂的对话/白板/教室。</li>
+      <li>原生下拉框、搜索框、多行输入框统一为 32px 高、10px 圆角、细边框，获得焦点时显示一圈浅光晕，不再露出系统默认样式。</li>
+      <li>次级按钮（带入对话复习、添加能力、保存评估、浏览文件夹等）改为无边框浅灰底；卡片底部的文字链接去掉下划线，改成一行排开。</li>
+      <li>用户气泡由淡蓝改为中性浅灰，与白灰主题一致。</li>
+      <li>深色首页输入框背后的深色矩形底块已去掉。</li>
+      <li>卡片页和复习页的筛选区少一条分隔线，工具行和筛选行读起来是一组。</li>
+      <li>中文标题取消过紧的负字距；日期和计数使用等宽数字。</li>
+    </ul>
+  </section>
+  <nav id="toc"></nav>
+</main>
+<script>
+const shots=[
+  ['today','今日'],['new-lesson','新的一课'],['classroom','课堂 · 对话'],['menu','课堂 · 模型菜单'],['menu-permission','课堂 · 权限菜单'],
+  ['board','课堂 · 白板'],['room','课堂 · 教室'],['files','资料库 · 文件'],['cards','资料库 · 卡片'],['graph','资料库 · 图谱'],
+  ['routes','计划 · 路线'],['calendar','计划 · 日历'],['review','计划 · 复习'],['settings','设置'],['directory','选择学习目录'],['collapsed','侧栏收起'],
+  ['dark-today','深色 · 今日'],['dark-cards','深色 · 卡片'],['dark-classroom','深色 · 课堂'],['narrow-today','窄屏 390 · 今日'],['narrow-classroom','窄屏 390 · 课堂'],
+];
+const main=document.querySelector('main'),toc=document.getElementById('toc');
+for(const [id,label] of shots){
+  const s=document.createElement('section');s.id=id;if(id.startsWith('narrow'))s.className='narrow';
+  s.innerHTML=`<h2>${label}</h2><div class="pair"><figure><figcaption>润色前</figcaption><img loading="lazy" src="before/${id}.png" alt="${label} 润色前"></figure><figure class="on"><figcaption>润色后（正式实现）</figcaption><img loading="lazy" src="after/${id}.png" alt="${label} 润色后"></figure></div>`;
+  main.append(s);
+  const a=document.createElement('a');a.href='#'+id;a.textContent=label;toc.append(a);
+}
+main.addEventListener('click',e=>{
+  if(document.body.dataset.mode!=='flip'||e.target.tagName!=='IMG')return;
+  for(const f of e.target.closest('.pair').children)f.classList.toggle('on');
+});
+for(const b of document.querySelectorAll('.seg button'))b.onclick=()=>{
+  document.body.dataset.mode=b.dataset.mode;
+  for(const o of document.querySelectorAll('.seg button'))o.setAttribute('aria-pressed',String(o===b));
+};
+</script>
+</body>
+</html>

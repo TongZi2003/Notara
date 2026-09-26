@@ -24,3 +24,4 @@ coverage/
 /zz-*.mts
 /*.log
 /examples/native-vault/teaching/
+/examples/native-vault/fonts/

@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { buildMarkdownCardContent, buildVaultGraph, childCardsOf, childMaterialsOf, filterVaultGraph, findAnchorLine, findSummaryBlockLine, markdownSections, tagGroups } from './graph.js';
+import { buildMarkdownCardContent, buildVaultGraph, childCardsOf, childMaterialsOf, collapseVaultGraph, filterVaultGraph, findAnchorLine, findSummaryBlockLine, markdownSections, tagGroups, taggedCardNodes } from './graph.js';
 import { createVaultStore, parseMarkdownDocument, revisionFor } from './vault.js';
 import { embedTarget, mediaForPath, parseMediaTarget } from './media.js';
 import { NotaraVaultRemote } from './index.js';
@@ -424,6 +424,18 @@ test('page nodes carry frontmatter tags while assets stay untagged', () => {
   assert.deepEqual(nodeOf(graph, '媒体/图.png').tags, []);
 });
 
+test('taggedCardNodes returns only card and insight nodes matching every selected tag', () => {
+  const graph = buildVaultGraph([
+    doc('卡片/甲.md', '---\ntype: card\ntags: [历史, 制度]\n---\n# 甲\n'),
+    doc('卡片/乙.md', '---\ntype: insight\ntags: [历史]\n---\n# 乙\n'),
+    doc('知识/丙.md', '---\ntype: note\ntags: [历史, 制度]\n---\n# 丙\n'),
+  ], []);
+
+  assert.deepEqual(taggedCardNodes(graph, ['历史']).map(node => node.path), ['卡片/甲.md', '卡片/乙.md']);
+  assert.deepEqual(taggedCardNodes(graph, ['历史', '制度']).map(node => node.path), ['卡片/甲.md']);
+  assert.deepEqual(taggedCardNodes(graph, []).map(node => node.path), []);
+});
+
 test('filterVaultGraph keeps the focus neighbourhood within the requested hops', () => {
   const graph = vaultFixture();
 
@@ -624,6 +636,25 @@ test('tag groups count real assets once per tag and order by size', () => {
   ]);
   assert.deepEqual(tagGroups({ nodes: [] }), []);
   assert.deepEqual(tagGroups(), []);
+});
+
+test('large graph projection reveals one split level at a time', () => {
+  const graph = {
+    nodes: [
+      { path: '书.pdf', type: null, role: 'root', childCount: 1 },
+      { path: '章节.md', type: 'source', role: 'root', childCount: 1 },
+      { path: '卡片/甲.md', type: 'card', role: 'intermediate', childCount: 1 },
+      { path: '卡片/乙.md', type: 'card', role: 'leaf', childCount: 0 },
+    ],
+    edges: [
+      { source: '书.pdf', target: '章节.md', kind: 'split' },
+      { source: '章节.md', target: '卡片/甲.md', kind: 'split' },
+      { source: '卡片/甲.md', target: '卡片/乙.md', kind: 'split' },
+    ],
+  };
+  assert.deepEqual([...collapseVaultGraph(graph, []).nodes].map(node => node.path), ['书.pdf']);
+  assert.deepEqual([...collapseVaultGraph(graph, ['书.pdf']).nodes].map(node => node.path), ['书.pdf', '章节.md']);
+  assert.deepEqual([...collapseVaultGraph(graph, ['书.pdf', '章节.md']).nodes].map(node => node.path), ['书.pdf', '章节.md', '卡片/甲.md']);
 });
 
 test('a 小结 link lands on the stable block anchor, not on the heading wording', async () => {

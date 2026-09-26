@@ -36,7 +36,7 @@ import { lessonOutline, readLessonStage } from './lesson-script.js';
 import { embedTarget, parseMediaTarget } from './media.js';
 import { createReviewRuntime } from './review-runtime.js';
 import { validateAssessments, validateReviewNote } from './review-data.js';
-import { safeRelativePath } from './vault.js';
+import { safeRelativePath, resolveVaultRoot } from './vault.js';
 
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;
@@ -570,7 +570,7 @@ async function runCommand(command, args, { fs, root, env }) {
     }
     // Absolute paths are accepted only for the explicitly bound script. All
     // other CLI operations still read only the current registered workspace.
-    const pinnedAbsolute = pin ? resolve(pin.workspacePath, 'vault', pin.path) : null;
+    const pinnedAbsolute = pin ? resolve(resolveVaultRoot(pin.workspacePath), pin.path) : null;
     if (isAbsolute(path)) {
       if (!pin || resolve(path) !== pinnedAbsolute) throw new CliError('vault_path_invalid');
       const pinnedRoot=await resolveWorkspace(pin.workspacePath);
@@ -578,7 +578,7 @@ async function runCommand(command, args, { fs, root, env }) {
       lessonIO=createEditorVaultIO(contextFor(fs,{list:()=>[pinnedWorkspace]}),pinnedRoot);
       path=pin.path;
     }
-    const selectedPin = pin && resolve(lessonIO.workspace.path,'vault',path) === pinnedAbsolute ? pin : null;
+    const selectedPin = pin && resolve(resolveVaultRoot(lessonIO.workspace.path),path) === pinnedAbsolute ? pin : null;
     const document=await lessonIO.read(path,args.expectedRevision);
     const stale=Boolean(selectedPin?.revision&&selectedPin.revision!==document.revision);
     if(command==='lesson-section'&&stale)throw new CliError('lesson_script_rebind_required');

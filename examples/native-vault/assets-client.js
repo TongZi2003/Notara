@@ -5,13 +5,13 @@ import { VIEW_IDS } from './views-client.js';
 import { createVaultClient } from './remote-client.js';
 import { createDraftStore } from './draft-client.js';
 import { createFileActions } from './file-actions-client.js';
-export function createVaultAssets(React,{STYLE,CodeMirrorMarkdown,PdfReader,AssetPreview,insertVaultReference,IconButton,Menu,Dialog}) {
+export function createVaultAssets(React,{STYLE,CodeMirrorMarkdown,PdfReader,AssetPreview,insertVaultReference,IconButton,Menu,Dialog,ensureSession}) {
 const {useState,useEffect,useMemo,useCallback,useRef}=React, h=React.createElement;
 const buttonStyle=active=>({...STYLE.row,...(active?STYLE.rowActive:{})});
 const useFileActions=createFileActions(React,{STYLE,Dialog});
     function Tree({ node, selected, onSelect, onContext, depth = 0 }) {
       return React.createElement(React.Fragment, null, node.children.map(child => child.path
-        ? React.createElement('button', { key: child.path, style: { ...buttonStyle(child.path === selected), paddingLeft: 10 + depth * 12 }, onContextMenu: event => { event.preventDefault(); onContext(child.path); }, onClick: () => onSelect(child.path) }, `${child.kind === 'asset' ? '▧ ' : ''}${child.name}`)
+        ? React.createElement('button', { key: child.path, 'aria-current': child.path === selected ? 'true' : undefined, style: { ...buttonStyle(child.path === selected), paddingLeft: 10 + depth * 12 }, onContextMenu: event => { event.preventDefault(); onContext(child.path, event); }, onClick: () => onSelect(child.path) }, `${child.kind === 'asset' ? '▧ ' : ''}${child.name}`)
         : React.createElement('details', { key: `${depth}:${child.name}`, open: true },
           React.createElement('summary', { style: { ...STYLE.treeFolder, paddingLeft: 10 + depth * 12 } }, child.name),
           React.createElement(Tree, { node: child, selected, onSelect, onContext, depth: depth + 1 }),
@@ -34,7 +34,14 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
       const [sidebar, setSidebar] = useState(false), [searching, setSearching] = useState(false), [creating, setCreating] = useState(false);
       useEffect(()=>{setSidebar(global&&window.innerWidth>760);},[global]);
       const [extracting, setExtracting] = useState(false), [extractTitle, setExtractTitle] = useState(''), [extractQuote, setExtractQuote] = useState(''), [section, setSection] = useState('');
-      const [assetLocator, setAssetLocator] = useState(null), [contextPath, setContextPath] = useState(null);
+      const [assetLocator, setAssetLocator] = useState(null), [contextMenu, setContextMenu] = useState(null);
+      useEffect(() => {
+        if (!contextMenu) return undefined;
+        const close = event => { if (!event.target.closest?.('.nv-context-menu')) setContextMenu(null); };
+        const key = event => { if (event.key === 'Escape') setContextMenu(null); };
+        window.addEventListener('pointerdown', close); window.addEventListener('keydown', key);
+        return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', key); };
+      }, [contextMenu]);
       const [busy, setBusy] = useState(false);
       const [document, setDocument] = useState(undefined);
       const [asset, setAsset] = useState(undefined);
@@ -218,20 +225,54 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
       };
       const discard = () => { if (document) { setDraft(document.content); setDirty(false); setNotice('已放弃未保存修改'); } };
       const pdfLocator = value => value ? { kind: 'pdf-region', page: value.page, rect: value.rect } : { kind: 'pdf-page', page: assetPage };
-      const bringIntoConversation = (assetSelection, selectedText = '') => {
+      const activeSession = async () => {
+        if (sessionId) return sessionId;
+        try {
+          const value = await ensureSession?.(ctx);
+          if (typeof value === 'string' && value) return value;
+        } catch { /* show the same honest notice below */ }
+        setNotice('请先开始一节课，再把资料带入对话。');
+        return undefined;
+      };
+      const bringIntoConversation = async (assetSelection, selectedText = '') => {
+        const currentSessionId = await activeSession();
+        if (!currentSessionId) return false;
         if (asset) {
           const locator = asset.assetKind === 'pdf' ? pdfLocator(assetSelection || pdfSelection) : undefined;
           const quote = assetSelection?.quote || pdfSelection?.quote;
-          const pin = { kind: 'asset', sessionId, path: asset.path, revision: asset.revision, title: asset.title, ...(locator ? { locator } : {}), ...(quote ? { selection: quote } : {}) };
-          if (!insertVaultReference(ctx, sessionId, pin, openView)) { setNotice('当前对话输入框正在变化，请稍后重试。'); return; }
+          const pin = { kind: 'asset', sessionId: currentSessionId, path: asset.path, revision: asset.revision, title: asset.title, ...(locator ? { locator } : {}), ...(quote ? { selection: quote } : {}) };
+          if (!insertVaultReference(ctx, currentSessionId, pin, openView)) { setNotice('当前对话输入框正在变化，请稍后重试。'); return false; }
           setNotice('已将媒体文件带入对话');
-          return;
+          return true;
         }
-        if (!document) return;
-        if (dirty) { setNotice('请先保存或放弃当前修改，再带入对话。'); return; }
-        const pin = { sessionId, path: document.path, revision: document.revision, title: document.title, ...(selectedText ? { selection: selectedText } : {}) };
-        if (!insertVaultReference(ctx, sessionId, pin, openView)) { setNotice('当前对话输入框正在变化，请稍后重试。'); return; }
+        if (!document) return false;
+        if (dirty) { setNotice('请先保存或放弃当前修改，再带入对话。'); return false; }
+        const pin = { kind: 'page', sessionId: currentSessionId, path: document.path, revision: document.revision, title: document.title, ...(selectedText ? { selection: selectedText } : {}) };
+        if (!insertVaultReference(ctx, currentSessionId, pin, openView)) { setNotice('当前对话输入框正在变化，请稍后重试。'); return false; }
         setNotice(selectedText ? '已将所选内容带入对话' : '已将当前页面带入对话');
+        return true;
+      };
+      const bringPath = async path => {
+        setContextMenu(null);
+        if (!path) return false;
+        if (path === selected && (document || asset)) return bringIntoConversation();
+        if (dirty) { setNotice('请先保存或放弃当前修改，再带入对话。'); return false; }
+        const currentSessionId = await activeSession();
+        if (!currentSessionId) return false;
+        try {
+          const page = await vault.read({ path });
+          if (page?.ok) {
+            const pin = { kind: 'page', sessionId: currentSessionId, path: page.value.path, revision: page.value.revision, title: page.value.title };
+            if (!insertVaultReference(ctx, currentSessionId, pin, openView)) { setNotice('当前对话输入框正在变化，请稍后重试。'); return false; }
+            setNotice('已将整个文件带入对话'); return true;
+          }
+          const media = await vault.readAsset({ path });
+          if (!media?.ok) throw new Error('read');
+          const locator = media.value.assetKind === 'pdf' ? { kind: 'pdf-page', page: 1 } : undefined;
+          const pin = { kind: 'asset', sessionId: currentSessionId, path: media.value.path, revision: media.value.revision, title: media.value.title, ...(locator ? { locator } : {}) };
+          if (!insertVaultReference(ctx, currentSessionId, pin, openView)) { setNotice('当前对话输入框正在变化，请稍后重试。'); return false; }
+          setNotice('已将媒体文件带入对话'); return true;
+        } catch { setNotice('无法读取这个文件，请刷新后重试。'); return false; }
       };
       const copyAssetEmbed = async selectionValue => {
         if (!asset) return;
@@ -241,7 +282,8 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
         try { await navigator.clipboard.writeText(text); } catch {
           const area = window.document.createElement('textarea'); area.value = text; area.style.position = 'fixed'; area.style.opacity = '0'; window.document.body.append(area); area.select(); window.document.execCommand('copy'); area.remove();
         }
-        setNotice(`已复制：${text}`);
+        const brought = await bringIntoConversation(chosen);
+        setNotice(brought ? `已复制并带入对话：${text}` : `已复制：${text}`);
       };
       const createPdfCard = async value => {
         if (!asset || asset.assetKind !== 'pdf' || !value || pdfCardSaving.current) return;
@@ -317,9 +359,10 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
         {label:'刷新',run:()=>{void refresh(selected);void open(selected);}},
         document && {label:'放弃修改',disabled:!dirty,run:discard},
         document && {label:'带入所选内容',disabled:dirty || !selection.trim(),run:()=>bringIntoConversation(undefined,selection)},
+        current && {label:'带入整个文件',disabled:dirty,run:()=>{void bringPath(selected);}},
         {label:'在图谱中查看',run:()=>openView(VIEW_IDS.graph,selected)},
         document?.type==='card' && {label:'查看复习安排',disabled:dirty,run:()=>openView(VIEW_IDS.calendar,selected)},
-        asset && {label:'复制嵌入标记',run:()=>copyAssetEmbed()},
+        asset && {label:'复制并带入对话',run:()=>{void copyAssetEmbed();}},
         current && {label:'移到回收站',disabled:dirty,run:()=>fileActions.requestDelete(current.path)},
         {label:'回收站',run:fileActions.showTrash},
       ];
@@ -333,7 +376,7 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
           h('span',{className:'nv-breadcrumb',title:current?.path},current?.path ?? '资产'),
           document && dirty && h(IconButton,{icon:'save',label:saving?'保存中…':'保存',disabled:saving,onClick:save}),
           document && h(IconButton,{icon:'extract',label:'打开摘录工具',disabled:dirty,'aria-pressed':extracting,onClick:startExtract}),
-          current && h(IconButton,{icon:'chat',label:'带入对话',disabled:dirty,onClick:()=>bringIntoConversation()}),
+          current && h(IconButton,{icon:'chat',label:document?'带入整个文件':'带入媒体文件',disabled:dirty,onClick:()=>{void bringIntoConversation();}}),
           h(Menu,{label:'文件操作',items:menuItems}),
         ),
         notice && h('div',{className:'nv-notice',role:'status'},notice),
@@ -346,7 +389,7 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
               h(Menu,{label:'文件列表操作',items:[{label:'从模板新建',run:()=>setCreating(true)},{label:'刷新文件列表',run:()=>refresh()},{label:'回收站',run:fileActions.showTrash}]})),
             searching && h('input',{style:{...STYLE.search,margin:'8px',width:'calc(100% - 16px)'},autoFocus:true,placeholder:'搜索标题、内容或路径…',value:query,onChange:event=>runSearch(event.target.value)}),
             query.trim()?shownFiles.map(item=>h('button',{key:item.path,style:buttonStyle(item.path===selected),onClick:()=>selectFromResult(item.path)},item.path)):
-              h(Tree,{node:tree,selected,onSelect:selectPage,onContext:setContextPath})),
+              h(Tree,{node:tree,selected,onSelect:selectPage,onContext:(path,event)=>setContextMenu({path,x:event.clientX,y:event.clientY})})),
           h('main',{className:'nv-document'+(asset?.assetKind==='pdf'?' nv-document-pdf':'')},current?h('article',null,
             document ? h(React.Fragment,null,
               h(CodeMirrorMarkdown,{key:`${document.path}:${Object.values(embeddedAssets).map(item=>item.revision).join(',')}`,content:draft,assets:embeddedAssets,anchor,onChange:value=>{setDraft(value);setDirty(value!==document.content.replace(/\r\n?/g,'\n'));setNotice('');},onSelectionChange:setSelection,onTag:tag=>openView(VIEW_IDS.graph,'tag:'+encodeURIComponent(tag)),onOpenPage:path=>{const target=parseMediaTarget(path);if(target.locator||target.invalidLocator)openView(VIEW_IDS.assets,path);else selectPage(target.path);}}),
@@ -354,9 +397,9 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
                 h('label',null,'摘录段落',h('select',{'aria-label':'摘录段落',style:STYLE.templateInput,value:section,onChange:event=>{const next=sections.find(item=>item.anchor===event.target.value);setSection(next.anchor);setAnchor(next.anchor);setExtractQuote(next.content);setExtractTitle(`${document.title} · ${next.anchor}`);}},sections.map(item=>h('option',{key:item.anchor,value:item.anchor},item.anchor)))),
                 h('label',null,'摘录内容',h('textarea',{'aria-label':'摘录内容',style:STYLE.templateInput,value:extractQuote,onChange:event=>setExtractQuote(event.target.value)})),
                 h('label',null,'卡片标题',h('input',{'aria-label':'卡片标题',style:STYLE.templateInput,value:extractTitle,onChange:event=>setExtractTitle(event.target.value)})),
-                h('button',{style:STYLE.quiet,disabled:busy||dirty||!extractTitle.trim()||!extractQuote.trim(),onClick:saveExtract},'提取段落为卡片')),
+                h('button',{className:'nv-quiet',disabled:busy||dirty||!extractTitle.trim()||!extractQuote.trim(),onClick:saveExtract},'提取段落为卡片')),
               (document.links.length>0||backlinks.length>0) && h('details',{style:{marginTop:28,fontSize:12}},h('summary',{style:{cursor:'pointer',color:'var(--dsw-alias-label-secondary)'}},'相关链接'),
-                h('section',{style:STYLE.links},document.links.map(path=>h('button',{key:'out:'+path,style:STYLE.link,onClick:()=>selectFromResult(path)},'→ '+path)),backlinks.map(path=>h('button',{key:'in:'+path,style:STYLE.link,onClick:()=>selectFromResult(path)},'← '+path))))) :
+                h('section',{style:STYLE.links},document.links.map(path=>h('button',{key:'out:'+path,className:'nv-link',style:STYLE.link,onClick:()=>selectFromResult(path)},'→ '+path)),backlinks.map(path=>h('button',{key:'in:'+path,className:'nv-link',style:STYLE.link,onClick:()=>selectFromResult(path)},'← '+path))))) :
             asset.assetKind==='pdf'?h(PdfReader,{key:asset.path+JSON.stringify(assetLocator),vault,asset,page:assetPage,initialRegion:assetLocator?.kind==='pdf-region'?assetLocator:undefined,onPage:setAssetPage,onSelectionChange:setPdfSelection,onCopyEmbed:copyAssetEmbed,onBring:bringIntoConversation,onCreateCard:createPdfCard,busy}):
               h(AssetPreview,{asset,onCopyEmbed:copyAssetEmbed,onBring:bringIntoConversation})
           ):h('div',{style:STYLE.empty},files.length?'选择一个文件':'还没有文件。点击 + 新建页面。'))),
@@ -365,11 +408,14 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
             h('label',null,'模板',h('select',{'aria-label':'模板',style:STYLE.templateInput,value:templatePath,onChange:event=>setTemplatePath(event.target.value)},templates.map(item=>h('option',{key:item.path,value:item.path},item.title||item.path)))),
             h('label',null,'页面标题',h('input',{'aria-label':'页面标题',style:STYLE.templateInput,value:newTitle,onChange:event=>setNewTitle(event.target.value)})),
             h('label',null,'目标路径',h('input',{'aria-label':'目标路径',style:STYLE.templateInput,value:newPath,onChange:event=>setNewPath(event.target.value)})),
-            h('button',{type:'submit',style:STYLE.quiet,disabled:!templates.length||dirty},'创建 Markdown 页面'))),
-        contextPath && h(Dialog,{title:contextPath.split('/').pop(),onClose:()=>setContextPath(null)},
-          h('div',{style:{display:'grid',gap:8,marginTop:16}},[
-            ['打开文件',()=>selectPage(contextPath)],['在图谱中查看',()=>openView(VIEW_IDS.graph,contextPath)],['从模板新建',()=>setCreating(true)],['移到回收站',()=>fileActions.requestDelete(contextPath)]
-          ].map(([label,run])=>h('button',{key:label,style:STYLE.quiet,onClick:()=>{run();setContextPath(null);}},label)))),
+            h('button',{type:'submit',className:'nv-quiet',disabled:!templates.length||dirty},'创建 Markdown 页面'))),
+        contextMenu && h('div',{className:'nv-context-menu',role:'menu',style:{left:Math.min(contextMenu.x,Math.max(8,window.innerWidth-224)),top:Math.min(contextMenu.y,Math.max(8,window.innerHeight-260))},onContextMenu:event=>event.preventDefault()},[
+          ['打开文件',()=>selectPage(contextMenu.path)],
+          ['将整个文件带入对话',()=>{void bringPath(contextMenu.path);}],
+          ['在图谱中查看',()=>openView(VIEW_IDS.graph,contextMenu.path)],
+          ['从模板新建',()=>setCreating(true)],
+          ['移到回收站',()=>fileActions.requestDelete(contextMenu.path)],
+        ].map(([label,run])=>h('button',{key:label,role:'menuitem',onClick:()=>{setContextMenu(null);run();}},label))),
         fileActions.dialog
       );
     }

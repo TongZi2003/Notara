@@ -514,7 +514,7 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
           h('legend', { style: { ...STYLE.notice, padding: 0 } }, '工作员'),
           h('div', { className: 'nv-worker-picker', role: 'group', 'aria-label': '选择工作员' },
             workers.map(row => h('button', {
-              key: row.id, type: 'button', style: STYLE.quiet, 'aria-pressed': row.id === presetId,
+              key: row.id, type: 'button', className: 'nv-quiet', 'aria-pressed': row.id === presetId,
               onClick: () => choose(row.id),
             }, row.name))),
           worker?.description && h('p', { style: { ...STYLE.notice, marginTop: 8 } }, worker.description)),
@@ -546,13 +546,13 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
         personaTooLong && h('p', { role: 'alert', style: { ...STYLE.notice, marginTop: 8, color: 'var(--dsw-alias-state-error-primary)' } }, `这位工作员的人格最多 ${PERSONA_TEXT_LIMIT} 字。`),
         worker?.reason && h('p', { role: 'status', style: { ...STYLE.notice, marginTop: 8 } }, worker.reason),
         error && h('p', { role: 'alert', style: { ...STYLE.notice, marginTop: 8, color: 'var(--dsw-alias-state-error-primary)' } }, error),
-        draft.expectedRevision !== view.revision && h('button', { type: 'button', style: STYLE.quiet, disabled: busy, onClick: () => { drafts.delete(key(presetId)); setDraft(fresh(presetId)); onReload(); } }, '载入最新设置'),
+        draft.expectedRevision !== view.revision && h('button', { type: 'button', className: 'nv-quiet', disabled: busy, onClick: () => { drafts.delete(key(presetId)); setDraft(fresh(presetId)); onReload(); } }, '载入最新设置'),
         h('div', { style: { display: 'flex', gap: 8, marginTop: 18 } },
-          h('button', { type: 'submit', style: STYLE.quiet, disabled: busy || savedMissing || !route || personaTooLong }, busy ? '正在保存…' : '保存'),
-          h('button', { type: 'button', style: STYLE.quiet, disabled: busy, onClick: () => submit(null) }, '恢复默认自动匹配'),
+          h('button', { type: 'submit', className: 'nv-quiet', disabled: busy || savedMissing || !route || personaTooLong }, busy ? '正在保存…' : '保存'),
+          h('button', { type: 'button', className: 'nv-quiet', disabled: busy, onClick: () => submit(null) }, '恢复默认自动匹配'),
           // The shared Dialog already renders its own header 关闭 button, so the
           // footer keeps 取消 to stay a distinct, unambiguous control.
-          h('button', { type: 'button', style: STYLE.quiet, onClick: onClose }, '取消'))));
+          h('button', { type: 'button', className: 'nv-quiet', onClick: onClose }, '取消'))));
   }
 
   function ClassroomView(props) {
@@ -639,8 +639,8 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
         h('strong', null, '教室'),
         h('span', { className: 'nv-classroom-note', role: 'status' }, state.loading && !view ? '正在读取…' : running ? '后台任务进行中' : '课堂进行中'),
         entries.length > 0 && h('div', { role: 'group', 'aria-label': '教室视图', style: { display: 'flex', gap: 4 } },
-          h('button', { type: 'button', style: STYLE.quiet, 'aria-pressed': activePresentation === 'list', onClick: () => pickPresentation('list') }, '列表'),
-          entries.map(entry => h('button', { key: entry.options.id, type: 'button', style: STYLE.quiet, 'aria-pressed': activePresentation === entry.options.id, onClick: () => pickPresentation(entry.options.id) }, resolveSlotLabel(entry.options.label) ?? entry.options.id))),
+          h('button', { type: 'button', className: 'nv-quiet', 'aria-pressed': activePresentation === 'list', onClick: () => pickPresentation('list') }, '列表'),
+          entries.map(entry => h('button', { key: entry.options.id, type: 'button', className: 'nv-quiet', 'aria-pressed': activePresentation === entry.options.id, onClick: () => pickPresentation(entry.options.id) }, resolveSlotLabel(entry.options.label) ?? entry.options.id))),
         h(IconButton, { icon: 'sliders', label: '教室设置', disabled: !view, onClick: () => setOpen(true) })),
       state.error && h('p', { role: 'alert', className: 'nv-classroom-error' }, state.error),
       notice && h('p', { role: 'status', style: { ...STYLE.notice, margin: 0 } }, notice),
@@ -666,8 +666,8 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
           ? h('ul', { className: 'nv-tasks' }, rows.map(row => h('li', { className: 'nv-task', key: row.id, 'data-tone': row.tone, 'data-preset': row.preset || undefined },
               h('span', { className: 'nv-task-dot', 'aria-hidden': true }),
               h('span', null, `${row.name} · ${row.label}`),
-              showsInspectAction(row) && h('button', { type: 'button', style: STYLE.quiet, disabled: !!opening, onClick: () => { void openAnalysis(row); } }, opening === row.id ? '正在打开…' : '查看分析（含完整解法）'),
-              row.cancelable && h('button', { type: 'button', style: STYLE.quiet, disabled: !!stopping, onClick: () => { void stop(row); } }, stopping === row.id ? '正在停止…' : '停止'),
+              showsInspectAction(row) && h('button', { type: 'button', className: 'nv-quiet', disabled: !!opening, onClick: () => { void openAnalysis(row); } }, opening === row.id ? '正在打开…' : '查看分析（含完整解法）'),
+              row.cancelable && h('button', { type: 'button', className: 'nv-quiet', disabled: !!stopping, onClick: () => { void stop(row); } }, stopping === row.id ? '正在停止…' : '停止'),
               h('span', { className: 'nv-task-time' }, taskElapsedLabel(state.value?.tasks?.find(task => task.id === row.id))))))
           : h('p', { className: 'nv-classroom-empty' }, '还没有后台任务。课堂上需要独立分析时，老师会把它交给后台，这里只显示进度。')),
       open && view && h(WorkerDialog, { sessionId: props.sessionId, view, busy, error, onClose: () => setOpen(false), onReload: () => setError(''), onSave: write }));

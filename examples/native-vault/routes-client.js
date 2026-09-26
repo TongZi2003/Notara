@@ -19,6 +19,8 @@ import { CANVAS_CSS, LESSON_ROLES, createVaultCanvas } from './canvas-client.js'
 import { VIEW_IDS } from './views-client.js';
 import { mediaLocatorSuffix, parseMediaTarget } from './media.js';
 import { createVaultClient } from './remote-client.js';
+import { STAR_CSS, createStarMap, routeStarLayout } from './star-map-client.js';
+import { routeForestLayout } from './forest-client.js';
 
 export const ROUTE_CSS = `
 .nv-route-log{margin:0;padding:8px 18px 12px;border-bottom:1px solid var(--dsw-alias-border-l1);font-size:12px;color:var(--dsw-alias-label-secondary)}
@@ -46,9 +48,6 @@ export const ROUTE_CSS = `
 /* 课程列表 / 分阶段泳道：默认入口是原型里逐阶段读课序的列表，图谱保留原来的画布
    体验。两种视图读同一份投影、共用右侧详情栏，所以「显示什么课」不会因为切换
    视图而改变。白灰底、细边界、圆角沿用既有 theme tokens。 */
-.nv-route-views{display:flex;gap:3px;padding:3px;border-radius:10px;background:var(--dsw-alias-bg-layer-2)}
-.nv-route-views button{border:0;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;white-space:nowrap;padding:6px 12px;border-radius:8px;cursor:pointer}
-.nv-route-views button[aria-pressed=true]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 1px 4px #0001}
 .nv-route-shell{display:flex;flex:1;min-height:0;overflow:hidden}
 .nv-route-rail{width:230px;flex:none;min-width:0;overflow:auto;padding:12px;display:grid;align-content:start;gap:8px;border-right:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base)}
 .nv-route-card{width:100%;display:grid;gap:6px;padding:12px 14px;text-align:left;font:inherit;color:inherit;cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1);border-radius:var(--nv-card-radius,16px)}
@@ -205,9 +204,10 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
   const h = React.createElement;
   const { useState, useEffect, useMemo, useRef } = React;
   const { useRemembered, NodeMark, Board } = createVaultCanvas(React, { STYLE, IconButton });
+  const { StarMap, StarLegend, StarReading, useSky } = createStarMap(React, { STYLE, IconButton });
   const sessions = new Map();
   const stateFor = sessionId => { if (!sessions.has(sessionId)) sessions.set(sessionId, {}); return sessions.get(sessionId); };
-  const btn = (label, onClick, extra = {}) => h('button', { style: STYLE.quiet, onClick, ...extra }, label);
+  const btn = (label, onClick, { className, ...extra } = {}) => h('button', { className: ['nv-quiet', className].filter(Boolean).join(' '), onClick, ...extra }, label);
   const day = value => { const date = value ? new Date(value) : null; return date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString() : ''; };
   /** One legend swatch carries the same `data-edge` the canvas line does, so the
    * legend and the drawn edge cannot drift apart. */
@@ -282,6 +282,12 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
     // when both of its ends are really on screen.
     const visibleKeys = useMemo(() => new Set(visibleNodes.map(row => row.key)), [visibleNodes]);
     const visibleEdges = useMemo(() => projection.edges.filter(edge => visibleKeys.has(edge.source) && visibleKeys.has(edge.target)), [projection, visibleKeys]);
+    // 星图 lights a lesson only from its real summary; the sky is laid out over
+    // the whole route so folding a pathway never moves the main line.
+    const forest = useSky() === 'forest';
+    const starLayout = useMemo(() => view === 'stars' ? (forest ? routeForestLayout : routeStarLayout)(projection.nodes, projection.edges) : null, [projection, view, forest]);
+    const courseStar = row => ({ key: row.key, title: row.title, kind: 'course', hint: row.hint, light: { role: row.role, savedAt: row.node?.summary?.savedAt ?? null }, node: row.node });
+    const starNodes = useMemo(() => visibleNodes.map(courseStar), [visibleNodes]);
     // The 课程列表 reads the same 已筛选 rows, grouped by the stage names the plan
     // declares, and the route rail counts real summaries/sessions per route.
     const lanes = useMemo(() => routeLanes(visibleNodes), [visibleNodes]);
@@ -377,7 +383,7 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
       // 课程列表 is the reading surface and 图谱 keeps the canvas interaction the
       // bench already had; the switch never changes which lessons are visible.
       h('div', { className: 'nv-route-views', role: 'group', 'aria-label': '路线视图' },
-        [['list', '课程列表'], ['graph', '图谱']].map(([id, label]) => h('button', {
+        [['list', '课程列表'], ['graph', '图谱'], ['stars', forest ? '森林' : '星图']].map(([id, label]) => h('button', {
           key: id, type: 'button', 'aria-pressed': view === id, onClick: () => setView(id),
         }, label))),
       routes.length ? h('select', { 'aria-label': '学习路线', style: { ...STYLE.templateInput, width: 200, margin: 0 }, value: route?.path ?? '', onChange: event => { setSelectedPath(event.target.value); setSelected(''); } }, routes.map(option => h('option', { key: option.path, value: option.path }, option.title || option.path))) : null,
@@ -420,7 +426,7 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
         : !log.hits.length
           ? h('p', { style: { margin: '8px 0 0' } }, '还没有已归档的课堂小结。')
           : h('ul', null, log.hits.map(hit => h('li', { key: `${hit.sessionId}:${hit.path}:${hit.anchor}` },
-              h('button', { style: STYLE.link, onClick: () => props.openView(VIEW_IDS.assets, lessonLogTarget(hit)) }, hit.title || '课堂小结'),
+              h('button', { className: 'nv-link', style: STYLE.link, onClick: () => props.openView(VIEW_IDS.assets, lessonLogTarget(hit)) }, hit.title || '课堂小结'),
               h('span', null, [day(hit.throughAt), (hit.subjects ?? []).join('、')].filter(Boolean).join(' · ')),
               hit.continuation && h('span', { style: { color: 'var(--dsw-alias-label-secondary)' } }, hit.continuation)))));
     /** 三种真实的空态各有各的说法，也能各自新建一条路线。 */
@@ -445,18 +451,19 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
           h('span', { style: STYLE.notice }, [LESSON_ROLES[item?.role], item?.hint].filter(Boolean).join(' · ')),
           h(IconButton, { icon: 'close', label: '关闭详情', onClick: () => setSelected('') })),
         h('h2', null, lesson.title), h('p', { style: STYLE.path }, route.title || route.path),
+        view === 'stars' && item && h(StarReading, { star: courseStar(item) }),
         // 课序、先修、条件分支 keep three different sentences: a 先修 list is
         // knowledge to have, and never a lock on opening this lesson.
-        parent && h('p', { style: STYLE.notice }, '接续：', h('button', { style: STYLE.link, onClick: () => select(parent) }, parent.title)),
+        parent && h('p', { style: STYLE.notice }, '接续：', h('button', { className: 'nv-link', style: STYLE.link, onClick: () => select(parent) }, parent.title)),
         prerequisites.length > 0 && h('p', { style: STYLE.notice },
           '先修：',
-          prerequisites.map((row, index) => h('button', { key: row.key, style: STYLE.link, onClick: () => select(row) }, `${index ? '、' : ''}${row.title}`)),
+          prerequisites.map((row, index) => h('button', { key: row.key, className: 'nv-link', style: STYLE.link, onClick: () => select(row) }, `${index ? '、' : ''}${row.title}`)),
           '（需要先具备的知识，不限制开课。）'),
         reachedByBranch.length > 0 && h('p', { style: STYLE.notice },
           `条件分支：从《${reachedByBranch.map(row => row.title).join('、')}》满足条件时才走这里；具体条件写在下面的课程说明里。`),
         branchTargets.length > 0 && h('p', { style: STYLE.notice },
           '分支：',
-          branchTargets.map(row => h('button', { key: row.key, style: STYLE.link, onClick: () => select(row) }, `${PATHWAY_LABEL[row.pathway]}《${row.title}》`)),
+          branchTargets.map(row => h('button', { key: row.key, className: 'nv-link', style: STYLE.link, onClick: () => select(row) }, `${PATHWAY_LABEL[row.pathway]}《${row.title}》`)),
           '（满足课程说明里的条件时再走。）'),
         h('h3', { style: { fontSize: 13, margin: '18px 0 8px' } }, '课程说明'),
         briefBody
@@ -467,10 +474,10 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
         materials.length > 0 && h(React.Fragment, null,
           h('h3', { style: { fontSize: 13, margin: '18px 0 8px' } }, `材料 ${materials.length}`),
           h('ul', { style: { listStyle: 'none', margin: 0, padding: 0 } },
-            materials.map(path => h('li', { key: path }, h('button', { style: { ...STYLE.link, textAlign: 'left', fontSize: 12 }, onClick: () => props.openView(VIEW_IDS.assets, path) }, path))))),
-        lesson.scriptPath && h('p', { style: STYLE.notice }, '剧本：', h('button', { style: STYLE.link, onClick: () => props.openView(VIEW_IDS.assets, lesson.scriptPath) }, lesson.scriptPath)),
+            materials.map(path => h('li', { key: path }, h('button', { className: 'nv-link', style: { ...STYLE.link, textAlign: 'left', fontSize: 12 }, onClick: () => props.openView(VIEW_IDS.assets, path) }, path))))),
+        lesson.scriptPath && h('p', { style: STYLE.notice }, '剧本：', h('button', { className: 'nv-link', style: STYLE.link, onClick: () => props.openView(VIEW_IDS.assets, lesson.scriptPath) }, lesson.scriptPath)),
         h('div', { className: 'nv-route-actions', style: { marginTop: 16 } },
-          h('button', { style: STYLE.quiet, disabled: busy, onClick: () => openLesson() }, lesson.sessionId ? '回到这节课' : '开始这节课'),
+          h('button', { className: 'nv-quiet', disabled: busy, onClick: () => openLesson() }, lesson.sessionId ? '回到这节课' : '开始这节课'),
           lesson.sessionId&&h(IconButton,{icon:'plus',label:'再学一次',disabled:busy,onClick:()=>openLesson(true)}),
           lesson.scheduledOn&&h(IconButton,{icon:'calendar',label:'在日历中查看',onClick:()=>props.openView(VIEW_IDS.calendar,lesson.scheduledOn)}),
           lesson.scriptPath && h(IconButton, { icon: 'book', label: '查看剧本', onClick: () => props.openView(VIEW_IDS.assets, lesson.scriptPath) }),
@@ -529,7 +536,12 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
       h('div', { ref: root, className: 'nv-graph-layout', 'data-detail': !!lesson, style: { '--nv-pane-width': paneWidth + 'px', position: 'relative' } },
         emptyState ?? h(Board, { nodes: visibleNodes, edges: visibleEdges, selected, state: store, nodeName: '路线节点', label: '学习路线课序', onSelect: node => select(byKey.get(node.key)) }),
         detailPane));
-    const legend = h('div', { className: 'nv-legend' },
+    const starsLayout = h(React.Fragment, null,
+      overviewBlock, filters, logBlock,
+      h('div', { ref: root, className: 'nv-graph-layout', 'data-detail': !!lesson, style: { '--nv-pane-width': paneWidth + 'px', position: 'relative' } },
+        emptyState ?? h(StarMap, { nodes: starNodes, edges: visibleEdges, layout: starLayout, selected, state: store, fitKey: `${route?.path ?? ''}|${pathways.join(',')}|${stage}`, nodeName: '路线节点', label: forest ? '课程森林' : '课程星图', onSelect: node => select(byKey.get(node.key)) }),
+        detailPane));
+    const legend = view === 'stars' ? h(StarLegend, { mode: 'course' }) : h('div', { className: 'nv-legend' },
       Object.entries(LESSON_ROLES).map(([role, label]) => h('span', { key: role }, h('svg', { width: 24, height: 26, viewBox: '-20 -20 40 40', 'aria-hidden': true }, h(NodeMark, { role })), label)),
       // 条件补练/拓展 are drawn as dashed cards and 先修 as a count on the card, so
       // the edge swatches belong to the canvas where those lines really exist.
@@ -539,16 +551,16 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
       view === 'list' && h('span', { key: 'folded' }, '虚线框：条件补练 / 拓展'),
       view === 'list' && h('span', { key: 'record' }, '有小结不等于已掌握'));
 
-    return h('div', { className: 'nv-views', style: STYLE.page }, h('style', null, ROUTE_CSS), h('style', null, CANVAS_CSS),
+    return h('div', { className: 'nv-views', style: STYLE.page }, h('style', null, ROUTE_CSS), h('style', null, CANVAS_CSS), h('style', null, STAR_CSS),
       h('header', { className: 'nv-view-top' }, h('strong', { style: STYLE.brand }, '路线'), tools,
         h('span', { role: 'status', style: { ...STYLE.notice, marginLeft: 'auto' } }, status)),
-      view === 'list' ? listLayout : graphLayout,
+      view === 'list' ? listLayout : view === 'stars' ? starsLayout : graphLayout,
       legend,
       creating && h(Dialog, { title: '新建路线', onClose: () => setCreating(false) },
         h('form', { onSubmit: create },
           h('label', null, '路线名称', h('input', { 'aria-label': '路线名称', style: STYLE.templateInput, value: title, onChange: event => setTitle(event.target.value) })),
           h('label', null, '课程名称（每行一节，按上课顺序）', h('textarea', { 'aria-label': '课程名称', style: { ...STYLE.templateInput, minHeight: 120 }, value: lines, onChange: event => setLines(event.target.value) })),
           h('p', { style: STYLE.notice }, '课程按填写顺序排成接续关系；也可以直接在对话里让老师按资料规划路线。'),
-          h('button', { type: 'submit', style: STYLE.quiet, disabled: busy || !title.trim() || !lines.split('\n').some(line => line.trim()) }, busy ? '正在创建…' : '创建路线'))));
+          h('button', { type: 'submit', className: 'nv-quiet', disabled: busy || !title.trim() || !lines.split('\n').some(line => line.trim()) }, busy ? '正在创建…' : '创建路线'))));
   };
 }

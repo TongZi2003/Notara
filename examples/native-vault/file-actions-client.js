@@ -62,14 +62,14 @@ export function createFileActions(React, { STYLE, Dialog }) {
       h('p', { style: STYLE.notice }, '可从文件列表的回收站恢复。引用此文件的笔记会保留。'),
       error && h('p', { role: 'alert', style: STYLE.notice }, error),
       h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 } },
-        h('button', { style: STYLE.quiet, disabled: busy, onClick: () => setPending(null) }, '取消'),
-        h('button', { style: STYLE.quiet, disabled: busy || !pending.revision, onClick: confirmDelete }, busy ? '处理中…' : '移到回收站'))) :
+        h('button', { className: 'nv-quiet', disabled: busy, onClick: () => setPending(null) }, '取消'),
+        h('button', { className: 'nv-quiet', disabled: busy || !pending.revision, onClick: confirmDelete }, busy ? '处理中…' : '移到回收站'))) :
       trash !== null ? h(Dialog, { title: '回收站', onClose: () => !busy && setTrash(null) },
         error && h('p', { role: 'alert', style: STYLE.notice }, error),
         !trash.length && h('p', { style: STYLE.notice }, busy ? '正在读取…' : '回收站是空的。'),
         h('div', { style: { display: 'grid', gap: 10, marginTop: 16 } }, trash.map(item => h('div', { key: item.id, style: { display: 'flex', alignItems: 'center', gap: 10 } },
           h('span', { style: { flex: 1, overflowWrap: 'anywhere', fontSize: 13 } }, item.path),
-          h('button', { style: STYLE.quiet, disabled: busy, onClick: () => restore(item), 'aria-label': `恢复 ${item.path}` }, '恢复'))))) : null;
+          h('button', { className: 'nv-quiet', disabled: busy, onClick: () => restore(item), 'aria-label': `恢复 ${item.path}` }, '恢复'))))) : null;
     return { requestDelete, showTrash, dialog };
   };
 }

@@ -1,0 +1,107 @@
+/* Minimal theme polish — DEMO layer. Injected on top of the shipped theme to
+   preview the polish; the `html body[...]` prefix only exists so this layer
+   outranks modern-theme.css regardless of load order. Inline-style overrides
+   (!important / [style*=]) are demo shortcuts: the real change edits STYLE. */
+
+/* 1. Scale + color tokens */
+html body[data-notara-ui=modern]{
+  --nv-r-sm:8px;--nv-r-md:10px;--nv-r-lg:14px;--nv-r-xl:20px;
+  --nv-control-radius:var(--nv-r-md);--nv-card-radius:var(--nv-r-lg);--nv-input-radius:var(--nv-r-xl);
+  --nv-shadow-sm:0 1px 2px rgba(20,28,38,.06);
+  --nv-shadow-md:0 8px 24px rgba(20,28,38,.08),0 1px 2px rgba(20,28,38,.04);
+  --nv-shadow-lg:0 24px 64px rgba(20,28,38,.14);
+  --nv-shadow:var(--nv-shadow-md);
+  --nv-thumb:#fff;
+  --nv-focus:color-mix(in srgb,var(--dsw-alias-label-tertiary) 20%,transparent);
+  --dsw-alias-interactive-bg-hover:#f3f4f6!important;--dsw-alias-interactive-bg-hover-solid:#f3f4f6!important;
+  --dsw-alias-interactive-bg-active:#ebedf0!important;
+  --dsw-alias-button-info-fill:#f0f1f3!important;--dsw-alias-button-info-hover:#e6e8eb!important;
+  --dsw-specific-bubble:#f3f4f6!important;--dsw-specific-bubble-highlight:#e6e8eb!important;
+}
+html body[data-notara-ui=modern][data-ds-dark-theme]{
+  --nv-shadow-sm:0 1px 2px rgba(0,0,0,.35);
+  --nv-shadow-md:0 8px 24px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.3);
+  --nv-shadow-lg:0 24px 64px rgba(0,0,0,.5);
+  --nv-thumb:#313842;
+  --dsw-alias-interactive-bg-hover:#232830!important;--dsw-alias-interactive-bg-hover-solid:#232830!important;
+  --dsw-alias-interactive-bg-active:#2b313a!important;
+  --dsw-alias-button-info-fill:#2b313a!important;--dsw-alias-button-info-hover:#353c46!important;
+  --dsw-specific-bubble:#252b34!important;--dsw-specific-bubble-highlight:#2f3640!important;
+}
+
+/* 3. Typography */
+html body[data-notara-ui=modern] .nv-workspace :is(h1,h2,h3){letter-spacing:-.005em}
+html body[data-notara-ui=modern] :is(.nv-lesson-entry h1,.nv-home-welcome h1){letter-spacing:-.01em}
+html body[data-notara-ui=modern] :is(.nv-session-row time,.nv-review-row,.nv-month-day,.nv-home-controls>span,.nv-home-welcome time){font-variant-numeric:tabular-nums}
+
+/* 4. Shell: one boundary around the sidebar, calmer rows */
+html body[data-notara-ui=modern] .pI_x6G_sidebarCol{border-right-color:transparent}
+html body[data-notara-ui=modern] .nv-sidebar{border-radius:var(--nv-r-xl)}
+html body[data-notara-ui=modern] .nv-sidebar>nav{gap:2px}
+html body[data-notara-ui=modern] :is(.nv-nav-button,.nv-new-lesson,.nv-session-row){min-height:36px;box-sizing:border-box;padding:8px 12px;border-radius:var(--nv-r-md)}
+html body[data-notara-ui=modern] .nv-sidebar[data-collapsed=true] .nv-nav-button{padding:8px}
+html body[data-notara-ui=modern] .nv-new-lesson{background:var(--dsw-alias-button-info-fill);font-weight:500}
+html body[data-notara-ui=modern] .nv-new-lesson:hover{background:var(--dsw-alias-button-info-hover)}
+html body[data-notara-ui=modern] .nv-nav-button[aria-current=page]{font-weight:500}
+html body[data-notara-ui=modern] .nv-brand-mark{border-radius:var(--nv-r-sm)}
+html body[data-notara-ui=modern] .nv-directory-button{border-radius:var(--nv-r-md)}
+html body[data-notara-ui=modern] .nv-shell-heading{min-height:64px;padding:14px 28px}
+
+/* 5. Segmented controls: one look */
+html body[data-notara-ui=modern] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views){display:inline-flex;align-items:center;gap:2px;padding:3px;border-radius:calc(var(--nv-r-md) + 3px);background:var(--dsw-alias-bg-layer-2);overflow:visible}
+html body[data-notara-ui=modern] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) button{height:28px;padding:0 12px;border:0;border-radius:var(--nv-r-md);background:transparent;color:var(--dsw-alias-label-secondary);box-shadow:none;font-size:13px;font-weight:500}
+html body[data-notara-ui=modern] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) button:hover{color:var(--dsw-alias-label-primary)}
+html body[data-notara-ui=modern] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) button:is([aria-selected=true],[aria-pressed=true]){background:var(--nv-thumb);color:var(--dsw-alias-label-primary);box-shadow:var(--nv-shadow-sm)}
+html body[data-notara-ui=modern] .nb-tabs{border-radius:calc(var(--nv-r-md) + 3px)}
+html body[data-notara-ui=modern] .nb-tabs button{height:28px;padding:0 12px;border-radius:var(--nv-r-md)}
+
+/* 6. Form fields */
+html body[data-notara-ui=modern] :is(.nv-workspace,.nv-dialog,.nv-sidebar) :is(select,input:is([type=text],[type=search],[type=date],[type=number],:not([type])),textarea):not(.cm-editor *,[data-composer-card] *,.nb-board *){box-sizing:border-box;height:32px;padding:0 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:var(--nv-r-md);background-color:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;outline:none;transition:border-color .12s,box-shadow .12s}
+html body[data-notara-ui=modern] :is(.nv-workspace,.nv-dialog,.nv-sidebar) textarea:not(.cm-editor *,[data-composer-card] *,.nb-board *){height:auto;padding:8px 10px;line-height:1.6;resize:vertical}
+html body[data-notara-ui=modern] :is(.nv-workspace,.nv-dialog,.nv-sidebar) select:not(.cm-editor *,.nb-board *){appearance:none;-webkit-appearance:none;padding-right:28px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.5 5 6.5 8 3.5' fill='none' stroke='%238a93a0' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;background-repeat:no-repeat!important;background-position:right 10px center!important;background-size:10px!important}
+html body[data-notara-ui=modern] :is(.nv-workspace,.nv-dialog,.nv-sidebar) :is(select,input,textarea):not(.cm-editor *,[data-composer-card] *,.nb-board *):hover{border-color:var(--dsw-alias-border-l2)}
+html body[data-notara-ui=modern] :is(.nv-workspace,.nv-dialog,.nv-sidebar) :is(select,input,textarea):not(.cm-editor *,[data-composer-card] *,.nb-board *):focus{border-color:var(--dsw-alias-border-l4);box-shadow:0 0 0 3px var(--nv-focus)}
+html body[data-notara-ui=modern] :is(.nv-workspace,.nv-dialog,.nv-sidebar) :is(input,textarea)::placeholder{color:var(--dsw-alias-label-caption)}
+html body[data-notara-ui=modern] .nv-dialog :is(select,input:not([type=checkbox]):not([type=radio])){height:36px}
+html body[data-notara-ui=modern] input[type=checkbox]{accent-color:var(--dsw-alias-label-primary)}
+
+/* 7. Buttons and links */
+html body[data-notara-ui=modern] .nv-workspace button[style*="border-radius: 12px"][style*="--dsw-alias-bg-layer-2"],
+html body[data-notara-ui=modern] :is(.nv-directory-actions button,.nv-shell-toolbar button){min-height:32px;padding:0 12px!important;border:0!important;border-radius:var(--nv-r-md)!important;background:var(--dsw-alias-button-info-fill)!important;color:var(--dsw-alias-label-primary)!important;font-size:13px!important;font-weight:500}
+html body[data-notara-ui=modern] .nv-workspace button[style*="border-radius: 12px"][style*="--dsw-alias-bg-layer-2"]:not(:disabled):hover,
+html body[data-notara-ui=modern] :is(.nv-directory-actions button,.nv-shell-toolbar button):not(:disabled):hover{background:var(--dsw-alias-button-info-hover)!important}
+html body[data-notara-ui=modern] .nv-workspace button[style*="border-radius: 12px"][style*="--dsw-alias-bg-layer-2"]:disabled{opacity:.45}
+html body[data-notara-ui=modern] .nv-workspace button[style*="text-decoration: underline"]{text-decoration:none!important;color:var(--dsw-alias-label-secondary)!important}
+html body[data-notara-ui=modern] .nv-workspace button[style*="text-decoration: underline"]:hover{text-decoration:underline!important;text-underline-offset:3px;color:var(--dsw-alias-label-primary)!important}
+html body[data-notara-ui=modern] .nv-card-source{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px}
+html body[data-notara-ui=modern] :is(.nv-workspace,.nv-sidebar) button:focus-visible{outline:2px solid var(--dsw-alias-label-tertiary);outline-offset:2px}
+
+/* 8. Cards, lists, menus, dialogs */
+html body[data-notara-ui=modern] .nv-card{border-radius:var(--nv-r-lg);padding:18px}
+html body[data-notara-ui=modern] .nv-card-kind{border-radius:6px;font-size:11px}
+html body[data-notara-ui=modern] .nv-review-row[aria-pressed=true]{border-radius:var(--nv-r-md)}
+html body[data-notara-ui=modern] .nv-month-day{border-radius:var(--nv-r-md)}
+html body[data-notara-ui=modern] :is(.nv-calendar-modes,.nv-review-filters) button{border-radius:var(--nv-r-md)}
+html body[data-notara-ui=modern] :is(.nv-menu,.nv-popover-panel){border-radius:var(--nv-r-lg);padding:6px;border-color:var(--dsw-alias-border-l1);box-shadow:var(--nv-shadow-md)}
+html body[data-notara-ui=modern] :is(.nv-menu,.nv-popover-panel) button{min-height:32px;padding:0 10px;border-radius:var(--nv-r-sm)}
+html body[data-notara-ui=modern] .nv-dialog>section{border-radius:var(--nv-r-xl);border-color:var(--dsw-alias-border-l1);box-shadow:var(--nv-shadow-lg)}
+html body[data-notara-ui=modern] .VOzbGW_panel{border-radius:var(--nv-r-xl)}
+html body[data-notara-ui=modern] .VOzbGW_navCell{border-radius:var(--nv-r-md)}
+html body[data-notara-ui=modern] :is(.nv-directory-options>button,.nv-directory-form input){border-radius:var(--nv-r-md)}
+html body[data-notara-ui=modern] .nv-lesson-entry-options summary{border-radius:var(--nv-r-md)}
+html body[data-notara-ui=modern] .nv-lesson-entry-options-content{border-radius:var(--nv-r-lg);box-shadow:var(--nv-shadow-md)}
+html body[data-notara-ui=modern] .nv-home-controls button{border-radius:var(--nv-r-sm)}
+html body[data-notara-ui=modern] .nv-board-tool-row{color:var(--dsw-alias-label-caption)}
+
+/* 9. Toolbar stacking */
+html body[data-notara-ui=modern] .nv-card-filters{padding-top:4px;padding-bottom:12px}
+html body[data-notara-ui=modern] .nv-card-filters button{height:28px;padding:0 11px;border:0;border-radius:var(--nv-r-md)}
+html body[data-notara-ui=modern] .nv-card-filters button[aria-pressed=true]{background:var(--dsw-alias-button-info-fill)}
+html body[data-notara-ui=modern] .nv-card-filters button:not([aria-pressed=true]):hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+html body[data-notara-ui=modern] :has(+ .nv-card-filters){border-bottom-color:transparent!important}
+html body[data-notara-ui=modern] .nv-review-filters{border-bottom:0;padding-bottom:2px}
+html body[data-notara-ui=modern] .nv-review-search{padding-top:8px}
+
+/* 10. Composer */
+html body[data-notara-ui=modern] .nv-home .wSkVaW_root{background:transparent}
+html body[data-notara-ui=modern] .wSkVaW_root[data-phase=hero] [data-composer-card]{border-radius:var(--nv-r-xl)}

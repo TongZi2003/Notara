@@ -74,15 +74,15 @@ export function createPdfAnnotations(React,{STYLE,IconButton}) {
       h('form',{style:{display:'flex',gap:4,marginTop:12},onSubmit:async event=>{event.preventDefault();const next=await mutate({action:'add-layer',name:newLayer.trim(),color:newColor});if(next){setLayerId(next.layers.at(-1).id);setNewLayer('');}}},
         h('input',{'aria-label':'新图层名称',placeholder:'新图层',maxLength:80,style:{...STYLE.templateInput,minWidth:0,margin:0},value:newLayer,onChange:event=>setNewLayer(event.target.value)}),
         h('select',{'aria-label':'图层颜色',value:newColor,onChange:event=>setNewColor(event.target.value)},Object.entries(colorNames).map(([value,label])=>h('option',{key:value,value},label))),
-        h('button',{style:STYLE.quiet,disabled:disabled||!newLayer.trim(),type:'submit'},'+')),
+        h('button',{className:'nv-quiet',disabled:disabled||!newLayer.trim(),type:'submit'},'+')),
       selection&&h('section',{style:{marginTop:18}},
         h('small',null,`第 ${selection.page} 页 · ${active?.name??'图层'}`),
         h('textarea',{'aria-label':'批注',placeholder:'写下问题、思路或说明…',maxLength:4000,rows:4,style:{...STYLE.templateInput,resize:'vertical',marginTop:8},value:note,onChange:event=>setNote(event.target.value)}),
-        h('div',{style:{display:'flex',gap:6}},h('button',{style:STYLE.quiet,disabled,onClick:saveSelection},current?'保存批注':'保存高亮'),
-          current&&h('button',{style:STYLE.quiet,disabled,onClick:async()=>{if(await mutate({action:'remove-annotation',annotationId:current.id})){onSelect(undefined);setNote('');}}},'删除标注'))),
+        h('div',{style:{display:'flex',gap:6}},h('button',{className:'nv-quiet',disabled,onClick:saveSelection},current?'保存批注':'保存高亮'),
+          current&&h('button',{className:'nv-quiet',disabled,onClick:async()=>{if(await mutate({action:'remove-annotation',annotationId:current.id})){onSelect(undefined);setNote('');}}},'删除标注'))),
       h('div',{style:{marginTop:20}},h('small',null,'本页标注'),
         data?.annotations.filter(mark=>mark.page===page).map(mark=>h('button',{key:mark.id,style:{...STYLE.row,marginTop:4},onClick:()=>pick(mark)},mark.note||'未填写批注的高亮'))),
-      h('button',{style:{...STYLE.link,marginTop:16},disabled:busy,onClick:refresh},'刷新标注'));
+      h('button',{className:'nv-link',style:{...STYLE.link,marginTop:16},disabled:busy,onClick:refresh},'刷新标注'));
     return {overlay,panel:panelView,toolbar:h(IconButton,{icon:'layers',label:'图层与标注','aria-pressed':panel,onClick:()=>setPanel(value=>!value)}),saveSelection,disabled,note,
       openPanel:()=>setPanel(true),error,selected:current,open:pick};
   };

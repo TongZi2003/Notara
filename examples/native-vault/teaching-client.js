@@ -166,8 +166,8 @@ export function createTeachingPanel(React, { STYLE, IconButton, Dialog }) {
             h('input', { 'aria-label': '科目', style: STYLE.templateInput, value: form.subjects, placeholder: '如：数学、物理', onChange: event => edit({ ...form, subjects: event.target.value }) })),
           (settings.scriptPath || settings.routePath || settings.continuation) && h('p', { style: { ...STYLE.notice, marginTop: 16 } }, '本课由课堂安排带入：', [settings.routePath ? `路线 ${settings.routePath}` : '', settings.scriptPath ? `剧本 ${settings.scriptPath}` : ''].filter(Boolean).join(' · '), settings.continuation ? '（接着上次的小结）' : ''),
           h('div', { style: { display: 'flex', gap: 8, marginTop: 20 } },
-            h('button', { type: 'submit', style: STYLE.quiet, disabled: busy }, busy ? '正在保存…' : '保存设置'),
-            h('button', { type: 'button', style: STYLE.quiet, disabled: busy, onClick: clear }, '清空设置')))));
+            h('button', { type: 'submit', className: 'nv-quiet', disabled: busy }, busy ? '正在保存…' : '保存设置'),
+            h('button', { type: 'button', className: 'nv-quiet', disabled: busy, onClick: clear }, '清空设置')))));
   }
 
   /** 总结本课: a lesson-level summary, not the native archive entry — the class

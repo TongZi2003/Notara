@@ -28,6 +28,18 @@ export const CANVAS_CSS = `
 @container (max-width:650px){.nv-graph-layout[data-detail=true]{flex-direction:column}.nv-graph-layout[data-detail=true] .nv-graph-board{min-height:160px}.nv-graph-pane{width:100%;max-height:45%;flex:none;border-top:1px solid var(--dsw-alias-border-l1)}.nv-resize{display:none}}
 `;
 
+// Pairwise repulsion is useful for a small graph, but its cost grows with the
+// square of the node count. Large Vaults use stable seeded positions below and
+// keep dragging, zooming and selection available without a long main-thread
+// simulation.
+export const GRAPH_FORCE_LIMIT = 180;
+export const graphLayoutMode = nodeCount => nodeCount > GRAPH_FORCE_LIMIT ? 'static' : 'force';
+export const seededGraphPoint = (index, total, width, height) => {
+  const angle = index * 2.399963229728653;
+  const radius = Math.max(70, Math.min(width, height) * .42) * Math.sqrt((index + 1) / Math.max(1, total));
+  return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius, vx: 0, vy: 0, fixed: false };
+};
+
 /** Node roles differ per bench, so each bench brings its own legend labels. */
 export const KNOWLEDGE_ROLES = { root: '原书（根）', intermediate: '中间卡片', leaf: '叶子卡片', isolated: '孤立点', plan: '路线/剧本资料', insight: '锦囊' };
 export const LESSON_ROLES = { logged: '已有课堂小结', opened: '已开课', lesson: '计划课程' };
@@ -77,8 +89,8 @@ export function createVaultCanvas(React, { STYLE, IconButton }) {
    * layout, camera, dragging and hit-testing, and it reports the pressed node
    * object back so the caller keeps its own selection semantics.
    */
-  function Board({ nodes, edges, focus, centerVersion, selected, onSelect, onOpen, onContext, state, nodeName = '图谱节点', label = '文件关系图谱' }) {
-    const host = useRef(null), positions = useRef(state.positions ?? new Map()), drag = useRef(null), moved = useRef(false);
+  function Board({ nodes, edges, focus, centerVersion, selected, onSelect, onOpen, onContext, state, layoutMode = 'auto', nodeName = '图谱节点', label = '文件关系图谱' }) {
+    const host = useRef(null), positions = useRef(state.positions ?? new Map()), drag = useRef(null), moved = useRef(false), lastContext = useRef({ time: 0, key: '' });
     const [size, setSize] = useState({ width: 800, height: 600 }), [pan, setPan] = useRemembered(state, 'pan', { x: 0, y: 0, zoom: 1 });
     const [hover, setHover] = useState(null), [, draw] = useState(0), [restart, setRestart] = useState(0);
     const marker = useRef(`nv-canvas-arrow-${Math.random().toString(36).slice(2, 9)}`);
@@ -100,11 +112,17 @@ export function createVaultCanvas(React, { STYLE, IconButton }) {
     useEffect(() => {
       if (!nodes.length) return;
       const previous = positions.current;
-      for (const [index, node] of nodes.entries()) if (!previous.has(node.key)) previous.set(node.key, { x: Math.cos(index * 2.399) * (60 + Math.sqrt(index) * 55), y: Math.sin(index * 2.399) * (60 + Math.sqrt(index) * 55), vx: 0, vy: 0, fixed: false });
+      for (const [index, node] of nodes.entries()) if (!previous.has(node.key)) previous.set(node.key, seededGraphPoint(index, nodes.length, size.width, size.height));
       state.positions = previous;
+      const points = nodes.map(node => previous.get(node.key));
+      if ((layoutMode === 'auto' ? graphLayoutMode(points.length) : layoutMode) === 'static') {
+        for (const point of points) { point.vx = 0; point.vy = 0; }
+        draw(value => value + 1);
+        return;
+      }
       let frame, iteration = 0;
       const tick = () => {
-        const points = nodes.map(node => previous.get(node.key)), heat = Math.max(.04, 1 - iteration / 240);
+        const heat = Math.max(.04, 1 - iteration / 240);
         for (let i = 0; i < points.length; i++) for (let j = i + 1; j < points.length; j++) {
           const a = points[i], b = points[j], dx = a.x - b.x || .1, dy = a.y - b.y || .1, squared = Math.max(100, dx * dx + dy * dy);
           const f = 9000 * heat / (squared * Math.sqrt(squared));
@@ -130,6 +148,12 @@ export function createVaultCanvas(React, { STYLE, IconButton }) {
     const center = (focus && positions.current.get(focus)) || { x: 0, y: 0 };
     const neighbors = new Set(hover ? [hover, ...edges.flatMap(edge => edge.source === hover ? [edge.target] : edge.target === hover ? [edge.source] : [])] : []);
     const worldPoint = event => { const bounds = host.current.getBoundingClientRect(); return { x: (event.clientX - bounds.left - size.width / 2 - pan.x) / pan.zoom + center.x, y: (event.clientY - bounds.top - size.height / 2 - pan.y) / pan.zoom + center.y }; };
+    const reportContext = (node, event) => {
+      const now = Date.now();
+      if (lastContext.current.key === node.key && now - lastContext.current.time < 250) return;
+      lastContext.current = { time: now, key: node.key };
+      event.preventDefault(); event.stopPropagation(); onContext?.(node, event);
+    };
     return h('div', { ref: host, className: 'nv-graph-board', onPointerDown: event => {
         // A context gesture is not a drag. macOS also uses Control + click.
         if (event.button !== 0 || event.ctrlKey) return;
@@ -155,7 +179,8 @@ export function createVaultCanvas(React, { STYLE, IconButton }) {
           }))),
         nodes.map(node => { const point = positions.current.get(node.key); return point && h('button', { key: node.key, className: 'nv-graph-node', style: { left: size.width / 2 + pan.x + (point.x - center.x) * pan.zoom, top: size.height / 2 + pan.y + (point.y - center.y) * pan.zoom, transform: `translate(-50%, -24px) scale(${pan.zoom})`, transformOrigin: '50% 24px', opacity: hover && !neighbors.has(node.key) ? .22 : 1 }, 'data-node': node.key, 'data-fixed': point.fixed, 'aria-label': `${nodeName} ${node.title}`, 'aria-pressed': selected === node.key,
           onClick: event => { if (event.button === 0 && !event.ctrlKey && !moved.current) onSelect(node); }, onDoubleClick: event => { if (event.button === 0 && !event.ctrlKey) onOpen?.(node); }, onKeyDown: event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(node); } },
-          onPointerEnter: () => setHover(node.key), onPointerLeave: () => setHover(null), onContextMenu: event => { event.preventDefault(); event.stopPropagation(); onContext?.(node, event); } },
+          onPointerDown: event => { if (event.button === 2 || (event.button === 0 && event.ctrlKey)) reportContext(node, event); },
+          onPointerEnter: () => setHover(node.key), onPointerLeave: () => setHover(null), onContextMenu: event => reportContext(node, event) },
           h('svg', { width: 48, height: 48, viewBox: '-24 -24 48 48', 'aria-hidden': true }, h(NodeMark, { role: node.role, selected: selected === node.key })), h('span', { title: node.hint ? `${node.title} · ${node.hint}` : node.title }, node.title)); }),
       h('div', { style: { position: 'absolute', bottom: 12, left: 12, display: 'flex', gap: 6 } },
         h(IconButton, { icon: 'target', label: '居中', onClick: () => { setPan({ x: 0, y: 0, zoom: 1 }); } }),

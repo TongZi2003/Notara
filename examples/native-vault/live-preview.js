@@ -4,7 +4,7 @@ import { EditorState, Facet, StateField, StateEffect } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import { parseFrontmatter } from './frontmatter.js';
 import { cardUnderstandingSections, teacherBlocks } from './lesson-script.js';
-import { displayMathSource, mathSource, mathSyntax, mathWidget, MATH_DISPLAY, MATH_INLINE } from './math-latex.js';
+import { displayMathSource, mathLabelParts, mathSource, mathSyntax, mathWidget, MATH_DISPLAY, MATH_INLINE, renderMath } from './math-latex.js';
 import { mediaLocatorSuffix, parseMediaTarget } from './media.js';
 import { reviewAssessmentText } from './review-data.js';
 
@@ -234,13 +234,38 @@ class WikiLinkWidget extends WidgetType {
   activate(view) { view.state.facet(openPage)(this.path); }
   toDOM(view) {
     const link = document.createElement('button');
-    link.type = 'button'; link.className = 'cm-vault-wikilink'; link.textContent = this.label;
+    link.type = 'button'; link.className = 'cm-vault-wikilink'; appendMathLabel(link, this.label);
     link.title = `打开 ${this.label}`;
     link.addEventListener('mousedown', event => event.preventDefault());
     link.addEventListener('click', () => this.activate(view));
     return link;
   }
   ignoreEvent() { return true; }
+}
+
+class MarkdownLinkWidget extends WidgetType {
+  kind = 'markdown-link';
+  constructor(href, label) { super(); this.href = href; this.label = label; }
+  eq(other) { return this.href === other.href && this.label === other.label; }
+  toDOM() {
+    const link = document.createElement('a');
+    link.className = 'cm-vault-wikilink'; link.href = /^(?:https?:|mailto:|#|\/|\.\/)/i.test(this.href) ? this.href : '#';
+    link.title = this.label; appendMathLabel(link, this.label);
+    return link;
+  }
+  ignoreEvent() { return true; }
+}
+
+function appendMathLabel(root, label) {
+  for (const part of mathLabelParts(label)) {
+    if (part.kind === 'text') { root.append(document.createTextNode(part.value)); continue; }
+    const formula = document.createElement('span');
+    formula.className = `cm-vault-math ${part.display ? 'cm-vault-math-display' : 'cm-vault-math-inline'}`;
+    const html = renderMath(part.source, part.display);
+    if (html) formula.innerHTML = html;
+    else formula.textContent = `${part.display ? '$$' : '$'}${part.source}${part.display ? '$$' : '$'}`;
+    root.append(formula);
+  }
 }
 
 class MediaEmbedWidget extends WidgetType {
@@ -651,12 +676,20 @@ function buildDecorations(state) {
       return false;
     }
     if (name === 'FencedCode' || name === 'CodeBlock') { markLines(state, ranges, from, to, { class: 'cm-vault-code' }); return false; }
-    if (['HTMLBlock', 'Link', 'Image'].includes(name)) return false;
+    if (['HTMLBlock', 'Image'].includes(name)) return false;
+    if (name === 'Link') {
+      const url = node.getChild('URL'), marks = node.getChildren('LinkMark');
+      if (url && marks.length >= 2) {
+        const label = state.sliceDoc(from + 1, marks[1].from);
+        ranges.push(Decoration.replace({ widget: new MarkdownLinkWidget(state.sliceDoc(url.from, url.to), label) }).range(from, to));
+        return false;
+      }
+    }
     if (name === MATH_INLINE || name === MATH_DISPLAY) {
       const source = mathSource(name, state.sliceDoc(from, to));
       if (touches(from, to)) mark(from, to, 'cm-vault-math-source');
       else {
-          const widget = mathWidget('inline', source, from, to);
+        const widget = mathWidget(name === MATH_DISPLAY ? 'display' : 'inline', source, from, to);
         if (widget) ranges.push(Decoration.replace({ widget }).range(from, to));
       }
       return false;

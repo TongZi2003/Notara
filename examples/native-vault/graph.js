@@ -513,6 +513,42 @@ export function filterVaultGraph(graph, { focus = null, hops = 1, tags = [] } = 
   };
 }
 
+/** Collapse a graph to its visible split hierarchy. References are retained
+ * only when both endpoints are visible, so expanding a node never fabricates
+ * a relationship. The caller decides when a graph is large enough to use this
+ * projection and which paths have been opened by the learner.
+ */
+export function collapseVaultGraph(graph, expanded = []) {
+  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [], edges = Array.isArray(graph?.edges) ? graph.edges : [];
+  const open = new Set(Array.isArray(expanded) ? expanded : []);
+  const children = new Map(), incoming = new Set();
+  for (const edge of edges) {
+    if (edge.kind !== 'split') continue;
+    const list = children.get(edge.source) ?? [];
+    list.push(edge.target); children.set(edge.source, list); incoming.add(edge.target);
+  }
+  const byPath = new Map(nodes.map(node => [node.path, node]));
+  const roots = nodes.filter(node => !incoming.has(node.path));
+  const visible = new Set(roots.length ? roots.map(node => node.path) : nodes.slice(0, 1).map(node => node.path));
+  const ensureAncestors = path => {
+    const parent = edges.find(edge => edge.kind === 'split' && edge.target === path)?.source;
+    if (!parent || visible.has(parent)) return;
+    ensureAncestors(parent); visible.add(parent);
+  };
+  for (const path of open) if (byPath.has(path)) ensureAncestors(path);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const path of [...visible]) if (open.has(path)) {
+      for (const child of children.get(path) ?? []) if (byPath.has(child) && !visible.has(child)) { visible.add(child); changed = true; }
+    }
+  }
+  return {
+    nodes: nodes.filter(node => visible.has(node.path)),
+    edges: edges.filter(edge => visible.has(edge.source) && visible.has(edge.target)),
+  };
+}
+
 /**
  * The direct split children of `path` that `accepts` allows: existing nodes only,
  * deduped, then sorted by title and path so the order never depends on file scan
@@ -567,14 +603,26 @@ export function tagGroups(graph) {
     for (const raw of Array.isArray(node.tags) ? node.tags : []) {
       const tag = asText(raw);
       if (!tag) continue;
-      const paths = groups.get(tag) ?? [];
-      if (!paths.includes(path)) paths.push(path);
-      groups.set(tag, paths);
+      const group = groups.get(tag) ?? { paths: [], seen: new Set() };
+      if (!group.seen.has(path)) { group.seen.add(path); group.paths.push(path); }
+      groups.set(tag, group);
     }
   }
   return [...groups.entries()]
-    .map(([tag, paths]) => ({ tag, count: paths.length, paths }))
+    .map(([tag, group]) => ({ tag, count: group.paths.length, paths: group.paths }))
     .sort((left, right) => right.count - left.count || compareText(left.tag, right.tag));
+}
+
+/** Cards eligible for a tag-scoped conversation reference. A batch action must
+ * stay about learner-made knowledge cards and insights; source and topic pages
+ * remain available through their own single-node action. Multiple tags are an
+ * intersection, matching the graph filter's semantics. */
+export function taggedCardNodes(graph, tags = []) {
+  const wanted = (Array.isArray(tags) ? tags : []).map(asText).filter(Boolean);
+  if (!wanted.length) return [];
+  return (Array.isArray(graph?.nodes) ? graph.nodes : []).filter(node =>
+    KNOWLEDGE_CARD_TYPES.has(asText(node?.type)) && wanted.every(tag => (Array.isArray(node.tags) ? node.tags : []).includes(tag))
+  );
 }
 
 /**

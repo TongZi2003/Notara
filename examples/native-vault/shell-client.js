@@ -131,7 +131,7 @@ export function createVaultShell(React,{navigation,Icon,IconButton,Dialog,TodayE
           h(Icon,{name:'folder'}),h('span',null,h('strong',null,item.title),h('small',null,item.path)),directory?.workspaceId===item.workspaceId&&h('span',{'aria-hidden':true},'✓')))),
         h('form',{className:'nv-directory-form',onSubmit:event=>{event.preventDefault();void addDirectory(directoryPath);}},
           h('label',null,'打开其他目录',h('input',{'aria-label':'目录路径',value:directoryPath,placeholder:'粘贴文件夹的完整路径',disabled:switching,onChange:event=>setDirectoryPath(event.target.value)})),
-          h('div',{className:'nv-directory-actions'},h('button',{type:'button',disabled:switching||scanning,onClick:()=>browseDirectory()},scanning?'正在读取…':'浏览文件夹'),h('button',{type:'submit',disabled:switching||scanning||!directoryPath.trim()},switching?'正在打开…':'打开目录')),
+          h('div',{className:'nv-directory-actions'},h('button',{type:'button',className:'nv-quiet',disabled:switching||scanning,onClick:()=>browseDirectory()},scanning?'正在读取…':'浏览文件夹'),h('button',{type:'submit',className:'nv-quiet',disabled:switching||scanning||!directoryPath.trim()},switching?'正在打开…':'打开目录')),
           directoryListing&&h('div',{className:'nv-directory-browser','aria-label':'目录浏览'},
             h('div',{className:'nv-directory-browser-head'},h('span',null,'当前目录'),h('button',{type:'button',disabled:scanning||directoryListing.crumbs.length<2,onClick:()=>browseDirectory(directoryListing.crumbs.at(-2)?.path)},'上一级')),
             directoryListing.entries.filter(entry=>!entry.hidden).map(entry=>h('button',{key:entry.path,type:'button',disabled:scanning,onClick:()=>browseDirectory(entry.path)},h(Icon,{name:'folder'}),entry.name)),
@@ -220,8 +220,8 @@ export function createVaultShell(React,{navigation,Icon,IconButton,Dialog,TodayE
   return {Sidebar,Today};
 }
 
-/** Display only; switching diagnostics never edits the original session. */
-export function installStudentProjection(ctx,React,navigation) {
+/** Display only; switching diagnostics or the look never edits the original session. */
+export function installStudentProjection(ctx,React,navigation,appearance) {
   let hidden=[],last;
   const sync=()=>{
     const debug=navigation.getSnapshot().debug;if(debug===last)return;last=debug;
@@ -231,8 +231,17 @@ export function installStudentProjection(ctx,React,navigation) {
   ctx.effect(()=>{sync();const stop=navigation.subscribe(sync);return()=>{stop();hidden.forEach(dispose=>dispose());};});
   ctx.effect(()=>ctx.slots.inject('settings.section',()=>ctx.slots.register({name:'settings.section',id:'notara.interface',order:35,label:'学习界面'},function InterfaceSettings(){
     const state=React.useSyncExternalStore(navigation.subscribe,navigation.getSnapshot);
+    const look=React.useSyncExternalStore(appearance?.subscribe??(()=>()=>{}),appearance?.getSnapshot??(()=>({style:'minimal'})));
+    const option=(style,label,note)=>React.createElement('label',{key:style,className:'nv-appearance-option','data-selected':look.style===style},
+      React.createElement('input',{type:'radio',name:'notara-appearance',value:style,checked:look.style===style,onChange:()=>appearance?.setStyle(style)}),
+      React.createElement('span',null,React.createElement('b',null,label),React.createElement('small',null,note)));
     return React.createElement('section',{style:{padding:'16px 0'}},
       React.createElement('h2',{style:{fontSize:16,margin:'0 0 16px'}},'学习界面'),
+      appearance&&React.createElement('fieldset',{className:'nv-appearance',style:{border:0,padding:0,margin:'0 0 22px'}},
+        React.createElement('legend',{style:{fontSize:13,fontWeight:500,marginBottom:10}},'外观'),
+        option('minimal','极简','白底浅灰，系统字体。'),
+        option('notebook','手帐','纸张、便签与手写字体；第一次切换需要下载约 7.6 MB 的字体。'),
+        React.createElement('p',{style:{fontSize:12,color:'var(--dsw-alias-label-secondary)',margin:'8px 0 0'}},'只改变这台浏览器上的外观；深浅色仍跟随原生的外观设置。')),
       React.createElement('label',{style:{display:'flex',alignItems:'center',gap:10}},
         React.createElement('input',{type:'checkbox',checked:state.debug,onChange:e=>navigation.setDebug(e.target.checked)}),'显示调试记录'),
       React.createElement('p',{style:{fontSize:12,color:'var(--dsw-alias-label-secondary)'}},'展开系统上下文和轨迹，供排查问题。'));

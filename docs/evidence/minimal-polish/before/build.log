@@ -1,0 +1,6 @@
+
+> studyforge-dsh@0.0.0 build:native-vault
+> tsx scripts/build-native-vault.ts
+
+Verified rc.2 Session.append ignorable envelope passthrough
+native-vault client: 5589109 bytes

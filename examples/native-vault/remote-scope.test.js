@@ -26,11 +26,22 @@ const sessionMeta = (id, cwd) => ({ version: 3, id, createdAt: Date.now(), isSee
  * another vault) or 'stray' (a workspace that is not registered at all, so a
  * wrong fallback can only fail).
  */
-async function openWorld(t, { startup }) {
+async function openWorld(t, { startup, layout = 'legacy' }) {
   const base = await mkdtemp(join(tmpdir(), 'notara-remote-scope-'));
   t.after(() => rm(base, { recursive: true, force: true }));
   const math = join(base, 'math'), physics = join(base, 'physics'), stray = join(base, 'stray');
-  for (const dir of [math, physics, stray]) await mkdir(join(dir, 'vault'), { recursive: true });
+  for (const dir of [math, physics, stray]) {
+    // 旧布局：资料在 vault/ 下，工作区根另有 README.md 与第二个工作区目录。
+    // 直接根：工作区目录本身就是资料根。
+    if (layout === 'legacy') {
+      await mkdir(join(dir, 'vault', '卡片'), { recursive: true });
+      await writeFile(join(dir, 'vault', '卡片', '旧资料.md'), '# 旧资料\n');
+      await writeFile(join(dir, 'README.md'), '# 工作区说明\n');
+      await mkdir(join(dir, 'other'), { recursive: true });
+    } else {
+      await mkdir(dir, { recursive: true });
+    }
+  }
   const rows = [{ id: 'math', path: math, title: '数学' }, { id: 'physics', path: physics, title: '物理' }];
   const cwdById = { 'lesson-math': math, 'lesson-physics': physics };
   const ctx = new Context();
@@ -88,8 +99,8 @@ test('store 按 root 缓存：同一会话复用，两个工作区不共享', as
   assert.equal(await world.remote.storeFor({ sessionId: 'lesson-math' }), await world.remote.storeFor({ sessionId: 'lesson-math' }));
   assert.notEqual(await world.remote.storeFor({ sessionId: 'lesson-math' }), await world.remote.storeFor({ sessionId: 'lesson-physics' }));
 
-  assert.deepEqual((await world.remote.list({ sessionId: 'lesson-math' })).files.map(file => file.path), ['知识/m.md']);
-  assert.deepEqual((await world.remote.list({ sessionId: 'lesson-physics' })).files.map(file => file.path), ['知识/p.md']);
+  assert.deepEqual((await world.remote.list({ sessionId: 'lesson-math' })).files.map(file => file.path), ['卡片/旧资料.md', '知识/m.md']);
+  assert.deepEqual((await world.remote.list({ sessionId: 'lesson-physics' })).files.map(file => file.path), ['卡片/旧资料.md', '知识/p.md']);
 
   // 模板也落在会话自己的根，不写进另一个课堂。
   assert.ok((await world.remote.templates({ sessionId: 'lesson-math' })).length > 0);
@@ -148,4 +159,55 @@ test('worker persona crosses the exact Remote input boundary without widening ot
   assert.equal((await NotaraVaultRemote.prototype.configureSolver.call(remote,input)).persona,input.persona);
   await assert.rejects(NotaraVaultRemote.prototype.configureSolver.call(remote,{...input,workspace:'/unrelated'}),/vault_input_invalid/);
   assert.equal(calls.length,1);
+});
+
+test('用户直接选中的资料目录即使残留旧版空 vault/ 也读写自身', async t => {
+  const world = await openWorld(t, { startup: 'physics', layout: 'direct' });
+  // 用户目录里本来就有自己的资料；旧版本还在旁边留下了空 vault/ 和自动模板。
+  await mkdir(join(world.math, '知识'), { recursive: true });
+  await writeFile(join(world.math, '知识', '自有资料.md'), '# 自有资料\n');
+  await mkdir(join(world.math, 'vault', '_templates'), { recursive: true });
+  await writeFile(join(world.math, 'vault', '_templates', 'lesson.md'), '# {{title}}\n');
+  const path = '卡片/直接.md', content = '---\ntype: card\ntitle: 直接\n---\n# 直接\n\n用户目录自己的资料。\n';
+
+  const saved = await world.modelFor('lesson-math').save(path, content, null);
+  assert.equal(await readFile(join(world.math, path), 'utf8'), content);
+  assert.equal(await exists(join(world.math, 'vault', path)), false);
+  assert.equal(await exists(join(world.physics, path)), false, '没有写进启动工作区');
+
+  const read = await world.remote.read({ path, sessionId: 'lesson-math' });
+  assert.equal(read.content, content);
+  assert.equal(read.revision, saved.revision);
+  const files=(await world.remote.list({ sessionId: 'lesson-math' })).files.map(file => file.path);
+  assert.ok(files.includes('卡片/直接.md'));
+  assert.ok(!files.includes('vault/卡片/直接.md'), '资料没有落进旧版误建的 vault/');
+
+  // 内置模板落在同一个根，而不是旧版误建的 vault/ 里。
+  assert.ok((await world.remote.templates({ sessionId: 'lesson-math' })).length > 0);
+  assert.equal(await exists(join(world.math, '_templates')), true);
+  assert.ok((await world.remote.templates({ sessionId: 'lesson-math' })).some(file => file.path === 'lesson.md'));
+});
+
+test('PDF 批注与 Remote、模型共用同一资料根', async t => {
+  const legacy = await openWorld(t, { startup: 'physics' });
+  await mkdir(join(legacy.math, 'vault', '媒体'), { recursive: true });
+  await writeFile(join(legacy.math, 'vault', '媒体', '讲义.pdf'), Buffer.from('%PDF-synthetic'));
+  const read = await legacy.remote.pdfAnnotations({ path: '媒体/讲义.pdf', sessionId: 'lesson-math' });
+  const saved = await legacy.remote.updatePdfAnnotations({
+    sessionId: 'lesson-math', path: '媒体/讲义.pdf', action: 'add-annotation', expectedRevision: null, layerId: read.layers[0].id, page: 1, rect: [0.1, 0.1, 0.3, 0.2],
+    note: '旧布局批注', expectedPdfRevision: read.pdfRevision,
+  });
+  assert.equal(saved.annotations.length, 1);
+  assert.equal(await exists(join(legacy.math, 'vault', '.notara', 'pdf-annotations')), true);
+  assert.equal(await exists(join(legacy.math, '.notara')), false, '批注没有写进工作区根');
+
+  const direct = await openWorld(t, { startup: 'physics', layout: 'direct' });
+  await mkdir(join(direct.math, '媒体'), { recursive: true });
+  await writeFile(join(direct.math, '媒体', '讲义.pdf'), Buffer.from('%PDF-synthetic'));
+  const directRead = await direct.remote.pdfAnnotations({ path: '媒体/讲义.pdf', sessionId: 'lesson-math' });
+  await direct.remote.updatePdfAnnotations({
+    sessionId: 'lesson-math', path: '媒体/讲义.pdf', action: 'add-annotation', expectedRevision: null, layerId: directRead.layers[0].id, page: 1, rect: [0.1, 0.1, 0.3, 0.2],
+    note: '直接根批注', expectedPdfRevision: directRead.pdfRevision,
+  });
+  assert.equal(await exists(join(direct.math, '.notara', 'pdf-annotations')), true);
 });

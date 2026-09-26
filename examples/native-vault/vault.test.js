@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
@@ -13,6 +13,7 @@ import {
   queryDocuments,
   renderTemplate,
   revisionFor,
+  resolveVaultRoot,
   safeRelativePath,
   searchDocuments,
   toggleTaskContent,
@@ -63,6 +64,66 @@ test('rejects unsafe relative paths', () => {
   assert.equal(safeRelativePath('知识/向量.md'), '知识/向量.md');
   for (const value of ['/tmp/a.md', '../a.md', 'a/../../b.md', './a.md', 'a\\b.md', 'a\0b.md']) {
     assert.throws(() => safeRelativePath(value), /vault_path_invalid/);
+  }
+});
+
+test('the legacy vault wins until material is already visible in the selected directory', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'notara-vault-roots-'));
+  try {
+    // 旧布局：资料在 vault/ 下，工作区根另有 README.md 与第二个工作区目录，
+    // 这些外层条目都不能把资料根移走。
+    const legacy = join(base, 'legacy');
+    await mkdir(join(legacy, 'vault', '卡片'), { recursive: true });
+    await writeFile(join(legacy, 'vault', '卡片', 'a.md'), '# A\n');
+    await writeFile(join(legacy, 'README.md'), '# 说明\n');
+    await mkdir(join(legacy, 'other'), { recursive: true });
+    assert.equal(resolveVaultRoot(legacy), join(legacy, 'vault'));
+
+    // 直接根：用户选中的目录自己有 Markdown/PDF；旧版本误建的空 vault/
+    // （哪怕只剩 _templates）必须直接读取选中目录本身。
+    const direct = join(base, 'direct');
+    await mkdir(join(direct, 'vault', '_templates'), { recursive: true });
+    await writeFile(join(direct, 'note.md'), '# 直接根\n');
+    await writeFile(join(direct, 'document.pdf'), 'pdf');
+    assert.equal(resolveVaultRoot(direct), direct);
+
+    // 资料在约定目录里（知识/卡片/媒体/…）而不是根上时，同样是直接根。
+    const nested = join(base, 'nested');
+    await mkdir(join(nested, 'vault'), { recursive: true });
+    await mkdir(join(nested, '知识'), { recursive: true });
+    await writeFile(join(nested, '知识', '向量.md'), '# 向量\n');
+    assert.equal(resolveVaultRoot(nested), nested);
+
+    // 有歧义的空目录：vault/ 空、外层也没有资料文件时保留旧布局，
+    // 这样已经写在 vault/ 下的路径不会因为一次空工作区而改变。
+    const ambiguous = join(base, 'ambiguous');
+    await mkdir(join(ambiguous, 'vault', '_templates'), { recursive: true });
+    await mkdir(join(ambiguous, 'other'), { recursive: true });
+    await writeFile(join(ambiguous, 'README.txt'), '不是资料文件\n');
+    assert.equal(resolveVaultRoot(ambiguous), join(ambiguous, 'vault'));
+
+    // 没有 vault/ 的空目录直接作根，包括还不存在的目录。
+    const empty = join(base, 'empty');
+    await mkdir(empty, { recursive: true });
+    assert.equal(resolveVaultRoot(empty), empty);
+    assert.equal(resolveVaultRoot(join(empty, 'missing')), join(empty, 'missing'));
+
+    // 运行中出现的新资料不改变已经确定的根。
+    await writeFile(join(legacy, '新学期计划.md'), '# 计划\n');
+    assert.equal(resolveVaultRoot(legacy), join(legacy, 'vault'));
+    await writeFile(join(direct, '新卡.md'), '# 新卡\n');
+    assert.equal(resolveVaultRoot(direct), direct);
+
+    // vault/ 是符号链接时不被跟随，资料根不会绕出注册的工作区。
+    const outside = join(base, 'outside');
+    await mkdir(outside, { recursive: true });
+    await writeFile(join(outside, 'a.md'), '# 外部\n');
+    const linked = join(base, 'linked');
+    await mkdir(linked, { recursive: true });
+    await symlink(outside, join(linked, 'vault'));
+    assert.equal(resolveVaultRoot(linked), linked);
+  } finally {
+    await rm(base, { recursive: true, force: true });
   }
 });
 
@@ -176,11 +237,42 @@ test('bridges vault pages and selections into the native conversation reference 
   assert.match(source, /selection/);
 });
 
+test('bridges tag-filtered card batches through the same native input reference path', async () => {
+  const [client, views, workspace] = await Promise.all([
+    readFile(new URL('./client-source.ts', import.meta.url), 'utf8'),
+    readFile(new URL('./views-client.js', import.meta.url), 'utf8'),
+    readFile(new URL('./workspace-client.js', import.meta.url), 'utf8'),
+  ]);
+  assert.match(client, /function insertVaultReferences\(/);
+  assert.match(client, /onBringMany:/);
+  assert.match(workspace, /onBringMany/);
+  assert.match(views, /taggedCardNodes\(graph,tags\)/);
+  assert.match(views, /icon:'chat',label:`带入当前筛选的/);
+  assert.match(views, /props\.onBringMany\(pins,intent\)/);
+});
+
 test('refreshes external vault changes without overwriting an unsaved editor draft', async () => {
   const source = await readFile(new URL('./assets-client.js', import.meta.url), 'utf8');
   assert.match(source, /setInterval\(syncExternal/);
   assert.match(source, /当前页面在外部发生变化/);
   assert.match(source, /页面已从文件刷新/);
+});
+
+test('asset context actions use a menu list and expose a whole-file bring-in action', async () => {
+  const source = await readFile(new URL('./assets-client.js', import.meta.url), 'utf8');
+  assert.match(source, /className:'nv-context-menu'/);
+  assert.match(source, /role:'menuitem'/);
+  assert.match(source, /将整个文件带入对话/);
+  assert.match(source, /复制并带入对话/);
+  assert.match(source, /bringIntoConversation\(chosen\)/);
+  assert.doesNotMatch(source, /contextPath && h\(Dialog/);
+});
+
+test('leaf knowledge cards keep bring-in but hide split actions', async () => {
+  const source = await readFile(new URL('./views-client.js', import.meta.url), 'utf8');
+  assert.match(source, /splitAllowed/);
+  assert.match(source, /splitAllowed \? '带入对话拆分' : '带入对话'/);
+  assert.match(source, /splitAllowed \? '带入对话拆分' : '带入对话'/);
 });
 
 test('classifies common media assets and round-trips locators in Markdown embeds', () => {

@@ -17,7 +17,8 @@ async function inlineFonts(css: string, baseDir: string): Promise<string> {
   let inlined = css;
   for (const match of [...inlined.matchAll(/url\(([^)]+)\)/g)]) {
     const reference = match[1]!.trim().replace(/^["']|["']$/g, '');
-    if (!reference.endsWith('.woff2') || reference.includes('://') || reference.startsWith('data:')) continue;
+    // A root-relative URL is a Host route (the notebook face), fetched on demand.
+    if (!reference.endsWith('.woff2') || reference.includes('://') || reference.startsWith('data:') || reference.startsWith('/')) continue;
     const bytes = await readFile(resolve(baseDir, reference));
     inlined = inlined.replaceAll(match[0], `url(data:font/woff2;base64,${bytes.toString('base64')})`);
   }
@@ -60,6 +61,11 @@ const output = script.text
   .replace(JSON.stringify(LATEX_STYLES_PLACEHOLDER), () => JSON.stringify(latexStyles));
 if (!output.includes('data:font/woff2;base64')) throw new Error('native-vault LaTeX webfonts were not inlined into the client bundle');
 await writeFile(resolve('examples/native-vault/client.js'), output);
+// The notebook face ships beside the plugin and is served on demand by
+// `font-route.js`; it is never inlined into the client bundle.
+if (!output.includes('url("/notara/vault/fonts/wenkai.woff2")')) throw new Error('native-vault notebook font must stay a Host route reference, not an inlined face');
+await rm(resolve('examples/native-vault/fonts'), { recursive: true, force: true });
+await cp(resolve('packages/client/assets/notebook/fonts/wenkai.woff2'), resolve('examples/native-vault/fonts/wenkai.woff2'));
 // This directory is generated. Retired prompts must not survive a rebuild.
 await rm(resolve('examples/native-vault/teaching'), { recursive: true, force: true });
 await cp(resolve('resources/vault-teaching'),resolve('examples/native-vault/teaching'),{recursive:true});

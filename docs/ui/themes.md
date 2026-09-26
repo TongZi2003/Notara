@@ -2,6 +2,18 @@
 
 主题改变外观，不改变对话、面板布局、资料、卡片或学习记录。设置 → 外观只提供两种主题。
 
+## Native Vault（`npm run vault`）
+
+Native Vault 在「设置 → 学习界面 → 外观」提供极简（默认）与手帐，偏好按浏览器保存，切换即时生效，深浅色仍跟随原生外观设置。视觉定义见 [`notara-frontend-redesign.md`](./notara-frontend-redesign.md) §5.1 与 §5.4。
+
+- **结构**：极简布局（`modern-theme.css` 中 `data-notara-ui=modern` 的容器、断点与控件尺寸）始终是底层。手帐只做三件事：`theme-tokens.js` 换一层原生 token（纸墨色与 `--nb-*` 纸张 token，浅深各一套）；`notebook-theme.css` 调整圆角与字阶（控件15px、辅助14px、正文16px）；在 `body[data-notara-style=notebook]` 下加装饰。
+- **字体**：霞鹜文楷由 Host 路由 `/notara/vault/fonts/wenkai.woff2` 按需提供（`font-route.js`，白名单、GET/HEAD、长缓存），只有手帐 CSS 引用它；构建时从 `packages/client/assets/notebook/fonts/` 拷入插件的 `fonts/`，不内联进 `client.js`。公式、代码与原文保留各自字体。
+- **对话**：页面是纸色加红色页边线；老师回复的段落、列表与标题各自以32px行距画线，段间空行用内边距，因此公式块、表格和过程行之间不会累积错位。学生消息是便签。这是对整页横线的有意简化，未做逐行基线测量。
+- **装饰**：侧栏装订孔、印章「拾」、便签「新的一课」、荧光笔选中；首页波浪线标题与贴胶带的待办；索引卡（顶边红线）；贴纸图谱节点；路线便签（补练/拓展为蓝色虚线便签）；日历「今天」红笔圈；纸面上的森林（深色为星图）。白板在两种深浅色下都是一张浅色暖纸，因为板书墨色是固定的。旋转只做装饰且不超过约0.8°，「减少动态效果」下无过渡。
+- **验收**：`tests/e2e/native-vault-notebook.spec.ts` 覆盖设置切换、极简下不请求字体、手帐下字体实际加载、首页/课堂/白板/卡片/森林/日历的关键装饰、深色、801px、减少动态效果、刷新保持与切回极简完全恢复；截图在 `docs/evidence/notebook-theme/`。
+
+## 旧工作台（`packages/client`）
+
 | 项目 | 现代简约 | 手写手帐 |
 |---|---|---|
 | 页面 | 白色主面、浅灰导航和次级面 | 暖色或白色纸张 |

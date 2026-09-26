@@ -6,7 +6,7 @@ import { startVaultIsolated, type VaultRuntime } from '../../scripts/dev-isolate
 /**
  * Migrated to the minimal-split contract (docs/dev-log/2026-09-21-vault-minimal-split.md):
  * the standalone reader tab is deleted and PDF/Markdown both open inside the assets
- * view; the tabs are 对话/资产/图谱/卡片; the file rail starts collapsed behind
+ * view; the tabs are 对话/文件/图谱/卡片; the file rail starts collapsed behind
  * 展开文件栏; graph details list child cards instead of the full excerpt; card
  * creation lives inside 打开摘录工具; splitting is 带入对话拆分 and walks into the
  * native chat split pane instead of a dialog. Every behaviour assertion of the
@@ -40,7 +40,7 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     // One unified tab strip; the reader tab is deleted and the composer is the
     // native chat's single instance, hidden outside the chat tab.
     await expect(tab(page, '对话')).toBeVisible();
-    await expect(tab(page, '资产')).toBeVisible();
+    await expect(tab(page, '文件')).toBeVisible();
     await expect(tab(page, '图谱')).toBeVisible();
     await expect(tab(page, '卡片')).toBeVisible();
     await expect(tab(page, '阅读器')).toHaveCount(0);
@@ -75,7 +75,7 @@ test('vault views keep file facts, node-centred graph details and one chat mount
 
     // Switching views keeps that locate target without a second reader tab.
     await tab(page, '图谱').click();
-    await tab(page, '资产').click();
+    await tab(page, '文件').click();
     await expect(page.getByRole('spinbutton', { name: '页码' })).toHaveValue('2');
 
     // The file rail starts collapsed and 展开文件栏 reveals the file list.
@@ -132,7 +132,7 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     expect(child).toContain('![[卡片/坐标卡.md#anchor=');
 
     // The same tool extracts a heading-anchored card from a Markdown page.
-    await tab(page, '资产').click();
+    await tab(page, '文件').click();
     await expandRail();
     await page.getByRole('button', { name: /向量\.md/ }).first().click();
     await expect(page.getByLabel('Markdown Live Preview 编辑器')).toBeVisible();
@@ -175,7 +175,7 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     await editor.press('ControlOrMeta+End');
     await editor.press('Enter'); await editor.pressSequentially('保留的草稿');
     await tab(page, '图谱').click();
-    await tab(page, '资产').click();
+    await tab(page, '文件').click();
     await expect(editor).toContainText('保留的草稿');
     await page.getByRole('button', { name: '文件操作', exact: true }).click();
     await page.getByRole('menuitem', { name: '放弃修改', exact: true }).click();
@@ -244,7 +244,8 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     await expect(detailsPane(page)).toBeVisible();
     await expect(page.locator('.nv-graph-board')).toBeHidden();
     expect((await detailsPane(page).boundingBox())!.x).toBeGreaterThanOrEqual(0);
-    await expect(detailsPane(page).getByRole('button', { name: '带入对话拆分', exact: true })).toBeVisible();
+    await expect(detailsPane(page).getByRole('button', { name: '带入对话', exact: true })).toBeVisible();
+    await expect(detailsPane(page).getByRole('button', { name: '带入对话拆分', exact: true })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('narrow.png') });
 
     await writeFile(join(cards, '失效来源.md'), '---\ntype: card\n---\n# 失效来源\n\n![[媒体/不存在.pdf#page=3]]\n');
@@ -259,7 +260,7 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     await expect(page.locator('[data-node]')).toHaveCount(0);
     await tab(page, '卡片').click();
     await expect(page.getByText(/还没有卡片/)).toBeVisible();
-    await tab(page, '资产').click();
+    await tab(page, '文件').click();
     await expect(page.getByRole('button', { name: '展开文件栏', exact: true })).toBeVisible();
     await expect(page.locator('canvas[aria-label]')).toHaveCount(0);
     expect(errors.filter(text => !/favicon|net::|downloadable font/i.test(text))).toEqual([]);

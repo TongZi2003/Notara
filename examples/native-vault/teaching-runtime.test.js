@@ -24,6 +24,72 @@ async function setup(t) {
   return {root,ctx,session,agent,service,exec:{agent,signal:new AbortController().signal,callId:'runtime-test'}};
 }
 
+/** Install the real runtime over fakes for the Host seams it registers into. */
+async function installRuntime(t,{layout='legacy'}={}) {
+  assert.equal(typeof module.installTeachingRuntime,'function');
+  const root=await mkdtemp(join(tmpdir(),'notara-teaching-install-'));
+  t.after(()=>rm(root,{recursive:true,force:true}));
+  // 旧布局：vault/ 里有资料，工作区根另有 README.md。
+  // 直接根：用户选中的目录自己有资料，旁边只剩旧版本误建的空 vault/。
+  await mkdir(join(root,'知识'),{recursive:true});
+  await mkdir(join(root,'vault','_templates'),{recursive:true});
+  await writeFile(join(root,'README.md'),'# 说明\n');
+  if(layout==='legacy')await writeFile(join(root,'vault','卡片.md'),'---\ntype: card\ntitle: 旧卡\n---\n\n内容。\n');
+  else await writeFile(join(root,'知识','自有资料.md'),'# 自有资料\n');
+  const ctx=new Context();new LocalFileSystem(ctx,{cwd:root,diffBasisMaxBytes:10*1024*1024});
+  ctx.reflect.provide('workspaceRegistry',{list:()=>[{id:'install-workspace',path:root,title:'安装'}],archiveSession:async()=>{}});
+  ctx.reflect.provide('sessionController',{inspect:async()=>({meta:{cwd:root}})});
+  const sections=[],shellEnvs=[],handlers=[];
+  ctx.reflect.provide('systemPrompt',{section:config=>{sections.push(config);return()=>{};}});
+  ctx.reflect.provide('shellEnv',{register:config=>{shellEnvs.push(config);return()=>{};}});
+  ctx.reflect.provide('tools',{register:()=>()=>{},guard:()=>()=>{}});
+  const register=ctx.on.bind(ctx);
+  ctx.on=(name,handler)=>{handlers.push({name,handler});return register(name,handler);};
+  module.installTeachingRuntime(ctx,{root});
+  const session=Session.create('install-session',[],{version:3,id:'install-session',createdAt:Date.now(),isSeeded:false,cwd:root,agentPreset:'notara-teacher'});
+  return {root,ctx,agent:{session},sections,shellEnvs,handlers};
+}
+
+async function assembledContext(runtime) {
+  const next=async()=>({contexts:[],tools:[],sections:[]});
+  for(const {name,handler} of runtime.handlers.filter(item=>item.name==='system-prompt/assemble')){
+    const result=await handler({}, {agent:runtime.agent,signal:new AbortController().signal}, next);
+    const context=result.contexts.find(item=>item.name==='notara:lesson-background');
+    if(context)return {result,background:JSON.parse(context.text)};
+  }
+  throw new Error('notara_lesson_background_missing');
+}
+
+test('教学环境变量、提示构造与每轮上下文共用同一资料根',async t=>{
+  const runtime=await installRuntime(t);
+  const shell=runtime.shellEnvs.find(item=>item.name==='notara-vault-cli');
+  const env=shell.resolve({agent:runtime.agent,callId:'install-call'});
+  assert.equal(env.DSH_NOTARA_WORKSPACE,runtime.root);
+  assert.equal(env.DSH_NOTARA_VAULT_ROOT,join(runtime.root,'vault'));
+  assert.equal(env.DSH_NOTARA_VAULT_PREFIX,'vault/');
+
+  const {background}=await assembledContext(runtime);
+  assert.deepEqual(background.materialsRoot,{env:'DSH_NOTARA_VAULT_ROOT',path:join(runtime.root,'vault'),legacyPrefix:'vault/'});
+
+  // 提示构造只带规则正文：没有工作区时同样不抛异常、不泄露绝对路径。
+  const unregistered=await installRuntime(t);
+  unregistered.ctx.workspaceRegistry.list=()=>[];
+  const section=unregistered.sections.find(item=>item.name==='notara:teaching');
+  const text=section.text({agent:unregistered.agent});
+  assert.ok(text.includes('教学共同规则'));
+  assert.ok(text.includes('$DSH_NOTARA_VAULT_ROOT'));
+  assert.ok(!text.includes(unregistered.root));
+});
+
+test('直接选中的资料目录：环境变量前缀为空，上下文仍指向自己',async t=>{
+  const runtime=await installRuntime(t,{layout:'direct'});
+  const env=runtime.shellEnvs.find(item=>item.name==='notara-vault-cli').resolve({agent:runtime.agent,callId:'install-call'});
+  assert.equal(env.DSH_NOTARA_VAULT_ROOT,runtime.root);
+  assert.equal(env.DSH_NOTARA_VAULT_PREFIX,'');
+  const {background}=await assembledContext(runtime);
+  assert.deepEqual(background.materialsRoot,{env:'DSH_NOTARA_VAULT_ROOT',path:runtime.root,legacyPrefix:''});
+});
+
 test('retired document tools have no hidden compatibility dispatcher',async t=>{
   const {service,exec}=await setup(t);
   for(const name of ['vault_list','vault_read','vault_search','vault_save','learning_find','learning_read','lesson_log_find','create_learning_route','review_queue','record_review','learning_calendar','schedule_learning_lesson'])await assert.rejects(service.executeTool(name,{},exec),/teaching_tool_unknown/);

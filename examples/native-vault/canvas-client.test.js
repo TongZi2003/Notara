@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createVaultCanvas } from './canvas-client.js';
+import { createVaultCanvas, graphLayoutMode } from './canvas-client.js';
+
+test('large graphs use a bounded static layout instead of quadratic force simulation', () => {
+  assert.equal(graphLayoutMode(180), 'force');
+  assert.equal(graphLayoutMode(181), 'static');
+});
 
 function boardFixture() {
   const selected = [], contexts = [];
@@ -23,6 +28,7 @@ for (const event of [{ button: 2, ctrlKey: false }, { button: 0, ctrlKey: true }
     assert.equal(prevented, false);
     button.props.onClick(event);
     assert.deepEqual(selected, []);
+    button.props.onPointerDown({ ...event, preventDefault() {}, stopPropagation() {} });
     button.props.onContextMenu({ ...event, preventDefault() {}, stopPropagation() {} });
     assert.equal(contexts.length, 1);
     assert.deepEqual(selected, []);

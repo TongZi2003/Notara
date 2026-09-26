@@ -1,0 +1,159 @@
+{
+  "pass": true,
+  "results": [
+    {
+      "name": "sidebar column divider transparent",
+      "expected": "rgba(0, 0, 0, 0)",
+      "actual": "rgba(0, 0, 0, 0)",
+      "pass": true
+    },
+    {
+      "name": "sidebar radius 20px",
+      "expected": "20px",
+      "actual": "20px",
+      "pass": true
+    },
+    {
+      "name": "new-lesson bg (button-info-fill)",
+      "expected": "rgb(240, 241, 243)",
+      "actual": "rgb(240, 241, 243)",
+      "pass": true
+    },
+    {
+      "name": "--nv-r-md token",
+      "expected": "10px",
+      "actual": "10px",
+      "pass": true
+    },
+    {
+      "name": "shell tab selected bg",
+      "expected": "rgb(255, 255, 255)",
+      "actual": "rgb(255, 255, 255)",
+      "pass": true
+    },
+    {
+      "name": "shell tab selected shadow",
+      "expected": "non-none",
+      "actual": "rgba(20, 28, 38, 0.06) 0px 1px 2px 0px",
+      "pass": true
+    },
+    {
+      "name": "card radius 14px",
+      "expected": "14px",
+      "actual": "14px",
+      "pass": true
+    },
+    {
+      "name": "select chevron svg",
+      "expected": "contains svg",
+      "actual": "url(\"data:image/svg+xml,",
+      "pass": true
+    },
+    {
+      "name": "card-source flex",
+      "expected": "flex",
+      "actual": "flex",
+      "pass": true
+    },
+    {
+      "name": "card-source link underline off",
+      "expected": "none",
+      "actual": "none",
+      "pass": true
+    },
+    {
+      "name": "card-source link underline on hover",
+      "expected": "underline",
+      "actual": "underline",
+      "pass": true
+    },
+    {
+      "name": "card-filter chip font-size",
+      "expected": "12px",
+      "actual": "12px",
+      "pass": true
+    },
+    {
+      "name": "menu radius 14px",
+      "expected": "14px",
+      "actual": "14px",
+      "pass": true
+    },
+    {
+      "name": "menu item bg transparent",
+      "expected": "rgba(0, 0, 0, 0)",
+      "actual": "rgba(0, 0, 0, 0)",
+      "pass": true
+    },
+    {
+      "name": "menu item justify flex-start",
+      "expected": "flex-start",
+      "actual": "flex-start",
+      "pass": true
+    },
+    {
+      "name": "user bubble bg",
+      "expected": "rgb(243, 244, 246)",
+      "actual": "rgb(243, 244, 246)",
+      "pass": true
+    },
+    {
+      "name": "class tab selected bg",
+      "expected": "rgb(255, 255, 255)",
+      "actual": "rgb(255, 255, 255)",
+      "pass": true
+    },
+    {
+      "name": "class tab selected shadow",
+      "expected": "non-none",
+      "actual": "rgba(20, 28, 38, 0.06) 0px 1px 2px 0px",
+      "pass": true
+    },
+    {
+      "name": "保存评估 disabled opacity",
+      "expected": "0.45",
+      "actual": "0.45",
+      "pass": true
+    },
+    {
+      "name": "nv-quiet hover changes bg",
+      "expected": "different",
+      "actual": "rgb(240, 241, 243) -> rgb(230, 232, 235)",
+      "pass": true
+    },
+    {
+      "name": "body[data-ds-dark-theme]",
+      "expected": "true",
+      "actual": true,
+      "pass": true
+    },
+    {
+      "name": "new-lesson bg dark",
+      "expected": "rgb(43, 49, 58)",
+      "actual": "rgb(43, 49, 58)",
+      "pass": true
+    },
+    {
+      "name": "dark home composer backdrop transparent",
+      "expected": "rgba(0, 0, 0, 0)",
+      "actual": "rgba(0, 0, 0, 0)",
+      "pass": true
+    },
+    {
+      "name": "console errors",
+      "expected": 0,
+      "actual": 0,
+      "pass": true
+    },
+    {
+      "name": "page errors",
+      "expected": 0,
+      "actual": 0,
+      "pass": true
+    }
+  ],
+  "console": {
+    "errors": [],
+    "pageerrors": []
+  }
+}

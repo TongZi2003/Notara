@@ -2996,8 +2996,8 @@
         return _RangeSet.empty;
       let result = last(sets);
       for (let i3 = sets.length - 2; i3 >= 0; i3--) {
-        for (let layer2 = sets[i3]; layer2 != _RangeSet.empty; layer2 = layer2.nextLayer)
-          result = new _RangeSet(layer2.chunkPos, layer2.chunk, result, Math.max(layer2.maxPoint, result.maxPoint));
+        for (let layer3 = sets[i3]; layer3 != _RangeSet.empty; layer3 = layer3.nextLayer)
+          result = new _RangeSet(layer3.chunkPos, layer3.chunk, result, Math.max(layer3.maxPoint, result.maxPoint));
       }
       return result;
     }
@@ -3137,8 +3137,8 @@
     return shared;
   }
   var LayerCursor = class {
-    constructor(layer2, skip, minPoint, rank = 0) {
-      this.layer = layer2;
+    constructor(layer3, skip, minPoint, rank = 0) {
+      this.layer = layer3;
       this.skip = skip;
       this.minPoint = minPoint;
       this.rank = rank;
@@ -12251,25 +12251,25 @@
     return a2.constructor == b2.constructor && a2.eq(b2);
   }
   var LayerView = class {
-    constructor(view, layer2) {
+    constructor(view, layer3) {
       this.view = view;
-      this.layer = layer2;
+      this.layer = layer3;
       this.drawn = [];
       this.scaleX = 1;
       this.scaleY = 1;
       this.measureReq = { read: this.measure.bind(this), write: this.draw.bind(this) };
       this.dom = view.scrollDOM.appendChild(document.createElement("div"));
       this.dom.classList.add("cm-layer");
-      if (layer2.above)
+      if (layer3.above)
         this.dom.classList.add("cm-layer-above");
-      if (layer2.class)
-        this.dom.classList.add(layer2.class);
+      if (layer3.class)
+        this.dom.classList.add(layer3.class);
       this.scale();
       this.dom.setAttribute("aria-hidden", "true");
       this.setOrder(view.state);
       view.requestMeasure(this.measureReq);
-      if (layer2.mount)
-        layer2.mount(this.dom, view);
+      if (layer3.mount)
+        layer3.mount(this.dom, view);
     }
     update(update) {
       if (update.startState.facet(layerOrder) != update.state.facet(layerOrder))
@@ -20208,8 +20208,8 @@
       this.#abortController?.abort();
       this.#abortController = null;
       this._signal = null;
-      for (const layer2 of this.#allLayers.values()) {
-        layer2.destroy();
+      for (const layer3 of this.#allLayers.values()) {
+        layer3.destroy();
       }
       this.#allLayers.clear();
       this.#allEditors.clear();
@@ -20296,14 +20296,14 @@
     getNonHCMColorName(color) {
       return this.highlightColorNames.get(color) || color;
     }
-    setCurrentDrawingSession(layer2) {
-      if (layer2) {
+    setCurrentDrawingSession(layer3) {
+      if (layer3) {
         this.unselectAll();
         this.disableUserSelect(true);
       } else {
         this.disableUserSelect(false);
       }
-      this.#currentDrawingSession = layer2;
+      this.#currentDrawingSession = layer3;
     }
     setMainHighlightColorPicker(colorPicker) {
       this.#mainHighlightColorPicker = colorPicker;
@@ -20318,8 +20318,8 @@
       this.#commentManager?.showDialog(this, editor, posX, posY, options);
     }
     selectComment(pageIndex, uid) {
-      const layer2 = this.#allLayers.get(pageIndex);
-      const editor = layer2?.getEditorByUID(uid);
+      const layer3 = this.#allLayers.get(pageIndex);
+      const editor = layer3?.getEditorByUID(uid);
       editor?.toggleComment(true, true);
     }
     updateComment(editor) {
@@ -20427,15 +20427,15 @@
       this.#container.focus();
     }
     findParent(x5, y) {
-      for (const layer2 of this.#allLayers.values()) {
+      for (const layer3 of this.#allLayers.values()) {
         const {
           x: layerX,
           y: layerY,
           width,
           height
-        } = layer2.div.getBoundingClientRect();
+        } = layer3.div.getBoundingClientRect();
         if (x5 >= layerX && x5 <= layerX + width && y >= layerY && y <= layerY + height) {
-          return layer2;
+          return layer3;
         }
       }
       return null;
@@ -20477,9 +20477,9 @@
       if (currentLayer.hasTextLayer(textLayer)) {
         return currentLayer;
       }
-      for (const layer2 of this.#allLayers.values()) {
-        if (layer2.hasTextLayer(textLayer)) {
-          return layer2;
+      for (const layer3 of this.#allLayers.values()) {
+        if (layer3.hasTextLayer(textLayer)) {
+          return layer3;
         }
       }
       return null;
@@ -20503,10 +20503,10 @@
         return;
       }
       selection.empty();
-      const layer2 = this.#getLayerForTextLayer(textLayer);
+      const layer3 = this.#getLayerForTextLayer(textLayer);
       const isNoneMode = this.#mode === AnnotationEditorType.NONE;
       const callback = () => {
-        const editor = layer2?.createAndAddNewEditor({
+        const editor = layer3?.createAndAddNewEditor({
           x: 0,
           y: 0
         }, false, {
@@ -20840,11 +20840,11 @@
         return;
       }
       this.unselectAll();
-      const layer2 = this.currentLayer;
+      const layer3 = this.currentLayer;
       try {
         const newEditors = [];
         for (const editor of data2) {
-          const deserializedEditor = await layer2.deserialize(editor);
+          const deserializedEditor = await layer3.deserialize(editor);
           if (!deserializedEditor) {
             return;
           }
@@ -20909,14 +20909,14 @@
       for (const editor of this.#savedEditorsByPage.get(oldPageIndex) || []) {
         editor.pageIndex = newPageIndex;
       }
-      const layer2 = this.#savedAllLayers.get(oldPageIndex);
-      if (layer2) {
-        layer2.pageIndex = newPageIndex;
-        this.#allLayers.set(newPageIndex, layer2);
+      const layer3 = this.#savedAllLayers.get(oldPageIndex);
+      if (layer3) {
+        layer3.pageIndex = newPageIndex;
+        this.#allLayers.set(newPageIndex, layer3);
         if (this.#isEnabled) {
-          layer2.enable();
+          layer3.enable();
         } else {
-          layer2.disable();
+          layer3.disable();
         }
       }
     }
@@ -20953,18 +20953,18 @@
         this.#annotationStorage.setValue(serialized.id, serialized);
       }
     }
-    findClonesForPage(layer2) {
+    findClonesForPage(layer3) {
       const promises = [];
       const {
         pageIndex
-      } = layer2;
+      } = layer3;
       for (const [id2, editor] of this.#annotationStorage) {
         if (editor.pageIndex === pageIndex && editor.isClone) {
           this.#annotationStorage.remove(id2);
-          promises.push(layer2.deserialize(editor).then((deserializedEditor) => {
+          promises.push(layer3.deserialize(editor).then((deserializedEditor) => {
             if (deserializedEditor) {
               deserializedEditor.isClone = true;
-              layer2.addOrRebuild(deserializedEditor);
+              layer3.addOrRebuild(deserializedEditor);
             }
           }));
         }
@@ -21030,16 +21030,16 @@
     get currentPageIndex() {
       return this.#currentPageIndex;
     }
-    addLayer(layer2) {
-      this.#allLayers.set(layer2.pageIndex, layer2);
+    addLayer(layer3) {
+      this.#allLayers.set(layer3.pageIndex, layer3);
       if (this.#isEnabled) {
-        layer2.enable();
+        layer3.enable();
       } else {
-        layer2.disable();
+        layer3.disable();
       }
     }
-    removeLayer(layer2) {
-      this.#allLayers.delete(layer2.pageIndex);
+    removeLayer(layer3) {
+      this.#allLayers.delete(layer3.pageIndex);
     }
     async updateMode(mode, editId = null, isFromUser = false, isFromKeyboard = false, mustEnterInEditMode = false, editComment = false) {
       if (this.#mode === mode) {
@@ -21081,8 +21081,8 @@
       this.setEditingState(true);
       await this.#enableAll();
       this.unselectAll();
-      for (const layer2 of this.#allLayers.values()) {
-        layer2.updateMode(mode);
+      for (const layer3 of this.#allLayers.values()) {
+        layer3.updateMode(mode);
       }
       if (mode === AnnotationEditorType.POPUP) {
         this.#allEditableAnnotations ||= await this.#pdfDocument.getAnnotationsByType(new Set(this.#editorTypes.map((editorClass) => editorClass._editorType)));
@@ -21199,21 +21199,21 @@
         return;
       }
       this.#isWaiting = mustWait;
-      for (const layer2 of this.#allLayers.values()) {
+      for (const layer3 of this.#allLayers.values()) {
         if (mustWait) {
-          layer2.disableClick();
+          layer3.disableClick();
         } else {
-          layer2.enableClick();
+          layer3.enableClick();
         }
-        layer2.div.classList.toggle("waiting", mustWait);
+        layer3.div.classList.toggle("waiting", mustWait);
       }
     }
     async #enableAll() {
       if (!this.#isEnabled) {
         this.#isEnabled = true;
         const promises = [];
-        for (const layer2 of this.#allLayers.values()) {
-          promises.push(layer2.enable());
+        for (const layer3 of this.#allLayers.values()) {
+          promises.push(layer3.enable());
         }
         await Promise.all(promises);
         for (const editor of this.#allEditors.values()) {
@@ -21225,8 +21225,8 @@
       this.unselectAll();
       if (this.#isEnabled) {
         this.#isEnabled = false;
-        for (const layer2 of this.#allLayers.values()) {
-          layer2.disable();
+        for (const layer3 of this.#allLayers.values()) {
+          layer3.disable();
         }
         for (const editor of this.#allEditors.values()) {
           editor.disable();
@@ -21279,9 +21279,9 @@
       editor.deleted = false;
     }
     #addEditorToLayer(editor) {
-      const layer2 = this.#allLayers.get(editor.pageIndex);
-      if (layer2) {
-        layer2.addOrRebuild(editor);
+      const layer3 = this.#allLayers.get(editor.pageIndex);
+      if (layer3) {
+        layer3.addOrRebuild(editor);
       } else {
         this.addEditor(editor);
         this.addToAnnotationStorage(editor);
@@ -38126,13 +38126,13 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
         annotations,
         optionalContentConfig
       } = params;
-      const layer2 = this.div;
-      setLayerDimensions(layer2, this.viewport);
+      const layer3 = this.div;
+      setLayerDimensions(layer3, this.viewport);
       const popupToElements = /* @__PURE__ */ new Map();
       const popupAnnotations = [];
       const elementParams = {
         data: null,
-        layer: layer2,
+        layer: layer3,
         linkService: this.#linkService,
         downloadManager: params.downloadManager,
         imageResourcesPath: params.imageResourcesPath || "",
@@ -38312,16 +38312,16 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
       viewport,
       optionalContentConfig
     }) {
-      const layer2 = this.div;
+      const layer3 = this.div;
       this.viewport = viewport;
-      setLayerDimensions(layer2, {
+      setLayerDimensions(layer3, {
         rotation: viewport.rotation
       });
       for (const element of this.#elements) {
         element.updateOC(optionalContentConfig);
       }
       this.#setAnnotationCanvasMap();
-      layer2.hidden = false;
+      layer3.hidden = false;
     }
     destroy() {
       for (const element of this.#elements) {
@@ -38336,9 +38336,9 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
       if (!this.#annotationCanvasMap) {
         return;
       }
-      const layer2 = this.div;
+      const layer3 = this.div;
       for (const [id2, canvas] of this.#annotationCanvasMap) {
-        const element = layer2.querySelector(`[data-annotation-id="${id2}"]`);
+        const element = layer3.querySelector(`[data-annotation-id="${id2}"]`);
         if (!element) {
           continue;
         }
@@ -44548,11 +44548,11 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
       return this.#currentEditorType.endDrawing(isAborted);
     }
     findNewParent(editor, x5, y) {
-      const layer2 = this.#uiManager.findParent(x5, y);
-      if (layer2 === null || layer2 === this) {
+      const layer3 = this.#uiManager.findParent(x5, y);
+      if (layer3 === null || layer3 === this) {
         return false;
       }
-      layer2.changeParent(editor);
+      layer3.changeParent(editor);
       return true;
     }
     commitOrRemove() {
@@ -45166,17 +45166,17 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
         this.#updateProperties(pathElement, path2);
       }
     }
-    updateParent(id2, layer2) {
-      if (layer2 === this) {
+    updateParent(id2, layer3) {
+      if (layer3 === this) {
         return;
       }
       const root = this.#mapping.get(id2);
       if (!root) {
         return;
       }
-      layer2.#parent.append(root);
+      layer3.#parent.append(root);
       this.#mapping.delete(id2);
-      layer2.#mapping.set(id2, root);
+      layer3.#mapping.set(id2, root);
     }
     remove(id2) {
       this.#toUpdate.delete(id2);
@@ -71968,6 +71968,7 @@ ${detail}
     "query",
     "links",
     "graph",
+    "learningStars",
     "templates",
     "createFromTemplate",
     "tasks",
@@ -72125,6 +72126,1056 @@ ${detail}
     };
   }
 
+  // examples/native-vault/star-light.js
+  function starHash(text7, salt = 0) {
+    let hash2 = 2166136261 ^ salt;
+    for (const char of String(text7)) {
+      hash2 ^= char.codePointAt(0);
+      hash2 = Math.imul(hash2, 16777619);
+    }
+    return (hash2 >>> 0) % 1e5 / 1e5;
+  }
+  function starLight(star2) {
+    const light = star2?.light;
+    if (star2?.kind === "course") return light?.role === "logged" ? { state: "lit", level: 1 } : { state: light?.role === "opened" ? "opened" : "planned", level: 0 };
+    if (!light) return { state: "unknown", level: 0 };
+    if (light.kind === "leaf") return light.unreadable ? { state: "unreadable", level: 0 } : light.observed ? { state: "lit", level: light.probability } : { state: "unobserved", level: 0 };
+    if (light.kind === "parent") return !light.leafCount ? { state: "unlinked", level: 0 } : light.coverage > 0 ? { state: "lit", level: light.mastery, coverage: light.coverage } : { state: "unobserved", level: 0, coverage: 0 };
+    return { state: "unlinked", level: 0 };
+  }
+  function splitTree(keys, edges = []) {
+    const known = new Set(keys), parentOf = /* @__PURE__ */ new Map(), children = new Map(keys.map((key) => [key, []])), linked = /* @__PURE__ */ new Set();
+    const ancestorOf = (key, candidate) => {
+      for (let at = candidate; at !== void 0; at = parentOf.get(at)) if (at === key) return true;
+      return false;
+    };
+    for (const edge of edges) {
+      if (!known.has(edge.source) || !known.has(edge.target) || edge.source === edge.target) continue;
+      linked.add(edge.source);
+      linked.add(edge.target);
+      if (edge.kind !== "split" || parentOf.has(edge.target) || ancestorOf(edge.target, edge.source)) continue;
+      parentOf.set(edge.target, edge.source);
+      children.get(edge.source).push(edge.target);
+    }
+    return { parentOf, children, linked };
+  }
+
+  // examples/native-vault/forest-client.js
+  var TILE_W = 64;
+  var TILE_H = 32;
+  var PLOT_GAP = 2;
+  var SLACK = 1.5;
+  var TAU = Math.PI * 2;
+  var isoPoint = (i3, j) => ({ x: (i3 - j) * TILE_W / 2, y: (i3 + j) * TILE_H / 2 });
+  function forestGrowth(star2) {
+    const light = starLight(star2), L = light.level;
+    if (star2?.kind === "course") return light.state === "lit" ? { form: "ginkgo", height: 56 } : light.state === "opened" ? { form: "sprout", height: 20 } : { form: "stake", height: 16 };
+    if (light.state === "lit") {
+      if (star2.kind === "parent") return { form: "oak", height: 46 + 30 * L };
+      return { form: L < 0.3 ? "sprout" : L < 0.55 ? "sapling" : "tree", height: 18 + 44 * L };
+    }
+    const outside = star2?.kind === "unlinked" || light.state === "unlinked";
+    if (outside) return star2?.node?.kind && star2.node.kind !== "page" ? { form: "rock", height: 11 } : { form: "bush", height: 15 };
+    return { form: "mound", height: star2?.kind === "parent" ? 12 : 9 };
+  }
+  function forestHit(star2, zoom, point) {
+    const height = Math.max(22, (forestGrowth(star2).height + 4) * zoom), width = Math.max(22, Math.min(height * 0.7, TILE_W * zoom * 0.62));
+    return { width, height, lift: height / 2, z: 1 + (point?.i ?? 0) + (point?.j ?? 0) };
+  }
+  var forestLush = (star2) => starLight(star2).state === "lit";
+  function nearestFree(taken, side, from, key) {
+    let best = null;
+    for (let ring = 1; ring <= side && !best; ring += 1) {
+      for (let di = -ring; di <= ring; di += 1) for (let dj = -ring; dj <= ring; dj += 1) {
+        if (Math.max(Math.abs(di), Math.abs(dj)) !== ring) continue;
+        const i3 = from.i + di, j = from.j + dj;
+        if (i3 < 1 || j < 1 || i3 > side || j > side || taken.has(`${i3},${j}`)) continue;
+        const rank = [ring, di * di + dj * dj, starHash(`${key}@${i3},${j}`, 3)];
+        if (!best || rank[0] < best.rank[0] || rank[0] === best.rank[0] && (rank[1] < best.rank[1] || rank[1] === best.rank[1] && rank[2] < best.rank[2])) best = { i: i3, j, rank };
+      }
+    }
+    return best;
+  }
+  function grove(root, children) {
+    const order = [[root, 0]];
+    for (let index = 0; index < order.length; index += 1) for (const kid of children.get(order[index][0])) order.push([kid, order[index][1] + 1]);
+    const inner2 = Math.max(2, Math.ceil(Math.sqrt(order.length * SLACK))), centre = 1 + Math.floor((inner2 - 1) / 2);
+    const tiles = /* @__PURE__ */ new Map([[root, { i: centre, j: centre, depth: 0 }]]), taken = /* @__PURE__ */ new Set([`${centre},${centre}`]), parentOf = /* @__PURE__ */ new Map();
+    for (const [key] of order) for (const kid of children.get(key)) parentOf.set(kid, key);
+    for (const [key, depth] of order.slice(1)) {
+      const spot = nearestFree(taken, inner2, tiles.get(parentOf.get(key)), key);
+      tiles.set(key, { i: spot.i, j: spot.j, depth });
+      taken.add(`${spot.i},${spot.j}`);
+    }
+    return { key: root, root, side: inner2 + 2, tiles };
+  }
+  function meadow(keys) {
+    const inner2 = Math.max(2, Math.ceil(Math.sqrt(keys.length * SLACK))), centre = 1 + Math.floor((inner2 - 1) / 2), spots = [];
+    for (let i3 = 1; i3 <= inner2; i3 += 1) for (let j = 1; j <= inner2; j += 1) spots.push({ i: i3, j, ring: Math.max(Math.abs(i3 - centre), Math.abs(j - centre)), d: (i3 - centre) ** 2 + (j - centre) ** 2, h: starHash(`meadow@${i3},${j}`, 4) });
+    spots.sort((a2, b2) => a2.ring - b2.ring || a2.d - b2.d || a2.h - b2.h);
+    return { key: "meadow", root: null, side: inner2 + 2, tiles: new Map(keys.map((key, index) => [key, { i: spots[index].i, j: spots[index].j, depth: 0 }])) };
+  }
+  function pack(beds) {
+    const sorted = [...beds].sort((a2, b2) => b2.side - a2.side || String(a2.key).localeCompare(String(b2.key)));
+    const width = Math.max(sorted[0]?.side ?? 0, Math.ceil(Math.sqrt(sorted.reduce((sum, bed) => sum + (bed.side + PLOT_GAP) ** 2, 0))));
+    const points = /* @__PURE__ */ new Map(), plots = [];
+    let ci = 0, cj = 0, row = 0;
+    for (const bed of sorted) {
+      if (ci > 0 && ci + bed.side > width) {
+        ci = 0;
+        cj += row + PLOT_GAP;
+        row = 0;
+      }
+      plots.push({ key: bed.key, i: ci, j: cj, w: bed.side, h: bed.side });
+      for (const [key, tile] of bed.tiles) {
+        const i3 = ci + tile.i, j = cj + tile.j;
+        points.set(key, { i: i3, j, ...isoPoint(i3, j), depth: tile.depth, root: bed.root, plot: bed.key });
+      }
+      ci += bed.side + PLOT_GAP;
+      row = Math.max(row, bed.side);
+    }
+    return { points, plots };
+  }
+  function forestLayout(nodes = [], edges = []) {
+    const keys = nodes.map((node) => node.key), { parentOf, children } = splitTree(keys, edges);
+    const beds = [], loose = [];
+    for (const key of keys) if (!parentOf.has(key)) children.get(key).length ? beds.push(grove(key, children)) : loose.push(key);
+    if (loose.length) beds.push(meadow(loose));
+    const { points, plots } = pack(beds), titles = new Map(nodes.map((node) => [node.key, node.title]));
+    const groups = plots.filter((plot) => plot.key !== "meadow").map((plot) => {
+      const i3 = plot.i + plot.w - 1, j = plot.j + plot.h - 1;
+      return { key: `plot:${plot.key}`, label: titles.get(plot.key) || plot.key, i: i3, j, ...isoPoint(i3, j) };
+    });
+    return { points, plots, roads: [], groups, figures: [] };
+  }
+  function routeForestLayout(rows = [], edges = []) {
+    const tiles = /* @__PURE__ */ new Map(), taken = /* @__PURE__ */ new Set();
+    const claim = (key, i4, j, step, extra) => {
+      while (j === 0 || taken.has(`${i4},${j}`)) j += step;
+      tiles.set(key, { i: i4, j, ...extra });
+      taken.add(`${i4},${j}`);
+    };
+    let i3 = 0, index = 0, previous = null;
+    const onMain = (row, stage) => {
+      claim(row.key, i3, -1, -1, { depth: index, stage });
+      i3 += 2;
+      index += 1;
+    };
+    for (const row of rows) {
+      if (row.pathway !== "main") continue;
+      const stage = row.stage || "";
+      if (index && stage !== previous) i3 += 1;
+      previous = stage;
+      onMain(row, stage);
+    }
+    const sourceOf = (key) => edges.find((edge) => edge.target === key && (edge.kind === "branch" || edge.kind === "sequence"))?.source;
+    const hung = /* @__PURE__ */ new Map();
+    for (const row of rows) {
+      if (tiles.has(row.key)) continue;
+      const source = sourceOf(row.key), from = tiles.get(source);
+      if (!from) {
+        onMain(row, row.stage || "");
+        continue;
+      }
+      const below = row.pathway !== "extension", slot = hung.get(`${source}:${below}`) ?? 0;
+      hung.set(`${source}:${below}`, slot + 1);
+      const lane = Math.floor(slot / 2);
+      claim(row.key, from.i + slot % 2, below ? Math.max(1, from.j + 1) + lane : Math.min(-2, from.j - 1) - lane, below ? 1 : -1, { depth: from.depth + 1, stage: from.stage });
+    }
+    if (!tiles.size) return { points: /* @__PURE__ */ new Map(), plots: [], roads: [], groups: [], figures: [] };
+    const signs = [];
+    for (const stage of new Set([...tiles.values()].map((tile) => tile.stage))) {
+      if (!stage) continue;
+      const first = Math.min(...[...tiles.values()].filter((tile) => tile.stage === stage).map((tile) => tile.i));
+      let j = 1;
+      while (taken.has(`${first - 1},${j}`)) j += 1;
+      taken.add(`${first - 1},${j}`);
+      signs.push({ key: `stage:${stage}`, label: stage, i: first - 1, j, ...isoPoint(first - 1, j) });
+    }
+    const all = [...tiles.values(), ...signs], is = all.map((tile) => tile.i), js = all.map((tile) => tile.j);
+    const plot = { key: "route", i: Math.min(...is) - 1, j: Math.min(-1, ...js) - 1, w: 0, h: 0 };
+    plot.w = Math.max(...is) + 2 - plot.i;
+    plot.h = Math.max(1, ...js) + 2 - plot.j;
+    const points = new Map([...tiles].map(([key, tile]) => [key, { ...tile, ...isoPoint(tile.i, tile.j), root: null, plot: "route" }]));
+    const roads = Array.from({ length: plot.w }, (_9, k) => ({ i: plot.i + k, j: 0 }));
+    return { points, plots: [plot], roads, groups: signs, figures: [] };
+  }
+  function forestBounds(layout) {
+    const corners = (layout?.plots ?? []).flatMap((plot) => [[plot.i - 0.5, plot.j - 0.5], [plot.i + plot.w - 0.5, plot.j - 0.5], [plot.i + plot.w - 0.5, plot.j + plot.h - 0.5], [plot.i - 0.5, plot.j + plot.h - 0.5]].map(([i3, j]) => isoPoint(i3, j)));
+    if (!corners.length) return null;
+    const xs = corners.map((point) => point.x), ys = corners.map((point) => point.y);
+    return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys) - 80, maxY: Math.max(...ys) + 28 };
+  }
+  var INK = {
+    shadow: "rgba(52,78,32,.2)",
+    trunk: ["#a0714a", "#7d5535"],
+    leaf: ["#86d36e", "#52a65b"],
+    pine: ["#63bd76", "#3d8c58"],
+    oak: ["#9bdb70", "#5aa957"],
+    bush: ["#a6d584", "#72b060"],
+    sprout: ["#94d66c", "#5fae4f"],
+    ginkgo: ["#ffd65e", "#e7a92c"],
+    mound: ["#cfa87e", "#a9825b"],
+    rock: ["#cfd4d6", "#a3aaae"],
+    stake: ["#c2956a", "#94693f"],
+    grass: ["#d6e6b8", "#cee0ad"],
+    lush: ["#a2d575", "#96cd68"],
+    road: ["#ead7b1", "#e2cda3"],
+    edge: "rgba(110,140,80,.35)",
+    sideLeft: "#c9a173",
+    sideRight: "#a77c52",
+    plotShadow: "rgba(70,90,50,.12)",
+    select: "rgba(255,241,178,.9)",
+    selectEdge: "rgba(222,170,54,.95)"
+  };
+  function twoTone(ctx, path2, [light, dark], split = 0) {
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    path2();
+    ctx.fill();
+    ctx.save();
+    ctx.beginPath();
+    path2();
+    ctx.clip();
+    ctx.fillStyle = light;
+    ctx.fillRect(-400, -400, 400 + split, 800);
+    ctx.restore();
+  }
+  var circles = (ctx, list) => () => {
+    for (const [x5, y, r2] of list) {
+      ctx.moveTo(x5 + r2, y);
+      ctx.arc(x5, y, r2, 0, TAU);
+    }
+  };
+  function drawForm(ctx, form, H, seed) {
+    const trunk = (width, height) => twoTone(ctx, () => ctx.rect(-width / 2, -height, width, height), INK.trunk);
+    switch (form) {
+      case "mound":
+        twoTone(ctx, () => ctx.ellipse(0, -H * 0.28, H * 1.15, H * 0.5, 0, 0, TAU), INK.mound);
+        ctx.fillStyle = "rgba(90,62,36,.55)";
+        ctx.beginPath();
+        ctx.ellipse(0, -H * 0.42, H * 0.18, H * 0.1, 0, 0, TAU);
+        ctx.fill();
+        return;
+      case "rock":
+        twoTone(ctx, () => {
+          ctx.moveTo(-H * 0.8, 0);
+          ctx.lineTo(-H * 0.55, -H * 0.75);
+          ctx.lineTo(H * 0.1, -H);
+          ctx.lineTo(H * 0.75, -H * 0.55);
+          ctx.lineTo(H * 0.85, 0);
+          ctx.closePath();
+        }, INK.rock, H * 0.1);
+        return;
+      case "bush":
+        twoTone(ctx, circles(ctx, [[-H * 0.42, -H * 0.42, H * 0.42], [H * 0.38, -H * 0.4, H * 0.4], [0, -H * 0.66, H * 0.46]]), INK.bush);
+        return;
+      case "stake":
+        ctx.fillStyle = "rgba(96,66,38,.45)";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, H * 0.45, H * 0.18, 0, 0, TAU);
+        ctx.fill();
+        twoTone(ctx, () => {
+          ctx.moveTo(-H * 0.1, 0);
+          ctx.lineTo(-H * 0.1, -H * 0.82);
+          ctx.lineTo(0, -H);
+          ctx.lineTo(H * 0.1, -H * 0.82);
+          ctx.lineTo(H * 0.1, 0);
+          ctx.closePath();
+        }, INK.stake);
+        return;
+      case "sprout": {
+        ctx.strokeStyle = INK.sprout[1];
+        ctx.lineWidth = Math.max(1, H * 0.07);
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -H * 0.62);
+        ctx.stroke();
+        for (const side of [-1, 1]) {
+          ctx.save();
+          ctx.translate(0, -H * 0.6);
+          ctx.rotate(side * 0.75);
+          ctx.fillStyle = side < 0 ? INK.sprout[0] : INK.sprout[1];
+          ctx.beginPath();
+          ctx.ellipse(0, -H * 0.2, H * 0.12, H * 0.24, 0, 0, TAU);
+          ctx.fill();
+          ctx.restore();
+        }
+        return;
+      }
+      case "sapling":
+        trunk(Math.max(1.5, H * 0.08), H * 0.56);
+        twoTone(ctx, circles(ctx, [[0, -H * 0.7, H * 0.28]]), INK.leaf);
+        return;
+      case "oak":
+      case "ginkgo":
+        trunk(H * 0.12, H * 0.42);
+        twoTone(ctx, circles(ctx, [[0, -H * 0.7, H * 0.27], [-H * 0.22, -H * 0.56, H * 0.21], [H * 0.22, -H * 0.56, H * 0.21], [H * 0.02, -H * 0.88, H * 0.16]]), form === "ginkgo" ? INK.ginkgo : INK.oak);
+        return;
+      default:
+        if (seed < 0.42) {
+          trunk(H * 0.1, H * 0.2);
+          for (let tier = 0; tier < 3; tier += 1) {
+            const base2 = -H * (0.16 + tier * 0.22), half = H * (0.3 - tier * 0.06), top2 = base2 - H * 0.38;
+            twoTone(ctx, () => {
+              ctx.moveTo(-half, base2);
+              ctx.lineTo(0, top2);
+              ctx.lineTo(half, base2);
+              ctx.closePath();
+            }, INK.pine);
+          }
+        } else {
+          trunk(H * 0.1, H * 0.4);
+          twoTone(ctx, circles(ctx, [[0, -H * 0.66, H * 0.3], [0, -H * 0.86, H * 0.18]]), INK.leaf);
+        }
+    }
+  }
+  function paintForestNode(ctx, x5, y, star2, size, { sway = 0, grow = 1, alpha = 1, seed = starHash(star2?.key ?? "", 8) } = {}) {
+    const { form, height } = forestGrowth(star2), H = height * size * (0.15 + 0.85 * grow);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(x5, y);
+    ctx.fillStyle = INK.shadow;
+    ctx.beginPath();
+    ctx.ellipse(H * 0.08, 0, Math.min(TILE_W * size * 0.34, H * 0.5 + 3 * size), Math.min(TILE_H * size * 0.3, H * 0.2 + 1.5 * size), 0, 0, TAU);
+    ctx.fill();
+    if (form !== "mound" && form !== "rock" && form !== "stake") ctx.rotate(sway);
+    drawForm(ctx, form, H, seed);
+    ctx.restore();
+  }
+  function tilePath(ctx, c, w, h) {
+    ctx.moveTo(c.x, c.y - h / 2);
+    ctx.lineTo(c.x + w / 2, c.y);
+    ctx.lineTo(c.x, c.y + h / 2);
+    ctx.lineTo(c.x - w / 2, c.y);
+    ctx.closePath();
+  }
+  function paintForest(ctx, current2, width, height, t2, at, progress) {
+    const zoom = current2.view.zoom, tw = TILE_W * zoom, th = TILE_H * zoom, depth = 12 * zoom, margin = 80 * zoom;
+    const visible = (c) => c.x > -margin && c.x < width + margin && c.y > -margin && c.y < height + margin;
+    const lush = /* @__PURE__ */ new Set(), road = new Set((current2.layout.roads ?? []).map((tile) => `${tile.i},${tile.j}`));
+    for (const node of current2.drawn) {
+      const point = current2.layout.points.get(node.key);
+      if (forestLush(node)) lush.add(`${point.i},${point.j}`);
+    }
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    for (const plot of current2.layout.plots ?? []) {
+      const corner = (i3, j) => at(isoPoint(i3, j));
+      const top2 = corner(plot.i - 0.5, plot.j - 0.5), right = corner(plot.i + plot.w - 0.5, plot.j - 0.5), bottom = corner(plot.i + plot.w - 0.5, plot.j + plot.h - 0.5), left = corner(plot.i - 0.5, plot.j + plot.h - 0.5);
+      if (Math.max(top2.x, right.x, bottom.x, left.x) < 0 || Math.min(top2.x, right.x, bottom.x, left.x) > width || top2.y > height || bottom.y + depth < 0) continue;
+      ctx.fillStyle = INK.plotShadow;
+      ctx.beginPath();
+      ctx.moveTo(left.x, left.y + depth * 1.6);
+      ctx.lineTo(bottom.x, bottom.y + depth * 2.2);
+      ctx.lineTo(right.x, right.y + depth * 1.6);
+      ctx.lineTo(right.x, right.y);
+      ctx.lineTo(left.x, left.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = INK.sideLeft;
+      ctx.beginPath();
+      ctx.moveTo(left.x, left.y);
+      ctx.lineTo(bottom.x, bottom.y);
+      ctx.lineTo(bottom.x, bottom.y + depth);
+      ctx.lineTo(left.x, left.y + depth);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = INK.sideRight;
+      ctx.beginPath();
+      ctx.moveTo(bottom.x, bottom.y);
+      ctx.lineTo(right.x, right.y);
+      ctx.lineTo(right.x, right.y + depth);
+      ctx.lineTo(bottom.x, bottom.y + depth);
+      ctx.closePath();
+      ctx.fill();
+      for (let i3 = plot.i; i3 < plot.i + plot.w; i3 += 1) for (let j = plot.j; j < plot.j + plot.h; j += 1) {
+        const c = at(isoPoint(i3, j));
+        if (current2.culled && !visible(c)) continue;
+        const key = `${i3},${j}`, tone = road.has(key) ? INK.road : lush.has(key) ? INK.lush : INK.grass;
+        ctx.fillStyle = tone[i3 + j & 1];
+        ctx.beginPath();
+        tilePath(ctx, c, tw + 0.6, th + 0.6);
+        ctx.fill();
+      }
+      ctx.strokeStyle = INK.edge;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(top2.x, top2.y);
+      ctx.lineTo(right.x, right.y);
+      ctx.lineTo(bottom.x, bottom.y);
+      ctx.lineTo(left.x, left.y);
+      ctx.closePath();
+      ctx.stroke();
+    }
+    if (current2.selected && current2.layout.points.has(current2.selected) && current2.byKey.has(current2.selected)) {
+      const point = current2.layout.points.get(current2.selected), c = at(point), breath = 0.5 + 0.5 * Math.sin(t2 * 1.6);
+      ctx.globalAlpha = 0.7 + 0.3 * breath;
+      ctx.fillStyle = INK.select;
+      ctx.strokeStyle = INK.selectEdge;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      tilePath(ctx, c, tw * 0.92, th * 0.92);
+      ctx.fill();
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    const order = current2.drawn.map((node) => ({ node, point: current2.layout.points.get(node.key) })).sort((a2, b2) => a2.point.i + a2.point.j - (b2.point.i + b2.point.j) || a2.point.i - b2.point.i);
+    for (const { node, point } of order) {
+      const c = at(point);
+      if (current2.culled && !visible(c)) continue;
+      const seed = starHash(node.key, 8), lit = starLight(node).state === "lit";
+      const grow = lit ? 1 - (1 - progress(node.key, Math.min(8, point.depth ?? 0) * 90, 800)) ** 3 : 1;
+      paintForestNode(ctx, c.x, c.y, node, zoom, { sway: Math.sin(t2 * (0.8 + seed * 0.5) + seed * 12) * 0.035, grow, alpha: current2.hover && !current2.neighbors.has(node.key) ? 0.35 : 1, seed });
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // examples/native-vault/star-map-client.js
+  var STAR_CSS = `
+.nv-star-board,.nv-star-legend{--nv-sky-edge:#050915;--nv-star-text:#a9b8da;--nv-star-text-lit:#eef3ff;--nv-star-root:#f3f6ff;--nv-star-group:#8ea0c8;--nv-star-shadow:0 1px 3px #000;--nv-star-shadow-lit:0 0 10px rgba(120,160,255,.6),0 1px 2px #000;--nv-star-shadow-gold:0 0 10px rgba(255,190,90,.55),0 1px 2px #000;--nv-star-button:rgba(18,28,58,.72);--nv-star-button-text:#c9d6f5;--nv-star-serif:"Songti SC","STSong","Noto Serif CJK SC","Source Han Serif SC","Noto Serif SC",serif}
+.nv-star-board{position:relative;isolation:isolate;flex:1;min-width:0;min-height:360px;overflow:hidden;background:radial-gradient(130% 95% at 50% 36%,#111a3a 0%,#090f25 48%,#050915 100%);touch-action:none;cursor:grab;user-select:none;color-scheme:dark}
+:is(.nv-star-board,.nv-star-legend)[data-sky=forest]{--nv-sky-edge:#f4f6ef;--nv-star-text:#56644c;--nv-star-text-lit:#26361d;--nv-star-root:#1f2e17;--nv-star-group:#6b5334;--nv-star-shadow:0 0 2px #fff,0 0 6px rgba(255,255,255,.95);--nv-star-shadow-lit:0 0 2px #fff,0 0 7px #fff;--nv-star-shadow-gold:0 0 2px #fff,0 0 7px #fff;--nv-star-button:rgba(255,255,255,.85);--nv-star-button-text:#3d4a35}
+.nv-star-board[data-sky=forest]{background:linear-gradient(180deg,#f8faf5 0%,#eef2e7 100%);color-scheme:light}
+.nv-star-board[data-sky=forest] .nv-star-label{font-weight:500}
+.nv-star-board[data-sky=forest] .nv-star-controls{z-index:100000}
+.nv-star-board[data-sky=forest] .nv-star-group{z-index:99999;transform:translate(-50%,-100%);padding:2px 10px;border-radius:6px;background:#fbf3e3;border:1px solid #d9c09a;box-shadow:0 1px 0 #c8aa7c;letter-spacing:.12em;text-shadow:none}
+.nv-star-board:active{cursor:grabbing}
+.nv-star-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+.nv-star-hit{position:absolute;padding:0;border:0;border-radius:50%;background:transparent;transform:translate(-50%,-50%);cursor:pointer;color:inherit}
+.nv-star-hit:focus-visible{outline:1px solid color-mix(in srgb,var(--nv-star-text-lit) 60%,transparent);outline-offset:4px}
+.nv-star-label{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;max-width:168px;overflow:hidden;text-overflow:ellipsis;pointer-events:none;font:11px/1.35 var(--dsw-font-family,system-ui);color:var(--nv-star-text);opacity:.85;text-shadow:var(--nv-star-shadow)}
+.nv-star-hit[data-state=lit] .nv-star-label{color:var(--nv-star-text-lit);opacity:1;text-shadow:var(--nv-star-shadow-lit)}
+.nv-star-hit[data-kind=course][data-state=lit] .nv-star-label{text-shadow:var(--nv-star-shadow-gold)}
+.nv-star-hit[data-kind=parent] .nv-star-label,.nv-star-hit[data-kind=course] .nv-star-label{font:500 12.5px/1.35 var(--nv-star-serif);letter-spacing:.06em}
+.nv-star-hit[data-root=true] .nv-star-label{font:600 15px/1.4 var(--nv-star-serif);letter-spacing:.22em;color:var(--nv-star-root);opacity:1}
+.nv-star-hit[aria-pressed=true] .nv-star-label{color:var(--nv-star-root);opacity:1;font-weight:600}
+.nv-star-group{position:absolute;transform:translate(-50%,-100%);white-space:nowrap;pointer-events:none;font:500 13px/1.4 var(--nv-star-serif);letter-spacing:.26em;color:var(--nv-star-group);text-shadow:var(--nv-star-shadow)}
+.nv-star-controls{position:absolute;left:12px;bottom:12px;display:flex;align-items:center;gap:6px;color:var(--nv-star-text);font-size:12px;text-shadow:var(--nv-star-shadow)}
+.nv-star-controls button{color:var(--nv-star-button-text)!important;background:var(--nv-star-button)!important;border-color:color-mix(in srgb,var(--nv-star-text) 22%,transparent)!important}
+.nv-star-legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;padding:8px 18px 10px;font-size:12px;color:var(--nv-star-text);background:var(--nv-sky-edge);border-top:1px solid color-mix(in srgb,var(--nv-star-text) 16%,transparent)}
+.nv-star-legend>span{display:inline-flex;align-items:center;gap:4px}
+.nv-star-legend small{color:color-mix(in srgb,var(--nv-star-text) 72%,transparent);font-size:11px}
+.nv-star-reading{margin:4px 0 18px;padding:12px 0 2px;border-top:1px solid var(--dsw-alias-border-l1);display:grid;gap:10px;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.nv-star-reading>div{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:4px 12px}
+.nv-star-reading b{font-weight:500;color:var(--dsw-alias-label-primary);text-align:right;font-variant-numeric:tabular-nums}
+.nv-star-meter{grid-column:1/-1;height:4px;border-radius:2px;background:var(--dsw-alias-bg-layer-2);overflow:hidden}
+.nv-star-meter i{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,#5f86e8,#a9c6ff)}
+.nv-star-reading p{margin:0;font-size:11px;line-height:1.6;color:var(--dsw-alias-label-tertiary)}
+`;
+  var TAU2 = Math.PI * 2;
+  var RING = 86;
+  var RING_STEP = 58;
+  var ARC_GAP = 30;
+  var PACK_GAP = 56;
+  var LOOSE_GAP = 46;
+  function constellationLayout(nodes = [], edges = []) {
+    const keys = nodes.map((node) => node.key), { parentOf, children, linked } = splitTree(keys, edges);
+    const weight = /* @__PURE__ */ new Map();
+    const weigh = (key) => {
+      if (weight.has(key)) return weight.get(key);
+      const kids = children.get(key);
+      const value = kids.length ? kids.reduce((sum, kid) => sum + weigh(kid), 0) : 1;
+      weight.set(key, value);
+      return value;
+    };
+    const roots = keys.filter((key) => !parentOf.has(key));
+    const figures = [], loose = [];
+    for (const root of roots) {
+      if (!children.get(root).length) {
+        (linked.has(root) ? figures : loose).push(root);
+        continue;
+      }
+      figures.push(root);
+    }
+    const points = /* @__PURE__ */ new Map(), shapes = [];
+    for (const root of figures) {
+      const local = /* @__PURE__ */ new Map([[root, { x: 0, y: 0, depth: 0 }]]), perDepth = [];
+      const spin = starHash(root, 7) * TAU2;
+      const walk = (key, start, end, depth) => {
+        const kids = children.get(key), total = kids.reduce((sum, kid) => sum + weigh(kid), 0);
+        let cursor = start;
+        for (const kid of kids) {
+          const span = (end - start) * weigh(kid) / total;
+          (perDepth[depth] ??= []).push({ key: kid, angle: cursor + span / 2 + (starHash(kid, 1) - 0.5) * span * 0.45 });
+          walk(kid, cursor, cursor + span, depth + 1);
+          cursor += span;
+        }
+      };
+      walk(root, spin, spin + TAU2, 1);
+      let radius = 0, extent = 40;
+      for (let depth = 1; depth < perDepth.length; depth += 1) {
+        const ring = perDepth[depth] ?? [];
+        radius = Math.max(depth === 1 ? RING : radius + RING_STEP, ring.length * ARC_GAP / TAU2);
+        for (const item of ring) {
+          const r2 = radius * (1 + (starHash(item.key, 2) - 0.5) * 0.24);
+          local.set(item.key, { x: Math.cos(item.angle) * r2, y: Math.sin(item.angle) * r2, depth });
+          extent = Math.max(extent, r2 + 48);
+        }
+      }
+      shapes.push({ root, local, extent });
+    }
+    if (loose.length) {
+      const local = /* @__PURE__ */ new Map(), step = LOOSE_GAP / Math.sqrt(Math.PI) * 1.6;
+      loose.forEach((key, index) => {
+        const angle = index * 2.399963229728653, r2 = step * Math.sqrt(index + 0.5);
+        local.set(key, { x: Math.cos(angle) * r2, y: Math.sin(angle) * r2, depth: 0 });
+      });
+      shapes.push({ root: null, local, extent: step * Math.sqrt(loose.length) + 44 });
+    }
+    const placed = [];
+    for (const shape of [...shapes].sort((a2, b2) => b2.extent - a2.extent)) {
+      let cx = 0, cy = 0;
+      if (placed.length) {
+        for (let index = 1; ; index += 1) {
+          const angle = index * 2.399963229728653, r2 = 26 * Math.sqrt(index) * Math.sqrt(shape.extent / 40);
+          cx = Math.cos(angle) * r2;
+          cy = Math.sin(angle) * r2 * 0.72;
+          if (placed.every((item) => Math.hypot(item.cx - cx, item.cy - cy) >= item.extent + shape.extent + PACK_GAP)) break;
+        }
+      }
+      placed.push({ cx, cy, extent: shape.extent, key: shape.root ?? "loose", loose: !shape.root });
+      for (const [key, point] of shape.local) points.set(key, { x: point.x + cx, y: point.y + cy, depth: point.depth, root: shape.root });
+    }
+    return { points, groups: [], figures: placed.map(({ key, cx, cy, extent, loose: loose2 }) => ({ key, x: cx, y: cy, extent, loose: loose2 })) };
+  }
+  function routeStarLayout(rows = [], edges = []) {
+    const points = /* @__PURE__ */ new Map(), stageOf2 = /* @__PURE__ */ new Map();
+    let x5 = 0, index = 0, previous = null;
+    const place = (row, point) => {
+      points.set(row.key, point);
+      stageOf2.set(row.key, point.stage);
+    };
+    for (const row of rows) {
+      if (row.pathway !== "main") continue;
+      const stage = row.stage || "";
+      if (index && stage !== previous) x5 += 64;
+      previous = stage;
+      place(row, { x: x5, y: (starHash(row.key, 3) - 0.5) * 84, depth: index, stage });
+      x5 += 118;
+      index += 1;
+    }
+    const sourceOf = (key) => edges.find((edge) => edge.target === key && (edge.kind === "branch" || edge.kind === "sequence"))?.source;
+    const hung = /* @__PURE__ */ new Map();
+    for (const row of rows) {
+      if (points.has(row.key)) continue;
+      const source = sourceOf(row.key), from = points.get(source);
+      if (!from) {
+        place(row, { x: x5, y: 0, depth: index, stage: row.stage || "" });
+        x5 += 118;
+        index += 1;
+        continue;
+      }
+      const slot = hung.get(source) ?? 0, below = row.pathway !== "extension";
+      hung.set(source, slot + 1);
+      place(row, { x: from.x + 36 + slot * 64, y: from.y + (below ? 1 : -1) * (104 + slot * 18), depth: from.depth + 1, stage: from.stage });
+    }
+    const xs = [...points.values()].map((point) => point.x), mid = xs.length ? (Math.min(...xs) + Math.max(...xs)) / 2 : 0;
+    for (const point of points.values()) point.x -= mid;
+    const groups = [], figures = [];
+    for (const stage of new Set(stageOf2.values())) {
+      const members = [...points.values()].filter((point) => point.stage === stage), xs2 = members.map((point) => point.x), ys = members.map((point) => point.y);
+      const x6 = (Math.min(...xs2) + Math.max(...xs2)) / 2, y = (Math.min(...ys) + Math.max(...ys)) / 2;
+      figures.push({ key: `stage:${stage}`, x: x6, y, extent: Math.max(90, (Math.max(...xs2) - Math.min(...xs2)) / 2 + 70) });
+      if (stage) groups.push({ key: `stage:${stage}`, label: stage, x: x6, y: Math.min(...ys) - 40 });
+    }
+    return { points, groups, figures };
+  }
+  var edgeLit = (from, to) => starLight(from).state === "lit" && starLight(to).state === "lit" && starLight(from).level >= 0.5 && starLight(to).level >= 0.5;
+  function starGlow(star2, scale2 = 1) {
+    const light = starLight(star2), L = light.level, s = scale2;
+    const dim = { core: 1.4 * s, alpha: 0.45, halo: 7 * s, haloAlpha: 0.14, spike: 0, spikeAlpha: 0, tone: "dim", twinkle: 0.38 };
+    if (star2?.kind === "course") {
+      if (light.state === "lit") return { core: 3.2 * s, alpha: 1, halo: 34 * s, haloAlpha: 0.85, spike: 30 * s, spikeAlpha: 0.75, tone: "gold", twinkle: 0.16 };
+      if (light.state === "opened") return { ...dim, core: 2 * s, alpha: 0.7, halo: 11 * s, haloAlpha: 0.3, tone: "gold" };
+      return dim;
+    }
+    if (light.state === "lit" && star2.kind === "parent") {
+      return {
+        core: (2.6 + 2.6 * L) * s,
+        alpha: 1,
+        halo: (14 + 50 * light.coverage) * s,
+        haloAlpha: 0.35 + 0.5 * L,
+        spike: L >= FLARE_AT ? (18 + 34 * L) * s : 0,
+        spikeAlpha: Math.max(0, (L - 0.5) * 1.6),
+        tone: "blue",
+        twinkle: 0.18
+      };
+    }
+    if (light.state === "lit") {
+      return {
+        core: (1.6 + 2.2 * L) * s,
+        alpha: 0.75 + 0.25 * L,
+        halo: (10 + 22 * L) * s,
+        haloAlpha: 0.3 + 0.6 * L,
+        spike: L >= FLARE_AT ? (10 + 26 * L) * s : 0,
+        spikeAlpha: Math.max(0, (L - 0.5) * 1.6),
+        tone: "blue",
+        twinkle: 0.22
+      };
+    }
+    if (light.state === "unobserved" || light.state === "unreadable") return star2.kind === "parent" ? { ...dim, core: 1.9 * s, halo: 10 * s } : dim;
+    return { core: 1.1 * s, alpha: light.state === "unknown" ? 0.22 : 0.32, halo: 0, haloAlpha: 0, spike: 0, spikeAlpha: 0, tone: "dim", twinkle: 0.3 };
+  }
+  var FLARE_AT = 0.6;
+  var percent2 = (value) => `${Math.round(value * 100)}%`;
+  var dayOf = (stamp) => {
+    const date = stamp ? new Date(stamp) : null;
+    return date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric" }) : "";
+  };
+  var DRAWN = /* @__PURE__ */ new Set(["split", "sequence"]);
+  var clamp01 = (value) => Math.min(1, Math.max(0, value));
+  var easeOut = (value) => 1 - (1 - value) ** 3;
+  function dustField(seed) {
+    const layer3 = (count2, depth, salt) => Array.from({ length: count2 }, (_9, index) => {
+      const id2 = `${seed}:${salt}:${index}`, w = starHash(id2, 13);
+      return { u: starHash(id2, 11), v: starHash(id2, 12), depth, r: depth > 0.2 ? 0.55 + w * 0.9 : 0.35 + w * 0.55, o: 0.2 + w * 0.65, glow: depth > 0.2 && w > 0.9, rate: 0.6 + starHash(id2, 14) * 2.2, phase: starHash(id2, 15) * TAU2 };
+    });
+    return [...layer3(150, 0.08, "far"), ...layer3(70, 0.3, "near")];
+  }
+  var skyOf = () => typeof document === "undefined" || document.body?.hasAttribute("data-ds-dark-theme") ? "night" : "forest";
+  var SKIES = {
+    night: {
+      composite: "lighter",
+      dust: "#e4ecff",
+      dustAlpha: 1,
+      nebulaAlpha: 0.8,
+      lit: [[7, 0.1, "110,160,255"], [2.6, 0.22, "150,190,255"], [1, 0.85, "222,233,255"]],
+      litGold: [[7, 0.1, "255,170,80"], [2.6, 0.22, "255,200,130"], [1, 0.85, "255,236,200"]],
+      dim: "rgb(140,160,210)",
+      dimGold: "rgb(200,170,120)",
+      dimAlpha: 0.26,
+      blue: [[0, "rgba(255,255,255,1)"], [0.07, "rgba(228,238,255,.92)"], [0.2, "rgba(160,192,255,.42)"], [0.45, "rgba(110,150,255,.12)"], [1, "rgba(90,130,255,0)"]],
+      gold: [[0, "rgba(255,252,240,1)"], [0.07, "rgba(255,232,180,.92)"], [0.2, "rgba(255,196,110,.42)"], [0.45, "rgba(255,160,70,.12)"], [1, "rgba(255,140,50,0)"]],
+      pale: [[0, "rgba(220,232,255,.5)"], [0.35, "rgba(170,200,255,.2)"], [1, "rgba(150,185,255,0)"]],
+      core: [[0, "rgba(255,255,255,1)"], [0.45, "rgba(255,255,255,.9)"], [1, "rgba(255,255,255,0)"]],
+      coreGold: [[0, "rgba(255,255,250,1)"], [0.45, "rgba(255,244,220,.9)"], [1, "rgba(255,230,190,0)"]],
+      coreScale: 1,
+      dimStar: [[0, "rgba(236,242,255,1)"], [0.4, "rgba(200,215,255,.6)"], [1, "rgba(160,185,255,0)"]],
+      spike: "225,236,255",
+      spikeGold: "255,232,190",
+      nebula: [[58, 88, 208], [107, 70, 194], [28, 134, 168]].map(([r2, g, b2]) => [[0, `rgba(${r2},${g},${b2},.34)`], [0.5, `rgba(${r2},${g},${b2},.12)`], [1, `rgba(${r2},${g},${b2},0)`]])
+    }
+  };
+  var SPRITES = {};
+  function sprites(sky = "night") {
+    if (SPRITES[sky] || typeof document === "undefined") return SPRITES[sky];
+    const tone = SKIES[sky];
+    const make = (size, paint) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = size;
+      paint(canvas.getContext("2d"), size);
+      return canvas;
+    };
+    const glow = (stops) => make(128, (ctx, size) => {
+      const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+      for (const [offset, color] of stops) g.addColorStop(offset, color);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, size, size);
+    });
+    const spikes = (tint) => make(256, (ctx, size) => {
+      const c = size / 2;
+      ctx.filter = "blur(1.2px)";
+      for (const [angle, reach, width] of [[0, 1, 1.6], [Math.PI / 2, 1, 1.6], [Math.PI / 4, 0.42, 1], [-Math.PI / 4, 0.42, 1]]) {
+        ctx.save();
+        ctx.translate(c, c);
+        ctx.rotate(angle);
+        const g = ctx.createLinearGradient(-c * reach, 0, c * reach, 0);
+        g.addColorStop(0, `rgba(${tint},0)`);
+        g.addColorStop(0.5, `rgba(${tint},.95)`);
+        g.addColorStop(1, `rgba(${tint},0)`);
+        ctx.fillStyle = g;
+        ctx.fillRect(-c * reach, -width / 2, c * reach * 2, width);
+        ctx.restore();
+      }
+    });
+    SPRITES[sky] = { tone, blue: glow(tone.blue), gold: glow(tone.gold), pale: glow(tone.pale), core: glow(tone.core), coreGold: glow(tone.coreGold), dim: glow(tone.dimStar), spikeBlue: spikes(tone.spike), spikeGold: spikes(tone.spikeGold), nebula: tone.nebula.map(glow) };
+    return SPRITES[sky];
+  }
+  function paintStar(ctx, x5, y, glow, pulse = 1, flash = 0, art = sprites()) {
+    if (!art) return;
+    const tone = glow.tone === "gold" ? art.gold : glow.tone === "dim" ? art.dim : art.blue, blit = (image, radius, alpha) => {
+      if (radius <= 0 || alpha <= 0) return;
+      ctx.globalAlpha = Math.min(1, alpha);
+      ctx.drawImage(image, x5 - radius, y - radius, radius * 2, radius * 2);
+    };
+    blit(tone, glow.halo * (1 + flash * 0.9) * (0.92 + 0.08 * pulse), glow.haloAlpha * pulse * glow.alpha);
+    if (glow.spike) blit(glow.tone === "gold" ? art.spikeGold : art.spikeBlue, glow.spike * (0.82 + 0.18 * pulse), glow.spikeAlpha * (0.55 + 0.45 * pulse));
+    blit(tone, glow.core * 3.2, 0.55 * glow.alpha * pulse);
+    const core = glow.tone === "dim" ? art.dim : glow.tone === "gold" ? art.coreGold : art.core;
+    blit(core, glow.core * (glow.tone === "dim" ? 1.6 : art.tone.coreScale), glow.alpha * (0.7 + 0.3 * pulse));
+  }
+  function useSky(React) {
+    const [sky, setSky] = React.useState(skyOf);
+    React.useEffect(() => {
+      if (typeof MutationObserver === "undefined" || !document.body) return void 0;
+      const observer = new MutationObserver(() => setSky(skyOf()));
+      observer.observe(document.body, { attributes: true, attributeFilter: ["data-ds-dark-theme"] });
+      return () => observer.disconnect();
+    }, []);
+    return sky;
+  }
+  function createStarMap(React, { STYLE, IconButton }) {
+    const h = React.createElement;
+    const { useState, useEffect, useRef, useMemo } = React;
+    const reduced = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const labelOffset = (glow) => Math.max(7, glow.core * 2.6);
+    function StarMap({ nodes, edges, layout, selected, onSelect, onOpen, onContext, state, fitKey = "", label = "\u5B66\u4E60\u661F\u56FE", nodeName = "\u661F\u56FE\u8282\u70B9" }) {
+      const host = useRef(null), canvas = useRef(null), drag = useRef(null), moved = useRef(false), lastContext = useRef({ time: 0, key: "" });
+      const dust = useMemo(() => dustField(label), [label]);
+      const [size, setSize] = useState({ width: 0, height: 0 });
+      const [camera, setCamera] = useState(() => state.starCamera ?? null);
+      const [hover, setHover] = useState(null), sky = useSky(React);
+      const fitted = useRef(state.starFit ?? null), since = useRef(/* @__PURE__ */ new Map()), scene = useRef(null), steered = useRef(!!state.starSteered);
+      const steer = () => {
+        steered.current = true;
+        state.starSteered = true;
+      };
+      useEffect(() => {
+        state.starCamera = camera;
+      }, [camera]);
+      useEffect(() => {
+        const element = host.current;
+        const observer = new ResizeObserver(() => setSize({ width: element.clientWidth, height: element.clientHeight }));
+        observer.observe(element);
+        return () => observer.disconnect();
+      }, []);
+      const drawn = useMemo(() => nodes.filter((node) => layout.points.has(node.key)), [nodes, layout]);
+      const fit = () => {
+        if (!size.width || !drawn.length) return;
+        const xs = drawn.map((node) => layout.points.get(node.key).x), ys = drawn.map((node) => layout.points.get(node.key).y);
+        const box = sky === "forest" ? forestBounds(layout) : null;
+        const { minX, maxX, minY, maxY } = box ?? { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+        const zoom = Math.max(0.3, Math.min(1.35, (size.width - 140) / Math.max(1, maxX - minX), (size.height - 150) / Math.max(1, maxY - minY)));
+        steered.current = false;
+        state.starSteered = false;
+        setCamera({ x: (minX + maxX) / 2, y: (minY + maxY) / 2 + 8 / zoom, zoom });
+      };
+      const fitAs = `${sky}|${fitKey}`;
+      useEffect(() => {
+        if (!size.width) return;
+        if (!camera || fitted.current !== fitAs || !steered.current) {
+          fitted.current = fitAs;
+          state.starFit = fitAs;
+          fit();
+        }
+      }, [size.width, size.height, fitAs, drawn.length > 0]);
+      useEffect(() => {
+        const element = host.current;
+        const wheel = (event) => {
+          event.preventDefault();
+          const bounds = element.getBoundingClientRect();
+          steer();
+          setCamera((previous) => {
+            if (!previous) return previous;
+            const zoom = Math.max(0.2, Math.min(3, previous.zoom * Math.exp(-event.deltaY * 12e-4)));
+            const sx = event.clientX - bounds.left - bounds.width / 2, sy = event.clientY - bounds.top - bounds.height / 2;
+            return { zoom, x: previous.x + sx / previous.zoom - sx / zoom, y: previous.y + sy / previous.zoom - sy / zoom };
+          });
+        };
+        element.addEventListener("wheel", wheel, { passive: false });
+        return () => element.removeEventListener("wheel", wheel);
+      }, []);
+      const view = camera ?? { x: 0, y: 0, zoom: 1 };
+      const scale2 = Math.max(0.7, Math.min(1.45, Math.sqrt(view.zoom)));
+      const screen = (point) => ({ x: size.width / 2 + (point.x - view.x) * view.zoom, y: size.height / 2 + (point.y - view.y) * view.zoom });
+      const byKey = useMemo(() => new Map(drawn.map((node) => [node.key, node])), [drawn]);
+      const neighbors = useMemo(() => new Set(hover ? [hover, ...edges.flatMap((edge) => edge.source === hover ? [edge.target] : edge.target === hover ? [edge.source] : [])] : []), [hover, edges]);
+      const many = drawn.length > 48, culled = drawn.length > 300;
+      const onScreen = (point) => !culled || point.x > -120 && point.x < size.width + 120 && point.y > -120 && point.y < size.height + 120;
+      const now = typeof performance === "undefined" ? 0 : performance.now();
+      for (const node of drawn) if (starLight(node).state === "lit" && !since.current.has(node.key)) since.current.set(node.key, now);
+      for (const edge of edges) {
+        const key = `${edge.kind}:${edge.source}>${edge.target}`, a2 = byKey.get(edge.source), b2 = byKey.get(edge.target);
+        if (a2 && b2 && edgeLit(a2, b2) && !since.current.has(key)) since.current.set(key, now);
+      }
+      scene.current = { ...scene.current, drawn, edges, byKey, layout, view, size, scale: scale2, hover, neighbors, selected, dust, culled, sky, dirty: true };
+      const forest = sky === "forest";
+      useEffect(() => {
+        const element = canvas.current, ctx = element?.getContext("2d");
+        if (!ctx) return void 0;
+        let frame = 0, last2 = 0, still = reduced();
+        const paint = (time) => {
+          const current2 = scene.current, { width, height } = current2.size;
+          if (!width || !height) return;
+          const ratio = window.devicePixelRatio || 1;
+          if (element.width !== Math.round(width * ratio) || element.height !== Math.round(height * ratio)) {
+            element.width = Math.round(width * ratio);
+            element.height = Math.round(height * ratio);
+          }
+          ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+          ctx.clearRect(0, 0, width, height);
+          const t2 = still ? 0 : time / 1e3, { view: cam } = current2;
+          const at = (point) => ({ x: width / 2 + (point.x - cam.x) * cam.zoom, y: height / 2 + (point.y - cam.y) * cam.zoom });
+          const progress = (key, delay, duration) => still ? 1 : clamp01((time - (since.current.get(key) ?? -1e9) - delay) / duration);
+          if (current2.sky === "forest") {
+            paintForest(ctx, current2, width, height, t2, at, progress);
+            return;
+          }
+          const art = sprites(), sky2 = art.tone;
+          ctx.globalCompositeOperation = sky2.composite;
+          for (const figure of current2.layout.figures ?? []) {
+            const p2 = at(figure), base2 = (figure.extent * 1.25 + 60) * cam.zoom, tone = art.nebula[Math.floor(starHash(figure.key, 9) * art.nebula.length)];
+            for (let index = 0; index < 4; index += 1) {
+              const angle = starHash(figure.key, 20 + index) * TAU2, reach = starHash(figure.key, 30 + index) * base2 * 0.45, r2 = base2 * (0.55 + starHash(figure.key, 40 + index) * 0.6);
+              ctx.globalAlpha = (figure.loose ? 0.45 : 1) * sky2.nebulaAlpha;
+              ctx.drawImage(tone, p2.x + Math.cos(angle) * reach - r2, p2.y + Math.sin(angle) * reach * 0.7 - r2 * 0.75, r2 * 2, r2 * 1.5);
+            }
+          }
+          const tileW = Math.max(width, 1200), tileH = Math.max(height, 800), camX = cam.x * cam.zoom, camY = cam.y * cam.zoom, wrap = (value, span) => (value % span + span) % span;
+          ctx.fillStyle = sky2.dust;
+          for (const star2 of current2.dust) {
+            const x5 = wrap(star2.u * tileW - camX * star2.depth, tileW), y = wrap(star2.v * tileH - camY * star2.depth, tileH);
+            if (x5 > width || y > height) continue;
+            const pulse = 0.55 + 0.45 * Math.sin(t2 * star2.rate + star2.phase);
+            if (star2.glow) {
+              ctx.globalAlpha = 0.35 * pulse;
+              ctx.drawImage(art.pale, x5 - 7, y - 7, 14, 14);
+            }
+            ctx.globalAlpha = star2.o * sky2.dustAlpha * (0.4 + 0.6 * pulse);
+            ctx.beginPath();
+            ctx.arc(x5, y, star2.r, 0, TAU2);
+            ctx.fill();
+          }
+          ctx.lineCap = "round";
+          for (const edge of current2.edges) {
+            const a2 = current2.byKey.get(edge.source), b2 = current2.byKey.get(edge.target);
+            if (!a2 || !b2) continue;
+            const p2 = at(current2.layout.points.get(a2.key)), q2 = at(current2.layout.points.get(b2.key));
+            if (current2.culled && (p2.x < -120 || p2.x > width + 120) && (q2.x < -120 || q2.x > width + 120)) continue;
+            const faded = current2.hover && !(edge.source === current2.hover || edge.target === current2.hover) ? 0.15 : 1, gold = edge.kind === "sequence" || edge.kind === "branch";
+            if (edgeLit(a2, b2)) {
+              const k = `${edge.kind}:${edge.source}>${edge.target}`, reach = DRAWN.has(edge.kind) ? easeOut(progress(k, 200 + Math.min(8, current2.layout.points.get(b2.key).depth ?? 0) * 90, 900)) : 1;
+              const end = { x: p2.x + (q2.x - p2.x) * reach, y: p2.y + (q2.y - p2.y) * reach };
+              ctx.setLineDash(edge.kind === "branch" ? [6, 5] : []);
+              for (const [width2, alpha, color] of gold ? sky2.litGold : sky2.lit) {
+                ctx.globalAlpha = alpha * faded;
+                ctx.strokeStyle = `rgb(${color})`;
+                ctx.lineWidth = width2;
+                ctx.beginPath();
+                ctx.moveTo(p2.x, p2.y);
+                ctx.lineTo(end.x, end.y);
+                ctx.stroke();
+              }
+            } else {
+              ctx.setLineDash(edge.kind === "reference" || edge.kind === "prerequisite" ? [1.5, 6] : edge.kind === "branch" ? [6, 5] : []);
+              ctx.globalAlpha = (edge.kind === "reference" ? 0.6 : 1) * sky2.dimAlpha * faded;
+              ctx.strokeStyle = gold ? sky2.dimGold : sky2.dim;
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(p2.x, p2.y);
+              ctx.lineTo(q2.x, q2.y);
+              ctx.stroke();
+            }
+          }
+          ctx.setLineDash([]);
+          for (const node of current2.drawn) {
+            const point = current2.layout.points.get(node.key), p2 = at(point);
+            if (current2.culled && (p2.x < -120 || p2.x > width + 120 || p2.y < -120 || p2.y > height + 120)) continue;
+            const glow = starGlow(node, current2.scale), seed = starHash(node.key, 5);
+            const pulse = 1 - glow.twinkle * (0.5 + 0.25 * Math.sin(t2 * (1.1 + seed * 2.3) + seed * 40) + 0.25 * Math.sin(t2 * (2.9 + seed * 3.1) + seed * 17));
+            const faded = current2.hover && !current2.neighbors.has(node.key) ? 0.25 : 1;
+            const lit = starLight(node).state === "lit", rise = lit ? easeOut(progress(node.key, Math.min(8, point.depth ?? 0) * 90, 700)) : 1;
+            if (current2.selected === node.key) {
+              const breath = 0.5 + 0.5 * Math.sin(t2 * 1.6);
+              ctx.globalAlpha = 0.55 + 0.25 * breath;
+              const r2 = Math.max(glow.halo, 18 * current2.scale) * 1.5 + 18 + 6 * breath;
+              ctx.drawImage(art.pale, p2.x - r2, p2.y - r2, r2 * 2, r2 * 2);
+            }
+            ctx.save();
+            ctx.globalAlpha = 1;
+            paintStar(ctx, p2.x, p2.y, { ...glow, alpha: glow.alpha * faded * rise }, pulse, lit ? 1 - rise : 0, art);
+            ctx.restore();
+          }
+          ctx.globalAlpha = 1;
+          ctx.globalCompositeOperation = "source-over";
+        };
+        const loop = (time) => {
+          frame = requestAnimationFrame(loop);
+          const nowStill = reduced();
+          if (nowStill !== still) {
+            still = nowStill;
+            scene.current.dirty = true;
+          }
+          if (still ? !scene.current.dirty : time - last2 < 32) return;
+          last2 = time;
+          scene.current.dirty = false;
+          paint(still ? 0 : time);
+        };
+        frame = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frame);
+      }, []);
+      const reportContext = (node, event) => {
+        const now2 = Date.now();
+        if (lastContext.current.key === node.key && now2 - lastContext.current.time < 250) return;
+        lastContext.current = { time: now2, key: node.key };
+        event.preventDefault();
+        event.stopPropagation();
+        onContext?.(node, event);
+      };
+      const fade = (key) => hover && !neighbors.has(key) ? 0.3 : 1;
+      return h(
+        "div",
+        {
+          ref: host,
+          className: "nv-star-board",
+          "data-sky": sky,
+          role: "group",
+          "aria-label": label,
+          onPointerDown: (event) => {
+            if (event.button !== 0 || event.ctrlKey || event.target.closest("button")) return;
+            drag.current = { x: event.clientX, y: event.clientY, camera: view };
+            moved.current = false;
+            event.currentTarget.setPointerCapture(event.pointerId);
+          },
+          onPointerMove: (event) => {
+            if (!drag.current) return;
+            const dx = event.clientX - drag.current.x, dy = event.clientY - drag.current.y;
+            if (!moved.current && Math.hypot(dx, dy) < 3) return;
+            moved.current = true;
+            steer();
+            setCamera({ ...drag.current.camera, x: drag.current.camera.x - dx / drag.current.camera.zoom, y: drag.current.camera.y - dy / drag.current.camera.zoom });
+          },
+          onPointerUp: (event) => {
+            if (drag.current) event.currentTarget.releasePointerCapture(event.pointerId);
+            drag.current = null;
+          },
+          onPointerCancel: () => {
+            drag.current = null;
+          }
+        },
+        h("canvas", { ref: canvas, className: "nv-star-canvas", "aria-hidden": true }),
+        size.width > 0 && (layout.groups ?? []).map((group) => {
+          const p2 = screen(group);
+          return h("span", { key: group.key, className: "nv-star-group", style: { left: p2.x, top: p2.y } }, group.label);
+        }),
+        size.width > 0 && drawn.map((node) => {
+          const point = layout.points.get(node.key), p2 = screen(point);
+          if (!onScreen(p2)) return null;
+          const tree = forest ? forestHit(node, view.zoom, point) : null, offset = tree ? tree.lift : labelOffset(starGlow(node, scale2));
+          const hit = Math.max(26, offset * 2 + 4), isRoot = node.kind === "parent" && point.depth === 0 && !!point.root;
+          const quiet = many ? view.zoom < 1.2 : view.zoom < 0.75;
+          const named = selected === node.key || neighbors.has(node.key);
+          const showLabel = forest ? named || node.kind === "course" || view.zoom >= (node.kind === "parent" ? 1.1 : 1.6) : !quiet || node.kind !== "leaf" && node.kind !== "unlinked" || named;
+          return h(
+            "button",
+            {
+              key: node.key,
+              type: "button",
+              className: "nv-star-hit",
+              "data-node": node.key,
+              "data-kind": node.kind,
+              "data-state": starLight(node).state,
+              "data-root": isRoot,
+              "aria-label": `${nodeName} ${node.title}`,
+              "aria-pressed": selected === node.key,
+              title: node.hint ? `${node.title} \xB7 ${node.hint}` : node.title,
+              style: tree ? { left: p2.x, top: p2.y - tree.lift, width: tree.width, height: tree.height, zIndex: tree.z, borderRadius: 8, opacity: fade(node.key) } : { left: p2.x, top: p2.y, width: hit, height: hit, opacity: fade(node.key) },
+              onClick: (event) => {
+                if (event.button === 0 && !event.ctrlKey) onSelect(node);
+              },
+              onDoubleClick: (event) => {
+                if (event.button === 0 && !event.ctrlKey) onOpen?.(node);
+              },
+              onPointerDown: (event) => {
+                if (event.button === 2 || event.button === 0 && event.ctrlKey) reportContext(node, event);
+              },
+              onContextMenu: (event) => reportContext(node, event),
+              onPointerEnter: () => setHover(node.key),
+              onPointerLeave: () => setHover(null),
+              onFocus: () => setHover(node.key),
+              onBlur: () => setHover(null)
+            },
+            showLabel && h("span", { className: "nv-star-label", style: { top: `calc(50% + ${offset + 4}px)` } }, node.title)
+          );
+        }),
+        h(
+          "div",
+          { className: "nv-star-controls" },
+          h(IconButton, { icon: "target", label: forest ? "\u663E\u793A\u6574\u7247\u68EE\u6797" : "\u663E\u793A\u5168\u90E8\u661F\u4F53", onClick: fit }),
+          h("span", null, `${Math.round(view.zoom * 100)}%`)
+        )
+      );
+    }
+    function StarSwatch({ star: star2, width = 36 }) {
+      const ref = useRef(null), sky = useSky(React);
+      useEffect(() => {
+        const element = ref.current, ctx = element?.getContext("2d");
+        if (!ctx) return;
+        const ratio = window.devicePixelRatio || 1;
+        element.width = width * ratio;
+        element.height = 28 * ratio;
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctx.clearRect(0, 0, width, 28);
+        if (sky === "forest") {
+          paintForestNode(ctx, width / 2, 25, star2, Math.min(0.9, 22 / forestGrowth(star2).height), { seed: 0.7 });
+          return;
+        }
+        const art = sprites(sky);
+        ctx.globalCompositeOperation = art.tone.composite;
+        paintStar(ctx, width / 2, 14, starGlow(star2, 0.6), 1, 0, art);
+      }, [sky]);
+      return h("canvas", { ref, style: { width, height: 28 }, "aria-hidden": true });
+    }
+    const LEGEND = {
+      night: {
+        name: "\u661F\u56FE\u56FE\u4F8B",
+        course: [["lit", { kind: "course", light: { role: "logged" } }, "\u91D1\u8272\uFF1A\u5DF2\u5B8C\u6210\u5C0F\u7ED3"], ["open", { kind: "course", light: { role: "opened" } }, "\u6697\u91D1\uFF1A\u5DF2\u5F00\u8BFE"], ["plan", { kind: "course", light: { role: "lesson" } }, "\u6697\u661F\uFF1A\u8BA1\u5212\u8BFE\u7A0B"], "\u70B9\u4EAE\u8868\u793A\u8FD9\u8282\u8BFE\u5B8C\u6210\u8FC7\uFF0C\u4E0D\u4EE3\u8868\u77E5\u8BC6\u90FD\u5DF2\u638C\u63E1"],
+        knowledge: [
+          ["bright", { kind: "leaf", light: { kind: "leaf", observed: true, probability: 0.92 } }, "\u8D8A\u4EAE\uFF0C\u638C\u63E1\u4F30\u8BA1\u8D8A\u9AD8"],
+          ["mid", { kind: "leaf", light: { kind: "leaf", observed: true, probability: 0.42 } }, "\u4ECD\u5728\u5DE9\u56FA"],
+          ["dim", { kind: "leaf", light: { kind: "leaf", observed: false } }, "\u6697\u661F\uFF1A\u5C1A\u672A\u8BC4\u4F30"],
+          ["parent", { kind: "parent", light: { kind: "parent", leafCount: 3, observedCount: 3, coverage: 1, mastery: 0.7 } }, "\u7236\u8282\u70B9\uFF1A\u5149\u6655\u8D8A\u5927\uFF0C\u5DF2\u8BC4\u4F30\u7684\u53F6\u5B50\u8D8A\u591A"],
+          ["faint", { kind: "unlinked", light: { kind: "unlinked" } }, "\u5FAE\u5149\uFF1A\u5C1A\u672A\u5173\u8054\u80FD\u529B"],
+          "\u4EAE\u5EA6\u6309\u5DF2\u8BB0\u5F55\u7684\u8BC4\u4F30\u63A8\u7B97\uFF0C\u4E0D\u662F\u8003\u8BD5\u5206\u6570"
+        ]
+      },
+      forest: {
+        name: "\u68EE\u6797\u56FE\u4F8B",
+        course: [["lit", { kind: "course", light: { role: "logged" } }, "\u94F6\u674F\uFF1A\u5DF2\u5B8C\u6210\u5C0F\u7ED3"], ["open", { kind: "course", light: { role: "opened" } }, "\u5AE9\u82BD\uFF1A\u5DF2\u5F00\u8BFE"], ["plan", { kind: "course", light: { role: "lesson" } }, "\u6728\u6869\uFF1A\u8BA1\u5212\u8BFE\u7A0B"], "\u79CD\u4E0B\u94F6\u674F\u8868\u793A\u8FD9\u8282\u8BFE\u5B8C\u6210\u8FC7\uFF0C\u4E0D\u4EE3\u8868\u77E5\u8BC6\u90FD\u5DF2\u638C\u63E1"],
+        knowledge: [
+          ["bright", { kind: "leaf", light: { kind: "leaf", observed: true, probability: 0.92 } }, "\u6811\u8D8A\u9AD8\u5927\uFF0C\u638C\u63E1\u4F30\u8BA1\u8D8A\u9AD8"],
+          ["mid", { kind: "leaf", light: { kind: "leaf", observed: true, probability: 0.42 } }, "\u5C0F\u6811\u82D7\uFF1A\u4ECD\u5728\u5DE9\u56FA"],
+          ["dim", { kind: "leaf", light: { kind: "leaf", observed: false } }, "\u571F\u5806\uFF1A\u5C1A\u672A\u8BC4\u4F30"],
+          ["parent", { kind: "parent", light: { kind: "parent", leafCount: 3, observedCount: 3, coverage: 1, mastery: 0.7 } }, "\u7236\u8282\u70B9\uFF1A\u811A\u4E0B\u8349\u5730\u8D8A\u7EFF\uFF0C\u5DF2\u8BC4\u4F30\u7684\u53F6\u5B50\u8D8A\u591A"],
+          ["faint", { kind: "unlinked", light: { kind: "unlinked" }, node: { kind: "page" } }, "\u704C\u6728\uFF1A\u5C1A\u672A\u5173\u8054\u80FD\u529B"],
+          ["rock", { kind: "unlinked", light: { kind: "unlinked" }, node: { kind: "asset" } }, "\u77F3\u5934\uFF1A\u8D44\u6599\u6587\u4EF6"],
+          "\u6811\u7684\u5927\u5C0F\u6309\u5DF2\u8BB0\u5F55\u7684\u8BC4\u4F30\u63A8\u7B97\uFF0C\u4E0D\u662F\u8003\u8BD5\u5206\u6570"
+        ]
+      }
+    };
+    function StarLegend({ mode = "knowledge" }) {
+      const sky = useSky(React), legend = LEGEND[sky];
+      const items = legend[mode === "course" ? "course" : "knowledge"].map((item) => typeof item === "string" ? h("small", { key: "note" }, item) : h("span", { key: item[0] }, h(StarSwatch, { key: sky, star: { key: item[0], ...item[1] } }), item[2]));
+      return h("div", { className: "nv-star-legend", "data-sky": sky, "aria-label": legend.name }, items);
+    }
+    function StarReading({ star: star2, error }) {
+      const light = star2?.light, state = starLight(star2).state, forest = useSky(React) === "forest", term = forest ? "\u72B6\u6001" : "\u661F\u5149";
+      const row = (name2, value) => h("div", { key: name2 }, h("span", null, name2), h("b", null, value));
+      const meter = (key, value) => h("span", { key, className: "nv-star-meter", "aria-hidden": true }, h("i", { style: { width: percent2(value) } }));
+      let body;
+      if (star2?.kind === "course") {
+        body = light?.role === "logged" ? [row(term, forest ? "\u5DF2\u79CD\u4E0B\u94F6\u674F" : "\u5DF2\u70B9\u4EAE"), light.savedAt && row("\u5B8C\u6210\u4E8E", dayOf(light.savedAt)), h("p", { key: "note" }, `\u8FD9\u8282\u8BFE\u5DF2\u4FDD\u5B58\u6B63\u5F0F\u5C0F\u7ED3\u3002${forest ? "\u94F6\u674F" : "\u70B9\u4EAE"}\u53EA\u8868\u793A\u8BFE\u7A0B\u5B8C\u6210\u8FC7\uFF0C\u4E0D\u8868\u793A\u6240\u6709\u77E5\u8BC6\u70B9\u5DF2\u7ECF\u638C\u63E1\u3002`)] : [row(term, forest ? "\u5C1A\u672A\u5B8C\u6210" : "\u5C1A\u672A\u70B9\u4EAE"), h("p", { key: "note" }, light?.role === "opened" ? `\u5DF2\u7ECF\u5F00\u8BFE\uFF0C\u4FDD\u5B58\u6B63\u5F0F\u5C0F\u7ED3\u540E${forest ? "\u79CD\u4E0B\u94F6\u674F" : "\u70B9\u4EAE"}\u3002` : "\u8FD8\u6CA1\u6709\u5F00\u8BFE\u3002")];
+      } else if (!light) body = [h("p", { key: "note" }, error || (forest ? "\u6B63\u5728\u8BFB\u53D6\u2026" : "\u661F\u5149\u6B63\u5728\u8BFB\u53D6\u2026"))];
+      else if (light.kind === "leaf" && light.unreadable) body = [row(term, "\u65E0\u6CD5\u8BFB\u53D6"), h("p", { key: "note" }, "\u8FD9\u5F20\u5361\u7247\u7684\u8BC4\u4F30\u8BB0\u5F55\u683C\u5F0F\u6709\u95EE\u9898\uFF0C\u8BF7\u5728\u8D44\u4EA7\u9875\u68C0\u67E5\u3002\u5B83\u4E0D\u8BA1\u5165\u4E0A\u5C42\u638C\u63E1\u5EA6\u3002")];
+      else if (light.kind === "leaf") body = light.observed ? [row("\u638C\u63E1\u4F30\u8BA1", `\u7EA6 ${percent2(light.probability)}`), meter("m", light.probability), row("\u8BC4\u4F30\u8BB0\u5F55", `${light.evidenceCount} \u6B21`), row("\u6700\u8FD1\u8BC1\u636E", dayOf(light.lastEvidenceAt) || "\u2014"), row("\u8BC1\u636E", light.confidence === "supported" ? "\u8F83\u5145\u5206" : "\u521D\u6B65"), h("p", { key: "note" }, "\u6309\u8FD9\u5F20\u5361\u7247\u5DF2\u8BB0\u5F55\u7684\u80FD\u529B\u8BC4\u4F30\u63A8\u7B97\uFF0C\u4E0D\u662F\u8003\u8BD5\u5206\u6570\u3002")] : [row(term, "\u5C1A\u672A\u8BC4\u4F30"), h("p", { key: "note" }, `\u8FD8\u6CA1\u6709\u201C\u5DF2\u8868\u73B0\u51FA\u6765\u201D\u6216\u201C\u4ECD\u6709\u56F0\u96BE\u201D\u7684\u8BC4\u4F30\u8BB0\u5F55\uFF1B\u5C1A\u672A\u89C2\u5BDF\u7684\u8BC4\u4F30${forest ? "\u4E0D\u4F1A\u8BA9\u6811\u957F\u5927" : "\u4E0D\u6539\u53D8\u661F\u5149"}\u3002`)];
+      else if (light.kind === "parent" && light.leafCount) body = [
+        state === "lit" ? row("\u6574\u4F53\u638C\u63E1", `\u7EA6 ${percent2(light.mastery)}`) : row(term, "\u5C1A\u672A\u8BC4\u4F30"),
+        state === "lit" && meter("m", light.mastery),
+        row("\u5DF2\u8BC4\u4F30\u53F6\u5B50", `${light.observedCount} / ${light.leafCount}`),
+        meter("c", light.coverage),
+        row("\u8BC4\u4F30\u8BB0\u5F55", `${light.evidenceCount} \u6B21`),
+        light.lastEvidenceAt && row("\u6700\u8FD1\u8BC1\u636E", dayOf(light.lastEvidenceAt)),
+        light.unreadableCount > 0 && h("p", { key: "bad" }, `\u6709 ${light.unreadableCount} \u5F20\u5361\u7247\u7684\u8BC4\u4F30\u8BB0\u5F55\u65E0\u6CD5\u8BFB\u53D6\uFF0C\u672A\u8BA1\u5165\u3002`),
+        h("p", { key: "note" }, "\u7531\u5168\u90E8\u53F6\u5B50\u5361\u7247\u805A\u5408\uFF0C\u4E0D\u968F\u7B5B\u9009\u6216\u5C55\u5F00\u5C42\u7EA7\u53D8\u5316\uFF1B\u672A\u8BC4\u4F30\u7684\u53F6\u5B50\u6309\u5148\u9A8C\u8BA1\u5165\uFF0C\u8584\u5F31\u7684\u57FA\u7840\u4F1A\u62C9\u4F4E\u6574\u4F53\u3002")
+      ];
+      else body = [row(term, "\u5C1A\u672A\u5173\u8054\u80FD\u529B"), h("p", { key: "note" }, "\u8FD9\u4E2A\u8282\u70B9\u4E0B\u9762\u6CA1\u6709\u53EF\u8BC4\u4F30\u7684\u77E5\u8BC6\u5361\u7247\uFF0C\u4E0D\u53C2\u4E0E\u638C\u63E1\u5EA6\u8BA1\u7B97\u3002")];
+      return h("section", { className: "nv-star-reading", "aria-label": forest ? "\u751F\u957F" : "\u661F\u5149" }, body.filter(Boolean));
+    }
+    return { StarMap, StarLegend, StarReading, useSky: () => useSky(React) };
+  }
+
   // examples/native-vault/views-client.js
   var VIEW_IDS = { assets: "notara-vault", graph: "notara-vault-graph", cards: "notara-vault-cards", routes: "notara-vault-routes", calendar: "notara-vault-calendar" };
   var sourceLabel = (source) => `${source.path}${source.locator?.page ? ` \xB7 \u7B2C ${source.locator.page} \u9875` : ""}${source.locator?.anchor ? ` \xB7 ${source.locator.anchor}` : ""}${source.invalidLocator ? " \xB7 \u4F4D\u7F6E\u65E0\u6CD5\u8BC6\u522B" : ""}`;
@@ -72142,6 +73193,11 @@ ${detail}
   var CARD_TYPE_LABEL = { card: "\u77E5\u8BC6\u5361\u7247", insight: "\u9526\u56CA", topic: "\u6559\u5B66\u4E13\u9898" };
   var MATERIAL_TYPE_LABEL = { source: "\u6E90\u76EE\u5F55", topic: "\u6559\u5B66\u4E13\u9898" };
   var roleLabelOf = (node) => MATERIAL_TYPE_LABEL[node?.type] ?? KNOWLEDGE_ROLES[node?.role] ?? "";
+  var starKindOf = (node) => node?.childCount > 0 ? "parent" : node?.kind === "page" && node?.type === "card" ? "leaf" : "unlinked";
+  function starOf(node, stars) {
+    const kind = starKindOf(node), entry = stars?.nodes?.[node?.path];
+    return { key: node.path, title: node.title, kind, light: entry?.kind === kind ? entry : void 0, node };
+  }
   var parentLabelOf = (graph2, path2) => {
     const parent = path2 ? (graph2?.nodes ?? []).find((item) => item.path === path2) : void 0;
     return parent && !LIBRARY_TYPES.has(parent.type) ? "\u7236\u8D44\u6599" : "\u7236\u5361";
@@ -72177,6 +73233,7 @@ ${detail}
     const h = React.createElement;
     const { useState, useEffect, useMemo, useRef } = React;
     const { useRemembered, NodeMark, Board } = createVaultCanvas(React, { STYLE, IconButton });
+    const { StarMap, StarLegend, StarReading, useSky: useSky2 } = createStarMap(React, { STYLE, IconButton });
     const useFileActions = createFileActions(React, { STYLE, Dialog });
     const graphSignature = (value) => {
       const nodes = Array.isArray(value?.nodes) ? value.nodes : [], edges = Array.isArray(value?.edges) ? value.edges : [];
@@ -72227,6 +73284,37 @@ ${detail}
       }, [vault, visible]);
       return state;
     }
+    function useStars(vault, visible) {
+      const [state, setState] = useState({ stars: null, error: "" });
+      useEffect(() => {
+        if (!visible) return;
+        let live = true, pending = false;
+        const refresh = async () => {
+          if (pending) return;
+          pending = true;
+          try {
+            const result = await vault.learningStars({});
+            if (!result?.ok) throw new Error("read");
+            if (live) setState((previous) => ({ stars: JSON.stringify(previous.stars) === JSON.stringify(result.value) ? previous.stars : result.value, error: "" }));
+          } catch {
+            if (live) setState((previous) => ({ ...previous, error: previous.stars ? "\u638C\u63E1\u5EA6\u6682\u65F6\u65E0\u6CD5\u5237\u65B0\uFF0C\u663E\u793A\u7684\u662F\u4E0A\u6B21\u8BFB\u53D6\u7684\u7ED3\u679C\u3002" : "\u638C\u63E1\u5EA6\u6682\u65F6\u8BFB\u4E0D\u51FA\u6765\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002" }));
+          } finally {
+            pending = false;
+          }
+        };
+        void refresh();
+        const timer = setInterval(refresh, 1e4);
+        window.addEventListener("notara-vault-changed", refresh);
+        window.addEventListener("focus", refresh);
+        return () => {
+          live = false;
+          clearInterval(timer);
+          window.removeEventListener("notara-vault-changed", refresh);
+          window.removeEventListener("focus", refresh);
+        };
+      }, [vault, visible]);
+      return state;
+    }
     function useFocus(props, onFocus) {
       const callback = useRef(onFocus);
       callback.current = onFocus;
@@ -72242,6 +73330,7 @@ ${detail}
         { className: "nv-views", style: STYLE.page },
         h("style", null, CSS2),
         h("style", null, CANVAS_CSS),
+        h("style", null, STAR_CSS),
         h(
           "header",
           { className: flush ? "nv-view-top nv-view-top-flush" : "nv-view-top" },
@@ -72386,6 +73475,8 @@ ${CARD_TYPE_LABEL[node.type] ?? ""}`.toLocaleLowerCase().includes(search.toLocal
       const fileActions = useFileActions(vault);
       const [selected, setSelected] = useRemembered(state, "selected", ""), [focus, setFocus] = useRemembered(state, "focus", ""), [hops, setHops] = useRemembered(state, "hops", 1), [tags3, setTags] = useRemembered(state, "tags", []);
       const [openGroup, setOpenGroup] = useRemembered(state, "tagGroup", "");
+      const [view, setView] = useRemembered(state, "view", "structure"), forest = useSky2() === "forest";
+      const { stars, error: starError } = useStars(vault, props.visible && view === "stars");
       const [centerVersion, setCenterVersion] = useState(0);
       const [notice, setNotice] = useState(""), [filtering, setFiltering] = useState(false), [tagSearch, setTagSearch] = useState(""), [tagExpanded, setTagExpanded] = useState(false), [showAll, setShowAll] = useState(false), [expanded, setExpanded] = useRemembered(state, "expanded", []), [menu, setMenu] = useState(null), [paneWidth, setPaneWidth] = useRemembered(state, "paneWidth", 300);
       const root = useRef(null), resize = useRef(null), detailTimer = useRef(null);
@@ -72445,6 +73536,13 @@ ${CARD_TYPE_LABEL[node.type] ?? ""}`.toLocaleLowerCase().includes(search.toLocal
         setMenu(null);
       };
       const canvasNodes = useMemo(() => visible.nodes.map((item) => ({ key: item.path, title: item.title, role: item.type === "insight" ? "insight" : item.role, hint: [roleLabelOf(item), CARD_TYPE_LABEL[item.type]].filter(Boolean).join(" \xB7 "), node: item })), [visible]);
+      const starLayout = useMemo(() => view === "stars" ? (forest ? forestLayout : constellationLayout)(filtered.nodes.map((item) => ({ key: item.path, title: item.title })), filtered.edges) : null, [filtered, view, forest]);
+      const starNodes = useMemo(() => view === "stars" ? visible.nodes.map((item) => ({ ...starOf(item, stars), hint: [roleLabelOf(item), CARD_TYPE_LABEL[item.type]].filter(Boolean).join(" \xB7 ") })) : [], [visible, stars, view]);
+      const context = (item, event) => {
+        clearTimeout(detailTimer.current);
+        const bounds = root.current.getBoundingClientRect();
+        setMenu({ path: item.key, x: Math.max(0, Math.min(event.clientX - bounds.left, bounds.width - 230)), y: Math.max(0, Math.min(event.clientY - bounds.top, bounds.height - 200)) });
+      };
       const bring = async (target) => {
         setMenu(null);
         try {
@@ -72517,6 +73615,7 @@ ${CARD_TYPE_LABEL[node.type] ?? ""}`.toLocaleLowerCase().includes(search.toLocal
       const tools = h(
         React.Fragment,
         null,
+        h("div", { className: "nv-route-views", role: "group", "aria-label": "\u56FE\u8C31\u89C6\u56FE" }, [["structure", "\u7ED3\u6784"], ["stars", forest ? "\u68EE\u6797" : "\u661F\u56FE"]].map(([id2, label]) => h("button", { key: id2, type: "button", "aria-pressed": view === id2, onClick: () => setView(id2) }, label))),
         focus && btn("\u5168\u5C40\u56FE\u8C31", () => setFocus("")),
         focus && h("span", { style: STYLE.notice }, graph2.nodes.find((item) => item.path === focus)?.title ?? "\u4E2D\u5FC3"),
         focus && h("select", { "aria-label": "\u5173\u8054\u6DF1\u5EA6", style: { ...STYLE.templateInput, width: 86, margin: 0 }, value: hops, onChange: (event) => setHops(Number(event.target.value)) }, h("option", { value: 1 }, "1 \u8DF3\u5173\u7CFB"), h("option", { value: 2 }, "2 \u8DF3\u5173\u7CFB")),
@@ -72530,7 +73629,7 @@ ${CARD_TYPE_LABEL[node.type] ?? ""}`.toLocaleLowerCase().includes(search.toLocal
       );
       return h(
         Frame,
-        { title: "\u56FE\u8C31", tools, status: notice || error || (loading ? "\u6B63\u5728\u8BFB\u53D6\u2026" : `${progressive ? `${visible.nodes.length}/` : ""}${filtered.nodes.length} \u4E2A\u6587\u4EF6 \xB7 ${visible.edges.length} \u6761\u5173\u7CFB`) },
+        { title: "\u56FE\u8C31", tools, status: notice || error || view === "stars" && starError || (loading ? "\u6B63\u5728\u8BFB\u53D6\u2026" : `${progressive ? `${visible.nodes.length}/` : ""}${filtered.nodes.length} \u4E2A\u6587\u4EF6 \xB7 ${visible.edges.length} \u6761\u5173\u7CFB`) },
         tagPanel,
         h(
           "div",
@@ -72539,11 +73638,7 @@ ${CARD_TYPE_LABEL[node.type] ?? ""}`.toLocaleLowerCase().includes(search.toLocal
           }, onKeyDown: (event) => {
             if (event.key === "Escape") setMenu(null);
           } },
-          !loading && !error && !graph2.nodes.length ? h("div", { style: STYLE.empty }, "\u8FD8\u6CA1\u6709\u6587\u4EF6\u3002\u5728\u8D44\u4EA7\u9875\u5BFC\u5165\u8D44\u6599\u6216\u521B\u5EFA\u9875\u9762\u3002") : !filtered.nodes.length && !loading ? h("div", { style: STYLE.empty }, "\u6CA1\u6709\u7B26\u5408\u6761\u4EF6\u7684\u6587\u4EF6\u3002") : h(Board, { nodes: canvasNodes, edges: visible.edges, focus, centerVersion, selected, state, layoutMode: showAll ? "force" : "auto", onSelect: (item) => select(item.key), onOpen: (item) => open2(item.node), onContext: (item, event) => {
-            clearTimeout(detailTimer.current);
-            const bounds = root.current.getBoundingClientRect();
-            setMenu({ path: item.key, x: Math.max(0, Math.min(event.clientX - bounds.left, bounds.width - 230)), y: Math.max(0, Math.min(event.clientY - bounds.top, bounds.height - 200)) });
-          } }),
+          !loading && !error && !graph2.nodes.length ? h("div", { style: STYLE.empty }, "\u8FD8\u6CA1\u6709\u6587\u4EF6\u3002\u5728\u8D44\u4EA7\u9875\u5BFC\u5165\u8D44\u6599\u6216\u521B\u5EFA\u9875\u9762\u3002") : !filtered.nodes.length && !loading ? h("div", { style: STYLE.empty }, "\u6CA1\u6709\u7B26\u5408\u6761\u4EF6\u7684\u6587\u4EF6\u3002") : view === "stars" ? h(StarMap, { nodes: starNodes, edges: visible.edges, layout: starLayout, selected, state, fitKey: `${focus}|${centerVersion}|${tags3.join(",")}|${showAll}`, nodeName: "\u56FE\u8C31\u8282\u70B9", label: forest ? "\u77E5\u8BC6\u68EE\u6797" : "\u77E5\u8BC6\u661F\u56FE", onSelect: (item) => select(item.key), onOpen: (item) => open2(item.node), onContext: context }) : h(Board, { nodes: canvasNodes, edges: visible.edges, focus, centerVersion, selected, state, layoutMode: showAll ? "force" : "auto", onSelect: (item) => select(item.key), onOpen: (item) => open2(item.node), onContext: context }),
           node && detailsOpen && h(
             React.Fragment,
             null,
@@ -72573,6 +73668,7 @@ ${CARD_TYPE_LABEL[node.type] ?? ""}`.toLocaleLowerCase().includes(search.toLocal
               } })),
               h("h2", null, node.title),
               h("p", { style: STYLE.path }, node.path),
+              view === "stars" && h(StarReading, { star: starOf(node, stars), error: starError }),
               h(
                 "div",
                 { style: { display: "flex", gap: 4, marginBottom: 20 } },
@@ -72618,7 +73714,7 @@ ${CARD_TYPE_LABEL[node.type] ?? ""}`.toLocaleLowerCase().includes(search.toLocal
           )
         ),
         fileActions.dialog,
-        h("details", { style: { padding: "6px 16px", fontSize: 11, color: "var(--dsw-alias-label-secondary)" } }, h("summary", { style: { cursor: "pointer" } }, "\u56FE\u4F8B"), h("div", { className: "nv-legend" }, Object.entries(KNOWLEDGE_ROLES).map(([role, label]) => h("span", { key: role }, h("svg", { width: 24, height: 26, viewBox: "-20 -20 40 40", "aria-hidden": true }, h(NodeMark, { role })), label)), h("span", { key: "material" }, h("svg", { width: 24, height: 26, viewBox: "-20 -20 40 40", "aria-hidden": true }, h(NodeMark, { role: "root" })), "\u6E90\u76EE\u5F55 / \u6559\u5B66\u4E13\u9898"), h("span", null, "\u2014 \u62C6\u5206"), h("span", null, "\u2504 \u5F15\u7528")))
+        view === "stars" ? h(StarLegend, { mode: "knowledge" }) : h("details", { style: { padding: "6px 16px", fontSize: 11, color: "var(--dsw-alias-label-secondary)" } }, h("summary", { style: { cursor: "pointer" } }, "\u56FE\u4F8B"), h("div", { className: "nv-legend" }, Object.entries(KNOWLEDGE_ROLES).map(([role, label]) => h("span", { key: role }, h("svg", { width: 24, height: 26, viewBox: "-20 -20 40 40", "aria-hidden": true }, h(NodeMark, { role })), label)), h("span", { key: "material" }, h("svg", { width: 24, height: 26, viewBox: "-20 -20 40 40", "aria-hidden": true }, h(NodeMark, { role: "root" })), "\u6E90\u76EE\u5F55 / \u6559\u5B66\u4E13\u9898"), h("span", null, "\u2014 \u62C6\u5206"), h("span", null, "\u2504 \u5F15\u7528")))
       );
     }
     return { GraphView, CardsView };
@@ -72854,7 +73950,7 @@ ${details}`;
       return React.createElement(
         React.Fragment,
         null,
-        node.children.map((child) => child.path ? React.createElement("button", { key: child.path, style: { ...buttonStyle(child.path === selected), paddingLeft: 10 + depth * 12 }, onContextMenu: (event) => {
+        node.children.map((child) => child.path ? React.createElement("button", { key: child.path, "aria-current": child.path === selected ? "true" : void 0, style: { ...buttonStyle(child.path === selected), paddingLeft: 10 + depth * 12 }, onContextMenu: (event) => {
           event.preventDefault();
           onContext(child.path, event);
         }, onClick: () => onSelect(child.path) }, `${child.kind === "asset" ? "\u25A7 " : ""}${child.name}`) : React.createElement(
@@ -74634,6 +75730,7 @@ ${details}`;
     const h = React.createElement;
     const { useState, useEffect, useMemo, useRef } = React;
     const { useRemembered, NodeMark, Board } = createVaultCanvas(React, { STYLE, IconButton });
+    const { StarMap, StarLegend, StarReading, useSky: useSky2 } = createStarMap(React, { STYLE, IconButton });
     const sessions = /* @__PURE__ */ new Map();
     const stateFor = (sessionId) => {
       if (!sessions.has(sessionId)) sessions.set(sessionId, {});
@@ -74730,6 +75827,10 @@ ${details}`;
       const visibleNodes = useMemo(() => projection.nodes.filter((row) => !hidden(row)), [projection, pathways, stage]);
       const visibleKeys = useMemo(() => new Set(visibleNodes.map((row) => row.key)), [visibleNodes]);
       const visibleEdges = useMemo(() => projection.edges.filter((edge) => visibleKeys.has(edge.source) && visibleKeys.has(edge.target)), [projection, visibleKeys]);
+      const forest = useSky2() === "forest";
+      const starLayout = useMemo(() => view === "stars" ? (forest ? routeForestLayout : routeStarLayout)(projection.nodes, projection.edges) : null, [projection, view, forest]);
+      const courseStar = (row) => ({ key: row.key, title: row.title, kind: "course", hint: row.hint, light: { role: row.role, savedAt: row.node?.summary?.savedAt ?? null }, node: row.node });
+      const starNodes = useMemo(() => visibleNodes.map(courseStar), [visibleNodes]);
       const lanes = useMemo(() => routeLanes(visibleNodes), [visibleNodes]);
       const railRows = useMemo(() => (state.data?.routes ?? []).map((entry) => ({ route: entry, summary: routeRailSummary(entry, state.data?.nodes) })), [state.data]);
       const item = byKey.get(selected);
@@ -74859,7 +75960,7 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
         h(
           "div",
           { className: "nv-route-views", role: "group", "aria-label": "\u8DEF\u7EBF\u89C6\u56FE" },
-          [["list", "\u8BFE\u7A0B\u5217\u8868"], ["graph", "\u56FE\u8C31"]].map(([id2, label]) => h("button", {
+          [["list", "\u8BFE\u7A0B\u5217\u8868"], ["graph", "\u56FE\u8C31"], ["stars", forest ? "\u68EE\u6797" : "\u661F\u56FE"]].map(([id2, label]) => h("button", {
             key: id2,
             type: "button",
             "aria-pressed": view === id2,
@@ -74973,6 +76074,7 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
           ),
           h("h2", null, lesson.title),
           h("p", { style: STYLE.path }, route.title || route.path),
+          view === "stars" && item && h(StarReading, { star: courseStar(item) }),
           // 课序、先修、条件分支 keep three different sentences: a 先修 list is
           // knowledge to have, and never a lock on opening this lesson.
           parent && h("p", { style: STYLE.notice }, "\u63A5\u7EED\uFF1A", h("button", { className: "nv-link", style: STYLE.link, onClick: () => select(parent) }, parent.title)),
@@ -75077,7 +76179,7 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
           )
         );
       };
-      const percent2 = (count2, total) => total ? `${Math.round(count2 / total * 100)}%` : "0";
+      const percent3 = (count2, total) => total ? `${Math.round(count2 / total * 100)}%` : "0";
       const rail = railRows.length ? h(
         "nav",
         { className: "nv-route-rail", "aria-label": "\u8DEF\u7EBF\u5217\u8868" },
@@ -75098,8 +76200,8 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
           h(
             "span",
             { className: "nv-route-progress", "aria-hidden": true },
-            h("i", { "data-part": "logged", style: { width: percent2(row.summary.logged, row.summary.total) } }),
-            h("i", { "data-part": "opened", style: { width: percent2(row.summary.opened, row.summary.total) } })
+            h("i", { "data-part": "logged", style: { width: percent3(row.summary.logged, row.summary.total) } }),
+            h("i", { "data-part": "opened", style: { width: percent3(row.summary.opened, row.summary.total) } })
           )
         ))
       ) : null;
@@ -75143,7 +76245,20 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
           detailPane
         )
       );
-      const legend = h(
+      const starsLayout = h(
+        React.Fragment,
+        null,
+        overviewBlock,
+        filters,
+        logBlock,
+        h(
+          "div",
+          { ref: root, className: "nv-graph-layout", "data-detail": !!lesson, style: { "--nv-pane-width": paneWidth + "px", position: "relative" } },
+          emptyState ?? h(StarMap, { nodes: starNodes, edges: visibleEdges, layout: starLayout, selected, state: store, fitKey: `${route?.path ?? ""}|${pathways.join(",")}|${stage}`, nodeName: "\u8DEF\u7EBF\u8282\u70B9", label: forest ? "\u8BFE\u7A0B\u68EE\u6797" : "\u8BFE\u7A0B\u661F\u56FE", onSelect: (node) => select(byKey.get(node.key)) }),
+          detailPane
+        )
+      );
+      const legend = view === "stars" ? h(StarLegend, { mode: "course" }) : h(
         "div",
         { className: "nv-legend" },
         Object.entries(LESSON_ROLES).map(([role, label]) => h("span", { key: role }, h("svg", { width: 24, height: 26, viewBox: "-20 -20 40 40", "aria-hidden": true }, h(NodeMark, { role })), label)),
@@ -75160,6 +76275,7 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
         { className: "nv-views", style: STYLE.page },
         h("style", null, ROUTE_CSS),
         h("style", null, CANVAS_CSS),
+        h("style", null, STAR_CSS),
         h(
           "header",
           { className: "nv-view-top" },
@@ -75167,7 +76283,7 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
           tools,
           h("span", { role: "status", style: { ...STYLE.notice, marginLeft: "auto" } }, status)
         ),
-        view === "list" ? listLayout : graphLayout,
+        view === "list" ? listLayout : view === "stars" ? starsLayout : graphLayout,
         legend,
         creating && h(
           Dialog,
@@ -76017,14 +77133,14 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
         }
         return null;
       };
-      const active = data2?.layers.find((layer2) => layer2.id === layerId) ?? data2?.layers[0];
+      const active = data2?.layers.find((layer3) => layer3.id === layerId) ?? data2?.layers[0];
       React.useEffect(() => {
         if (active && active.id !== layerId) setLayerId(active.id);
       }, [active?.id, layerId]);
       const disabled = busy || !data2 || data2.stale || referenceStale;
       const current2 = data2?.annotations.find((mark) => mark.id === selection?.annotationId);
       const overlay = data2 && !data2.stale ? data2.annotations.filter((mark) => mark.page === page && !hidden.has(mark.layerId)).map((mark) => {
-        const color = PDF_MARK_COLORS[data2.layers.find((layer2) => layer2.id === mark.layerId)?.color] ?? PDF_MARK_COLORS.yellow;
+        const color = PDF_MARK_COLORS[data2.layers.find((layer3) => layer3.id === mark.layerId)?.color] ?? PDF_MARK_COLORS.yellow;
         return h("button", { key: mark.id, type: "button", "data-annotation": mark.id, "aria-label": mark.note || `\u7B2C ${mark.page} \u9875\u9AD8\u4EAE`, title: mark.note || "\u67E5\u770B\u6807\u6CE8", onPointerDown: (event) => event.stopPropagation(), onClick: (event) => {
           event.stopPropagation();
           pick(mark);
@@ -76036,16 +77152,16 @@ ${briefBody}`.matchAll(/!\[\[([^\]\n]+)\]\]/g)].map((match) => parseMediaTarget(
         h("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between" } }, h("span", null, "\u56FE\u5C42\u4E0E\u6807\u6CE8"), h(IconButton, { icon: "close", label: "\u6536\u8D77\u6807\u6CE8\u9762\u677F", onClick: () => setPanel(false) })),
         error && h("p", { role: "alert", style: STYLE.notice }, error),
         data2?.stale && h("p", { role: "alert", style: STYLE.notice }, "PDF \u5DF2\u66F4\u65B0\uFF0C\u65E7\u6807\u6CE8\u6682\u4E0D\u53E0\u52A0\u3002\u8BF7\u6838\u5BF9\u539F\u6587\u4EF6\u7248\u672C\u3002"),
-        !data2 ? h("p", null, "\u6B63\u5728\u8BFB\u53D6\u6807\u6CE8\u2026") : data2.layers.map((layer2) => h(
+        !data2 ? h("p", null, "\u6B63\u5728\u8BFB\u53D6\u6807\u6CE8\u2026") : data2.layers.map((layer3) => h(
           "div",
-          { key: layer2.id, style: { display: "flex", alignItems: "center", gap: 6, marginTop: 8 } },
-          h("input", { type: "checkbox", "aria-label": "\u663E\u793A\u56FE\u5C42 " + layer2.name, checked: !hidden.has(layer2.id), onChange: (event) => setHidden((previous) => {
+          { key: layer3.id, style: { display: "flex", alignItems: "center", gap: 6, marginTop: 8 } },
+          h("input", { type: "checkbox", "aria-label": "\u663E\u793A\u56FE\u5C42 " + layer3.name, checked: !hidden.has(layer3.id), onChange: (event) => setHidden((previous) => {
             const next = new Set(previous);
-            event.target.checked ? next.delete(layer2.id) : next.add(layer2.id);
+            event.target.checked ? next.delete(layer3.id) : next.add(layer3.id);
             return next;
           }) }),
-          h("button", { style: { ...STYLE.link, flex: 1, textAlign: "left", color: PDF_MARK_COLORS[layer2.color], textDecoration: layerId === layer2.id ? "underline" : "none" }, "aria-pressed": layerId === layer2.id, onClick: () => setLayerId(layer2.id) }, layer2.name),
-          h(IconButton, { icon: "trash", label: "\u5220\u9664\u7A7A\u56FE\u5C42 " + layer2.name, disabled: disabled || data2.layers.length === 1 || data2.annotations.some((mark) => mark.layerId === layer2.id), onClick: () => mutate({ action: "remove-layer", layerId: layer2.id }) })
+          h("button", { style: { ...STYLE.link, flex: 1, textAlign: "left", color: PDF_MARK_COLORS[layer3.color], textDecoration: layerId === layer3.id ? "underline" : "none" }, "aria-pressed": layerId === layer3.id, onClick: () => setLayerId(layer3.id) }, layer3.name),
+          h(IconButton, { icon: "trash", label: "\u5220\u9664\u7A7A\u56FE\u5C42 " + layer3.name, disabled: disabled || data2.layers.length === 1 || data2.annotations.some((mark) => mark.layerId === layer3.id), onClick: () => mutate({ action: "remove-layer", layerId: layer3.id }) })
         )),
         h(
           "form",
@@ -76329,9 +77445,234 @@ body[data-notara-ui=modern] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) 
 [data-notara-ui=modern] .nv-link{color:var(--dsw-alias-label-secondary);text-decoration:none}
 [data-notara-ui=modern] .nv-link:hover{color:var(--dsw-alias-label-primary);text-decoration:underline;text-underline-offset:3px}
 [data-notara-ui=modern] :is(.nv-workspace,.nv-sidebar) button:focus-visible{outline:2px solid var(--dsw-alias-label-tertiary);outline-offset:2px}
+.nv-appearance{display:grid;gap:8px;max-width:520px}
+.nv-appearance-option{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--dsw-alias-border-l1);border-radius:var(--nv-r-md,10px);cursor:pointer;background:var(--dsw-alias-bg-layer-1)}
+.nv-appearance-option[data-selected=true]{border-color:var(--dsw-alias-border-l4);background:var(--dsw-alias-bg-layer-2)}
+.nv-appearance-option input{margin:3px 0 0;accent-color:var(--dsw-alias-label-primary)}
+.nv-appearance-option span{display:grid;gap:2px}
+.nv-appearance-option b{font-size:13px;font-weight:500}
+.nv-appearance-option small{font-size:12px;color:var(--dsw-alias-label-secondary)}
 `;
 
-  // examples/native-vault/modern-theme.js
+  // examples/native-vault/notebook-theme.css
+  var notebook_theme_default = `/* \u624B\u5E10 (docs/ui/notara-frontend-redesign.md \xA75.4) over the minimal layout.
+   Everything is scoped to body[data-notara-style=notebook]: the minimal
+   structure, containers and control sizes stay the base, this layer only
+   repaints paper, ink, notes, tape and marks. Colours come from the token
+   layer (theme-tokens.js), so light and dark need no second selector set.
+   Rotation is decoration only; it never moves a coordinate-laid element. */
+@font-face{font-family:"Notara WenKai";src:url("/notara/vault/fonts/wenkai.woff2") format("woff2");font-weight:400;font-display:swap}
+
+body[data-notara-style=notebook]{
+  --nv-r-sm:3px;--nv-r-md:4px;--nv-r-lg:6px;--nv-r-xl:8px;--nv-control-radius:4px;--nv-card-radius:6px;--nv-input-radius:8px;
+  --nv-shadow-sm:var(--nb-shadow-1);--nv-shadow-md:var(--nb-shadow-2);--nv-shadow-lg:0 18px 48px rgba(60,45,15,.22);
+  --nv-thumb:var(--nb-hl);--nv-focus:color-mix(in srgb,var(--nb-accent) 22%,transparent);
+  --nb-lines:repeating-linear-gradient(to bottom,transparent 0 31px,var(--nb-rule) 31px 32px);
+  --nb-scribble:3px 12px 4px 14px/12px 3px 14px 4px;
+  --nb-note-shadow:0 2px 6px rgba(90,70,30,.16);
+  letter-spacing:.02em;
+}
+body[data-notara-style=notebook][data-ds-dark-theme]{--nv-shadow-lg:0 18px 48px rgba(0,0,0,.5);--nb-note-shadow:0 2px 6px rgba(0,0,0,.35)}
+body[data-notara-style=notebook] ::selection{background:var(--nb-hl)}
+body[data-notara-style=notebook] :is(.nv-workspace,.nv-sidebar,.nv-dialog,.nv-menu) :is(button,input,select,textarea){letter-spacing:inherit}
+body[data-notara-style=notebook] .nv-workspace button{font-weight:400}
+/* Formulas, code and originals keep their own faces. */
+body[data-notara-style=notebook] :is(code,pre,kbd,samp,.katex,.cm-editor .cm-line code){font-family:ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:0}
+body[data-notara-style=notebook] .katex{font-family:KaTeX_Main,"Times New Roman",serif}
+
+/* ---- \u4FA7\u680F\uFF1A\u7EBF\u5708\u672C\u7684\u88C5\u8BA2\u5B54\u3001\u5370\u7AE0\u3001\u4FBF\u7B7E ---- */
+body[data-notara-style=notebook] .pI_x6G_sidebarCol{border-right-color:transparent}
+body[data-notara-style=notebook] .nv-sidebar{border-radius:6px;border-color:var(--dsw-alias-border-l2);padding-right:26px;font-size:15px;box-shadow:var(--nb-shadow-1);
+  background-color:var(--dsw-specific-sidebar-fill);
+  background-image:radial-gradient(circle at calc(100% - 11px) 50%,var(--nb-hole) 0 3.5px,var(--dsw-alias-border-l2) 4px 4.8px,transparent 5.2px);background-size:100% 28px}
+body[data-notara-style=notebook] .nv-sidebar[data-collapsed=true]{padding-right:4px;background-image:none}
+body[data-notara-style=notebook] .nv-sidebar-brand{font-size:17px;font-weight:400}
+body[data-notara-style=notebook] .nv-brand-mark{border:1.6px solid var(--nb-seal);border-radius:50%;color:var(--nb-seal);background:transparent;transform:rotate(-8deg);font-size:14px}
+body[data-notara-style=notebook] .nv-new-lesson{min-height:40px;background:var(--nb-note);border-radius:2px;box-shadow:var(--nb-note-shadow);transform:rotate(-.8deg);font-size:16px;font-weight:400;transition:transform .14s,color .14s}
+body[data-notara-style=notebook] .nv-new-lesson:hover{background:var(--nb-note);color:var(--nb-accent);transform:rotate(0)}
+body[data-notara-style=notebook] :is(.nv-nav-button,.nv-session-row){font-size:15px}
+body[data-notara-style=notebook] :is(.nv-nav-button,.nv-session-row)[aria-current=page]{background:var(--nb-hl);color:var(--dsw-alias-label-primary)!important;border-radius:var(--nb-scribble)}
+body[data-notara-style=notebook] .nv-sidebar-label{font-size:13px}
+body[data-notara-style=notebook] .nv-session-row time{font-size:12px}
+body[data-notara-style=notebook] .nv-directory-button{border-style:dashed;border-color:var(--dsw-alias-border-l3);background:transparent}
+body[data-notara-style=notebook] .nv-directory-button>span:first-of-type{font-size:14px}
+body[data-notara-style=notebook] .nv-sidebar-foot{font-size:14px}
+
+/* ---- \u9875\u9762\u6807\u9898\u4E0E\u5206\u6BB5\u63A7\u4EF6\uFF1A\u8367\u5149\u7B14\u6807\u51FA\u9009\u4E2D ---- */
+body[data-notara-style=notebook] .nv-shell-heading{background:var(--dsw-alias-bg-base);border-bottom-color:var(--dsw-alias-border-l2)}
+body[data-notara-style=notebook] .nv-shell-heading h1{font-size:22px;font-weight:400;letter-spacing:.04em}
+body[data-notara-style=notebook] .nv-workspace :is(h1,h2,h3){letter-spacing:.02em}
+body[data-notara-style=notebook] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views){background:transparent;padding:0;gap:4px}
+body[data-notara-style=notebook] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) button{height:30px;padding:0 12px;border-radius:3px;font-size:15px;font-weight:400}
+body[data-notara-style=notebook] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) button:hover{background:var(--dsw-alias-interactive-bg-hover)}
+body[data-notara-style=notebook] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) button:is([aria-selected=true],[aria-pressed=true]){background:var(--nb-hl);color:var(--dsw-alias-label-primary);box-shadow:none;border-radius:var(--nb-scribble)}
+body[data-notara-style=notebook] .nv-workspace-tabs button{font-size:15px;font-weight:400}
+body[data-notara-style=notebook] .nv-workspace-tabs button:is([aria-selected=true],[aria-pressed=true]){background:var(--nb-hl);border-radius:var(--nb-scribble)}
+
+/* ---- \u63A7\u4EF6\uFF1A\u7EC6\u7EBF\u3001\u5C0F\u5706\u89D2 ---- */
+body[data-notara-style=notebook] .nv-quiet{border:1px solid var(--dsw-alias-border-l3);background:var(--nb-card);font-size:15px;font-weight:400;border-radius:4px}
+body[data-notara-style=notebook] .nv-quiet:not(:disabled):hover{background:var(--dsw-alias-interactive-bg-hover)}
+body[data-notara-style=notebook] .nv-menu .nv-quiet{border:0}
+body[data-notara-style=notebook] .nv-link{color:var(--nb-accent);text-decoration:underline dotted var(--dsw-alias-border-l3);text-underline-offset:4px}
+body[data-notara-style=notebook] .nv-link:hover{text-decoration-color:currentColor}
+body[data-notara-style=notebook] :is(.nv-workspace,.nv-dialog,.nv-sidebar) :is(select,input:is([type=text],[type=search],[type=date],[type=number],:not([type])),textarea):not(.cm-editor *,[data-composer-card] *,.nb-board *){border-radius:3px;border-color:var(--dsw-alias-border-l3);background-color:var(--nb-card);font-size:15px}
+body[data-notara-style=notebook] :is(.nv-workspace,.nv-dialog,.nv-sidebar) :is(select,input,textarea):not(.cm-editor *,[data-composer-card] *,.nb-board *):focus{border-color:var(--nb-accent)}
+body[data-notara-style=notebook] input:is([type=checkbox],[type=radio]){accent-color:var(--nb-accent)}
+body[data-notara-style=notebook] :is(.nv-workspace,.nv-sidebar,.nv-dialog) :is(button,a,input,select,textarea,summary):focus-visible{outline:2px solid var(--nb-seal);outline-offset:3px}
+
+/* ---- \u6D6E\u5C42 ---- */
+body[data-notara-style=notebook] :is(.nv-menu,.nv-popover-panel){background:var(--nb-card);border-color:var(--dsw-alias-border-l2);border-radius:8px}
+body[data-notara-style=notebook] :is(.nv-menu,.nv-popover-panel) button{font-size:15px;border-radius:3px}
+body[data-notara-style=notebook] .nv-dialog>section{background:var(--nb-card);border-color:var(--dsw-alias-border-l2);border-radius:6px}
+body[data-notara-style=notebook] .VOzbGW_panel{border-radius:8px;background:var(--nb-card);border-color:var(--dsw-alias-border-l2)}
+body[data-notara-style=notebook] .VOzbGW_nav{background:var(--dsw-specific-sidebar-fill)}
+body[data-notara-style=notebook] .VOzbGW_navTitle{font-size:17px;font-weight:400}
+body[data-notara-style=notebook] .VOzbGW_navCell{font-size:15px;border-radius:3px}
+body[data-notara-style=notebook] .VOzbGW_navCell.VOzbGW_active{background:var(--nb-hl);border-radius:var(--nb-scribble);font-weight:400}
+body[data-notara-style=notebook] .nv-appearance-option{border-radius:4px;background:var(--nb-card)}
+body[data-notara-style=notebook] .nv-appearance-option[data-selected=true]{background:var(--nb-hl);border-color:var(--dsw-alias-border-l3)}
+body[data-notara-style=notebook] .nv-appearance-option b{font-size:15px;font-weight:400}
+body[data-notara-style=notebook] .nv-appearance-option small{font-size:14px}
+
+/* ---- \u9996\u9875\uFF1A\u6CE2\u6D6A\u7EBF\u6807\u9898\u3001\u7EB8\u9762\u8F93\u5165\u3001\u8D34\u80F6\u5E26\u7684\u4FBF\u7B7E ---- */
+body[data-notara-style=notebook] .nv-today{background-color:var(--dsw-alias-bg-base);background-image:var(--nb-lines);background-attachment:local}
+body[data-notara-style=notebook] .nv-home{font-size:16px}
+body[data-notara-style=notebook] .nv-home-welcome time{font-size:14px}
+body[data-notara-style=notebook] .nv-home-welcome h1{display:inline-block;font-size:clamp(22px,4cqw,30px);font-weight:400;letter-spacing:.04em;text-decoration:underline wavy var(--nb-wave);text-decoration-thickness:1.5px;text-underline-offset:10px}
+body[data-notara-style=notebook] .nv-home .wSkVaW_root[data-phase=hero] [data-composer-card],body[data-notara-style=notebook] .wSkVaW_root[data-phase=hero] [data-composer-card]{background:var(--nb-card);border:1.5px solid var(--dsw-alias-label-caption);border-radius:6px 14px 8px 16px/14px 6px 16px 8px;box-shadow:3px 3px 0 var(--dsw-alias-border-l1)}
+body[data-notara-style=notebook] .wSkVaW_root[data-phase=hero] [data-composer-card]:focus-within{border-color:var(--nb-accent)}
+body[data-notara-style=notebook] .wSkVaW_root[data-phase=hero] [data-composer-input]{font-size:17px;line-height:32px}
+body[data-notara-style=notebook] .nv-home-agenda h2{font-size:14px}
+body[data-notara-style=notebook] .nv-home-controls>span{font-size:13px}
+body[data-notara-style=notebook] .nv-home-ticker{overflow:visible;padding-top:10px}
+body[data-notara-style=notebook] .nv-home-task{position:relative;background:var(--nb-note);border-radius:2px;box-shadow:var(--nb-note-shadow);transform:rotate(-.35deg);padding:14px 16px}
+body[data-notara-style=notebook] .nv-home-task::before{content:'';position:absolute;top:-9px;left:50%;width:84px;height:18px;transform:translateX(-50%) rotate(-2.5deg);background:var(--nb-tape);pointer-events:none}
+body[data-notara-style=notebook] .nv-home-task:hover{background:var(--nb-note);transform:rotate(0)}
+body[data-notara-style=notebook] .nv-home-task-text strong{font-size:16px;font-weight:400}
+body[data-notara-style=notebook] .nv-home-task-text small{font-size:14px}
+body[data-notara-style=notebook] .nv-home-task-action{font-size:14px;color:var(--nb-accent)}
+body[data-notara-style=notebook] .nv-home-empty{font-size:14px}
+
+/* ---- \u8BFE\u5802\uFF1A\u9876\u680F\u3001\u6A2A\u7EBF\u5BF9\u8BDD\u7EB8\u3001\u5B66\u751F\u4FBF\u7B7E ---- */
+body[data-notara-style=notebook] .nv-class-topbar{background:var(--dsw-alias-bg-base);border-bottom-color:var(--dsw-alias-border-l2)}
+body[data-notara-style=notebook] .nv-class-native :is(.wSkVaW_crumbs,.wSkVaW_crumbCurrent){font-size:16px;font-weight:400}
+body[data-notara-style=notebook] .nv-lesson-entry h1{font-weight:400;letter-spacing:.04em}
+body[data-notara-style=notebook] .nv-lesson-entry-lead{font-size:14px}
+body[data-notara-style=notebook] .nv-lesson-entry-options{font-size:14px}
+/* The page is plain paper with a red margin line. The teacher's reply carries
+   its own rules at a fixed 32px line, so every written line sits on one no
+   matter what process rows, tool rows or turn tails sit between replies. */
+body[data-notara-style=notebook] [data-conversation-scroll]{--dsh-content-font-size:16px;background-color:var(--dsw-alias-bg-base);
+  background-image:linear-gradient(to right,transparent 40px,var(--nb-margin) 40px 41px,transparent 41px);background-attachment:local}
+body[data-notara-style=notebook] .hWmORq_body{font-size:16px;line-height:32px}
+/* Each text block rules its own lines from its own top, so a display formula,
+   table or tall inline formula never shifts the lines of the next block. The
+   blank line between blocks is padding, so it is ruled too. */
+body[data-notara-style=notebook] .hWmORq_body :is(p,ul,ol,h1,h2,h3,h4,h5,h6){margin:0;padding-bottom:32px;line-height:32px;background-image:linear-gradient(to bottom,transparent 0 25px,var(--nb-rule) 25px 26px,transparent 26px);background-size:100% 32px}
+body[data-notara-style=notebook] .hWmORq_body :is(li,li p){line-height:32px;margin:0;padding-bottom:0;background:none}
+body[data-notara-style=notebook] .hWmORq_body :is(h1,h2,h3,h4,h5,h6){font-size:18px;line-height:32px;font-weight:600}
+body[data-notara-style=notebook] .hWmORq_body :is(blockquote,table,pre,.katex-display,hr){margin:0 0 32px}
+/* The native markdown wrapper sets its own 24px line; the blocks carry 32px themselves. */
+body[data-notara-style=notebook] .hWmORq_body :is(p,ul,ol,h1,h2,h3,h4,h5,h6,blockquote,table,pre,.katex-display,hr):last-child{margin-bottom:0;padding-bottom:0}
+body[data-notara-style=notebook] .hWmORq_body :is(pre,table,blockquote){background-color:var(--nb-card)}
+body[data-notara-style=notebook] .Sixlwa_bubble{background:var(--nb-note);border-radius:2px;box-shadow:var(--nb-note-shadow);transform:rotate(.6deg);font-size:16px;line-height:30px}
+body[data-notara-style=notebook] .wSkVaW_root:not([data-phase=hero]) [data-composer-card]{background:var(--nb-card);border:1.5px solid var(--dsw-alias-label-caption);border-radius:6px 12px 7px 14px/12px 6px 14px 7px;box-shadow:2px 2px 0 var(--dsw-alias-border-l1)}
+body[data-notara-style=notebook] .nv-board-tool-row{font-size:14px}
+
+/* ---- \u8D44\u6599\u5E93\uFF1A\u6587\u4EF6\u3001\u7D22\u5F15\u5361\u3001\u8D34\u7EB8\u56FE\u8C31\u3001\u7EB8\u4E0A\u7684\u68EE\u6797 ---- */
+body[data-notara-style=notebook] .nv-file-rail button[aria-current=true]{background:var(--nb-hl)!important;border-radius:var(--nb-scribble)!important;color:var(--dsw-alias-label-primary)!important}
+body[data-notara-style=notebook] .nv-file-rail :is(button,summary){font-size:14px!important}
+body[data-notara-style=notebook] .nv-document article{font-size:16px}
+body[data-notara-style=notebook] .nv-card{background:var(--nb-card);border-color:var(--dsw-alias-border-l2);border-top:3px solid var(--nb-margin);border-radius:2px;box-shadow:var(--nb-shadow-1);transition:transform .14s}
+body[data-notara-style=notebook] .nv-card-grid>.nv-card:nth-child(3n+1){transform:rotate(-.4deg)}
+body[data-notara-style=notebook] .nv-card-grid>.nv-card:nth-child(3n+2){transform:rotate(.35deg)}
+body[data-notara-style=notebook] .nv-card-grid>.nv-card:hover{transform:translateY(-2px)}
+body[data-notara-style=notebook] .nv-card h3{font-size:17px;font-weight:600}
+body[data-notara-style=notebook] .nv-card p{font-size:15px}
+body[data-notara-style=notebook] .nv-card-kind{background:var(--nb-note-blue);border-radius:3px;font-size:13px}
+body[data-notara-style=notebook] :is(.nv-card-review,.nv-card-source){font-size:13px}
+body[data-notara-style=notebook] :is(.nv-card-filters,.nv-review-filters,.nv-calendar-modes) button{font-size:14px;border-radius:3px}
+body[data-notara-style=notebook] :is(.nv-card-filters,.nv-review-filters,.nv-calendar-modes) button[aria-pressed=true]{background:var(--nb-hl);color:var(--dsw-alias-label-primary);border-radius:var(--nb-scribble)}
+body[data-notara-style=notebook] .nv-tag-filter-list>button{font-size:13px;border-radius:3px;background:var(--nb-card);border:1px solid var(--dsw-alias-border-l1)}
+body[data-notara-style=notebook] .nv-tag-filter-list>button[aria-pressed=true]{background:var(--nb-hl);border-color:transparent}
+body[data-notara-style=notebook] .nv-tag-group{border-radius:4px;border-style:dashed;background:var(--nb-card)}
+body[data-notara-style=notebook] .nv-graph-board{background-color:var(--dsw-alias-bg-base);background-image:radial-gradient(var(--dsw-alias-border-l3) .8px,transparent .8px)}
+body[data-notara-style=notebook] .nv-graph-node{font-size:14px}
+body[data-notara-style=notebook] .nv-graph-node svg{filter:drop-shadow(0 1px 1.5px rgba(80,60,20,.28))}
+body[data-notara-style=notebook] .nv-graph-node span{text-shadow:0 0 3px var(--dsw-alias-bg-base),0 0 6px var(--dsw-alias-bg-base)}
+body[data-notara-style=notebook] .nv-graph-pane{background:var(--nb-card)}
+body[data-notara-style=notebook] .nv-graph-pane h2{font-size:20px;font-weight:600}
+body[data-notara-style=notebook] .nv-resize{background:var(--dsw-alias-border-l2)}
+body[data-notara-style=notebook] .nv-resize:hover{background:var(--nb-accent)}
+body[data-notara-style=notebook] .nv-legend{font-size:13px}
+body[data-notara-style=notebook] .nv-star-board[data-sky=forest]{background-color:var(--dsw-alias-bg-base);background-image:radial-gradient(var(--dsw-alias-border-l2) .8px,transparent .8px);background-size:22px 22px}
+body[data-notara-style=notebook] :is(.nv-star-board,.nv-star-legend)[data-sky=forest]{--nv-sky-edge:var(--dsw-alias-bg-layer-2)}
+body[data-notara-style=notebook] .nv-star-legend{font-size:14px}
+body[data-notara-style=notebook] .nv-star-legend small{font-size:13px}
+body[data-notara-style=notebook] .nv-star-reading{font-size:14px}
+body[data-notara-style=notebook] .nv-star-reading p{font-size:13px}
+
+/* ---- \u8BA1\u5212\uFF1A\u8D34\u80F6\u5E26\u7684\u8DEF\u7EBF\u4FBF\u7B7E\u3001\u7EA2\u7B14\u5708\u51FA\u7684\u4ECA\u5929 ---- */
+body[data-notara-style=notebook] .nv-route-rail{background:var(--dsw-specific-sidebar-fill)}
+body[data-notara-style=notebook] .nv-route-card{border-radius:3px;background:var(--nb-card)}
+body[data-notara-style=notebook] .nv-route-card[aria-current=true]{background:var(--nb-hl);border-color:transparent;box-shadow:none}
+body[data-notara-style=notebook] .nv-route-card b{font-size:16px;font-weight:400}
+body[data-notara-style=notebook] .nv-route-lane-head{font-size:14px}
+body[data-notara-style=notebook] .nv-route-node{background:var(--nb-note);border:0;border-radius:2px;box-shadow:var(--nb-note-shadow);transform:rotate(-.6deg);margin-top:14px}
+body[data-notara-style=notebook] .nv-route-node:nth-of-type(even){transform:rotate(.7deg)}
+body[data-notara-style=notebook] .nv-route-node::after{content:'';position:absolute;top:-8px;left:50%;width:48px;height:14px;background:var(--nb-tape);transform:translateX(-50%) rotate(2deg);pointer-events:none}
+body[data-notara-style=notebook] .nv-route-node:is([data-pathway=remedial],[data-pathway=extension]){background:var(--nb-note-blue);border:1.5px dashed var(--dsw-alias-border-l3)}
+body[data-notara-style=notebook] .nv-route-node[aria-pressed=true]{box-shadow:0 0 0 2px var(--nb-accent),0 4px 10px rgba(90,70,30,.2)}
+body[data-notara-style=notebook] .nv-route-node b{font-size:16px;font-weight:400}
+body[data-notara-style=notebook] .nv-route-node small{font-size:13px}
+body[data-notara-style=notebook] .nv-month-head{font-size:19px;font-weight:400}
+body[data-notara-style=notebook] .nv-month-day{font-size:16px;border-radius:4px}
+body[data-notara-style=notebook] .nv-month-day[aria-current=date]{box-shadow:none;font-weight:400;color:var(--nb-seal)}
+body[data-notara-style=notebook] .nv-month-day[aria-current=date]::before{content:'';position:absolute;left:50%;top:50%;width:34px;height:30px;margin:-17px 0 0 -17px;border:1.6px solid var(--nb-seal);border-radius:50% 44% 56% 47%;transform:rotate(-8deg);pointer-events:none}
+body[data-notara-style=notebook] .nv-month-day[aria-pressed=true]{background:var(--nb-hl);color:var(--dsw-alias-label-primary)}
+body[data-notara-style=notebook] .nv-month-weekday{font-size:14px}
+body[data-notara-style=notebook] .nv-calendar-hint{font-size:13px}
+body[data-notara-style=notebook] .nv-review-row{font-size:15px}
+body[data-notara-style=notebook] .nv-review-row[aria-pressed=true]{background:var(--nb-hl);border-radius:var(--nb-scribble)}
+body[data-notara-style=notebook] .nv-review-row small{font-size:13px}
+body[data-notara-style=notebook] .nv-review-detail h2{font-size:20px}
+body[data-notara-style=notebook] .nv-review-history :is(summary,li){font-size:14px}
+
+/* ---- \u767D\u677F\uFF1A\u4E00\u5F20\u6D45\u8272\u6696\u7EB8\uFF0C\u4E24\u79CD\u6DF1\u6D45\u8272\u4E0B\u90FD\u4FDD\u6301\u6D45\u8272\uFF08\u677F\u4E66\u58A8\u8272\u662F\u56FA\u5B9A\u7684\uFF09 ---- */
+body[data-notara-style=notebook] .nb-board{background:#fbf7ee;color:#2e3548;font-family:"Notara WenKai","LXGW WenKai","Kaiti SC","STKaiti","KaiTi",serif;font-size:15px;letter-spacing:.02em}
+body[data-notara-style=notebook] .nb-head{border-bottom-color:#e4dbc6}
+body[data-notara-style=notebook] .nb-board button{background:#efe7d4;color:#5b5f70;border-radius:4px;font-size:15px}
+body[data-notara-style=notebook] .nb-board button:hover{background:#e6dcc5}
+body[data-notara-style=notebook] .nb-board button:focus-visible{outline-color:#c0392b}
+body[data-notara-style=notebook] .nb-tabs{background:transparent;padding:0;gap:4px}
+body[data-notara-style=notebook] .nb-tabs button{background:transparent;border-radius:3px;height:30px}
+body[data-notara-style=notebook] .nb-tabs button[aria-selected=true]{background:rgba(252,214,92,.5);color:#2e3548;box-shadow:none;border-radius:var(--nb-scribble)}
+body[data-notara-style=notebook] .nb-status{font-size:13px;color:#958f7e}
+body[data-notara-style=notebook] .nb-viewport{background-color:#fbf7ee;background-image:radial-gradient(#d8ccb0 .8px,transparent .8px)}
+body[data-notara-style=notebook] .nb-block{font-family:"Notara WenKai","Kaiti SC","STKaiti","KaiTi",serif;border-radius:4px}
+body[data-notara-style=notebook] .nb-block:hover{border-color:#e4dbc6}
+body[data-notara-style=notebook] .nb-block[data-stream=true]{border-color:#c2b594;border-style:dashed;background:#fffdf7b3}
+body[data-notara-style=notebook] :is(.nb-block h2,.nb-block h3,.nb-interactive-head strong){font-family:"Notara WenKai","Kaiti SC","STKaiti","KaiTi",serif;color:#2e3548}
+body[data-notara-style=notebook] .nb-block-tools{font:13px/1.3 "Notara WenKai","Kaiti SC",serif}
+body[data-notara-style=notebook] .nb-block .nb-source-link{background:none;color:#34589c;border-bottom-color:#c2b594}
+body[data-notara-style=notebook] .nb-edges path{stroke:#b9ab88}
+body[data-notara-style=notebook] .nb-edges text{fill:#7d7867;stroke:#fbf7ee;font-family:"Notara WenKai","Kaiti SC",serif}
+body[data-notara-style=notebook] .nb-toolbar{background:#fffdf7f2;border-color:#d2c6a9;border-radius:8px;box-shadow:0 6px 18px rgba(90,70,30,.14)}
+body[data-notara-style=notebook] .nb-toolbar button{background:transparent}
+body[data-notara-style=notebook] .nb-toolbar .nb-color{border-color:#fffdf7;outline-color:#d2c6a9}
+body[data-notara-style=notebook] .nb-sep{background:#e4dbc6}
+body[data-notara-style=notebook] .nb-notice{background:#f3eddf;color:#5b5f70;font-size:14px}
+body[data-notara-style=notebook] .nb-export{background:#fffdf7;border-color:#d2c6a9;border-radius:6px;box-shadow:0 6px 18px rgba(90,70,30,.14)}
+body[data-notara-style=notebook] .nb-live-label{font:13px "Notara WenKai","Kaiti SC",serif;color:#7d7867}
+body[data-notara-style=notebook] .nb-interactive{position:relative;background:#fffdf7;border-color:#d2c6a9;border-radius:3px;box-shadow:3px 3px 0 #e4dbc6;font-family:"Notara WenKai","Kaiti SC",serif}
+body[data-notara-style=notebook] .nb-interactive:not(.is-expanded)::before{content:'';position:absolute;top:-9px;left:28px;width:74px;height:18px;background:rgba(214,196,140,.55);transform:rotate(-4deg);pointer-events:none}
+body[data-notara-style=notebook] .nb-interactive-head small{font:13px "Notara WenKai","Kaiti SC",serif;color:#958f7e}
+body[data-notara-style=notebook] .nb-interactive-graph{background:#fbf7ee;border-color:#e4dbc6}
+
+@media(prefers-reduced-motion:reduce){body[data-notara-style=notebook] *{transition:none!important;animation:none!important}}
+`;
+
+  // examples/native-vault/theme-tokens.js
   var pairs = {
     "--dsw-alias-bg-base": ["#ffffff", "#15181d"],
     "--dsw-alias-bg-layer-1": ["#ffffff", "#1d2128"],
@@ -76363,16 +77704,97 @@ body[data-notara-ui=modern] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) 
     "--dsh-composer-primary-color": ["#343c46", "#edf0f4"]
   };
   var font = '"Helvetica Neue",Helvetica,"Hiragino Sans GB","PingFang SC","Noto Sans SC","Microsoft YaHei UI",Arial,sans-serif';
-  var MODERN_TOKENS = Object.fromEntries([...Object.entries(pairs).map(([name2, [light, dark]]) => [name2, { light, dark }]), ["--dsw-font-family", { light: font, dark: font }]]);
-  function installModernTheme(ctx) {
-    ctx.effect(() => ctx.theme.overrideTokens("@notara/vault-native", MODERN_TOKENS));
+  var layer2 = (entries) => Object.fromEntries(Object.entries(entries).map(([name2, [light, dark]]) => [name2, { light, dark }]));
+  var MODERN_TOKENS = { ...layer2(pairs), "--dsw-font-family": { light: font, dark: font } };
+  var NOTEBOOK_FONT_FAMILY = "Notara WenKai";
+  var hand = `"${NOTEBOOK_FONT_FAMILY}","LXGW WenKai","Kaiti SC","STKaiti","KaiTi",serif`;
+  var notebook = {
+    "--dsw-alias-bg-base": ["#fbf7ee", "#23211c"],
+    "--dsw-alias-bg-layer-1": ["#fffdf7", "#2a2822"],
+    "--dsw-alias-bg-layer-2": ["#f3eddf", "#2a2822"],
+    "--dsw-alias-bg-layer-3": ["#e6dcc5", "#39362e"],
+    "--dsw-alias-bg-module-platform": ["#f3eddf", "#2a2822"],
+    "--dsw-specific-sidebar-fill": ["#f3ecdb", "#1d1b17"],
+    "--dsw-specific-input-major": ["#fffdf7", "#2a2822"],
+    "--dsw-specific-selector": ["#f3eddf", "#2a2822"],
+    "--dsw-alias-interactive-bg-hover": ["#ece4d1", "#322f28"],
+    "--dsw-alias-interactive-bg-hover-solid": ["#ece4d1", "#322f28"],
+    "--dsw-alias-interactive-bg-active": ["#e6dcc5", "#39362e"],
+    "--dsw-alias-border-l1": ["#e4dbc6", "#3a362d"],
+    "--dsw-alias-border-l2": ["#d2c6a9", "#4a4539"],
+    "--dsw-alias-border-l3": ["#c2b594", "#5a5446"],
+    "--dsw-alias-border-l4": ["#ab9d7b", "#6b6453"],
+    "--dsw-alias-label-primary": ["#2e3548", "#ebe4d3"],
+    "--dsw-alias-label-secondary": ["#5b5f70", "#bdb5a2"],
+    "--dsw-alias-label-tertiary": ["#7d7867", "#a39b88"],
+    "--dsw-alias-label-caption": ["#958f7e", "#8c8575"],
+    "--dsw-alias-label-link": ["#34589c", "#9db4e8"],
+    "--dsw-alias-link": ["#34589c", "#9db4e8"],
+    "--dsw-alias-brand-primary": ["#34589c", "#9db4e8"],
+    "--dsw-alias-state-business-primary": ["#34589c", "#9db4e8"],
+    "--dsw-alias-button-info-fill": ["#efe7d4", "#2f2c25"],
+    "--dsw-alias-button-info-hover": ["#e6dcc5", "#39362e"],
+    // A student's message is a sticky note on the page.
+    "--dsw-specific-bubble": ["#fff3bf", "#4a4128"],
+    "--dsw-specific-bubble-highlight": ["#fbe9a0", "#554a2e"],
+    "--dsh-composer-primary-color": ["#34589c", "#9db4e8"],
+    // Paper, notes and marks the notebook stylesheet draws with.
+    "--nb-card": ["#fffdf7", "#2a2822"],
+    "--nb-note": ["#fff3bf", "#4a4128"],
+    "--nb-note-blue": ["#e6effb", "#28303d"],
+    "--nb-hl": ["rgba(252,214,92,.5)", "rgba(200,160,60,.28)"],
+    "--nb-tape": ["rgba(214,196,140,.55)", "rgba(160,140,90,.35)"],
+    "--nb-rule": ["#dde3ef", "#34373f"],
+    "--nb-margin": ["#f0c2bb", "#5a3531"],
+    "--nb-seal": ["#c0392b", "#ff9180"],
+    "--nb-accent": ["#34589c", "#9db4e8"],
+    "--nb-accent-soft": ["#e3e8f2", "#2c3346"],
+    "--nb-hole": ["#fbf7ee", "#23211c"],
+    "--nb-wave": ["#b0621a", "#f0b060"],
+    "--nb-shadow-1": ["0 1px 0 rgba(90,70,30,.08)", "0 1px 0 rgba(0,0,0,.3)"],
+    "--nb-shadow-2": ["0 6px 18px rgba(90,70,30,.14),0 1px 2px rgba(90,70,30,.1)", "0 6px 18px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.3)"]
+  };
+  var NOTEBOOK_TOKENS = { ...layer2(notebook), "--dsw-font-family": { light: hand, dark: hand } };
+  var themeTokens = (style) => style === "notebook" ? { ...MODERN_TOKENS, ...NOTEBOOK_TOKENS } : MODERN_TOKENS;
+
+  // examples/native-vault/modern-theme.js
+  function installModernTheme(ctx, appearance) {
+    const style = () => appearance?.getSnapshot().style ?? "minimal";
+    ctx.effect(() => {
+      let dispose = ctx.theme.overrideTokens("@notara/vault-native", themeTokens(style()));
+      const stop = appearance?.subscribe(() => {
+        dispose = ctx.theme.overrideTokens("@notara/vault-native", themeTokens(style()));
+      });
+      return () => {
+        stop?.();
+        dispose();
+      };
+    });
     ctx.effect(() => {
       const previous = document.body.getAttribute("data-notara-ui");
       document.body.setAttribute("data-notara-ui", "modern");
-      const style = document.createElement("style");
-      style.dataset.notaraTheme = "modern";
-      style.textContent = modern_theme_default;
-      document.head.append(style);
+      const sheet = document.createElement("style");
+      sheet.dataset.notaraTheme = "modern";
+      sheet.textContent = modern_theme_default;
+      document.head.append(sheet);
+      let paper = null;
+      const sync = () => {
+        const notebook2 = style() === "notebook";
+        if (notebook2 && !paper) {
+          paper = document.createElement("style");
+          paper.dataset.notaraTheme = "notebook";
+          paper.textContent = notebook_theme_default;
+          document.head.append(paper);
+        }
+        if (!notebook2 && paper) {
+          paper.remove();
+          paper = null;
+        }
+        if (notebook2) document.body.setAttribute("data-notara-style", "notebook");
+        else document.body.removeAttribute("data-notara-style");
+      };
+      sync();
+      const stop = appearance?.subscribe(sync);
       const timingHint = (event) => {
         const button = event.target.closest?.(".Q51KRG_trigger");
         if (button) button.title = button.querySelector(".Q51KRG_label")?.textContent ?? "";
@@ -76380,13 +77802,46 @@ body[data-notara-ui=modern] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) 
       document.addEventListener("pointerover", timingHint);
       document.addEventListener("focusin", timingHint);
       return () => {
+        stop?.();
         document.removeEventListener("pointerover", timingHint);
         document.removeEventListener("focusin", timingHint);
-        style.remove();
+        sheet.remove();
+        paper?.remove();
+        document.body.removeAttribute("data-notara-style");
         if (previous === null) document.body.removeAttribute("data-notara-ui");
         else document.body.setAttribute("data-notara-ui", previous);
       };
     });
+  }
+
+  // examples/native-vault/appearance-client.js
+  var APPEARANCE_KEY = "notara.vault.appearance";
+  var STYLES = ["minimal", "notebook"];
+  function createAppearance(storage = globalThis.localStorage) {
+    let stored = null;
+    try {
+      stored = storage?.getItem(APPEARANCE_KEY) ?? null;
+    } catch {
+      stored = null;
+    }
+    let value = { style: STYLES.includes(stored) ? stored : "minimal" };
+    const listeners = /* @__PURE__ */ new Set();
+    return {
+      getSnapshot: () => value,
+      subscribe(fn) {
+        listeners.add(fn);
+        return () => listeners.delete(fn);
+      },
+      setStyle(style) {
+        if (!STYLES.includes(style) || style === value.style) return;
+        value = { style };
+        try {
+          storage?.setItem(APPEARANCE_KEY, style);
+        } catch {
+        }
+        for (const fn of listeners) fn();
+      }
+    };
   }
 
   // examples/native-vault/home-queue.js
@@ -76810,7 +78265,7 @@ body[data-notara-ui=modern] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) 
     }
     return { Sidebar, Today };
   }
-  function installStudentProjection(ctx, React, navigation) {
+  function installStudentProjection(ctx, React, navigation, appearance) {
     let hidden = [], last2;
     const sync = () => {
       const debug = navigation.getSnapshot().debug;
@@ -76830,10 +78285,26 @@ body[data-notara-ui=modern] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) 
     });
     ctx.effect(() => ctx.slots.inject("settings.section", () => ctx.slots.register({ name: "settings.section", id: "notara.interface", order: 35, label: "\u5B66\u4E60\u754C\u9762" }, function InterfaceSettings() {
       const state = React.useSyncExternalStore(navigation.subscribe, navigation.getSnapshot);
+      const look = React.useSyncExternalStore(appearance?.subscribe ?? (() => () => {
+      }), appearance?.getSnapshot ?? (() => ({ style: "minimal" })));
+      const option = (style, label, note) => React.createElement(
+        "label",
+        { key: style, className: "nv-appearance-option", "data-selected": look.style === style },
+        React.createElement("input", { type: "radio", name: "notara-appearance", value: style, checked: look.style === style, onChange: () => appearance?.setStyle(style) }),
+        React.createElement("span", null, React.createElement("b", null, label), React.createElement("small", null, note))
+      );
       return React.createElement(
         "section",
         { style: { padding: "16px 0" } },
         React.createElement("h2", { style: { fontSize: 16, margin: "0 0 16px" } }, "\u5B66\u4E60\u754C\u9762"),
+        appearance && React.createElement(
+          "fieldset",
+          { className: "nv-appearance", style: { border: 0, padding: 0, margin: "0 0 22px" } },
+          React.createElement("legend", { style: { fontSize: 13, fontWeight: 500, marginBottom: 10 } }, "\u5916\u89C2"),
+          option("minimal", "\u6781\u7B80", "\u767D\u5E95\u6D45\u7070\uFF0C\u7CFB\u7EDF\u5B57\u4F53\u3002"),
+          option("notebook", "\u624B\u5E10", "\u7EB8\u5F20\u3001\u4FBF\u7B7E\u4E0E\u624B\u5199\u5B57\u4F53\uFF1B\u7B2C\u4E00\u6B21\u5207\u6362\u9700\u8981\u4E0B\u8F7D\u7EA6 7.6 MB \u7684\u5B57\u4F53\u3002"),
+          React.createElement("p", { style: { fontSize: 12, color: "var(--dsw-alias-label-secondary)", margin: "8px 0 0" } }, "\u53EA\u6539\u53D8\u8FD9\u53F0\u6D4F\u89C8\u5668\u4E0A\u7684\u5916\u89C2\uFF1B\u6DF1\u6D45\u8272\u4ECD\u8DDF\u968F\u539F\u751F\u7684\u5916\u89C2\u8BBE\u7F6E\u3002")
+        ),
         React.createElement(
           "label",
           { style: { display: "flex", alignItems: "center", gap: 10 } },
@@ -77731,6 +79202,7 @@ ${b2.body}${b2.interactiveScene ? `
       const { useCallback, useEffect, useMemo, useRef, useState } = React;
       const { Icon, IconButton, Menu, Dialog } = createVaultUI(React);
       const navigation = createVaultNavigation();
+      const appearance = createAppearance();
       const TodayEntry = createTodayEntry(React, { Icon });
       const LessonEntry = createLessonEntry(React, { Icon });
       const { Sidebar, Today } = createVaultShell(React, { navigation, Icon, IconButton, Dialog, TodayEntry });
@@ -78419,8 +79891,8 @@ ${content2}
             inject: ["slots", "remote.notaraVault", "inputTriggers", "conversation", "sessions", "theme", "layout", "uiWorkspace", "workspaces"],
             apply(scope) {
               console.info("notara-vault-native: apply");
-              installModernTheme(scope);
-              installStudentProjection(scope, React, navigation);
+              installModernTheme(scope, appearance);
+              installStudentProjection(scope, React, navigation, appearance);
               scope.effect(() => scope.slots.inject("conversation.hero.intro", () => scope.slots.register({
                 name: "conversation.hero.intro"
               }, LessonEntry)));

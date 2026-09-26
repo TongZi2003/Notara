@@ -10,13 +10,14 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { lstat, mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 const CLI = fileURLToPath(new URL('./vault-cli.js', import.meta.url));
+const exists = path => lstat(path).then(() => true, () => false);
 const assessments = [{ ability: '解释基底的作用', outcome: 'demonstrated' }];
 
 function run(argv, { input = '', env = {} } = {}) {
@@ -224,4 +225,44 @@ test('batch edit cannot overwrite a file changed between its read and native CAS
   assert.equal(result.savedCount, 0);
   assert.equal(result.results[0].error.code, 'vault_revision_conflict');
   assert.equal(await readFile(path, 'utf8'), external);
+});
+
+test('工作区根的外层资料不会移动资料根：CLI 仍读写 vault/', async t => {
+  const { root, revision } = await workspace(t);
+  await writeFile(join(root, 'README.md'), '# 工作区说明\n');
+  await mkdir(join(root, 'other'), { recursive: true });
+  const env = { DSH_NOTARA_WORKSPACE: root, DSH_NOTARA_WORKSPACE_ID: 'cli-legacy', DSH_SESSION_ID: 'cli-legacy-session', DSH_NOTARA_CALL_ID: 'cli-legacy-call' };
+
+  const queue = await run(['review-queue'], { env, input: '{"status":"all"}' });
+  assert.equal(queue.code, 0);
+  assert.deepEqual(queue.json.result.hits.map(hit => hit.path), ['卡片/基底.md']);
+
+  const recorded = await run(['record-review'], { env, input: JSON.stringify({ path: '卡片/基底.md', expectedRevision: revision, assessments, note: '旧布局仍读写 vault/。' }) });
+  assert.equal(recorded.code, 0);
+  assert.equal(recorded.json.result.actor, 'teacher');
+  assert.match(await readFile(join(root, 'vault', '卡片', '基底.md'), 'utf8'), /review_history:/);
+  assert.equal(await exists(join(root, '卡片')), false, '资料没有写进工作区根');
+});
+
+test('用户直接选中的资料目录即使残留旧版空 vault/ 也直接读写自己', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-vault-cli-direct-'));
+  t.after(async () => { const { rm } = await import('node:fs/promises'); await rm(root, { recursive: true, force: true }); });
+  const card = '---\ntype: card\ntitle: 基底\ntags: [math]\n---\n\n基底给出坐标语言。\n';
+  await mkdir(join(root, '卡片'), { recursive: true });
+  await writeFile(join(root, '卡片', '基底.md'), card);
+  // 旧版本在用户选中目录里留下的空 vault/ 与自动模板。
+  await mkdir(join(root, 'vault', '_templates'), { recursive: true });
+  await writeFile(join(root, 'vault', '_templates', 'card.md'), '# {{title}}\n');
+  const revision = createHash('sha256').update(card, 'utf8').digest('hex').slice(0, 24);
+  const env = { DSH_NOTARA_WORKSPACE: root, DSH_NOTARA_WORKSPACE_ID: 'cli-direct', DSH_SESSION_ID: 'cli-direct-session', DSH_NOTARA_CALL_ID: 'cli-direct-call' };
+
+  const queue = await run(['review-queue'], { env, input: '{"status":"all"}' });
+  assert.equal(queue.code, 0);
+  assert.deepEqual(queue.json.result.hits.map(hit => hit.path), ['卡片/基底.md']);
+  assert.equal(queue.json.result.workspaceId, 'cli-direct');
+
+  const recorded = await run(['record-review'], { env, input: JSON.stringify({ path: '卡片/基底.md', expectedRevision: revision, assessments, note: '直接目录记录。' }) });
+  assert.equal(recorded.code, 0);
+  assert.match(await readFile(join(root, '卡片', '基底.md'), 'utf8'), /review_history:/);
+  assert.equal(await exists(join(root, 'vault', '卡片')), false, '资料没有写进旧版误建的 vault/');
 });

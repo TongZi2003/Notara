@@ -1,8 +1,8 @@
 # Vault 工作流
 
-需要动文件、跑命令、查复习或看日历时读这份规范。工作区根是 `$DSH_NOTARA_WORKSPACE`，Vault 是它下面的 `vault/`：一个 Markdown 文件树，Markdown 是唯一事实源，没有数据库，也没有第二套账本。目录与结构是约定，不是权限：只能读写本次接入范围内的文件。
+需要动文件、跑命令、查复习或看日历时读这份规范。工作区由 `$DSH_NOTARA_WORKSPACE` 标识，当前资料根由 `$DSH_NOTARA_VAULT_ROOT` 注入；它可能是工作区本身，也可能是兼容旧布局的 `vault/` 子目录。Host 优先保留旧布局：`vault/` 里已有资料时始终读写它；只有用户选中的目录本身已经能看到 Markdown/媒体资料（在目录里，或在该目录的 `知识/`、`卡片/`、`媒体/`、`备课/`、`路线/`、`锦囊/`、`学情/`、`日记/`、`lesson_log/` 下）时，资料根才是这个目录本身。不要自己推断根，直接用注入的变量。Markdown 是唯一事实源，没有数据库，也没有第二套账本。目录与结构是约定，不是权限：只能读写本次接入范围内的文件。
 
-路径分两套，别混用：Bash 在工作区根执行，路径带 `vault/` 前缀（`vault/知识/向量.md`）；命令行的 `path`，以及 `open_learning_lesson` 的 `path`、`set_teaching_settings` 的 `scriptPath`，是 Vault 内相对路径、不带 `vault/`（`知识/向量.md`、`路线/学习路线.md`）。
+路径分两套，别混用：Bash 通过 `$DSH_NOTARA_VAULT_ROOT` 访问资料（如 `"$DSH_NOTARA_VAULT_ROOT/知识/向量.md"`）；命令行的 `path`，以及 `open_learning_lesson` 的 `path`、`set_teaching_settings` 的 `scriptPath`，都是资料根内相对路径、不带 `vault/`（`知识/向量.md`、`路线/学习路线.md`）。旧工作区需要显示兼容前缀时使用 `$DSH_NOTARA_VAULT_PREFIX`，不要手写固定前缀。
 
 Host 另提供只读教学资源目录 `$DSH_NOTARA_TEACHING`，它不属于学生 Vault。按需读取某份内置样例时，将实际资源索引中的相对路径接在此目录后；不能把这个路径当学生已有资料写入 `materials`。例如用 Bash 读取资源登记：
 
@@ -33,10 +33,10 @@ frontmatter 只支持扁平子集：单行标量、`[a, b]` 列表或单行 JSON
 
 ## 读写文件
 
-- 普通读写都用原生 Bash：找文件用 `ls`、`rg --files`，搜正文用 `rg`／`grep`，读原文用 `sed -n`、`cat`，看图用 `read_image`；多步可以接管道，例如先 `rg -l 不变区间 vault/知识` 缩小候选，再 `sed -n '1,80p'` 读候选正文。路径相对工作区根，带 `vault/` 前缀，如 `vault/知识/向量.md`、`vault/媒体/向量讲义.pdf`。
+- 普通读写都用原生 Bash：找文件用 `ls`、`rg --files`，搜正文用 `rg`／`grep`，读原文用 `sed -n`、`cat`，看图用 `read_image`；多步可以接管道，例如先 `rg -l 不变区间 "$DSH_NOTARA_VAULT_ROOT/知识"` 缩小候选，再 `sed -n '1,80p'` 读候选正文。资料路径相对于 `$DSH_NOTARA_VAULT_ROOT`，例如 `"$DSH_NOTARA_VAULT_ROOT/知识/向量.md"`、`"$DSH_NOTARA_VAULT_ROOT/媒体/向量讲义.pdf"`。
 - 没有单独的 read／write／edit／glob／grep 工具：普通读取直接用 shell，写 Vault Markdown 用 `write-batch` 命令（见“本地命令行”），新建用 `op: "create"`、局部精确替换用 `op: "edit"`。`echo >`、`cat >`、`sed -i` 这类直接改文件不经过 `write-batch` 的路径校验与 CAS，也不套用 write/edit 工具那种写保护，别当作等价写法。改已有文件前先读原文，保留不应改动的部分，尤其是程序写入的 frontmatter 字段。
 - 更新学生理解前读完整小节，在原有经历之后补充新的理解与证据；保留旧错、修正经过和提示程度，不以最新正确结论覆盖历史。可以另写有依据的当前概括，但仍保留演变记录。来源链接与日期沿用真实证据，未知不编；误转写或误归因可据证据更正并说明，不将记录错误当作学生真实经历。
-- 引用资料给真实标题；图片、PDF 放在 `媒体/` 下，用工作区相对路径（`vault/媒体/...`）在 Markdown 里引用。
+- 引用资料给真实标题；图片、PDF 放在 `媒体/` 下，用资料根相对路径（`媒体/...`）在 Markdown 里引用。
 - 保存前把要写入的内容讲清楚；写入服从原生沙箱与审批，完全权限下按原生允许直接执行，不再追加一轮对话确认。用户已经要求保存时不要再用对话二次确认。被拒绝就说还没保存，保存失败如实说明，不换别的路径绕开。Bash（包括 PDF 辅助命令与 `write-batch`）沿用原生沙箱与审批决定，不按命令内容另设分类，也不承诺每次写入都会弹窗。
 - `type: card` 的复习字段 `learned`、`mastery`、`interval`、`last_review`、`next_review`、`review_history` 由复习流程维护：普通读写必须原样保留，不能手改，也不能编造评估历史。
 - 新建题卡原则上一题一卡，页头 `tags`，正文仅 `## 内容` / `## 参考理解` / `## 学生理解`（与工作员共同规则里的“当任务要求卡片时”是同一份合同）。内容保留可检索的完整题干、必要图形和原文参考答案，公式用 LaTeX；理解与原文分开，没有学生表达就留空。具体质量流程见 `notara-material-outline`，不能继续套“结论/解释/例子”旧结构。
@@ -47,7 +47,9 @@ frontmatter 只支持扁平子集：单行标量、`[a, b]` 列表或单行 JSON
 Host 注入入口与身份，老师用原生 bash 在当前工作区执行；只使用这些环境变量，不自己拼 Node 路径、脚本位置或身份：
 
 - `DSH_NOTARA_NODE`、`DSH_NOTARA_CLI`：命令入口。
-- `DSH_NOTARA_WORKSPACE`：真实工作区根，`vault/` 在它下面；命令行的 `path` 相对 `vault/`。
+- `DSH_NOTARA_WORKSPACE`：真实工作区根。
+- `DSH_NOTARA_VAULT_ROOT`：当前资料根；Markdown、PDF、图片和其他资料都从这里读写。
+- `DSH_NOTARA_VAULT_PREFIX`：兼容旧布局的相对前缀，旧布局为 `vault/`，直接选择 Vault 文件夹时为空；不要自行猜测。
 - `DSH_NOTARA_WORKSPACE_ID`：这个工作区的注册 id。
 - `DSH_SESSION_ID`：本次原生课堂身份，由 Host 内建。
 - `DSH_NOTARA_CALL_ID`：本次调用的身份，用于幂等。
@@ -100,7 +102,7 @@ printf '%s' '{"path":"来自目录的 readPath","section":"section-2","expectedR
 命令行约定补充：
 
 - 只传内容参数：要读的路径与页码、卡片的能力评估与说明、目标标题，以及用户明确说出的排课日期这类教学内容。记录日期、记录 ID、会话与调用身份由命令和环境变量补齐，不由你传；命令拒绝某个字段就如实说明，不绕过也不编造。
-- 命令行的 `path` 是 Vault 内相对路径（相对 `vault/`，不带 `vault/` 前缀），如 `知识/向量.md`、`媒体/向量讲义.pdf`；换成 shell 路径时写成 `vault/知识/向量.md`（相对工作区根）。工具参数同理：`open_learning_lesson` 的 `path` 如 `路线/学习路线.md`，`set_teaching_settings` 的 `scriptPath` 如 `备课/剧本.md`。
+- 命令行的 `path` 是资料根内相对路径（不带 `vault/` 前缀），如 `知识/向量.md`、`媒体/向量讲义.pdf`；换成 shell 路径时拼接到 `"$DSH_NOTARA_VAULT_ROOT"`，不要固定写 `vault/`。工具参数同理：`open_learning_lesson` 的 `path` 如 `路线/学习路线.md`，`set_teaching_settings` 的 `scriptPath` 如 `备课/剧本.md`。
 - `record-review`、`undo-review`、`revise-route`、`schedule-lesson` 等要求 `expectedRevision` 的领域命令，用 `review-queue`、`calendar`、`route-outline`、`create-route`、`revise-route`、`lesson-outline` 返回的真实 `revision`，照抄，不自己算也不猜。过期就重新读取再试。`write-batch` 不收这个字段：edit核对已读原文唯一匹配后，由程序取当前revision提交保存。
 - `create-route` 是新建路线，不传 `expectedRevision`。卡片的第一次 `record-review` 若手里没有 `expectedRevision`，先用 `review-queue` 的 `status: all` 或 `pending` 取到这张已有卡的 `revision`。
 - 返回的路径、日期、记录 ID、`revision` 都是真实值，照抄引用；不自行拼路径、编日期或编号。

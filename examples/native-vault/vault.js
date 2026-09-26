@@ -2,11 +2,13 @@ import { createHash } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, lstat, realpath, unlink, writeFile, link, open, rm } from 'node:fs/promises';
+import { lstatSync, readdirSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { parseFrontmatter } from './frontmatter.js';
 import { mediaForPath } from './media.js';
 import { buildVaultGraph } from './graph.js';
+import { learningStars } from './mastery-data.js';
 
 const WIKI_LINK = /\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g;
 const HEADING = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
@@ -18,6 +20,60 @@ const TRASH_PAYLOAD = 'payload';
 /** Every id the trash hands out is a UUID, so an id is also a safe path segment. */
 const TRASH_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TRASH_META_VERSION = 1;
+
+const LEGACY_ROOT_DIRECTORY = 'vault';
+/** Auto-created scaffolding: on its own it never proves the legacy layout. */
+const LEGACY_ROOT_SCAFFOLDING = new Set(['_templates', 'node_modules']);
+/** Layout directories the teaching rules already reserve for material. */
+const MATERIAL_DIRECTORIES = ['知识', '卡片', '媒体', '备课', '路线', '锦囊', '学情', '日记', 'lesson_log'];
+
+const isMaterialFile = name => name.toLowerCase().endsWith('.md') || mediaForPath(name).kind !== 'file';
+
+/** True when this directory itself holds Markdown or media files (no recursion). */
+function holdsMaterial(directory) {
+  try {
+    return readdirSync(directory, { withFileTypes: true })
+      .some(entry => entry.isFile() && isMaterialFile(entry.name));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolve the workspace the user registered into its actual material root.
+ *
+ * Two layouts have to keep working. Older builds wrote every Markdown and PDF
+ * under a `vault/` child, while a folder the user selected as the Vault is the
+ * material root itself — but an older build still created an empty `vault/`
+ * (plus its `_templates/`) inside such a folder. Only the `vault/` child decides:
+ *
+ * - `vault/` holds anything but scaffolding -> legacy layout, keep reading it no
+ *   matter what sits beside it (`README.md`, a second workspace, ...), because
+ *   that is where the existing material already lives;
+ * - no `vault/` child, or a symlinked one -> the selected directory is the root;
+ * - empty or scaffolding-only `vault/` -> the selected directory is the root only
+ *   when material is already visible there, directly or inside one of the layout
+ *   directories (`知识/卡片/媒体/...`); otherwise the legacy `vault/` root is
+ *   kept, so an ambiguous empty workspace never moves paths written under it.
+ *
+ * Nothing is created here, so writing a new file never moves the root.
+ */
+export function resolveVaultRoot(workspacePath) {
+  const workspace = resolve(workspacePath);
+  const legacy = join(workspace, LEGACY_ROOT_DIRECTORY);
+  let entries;
+  try {
+    // lstat: a symlinked `vault/` is never followed, so it cannot redirect the
+    // material root outside the workspace the user registered.
+    if (!lstatSync(legacy).isDirectory()) return workspace;
+    entries = readdirSync(legacy, { withFileTypes: true });
+  } catch {
+    return workspace;
+  }
+  if (entries.some(entry => !LEGACY_ROOT_SCAFFOLDING.has(entry.name))) return legacy;
+  const direct = holdsMaterial(workspace) || MATERIAL_DIRECTORIES.some(name => holdsMaterial(join(workspace, name)));
+  return direct ? workspace : legacy;
+}
 
 let cachedTrashHost = null;
 
@@ -628,6 +684,9 @@ export function createVaultStore(root, templateRoot) {
     // The graph is a pure projection of the files on disk: no table, no cache,
     // no write path. Every call re-scans so external edits are visible at once.
     async graph() { return buildVaultGraph(await scan(), await scanAssets()); },
+    // 星图亮度 is the same kind of projection: one scan, the same graph, and the
+    // cards' own review history. Nothing is cached or written back.
+    async learningStars() { const documents = await scan(); return learningStars(buildVaultGraph(documents, await scanAssets()), documents); },
     async links(path) {
       const document = await readDocument(path), backlinks = buildBacklinks(await scan());
       return { outgoing: document.links, incoming: backlinks.get(document.path) ?? [] };
