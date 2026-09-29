@@ -20,6 +20,11 @@ const partial = (name: string) => readFileSync(resolve(root, 'partials', `${name
 
 const decode = (text: string) => text.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
 
+/** Closing CJK punctuation that must not start a line after an inline formula. */
+const CLOSING_PUNCTUATION = '，。、；：？！）”’」';
+/** Formulas up to this TeX length stay on one line with that punctuation; longer ones keep KaTeX's own break points. */
+const KEEP_WITH_PUNCTUATION = 30;
+
 /** Render `\( … \)` and `\[ … \]` with KaTeX at build time, outside code, scripts and styles. */
 function renderMath(html: string, file: string) {
   return html.split(/(<(pre|code|script|style)\b[\s\S]*?<\/\2>)/).map((part, index) => {
@@ -34,7 +39,12 @@ function renderMath(html: string, file: string) {
     };
     return part
       .replace(/\\\[([\s\S]+?)\\\]/g, (_, tex: string) => render(tex, true))
-      .replace(/\\\(([\s\S]+?)\\\)/g, (_, tex: string) => render(tex, false));
+      .replace(new RegExp(`\\\\\\(([\\s\\S]+?)\\\\\\)([${CLOSING_PUNCTUATION}]?)`, 'g'), (_, tex: string, punctuation: string) => {
+        const math = render(tex, false);
+        return punctuation && tex.trim().length <= KEEP_WITH_PUNCTUATION
+          ? `<span class="math-keep">${math}${punctuation}</span>`
+          : math + punctuation;
+      });
   }).join('');
 }
 
