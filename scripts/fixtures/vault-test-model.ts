@@ -1,7 +1,8 @@
 import type { Context } from '@deepseek-ai/cordis';
-import { LlmAdapter, ReasoningEffortId, ToolCallId, type GenerateOptions, type LlmResolvedModelInfo, type StreamChunk } from '@deepseek-ai/dsh-llm';
+import { LlmAdapter, LlmError, ReasoningEffortId, ToolCallId, type GenerateOptions, type LlmResolvedModelInfo, type StreamChunk } from '@deepseek-ai/dsh-llm';
 import { appendFile, readFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
+import { WORKER_PRESETS } from '../../examples/native-vault/worker-catalog.js';
 
 /** Provider route owned by the synthetic Native Vault adapter. */
 export const VAULT_TEST_PROVIDER = 'notara-vault-test';
@@ -28,6 +29,21 @@ export const VAULT_SOLVER_AMBIGUOUS_ENV = 'NOTARA_VAULT_TEST_AMBIGUOUS_SOLVER';
  */
 export const VAULT_SOLVER_REPLY_KEY = '__solver';
 
+type RequestMessage = { readonly role: string; readonly content: readonly { readonly type: string; readonly text?: string }[] };
+/**
+ * Which worker a request comes from, or undefined for any other request. The
+ * Host hands a worker its task as a JSON object with a goal; the task names no
+ * preset, so the role is read from the heading in the worker's system prompt.
+ */
+export function workerPresetOf(messages: readonly RequestMessage[]): string | undefined {
+  const texts = (role: string) => messages.filter(message => message.role === role).flatMap(message => message.content.flatMap(block => block.type === 'text' && block.text ? [block.text] : []));
+  const task = texts('user').some(text => {
+    try { const value = JSON.parse(text) as { goal?: unknown; capabilities?: unknown }; return typeof value.goal === 'string' && typeof value.capabilities === 'string'; } catch { return false; }
+  });
+  const system = `\n${texts('system').join('\n')}\n`;
+  return task ? WORKER_PRESETS.find(preset => system.includes(`\n# ${preset.name}\n`))?.id : undefined;
+}
+
 export interface VaultTestModelConfig {
   /** Append-only capture of every assembled request. Synthetic runs only. */
   logPath: string;
@@ -48,9 +64,10 @@ export interface ScriptedCall {
 /**
  * One scripted reply: a tool call, a call list, a natural answer, or both.
  * `pauseMs` keeps the stream open before its first chunk so a test can cancel a
- * running solver task inside a deterministic window.
+ * running solver task inside a deterministic window. `fail` makes the provider
+ * refuse the request with that message and code.
  */
-export type ScriptedReply = string | ScriptedCall | ScriptedCall[] | { text?: string; calls?: ScriptedCall[]; pauseMs?: number };
+export type ScriptedReply = string | ScriptedCall | ScriptedCall[] | { text?: string; calls?: ScriptedCall[]; pauseMs?: number; fail?: { message: string; code: string } };
 
 type Replies = Record<string, ScriptedReply>;
 
@@ -74,7 +91,7 @@ function scriptedCalls(value: readonly unknown[]): ScriptedCall[] {
   return calls;
 }
 
-function normalize(entry: unknown): { calls: ScriptedCall[]; text?: string; pauseMs?: number } {
+function normalize(entry: unknown): { calls: ScriptedCall[]; text?: string; pauseMs?: number; fail?: { message: string; code: string } } {
   if (typeof entry === 'string') return { calls: [], text: entry };
   if (Array.isArray(entry)) return { calls: scriptedCalls(entry) };
   if (entry !== null && typeof entry === 'object') {
@@ -82,10 +99,12 @@ function normalize(entry: unknown): { calls: ScriptedCall[]; text?: string; paus
     if (typeof record.name === 'string') return { calls: scriptedCalls([record]) };
     const calls = Array.isArray(record.calls) ? scriptedCalls(record.calls) : [];
     const pause = typeof record.pauseMs === 'number' && Number.isFinite(record.pauseMs) && record.pauseMs > 0 ? record.pauseMs : undefined;
+    const refusal = record.fail !== null && typeof record.fail === 'object' ? record.fail as Record<string, unknown> : undefined;
     return {
       calls,
       ...(typeof record.text === 'string' ? { text: record.text } : {}),
       ...(pause === undefined ? {} : { pauseMs: pause }),
+      ...(typeof refusal?.message === 'string' && typeof refusal.code === 'string' ? { fail: { message: refusal.message, code: refusal.code } } : {}),
     };
   }
   return { calls: [] };
@@ -136,7 +155,7 @@ export function apply(ctx: Context, config: VaultTestModelConfig): void {
       };
     }
     override async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
-      const user = options.messages.findLast(message => message.role === 'user' && message.source.kind === 'user');
+      const user = options.messages.findLast(message => message.role === 'user' && message.source?.kind === 'user');
       const userText = user ? user.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n').trim() : '';
       await appendFile(config.logPath, JSON.stringify({
         sessionId: options.sessionId ?? null,
@@ -149,11 +168,12 @@ export function apply(ctx: Context, config: VaultTestModelConfig): void {
         toolSchemas: options.tools ?? [],
         at: new Date().toISOString(),
       }) + '\n');
-      let workerPreset: string | undefined;
-      try { const task = JSON.parse(userText); if (['problem', 'lesson', 'review', 'general', 'exercise'].includes(task.preset) && typeof task.goal === 'string') workerPreset = task.preset; } catch { /* normal teacher message */ }
+      const workerPreset = workerPresetOf(options.messages);
       const solverRoute = workerPreset !== undefined || options.provider !== VAULT_TEST_PROVIDER;
       const replies = await readReplies(config.repliesPath);
       const scripted = normalize(workerPreset && replies[`__worker:${workerPreset}`] !== undefined ? replies[`__worker:${workerPreset}`] : replies[solverRoute ? VAULT_SOLVER_REPLY_KEY : userText]);
+      // A scripted provider refusal, e.g. a route whose credential was never set up.
+      if (scripted.fail && !options.purpose) throw new LlmError(scripted.fail.message, scripted.fail.code);
       const calls = scripted.calls;
       // A real user message consumes its scripted calls in order: the index is
       // how many tool calls this conversation already issued after it, never a

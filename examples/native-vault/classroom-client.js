@@ -1,4 +1,4 @@
-import { createVaultClient } from './remote-client.js';
+import { createVaultClient, visibleInterval } from './remote-client.js';
 import { createDraftStore } from './draft-client.js';
 import { SOLVER_MAX_TOKENS, SOLVER_MIN_TOKENS, SOLVER_TOKEN_LIMIT, preferredSolverEffort, validSolverBudget } from './solver-policy.js';
 import { workerPreset } from './worker-catalog.js';
@@ -28,6 +28,12 @@ const TASK_STATUS = {
   failed: { label: '分析失败', tone: 'fail' },
   canceled: { label: '已停止', tone: 'idle' },
   interrupted: { label: '已中断', tone: 'idle' },
+};
+
+/** Why a failed task ended, in the student's words; a model that cannot be called leaves nothing to open. */
+const FAILURE_REASONS = {
+  solver_model_unavailable: { label: '模型调不通', empty: true },
+  solver_budget_exhausted: { label: '超出生成上限', empty: false },
 };
 
 const text = value => (typeof value === 'string' ? value : '');
@@ -115,8 +121,11 @@ export function workerRows(value) {
         // preset this build does not know, so no arbitrary string becomes the label.
         name: catalog?.name || text(row.name).trim() || '后台工作员',
         description: text(row.description).trim() || catalog?.description || '',
-        preferredModel: text(row.preferredModel).trim(),
         route: normalizeRoute(row.route),
+        // No saved model: the worker runs on whatever the teacher runs on.
+        follow: !normalizeRoute(row.route),
+        // Where the setting in force lives: this lesson, the shared default, or nothing saved.
+        scope: ['lesson', 'default'].includes(row.scope) ? row.scope : 'none',
         ready,
         // A reason is only shown when it explains a real refusal; ready work never
         // claims a model it did not get.
@@ -132,9 +141,13 @@ export function workerRows(value) {
 /** The teacher and the five workers exactly as the Host describes them. */
 export function classroomSummary(value) {
   const teacher = record(value?.teacher);
+  const route = normalizeRoute(value?.teacherRoute);
   return {
     revision: Number.isInteger(value?.revision) ? value.revision : 0,
+    // null when this runtime keeps no shared defaults: only lesson overrides can be saved.
+    defaultsRevision: Number.isInteger(value?.defaultsRevision) ? value.defaultsRevision : null,
     teacher: { name: text(teacher?.name).trim(), description: text(teacher?.description).trim() },
+    teacherRoute: route ? { ...route, label: text(value.teacherRoute.label).trim() || route.model } : null,
     workers: workerRows(value),
     models: modelChoices(value),
   };
@@ -145,13 +158,6 @@ export function workerById(view, id) {
   return (view?.workers ?? []).find(row => row.id === text(id)) ?? null;
 }
 
-/** The route most worth offering first: the exact preferred model, never a substitute. */
-export function preferredCandidate(worker, choices) {
-  const preferred = text(worker?.preferredModel).trim();
-  const rows = Array.isArray(choices) ? choices : [];
-  return preferred ? rows.find(choice => choice.model === preferred) ?? null : null;
-}
-
 /** The route the classroom can really run, resolved against the advertised models. */
 export function availableRoute(worker, choices) {
   const route = normalizeRoute(worker?.route);
@@ -159,12 +165,16 @@ export function availableRoute(worker, choices) {
   return (Array.isArray(choices) ? choices : []).find(choice => choice.provider === route.provider && choice.model === route.model) ?? null;
 }
 
+/** How the teacher's model reads on a worker row: 跟随老师, with the model once it is known. */
+export function followLabel(teacherRoute) {
+  return teacherRoute?.label ? `跟随老师 · ${teacherRoute.label}` : '跟随老师';
+}
+
 /**
- * The one line a student may read about one worker's model. It names the
- * preferred model only when the Host really offers it; otherwise it reports the
- * gap instead of quietly teaching with the teacher's own model.
+ * The one line a student may read about one worker's model: the saved model,
+ * or 跟随老师 when nothing is saved, and the Host's reason when it cannot run.
  */
-export function workerRouteNotice(worker, choices) {
+export function workerRouteNotice(worker, choices, teacherRoute = null) {
   const route = normalizeRoute(worker?.route);
   const ready = availableRoute(worker, choices);
   // `ready` is the Host's own verdict on the route in force, so it decides first:
@@ -179,9 +189,8 @@ export function workerRouteNotice(worker, choices) {
     const label = ready?.label ?? chosen.model;
     return `后台分析使用 ${label}${effort ? ` · ${effort}` : ''}。`;
   }
-  const preferred = preferredCandidate(worker, choices);
-  if (!worker?.ready) return preferred ? '后台分析暂时不可用。' : `后台模型 ${worker?.preferredModel || '（未指定）'} 当前没有接入。`;
-  return `后台分析会自动匹配 ${worker.preferredModel}。`;
+  if (!worker?.ready) return '后台分析暂时不可用。';
+  return `后台分析${followLabel(teacherRoute)}。`;
 }
 
 /** The one line under a worker row, in the same vocabulary as the route notice. */
@@ -189,7 +198,7 @@ export function workerFootnote(worker, choices) {
   // `ready` already means the Host can run the route in force (saved, or its own
   // auto-matched default), so the gap notice only shows when neither holds.
   if (availableRoute(worker, choices) || worker?.ready) return '后台结果只交给老师，老师会用自己的方式讲给你。';
-  return `请在教室设置里接入 ${worker?.preferredModel || '后台模型'}；老师自己的模型不会用来代替它。`;
+  return worker?.reason || '请在教室设置里为这位工作员选一个能用的模型。';
 }
 
 /** Whether one recorded task can be opened in its own native child session. */
@@ -225,6 +234,7 @@ export function taskRows(value) {
         status: Object.hasOwn(TASK_STATUS, row.status) ? row.status : 'interrupted',
         startedAt: text(row.startedAt),
         inspectable: row.inspectable === true,
+        failure: row.status === 'failed' ? FAILURE_REASONS[text(row.failureCode)] : undefined,
       };
     })
     .filter(row => row.id)
@@ -235,12 +245,19 @@ export function taskRows(value) {
       preset: row.preset,
       name: row.name,
       status: row.status,
-      label: TASK_STATUS[row.status].label,
+      label: row.failure ? `没有完成：${row.failure.label}` : TASK_STATUS[row.status].label,
       tone: TASK_STATUS[row.status].tone,
       cancelable: row.status === 'running',
-      // 只有已经真的 spawn 出子会话的任务才能打开：准备瞬间的按钮会报错。
-      inspectable: row.inspectable === true,
+      // 只有已经真的 spawn 出子会话、而且留下了内容的任务才能打开。
+      inspectable: row.inspectable === true && !row.failure?.empty,
+      inspectLabel: row.status === 'failed' ? '查看记录' : '查看分析（含完整解法）',
     }));
+}
+
+/** The classroom status line: how many workers are still running. */
+export function runningLabel(rows) {
+  const count = rows.filter(row => row.status === 'running').length;
+  return count > 1 ? `${count}个后台任务进行中` : '后台任务进行中';
 }
 
 export function hasRunningTask(value) {
@@ -313,15 +330,12 @@ export function toolRowProjection(node) {
   return workerRowProjection(block);
 }
 
-/** The empty pick: an unconfigured worker stays unconfigured until a real choice. */
-export const WORKER_MODEL_PLACEHOLDER = '请选择已接入的解题模型';
+/** The empty pick: no model of its own, the worker follows the teacher. */
+export const WORKER_MODEL_PLACEHOLDER = '跟随老师';
 
 /**
- * The route the settings form opens with for one worker. A route the teacher
- * already saved wins, because it is the setting that is really in force. With
- * nothing saved, only the exact preferred model is offered as the initial value
- * — a real option list with no match is left unpicked (`''`) instead of silently
- * preselecting some other model.
+ * The route the settings form opens with for one worker: the saved route when
+ * the deployment still offers it, otherwise nothing (跟随老师).
  */
 export function candidateRouteFor(worker, choices) {
   const rows = Array.isArray(choices) ? choices : [];
@@ -332,11 +346,7 @@ export function candidateRouteFor(worker, choices) {
     const effort = kept.reasoningEfforts.includes(saved.reasoningEffort ?? '') ? saved.reasoningEffort : preferredSolverEffort(kept.reasoningEfforts);
     return { ...saved, ...(effort ? { reasoningEffort: effort } : {}) };
   }
-  const preferred = text(worker?.preferredModel).trim();
-  const exact = preferred ? rows.find(choice => choice.model === preferred) : undefined;
-  if (!exact) return null;
-  const effort = preferredSolverEffort(exact.reasoningEfforts);
-  return { provider: exact.provider, model: exact.model, ...(effort ? { reasoningEffort: effort } : {}) };
+  return null;
 }
 
 /** The form state a dialog opens with for one worker: the real choice, never an invention. */
@@ -344,8 +354,7 @@ export function workerDraft(worker, choices) {
   const suggested = candidateRouteFor(worker, choices);
   // The picker shows the route in force first: an unavailable saved model stays on
   // screen (disabled) instead of being replaced by a suggestion the teacher never
-  // chose. With nothing saved it opens on the exact preferred model, because that
-  // is the Host's own automatic default — never some other model.
+  // chose. With nothing saved it opens on 跟随老师.
   const shown = normalizeRoute(worker?.route) ?? suggested;
   return {
     provider: shown?.provider ?? '',
@@ -356,20 +365,20 @@ export function workerDraft(worker, choices) {
     tools: normalizeTools(worker?.tools),
     // 独立人格也是这一位的设置：空串只用角色职责，不回填老师的人格。
     persona: text(worker?.persona).trim(),
+    // A lesson override is edited in place; anything else opens on the shared default.
+    scope: worker?.scope === 'lesson' ? 'lesson' : 'default',
   };
 }
 
 /**
- * What 保存 sends, and what 恢复默认自动匹配 sends.
- *
- * `draftRoute` never invents an on/off switch: a complete pick is an explicit
- * route, and an empty pick is `null`, which means "clear my choice and let the
- * Host auto-match its default". `null` is therefore a restore, not a disable,
- * and the UI must not describe it as turning the worker off.
+ * What 保存 sends for the model: a complete pick is an explicit route, and an
+ * empty pick is `null`, which means 跟随老师 — never "turn the worker off".
  */
 export function draftRoute(draft) {
+  if (!text(draft?.provider).trim() || !text(draft?.model).trim()) return null;
   const maxTokens = draft?.maxTokens === undefined ? undefined : Number(draft.maxTokens);
-  if (maxTokens !== undefined && !validSolverBudget(maxTokens)) return null;
+  // An unusable budget is not a choice of 跟随老师: it cannot be saved at all.
+  if (maxTokens !== undefined && !validSolverBudget(maxTokens)) return undefined;
   return normalizeRoute({ provider: draft?.provider, model: draft?.model, reasoningEffort: draft?.reasoningEffort, maxTokens });
 }
 
@@ -467,11 +476,11 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
     useEffect(() => {
       if (!visible) return undefined;
       void call.current();
-      const timer = setInterval(() => { void call.current(); }, 2500);
+      const timer = visibleInterval(() => { void call.current(); }, 2500);
       const refresh = () => { void call.current(); };
       window.addEventListener('notara-vault-changed', refresh);
       window.addEventListener('focus', refresh);
-      return () => { generation.current++; clearInterval(timer); window.removeEventListener('notara-vault-changed', refresh); window.removeEventListener('focus', refresh); };
+      return () => { generation.current++; timer(); window.removeEventListener('notara-vault-changed', refresh); window.removeEventListener('focus', refresh); };
     }, [vault, visible]);
     return [state, () => call.current(), apply];
   }
@@ -480,7 +489,11 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
   function WorkerDialog({ sessionId, view, onClose, onSave, onReload, busy, error }) {
     const key = id => workerDraftKey(sessionId, id);
     const workers = view.workers;
-    const fresh = id => ({ ...workerDraft(workers.find(row => row.id === id) ?? null, view.models), expectedRevision: view.revision });
+    const shared = view.defaultsRevision !== null;
+    const fresh = id => {
+      const draft = workerDraft(workers.find(row => row.id === id) ?? null, view.models);
+      return { ...draft, scope: shared ? draft.scope : 'lesson', expectedRevision: view.revision, defaultsRevision: view.defaultsRevision };
+    };
     const existing = id => {
       const saved = drafts.get(key(id));
       return saved && Number.isSafeInteger(saved.expectedRevision) ? saved : fresh(id);
@@ -501,15 +514,18 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
     const selectValue = savedMissing ? '__saved__' : draft.provider && draft.model ? `${draft.provider}\u0000${draft.model}` : '';
     const current = view.models.find(choice => choice.provider === draft.provider && choice.model === draft.model) ?? null;
     const route = draftRoute(draft), persona = draftPersona(draft), personaTooLong = (persona ?? '').length > PERSONA_TEXT_LIMIT;
-    const submit = async value => {
-      // Polling can refresh view.revision while this draft still contains older
+    const scope = shared && draft.scope !== 'lesson' ? 'default' : 'lesson';
+    const teacherLabel = view.teacherRoute?.label;
+    const submit = async (value, inherit = false) => {
+      // Polling can refresh the revisions while this draft still contains older
       // settings. Only the revision the draft was based on may authorize its save.
-      const saved = await onSave({ preset: presetId, tools: draftTools(draft), route: value, ...(persona === undefined ? {} : { persona }), expectedRevision: draft.expectedRevision });
-      if (saved) setDraft({ ...workerDraft(saved.workers.find(row => row.id === presetId), modelChoices(saved)), expectedRevision: saved.revision });
+      const saved = await onSave({ preset: presetId, tools: draftTools(draft), route: value, ...(persona === undefined ? {} : { persona }), scope, ...(inherit ? { inherit: true } : {}),
+        expectedRevision: scope === 'lesson' ? draft.expectedRevision : draft.defaultsRevision });
+      if (saved) { const next = classroomSummary(saved); setDraft({ ...workerDraft(next.workers.find(row => row.id === presetId), next.models), scope, expectedRevision: next.revision, defaultsRevision: next.defaultsRevision }); }
     };
     return h(Dialog, { title: '教室设置', onClose },
-      h('form', { onSubmit: event => { event.preventDefault(); if (route) submit(route); } },
-        h('p', { style: { ...STYLE.notice, margin: '4px 0 0' } }, '每位后台工作员各有自己的模型与资料范围。课堂默认显示进度，也可以从任务记录打开完整分析。'),
+      h('form', { onSubmit: event => { event.preventDefault(); if (route !== undefined) submit(route); } },
+        h('p', { style: { ...STYLE.notice, margin: '4px 0 0' } }, '每位后台工作员各有自己的模型与资料范围。没有指定模型时跟随老师。课堂默认显示进度，也可以从任务记录打开完整分析。'),
         h('fieldset', { disabled: busy, style: { border: 0, margin: '14px 0 0', padding: 0 } },
           h('legend', { style: { ...STYLE.notice, padding: 0 } }, '工作员'),
           h('div', { className: 'nv-worker-picker', role: 'group', 'aria-label': '选择工作员' },
@@ -519,22 +535,28 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
             }, row.name))),
           worker?.description && h('p', { style: { ...STYLE.notice, marginTop: 8 } }, worker.description)),
         h('fieldset', { disabled: busy, style: { border: 0, margin: '14px 0 0', padding: 0 } },
+          h('legend', { style: { ...STYLE.notice, padding: 0 } }, '保存到'),
+          h('div', { className: 'nv-worker-picker', role: 'group', 'aria-label': '保存到' },
+            shared && h('button', { type: 'button', className: 'nv-quiet', 'aria-pressed': scope === 'default', onClick: () => edit({ ...draft, scope: 'default' }) }, '所有课堂的默认'),
+            h('button', { type: 'button', className: 'nv-quiet', 'aria-pressed': scope === 'lesson', onClick: () => edit({ ...draft, scope: 'lesson' }) }, '只改本课')),
+          h('p', { style: { ...STYLE.notice, marginTop: 8 } }, scope === 'default' ? '新开的课和没有单独设置的课都会用它。' : worker?.scope === 'lesson' ? '这节课单独设置了这位工作员，其他课不受影响。' : '只影响这节课，其他课仍用默认设置。')),
+        h('fieldset', { disabled: busy, style: { border: 0, margin: '14px 0 0', padding: 0 } },
           h('legend', { style: { ...STYLE.notice, padding: 0 } }, '后台模型'),
           (view.models.length
             ? h(React.Fragment, null,
                 h('label', { style: { display: 'block', marginTop: 8 } }, '模型',
                   h('select', { 'aria-label': '后台模型', style: { ...STYLE.templateInput, width: '100%' }, value: selectValue, onChange: event => { if (event.target.value === '') { edit({ ...draft, provider: '', model: '', reasoningEffort: '' }); return; } const [provider, model] = event.target.value.split('\u0000'); const picked = view.models.find(row => row.provider === provider && row.model === model); edit({ ...draft, provider, model, reasoningEffort: preferredSolverEffort(picked?.reasoningEfforts) ?? '' }); } },
                     savedMissing ? h('option', { key: '__saved__', value: '__saved__', disabled: true }, `${savedRoute.model}（已保存，但当前没有接入）`) : null,
-                    h('option', { key: '__none__', value: '' }, WORKER_MODEL_PLACEHOLDER),
-                    view.models.map(choice => h('option', { key: choiceValue(choice), value: choiceValue(choice) }, choice.model === worker?.preferredModel ? `${choice.label}（默认）` : choice.label)))),
-                preferredCandidate(worker, view.models) || savedMissing ? null : h('p', { role: 'status', style: { ...STYLE.notice, marginTop: 8 } }, `当前没有接入 ${worker?.preferredModel || '默认模型'}，可以接入后再用，或明确选择另一个后台模型。`),
+                    h('option', { key: '__none__', value: '' }, teacherLabel ? `${WORKER_MODEL_PLACEHOLDER}（现在是 ${teacherLabel}）` : WORKER_MODEL_PLACEHOLDER),
+                    view.models.map(choice => h('option', { key: choiceValue(choice), value: choiceValue(choice) }, choice.label)))),
+                h('p', { style: { ...STYLE.notice, marginTop: 8 } }, '列表里是这里登记过的全部模型，需要先在“设置 → 模型”里配好凭据才能调用。'),
                 current && current.reasoningEfforts.length > 1 && h('label', { style: { display: 'block', marginTop: 8 } }, '推理等级',
                   h('select', { 'aria-label': '推理等级', style: { ...STYLE.templateInput, width: '100%' }, value: draft.reasoningEffort, onChange: event => edit({ ...draft, reasoningEffort: event.target.value }) },
                     current.reasoningEfforts.map(effort => h('option', { key: effort, value: effort }, effort)))))
             : h('p', { role: 'status', style: { ...STYLE.notice, marginTop: 8 } }, '当前运行环境没有可用的模型，后台分析暂时无法规划。'))),
         h('label', { style: { display: 'block', marginTop: 8 } }, '每次分析的生成上限',
-          h('input', { disabled: busy, type: 'number', 'aria-label': '每次分析的生成上限', min: SOLVER_MIN_TOKENS, max: SOLVER_TOKEN_LIMIT, step: 1, required: true, style: { ...STYLE.templateInput, width: '100%' }, value: draft.maxTokens ?? SOLVER_MAX_TOKENS, onChange: event => edit({ ...draft, maxTokens: event.target.value }) })),
-        h('p', { style: { ...STYLE.notice, marginTop: 8 } }, '单位为 token，默认 32768。上限不代表实际用量；推理与输出的计数方式取决于所选模型。'),
+          h('input', { disabled: busy || route === null, type: 'number', 'aria-label': '每次分析的生成上限', min: SOLVER_MIN_TOKENS, max: SOLVER_TOKEN_LIMIT, step: 1, required: true, style: { ...STYLE.templateInput, width: '100%' }, value: draft.maxTokens ?? SOLVER_MAX_TOKENS, onChange: event => edit({ ...draft, maxTokens: event.target.value }) })),
+        h('p', { style: { ...STYLE.notice, marginTop: 8 } }, route === null ? '跟随老师时用默认上限 32768 token；要调整请指定一个模型。' : '单位为 token，默认 32768。上限不代表实际用量；推理与输出的计数方式取决于所选模型。'),
         h('label', { style: { display: 'block', marginTop: 8 } }, '资料范围',
           h('select', { disabled: busy, 'aria-label': '资料范围', style: { ...STYLE.templateInput, width: '100%' }, value: draftTools(draft), onChange: event => edit({ ...draft, tools: event.target.value }) },
             h('option', { key: 'none', value: 'none' }, workerScopeLabel({ tools: 'none' })),
@@ -546,10 +568,10 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
         personaTooLong && h('p', { role: 'alert', style: { ...STYLE.notice, marginTop: 8, color: 'var(--dsw-alias-state-error-primary)' } }, `这位工作员的人格最多 ${PERSONA_TEXT_LIMIT} 字。`),
         worker?.reason && h('p', { role: 'status', style: { ...STYLE.notice, marginTop: 8 } }, worker.reason),
         error && h('p', { role: 'alert', style: { ...STYLE.notice, marginTop: 8, color: 'var(--dsw-alias-state-error-primary)' } }, error),
-        draft.expectedRevision !== view.revision && h('button', { type: 'button', className: 'nv-quiet', disabled: busy, onClick: () => { drafts.delete(key(presetId)); setDraft(fresh(presetId)); onReload(); } }, '载入最新设置'),
+        (draft.expectedRevision !== view.revision || draft.defaultsRevision !== view.defaultsRevision) && h('button', { type: 'button', className: 'nv-quiet', disabled: busy, onClick: () => { drafts.delete(key(presetId)); setDraft(fresh(presetId)); onReload(); } }, '载入最新设置'),
         h('div', { style: { display: 'flex', gap: 8, marginTop: 18 } },
-          h('button', { type: 'submit', className: 'nv-quiet', disabled: busy || savedMissing || !route || personaTooLong }, busy ? '正在保存…' : '保存'),
-          h('button', { type: 'button', className: 'nv-quiet', disabled: busy, onClick: () => submit(null) }, '恢复默认自动匹配'),
+          h('button', { type: 'submit', className: 'nv-quiet', disabled: busy || savedMissing || route === undefined || personaTooLong }, busy ? '正在保存…' : '保存'),
+          h('button', { type: 'button', className: 'nv-quiet', disabled: busy || (scope === 'lesson' && worker?.scope !== 'lesson') || (scope === 'default' && worker?.scope === 'none'), onClick: () => submit(null, true) }, scope === 'lesson' ? '改回所有课堂的默认' : '恢复为跟随老师'),
           // The shared Dialog already renders its own header 关闭 button, so the
           // footer keeps 取消 to stay a distinct, unambiguous control.
           h('button', { type: 'button', className: 'nv-quiet', onClick: onClose }, '取消'))));
@@ -578,7 +600,7 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
         const result = await vault.configureSolver(input);
         if (result?.ok) {
           drafts.delete(workerDraftKey(props.sessionId, input.preset));
-          setNotice(input.route ? '已保存，下一次后台分析会用这个模型。' : '已恢复默认模型匹配。');
+          setNotice(input.inherit ? (input.scope === 'lesson' ? '已改回所有课堂的默认。' : '已恢复为跟随老师。') : input.route ? '已保存，下一次后台分析会用这个模型。' : '已保存：这位工作员跟随老师的模型。');
           apply(result.value); return result.value;
         }
         // A CAS conflict keeps the draft: the newest state is re-read, the form stays.
@@ -598,8 +620,9 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
         const value = binding?.ok ? binding.value : null;
         const child = text(value?.childSessionId), parent = text(value?.parentSessionId);
         if (!child || !parent || parent !== props.sessionId || value?.mode !== 'one-shot') { setError('这次分析没有可查看的记录。'); return; }
-        await props.ctx.sessions.refreshSubagents(parent);
-        props.ctx.sessions.openSubagent({ parentSessionId: parent, childSessionId: child, mode: 'one-shot' });
+        // DSH 0.2.0: projections refresh per session, and a worker's record opens like any session address.
+        await props.ctx.sessions.refreshProjections(parent);
+        props.ctx.uiWorkspace.openSession({ parentSessionId: parent, childSessionId: child, mode: 'one-shot' });
       } catch { setError('现在打不开这次分析，请稍后再试。'); }
       finally { setOpening(''); }
     };
@@ -621,15 +644,15 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
       if (busyRow) return { tone: 'run', label: '分析中' };
       if (!worker.ready) return { tone: 'warn', label: '未启用' };
       const route = worker.route;
-      const model = route ? view?.models.find(choice => choice.provider === route.provider && choice.model === route.model)?.label ?? route.model : '';
-      return { tone: 'idle', label: model ? `待命 · ${model}` : '待命' };
+      const model = route ? view?.models.find(choice => choice.provider === route.provider && choice.model === route.model)?.label ?? route.model : followLabel(view?.teacherRoute);
+      return { tone: 'idle', label: `待命 · ${model}` };
     };
     const snapshot = { version: 1, loading: state.loading && !view, error: state.error, visible: props.visible,
       title: '当前课堂', teacher: view ? { ...view.teacher, active: native?.running === true, error: native?.lastAgentError ? '本轮授课遇到问题，请回到对话查看。' : '' } : null,
       workers: view ? view.workers.map(worker => ({
         id: worker.id, name: worker.name, description: worker.description, ready: worker.ready, tools: worker.tools,
-        preferredModel: worker.preferredModel, route: worker.route, reason: worker.reason,
-        notice: workerRouteNotice(worker, view.models),
+        route: worker.route, reason: worker.reason,
+        notice: workerRouteNotice(worker, view.models, view.teacherRoute),
         active: rows.some(row => row.status === 'running' && row.preset === worker.id),
       })) : [],
       tasks: rows.map(row => ({ ...row, time: taskElapsedLabel(state.value?.tasks?.find(task => task.id === row.id)) })), opening, stopping };
@@ -637,7 +660,7 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
     return h('div', { className: 'nv-classroom', style: { ...STYLE.page, ...(activePresentation !== 'list' ? { padding: 0, gap: 0, overflow: 'hidden' } : {}) } }, h('style', null, CLASSROOM_CSS),
       h('header', { className: 'nv-classroom-head', style: activePresentation !== 'list' ? { padding: '8px 14px' } : undefined },
         h('strong', null, '教室'),
-        h('span', { className: 'nv-classroom-note', role: 'status' }, state.loading && !view ? '正在读取…' : running ? '后台任务进行中' : '课堂进行中'),
+        h('span', { className: 'nv-classroom-note', role: 'status' }, state.loading && !view ? '正在读取…' : running ? runningLabel(rows) : '课堂进行中'),
         entries.length > 0 && h('div', { role: 'group', 'aria-label': '教室视图', style: { display: 'flex', gap: 4 } },
           h('button', { type: 'button', className: 'nv-quiet', 'aria-pressed': activePresentation === 'list', onClick: () => pickPresentation('list') }, '列表'),
           entries.map(entry => h('button', { key: entry.options.id, type: 'button', className: 'nv-quiet', 'aria-pressed': activePresentation === entry.options.id, onClick: () => pickPresentation(entry.options.id) }, resolveSlotLabel(entry.options.label) ?? entry.options.id))),
@@ -666,7 +689,7 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
           ? h('ul', { className: 'nv-tasks' }, rows.map(row => h('li', { className: 'nv-task', key: row.id, 'data-tone': row.tone, 'data-preset': row.preset || undefined },
               h('span', { className: 'nv-task-dot', 'aria-hidden': true }),
               h('span', null, `${row.name} · ${row.label}`),
-              showsInspectAction(row) && h('button', { type: 'button', className: 'nv-quiet', disabled: !!opening, onClick: () => { void openAnalysis(row); } }, opening === row.id ? '正在打开…' : '查看分析（含完整解法）'),
+              showsInspectAction(row) && h('button', { type: 'button', className: 'nv-quiet', disabled: !!opening, onClick: () => { void openAnalysis(row); } }, opening === row.id ? '正在打开…' : row.inspectLabel ?? '查看分析（含完整解法）'),
               row.cancelable && h('button', { type: 'button', className: 'nv-quiet', disabled: !!stopping, onClick: () => { void stop(row); } }, stopping === row.id ? '正在停止…' : '停止'),
               h('span', { className: 'nv-task-time' }, taskElapsedLabel(state.value?.tasks?.find(task => task.id === row.id))))))
           : h('p', { className: 'nv-classroom-empty' }, '还没有后台任务。课堂上需要独立分析时，老师会把它交给后台，这里只显示进度。')),

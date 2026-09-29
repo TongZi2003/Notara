@@ -20,8 +20,8 @@ import { fileURLToPath } from 'node:url';
 // the only way to satisfy it.
 const project = join(dirname(fileURLToPath(import.meta.url)), '..');
 const file = join(project, 'node_modules/@deepseek-ai/dsh-session/lib/index.js');
-const original = "05e94f57d96e7979670a5b51024c8591572eb0051ce793613dbdec35cf2c47bf";
-const patched = "5d2651ae5ca8f16db2fbf38055e63e45b414e952382c51c714dc3bde77356356";
+const original = "87ea85e2fb5318bf1f826db9a1c88c1b26d3ea328027a7f32b211880c4d62b9d";
+const patched = "6ea45e7fc9a4d92574cf7a2f6fab0dbf22a1f061bd8946885177fdfbf972dff9";
 const before = "\tappend(type, data, ...opts) {\n\t\tconst surfaceOpts = opts[0];\n\t\tconst surfaceMetadata = {\n\t\t\t...surfaceOpts?.sourceEventSeqs === void 0 ? {} : { sourceEventSeqs: surfaceOpts.sourceEventSeqs },\n\t\t\t...surfaceOpts?.surfaceOp === void 0 ? {} : { surfaceOp: surfaceOpts.surfaceOp }\n\t\t};\n";
 const after = "\tappend(type, data, ...opts) {\n\t\tconst surfaceOpts = opts[0];\n\t\tconst surfaceMetadata = {\n\t\t\t...surfaceOpts?.sourceEventSeqs === void 0 ? {} : { sourceEventSeqs: surfaceOpts.sourceEventSeqs },\n\t\t\t...surfaceOpts?.surfaceOp === void 0 ? {} : { surfaceOp: surfaceOpts.surfaceOp },\n\t\t\t...sessionIgnorableMarker(type, surfaceOpts)\n\t\t};\n";
 const insertBefore = "var Session = class Session {";
@@ -35,4 +35,4 @@ if (digest !== patched) {
   if (sha(result) !== patched) throw new Error('DSH session ignorable-envelope patch digest mismatch');
   writeFileSync(file, result);
 }
-console.log('Verified rc.2 Session.append ignorable envelope passthrough');
+console.log('Verified DSH Session.append ignorable envelope passthrough');

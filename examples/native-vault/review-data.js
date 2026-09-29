@@ -9,9 +9,15 @@
 // unlearned card.
 //
 // One evaluation is not a proof of mastery: a record says what the teacher
-// observed about specific cognitive work and which fixed interval
-// follows from the tier it moved to. There is no ease factor, no event
-// database and no browsing ledger — merely opening a card writes nothing.
+// observed and which fixed interval follows from the tier it moved to. Since
+// 0.20.2 a record is the key step (`keyStep` + `result`), the only input to
+// the tier, and the `note` with its evidence. How deep the student got and what
+// to check next live in the card's 学生理解, not here. There is no ease factor,
+// no event database and no browsing ledger — merely opening a card writes nothing.
+//
+// Older generations stay readable and are never rewritten: `passed` rows
+// (first generation), `assessments` rows (second generation, until 0.19.x), and
+// the `depth` / `nextCheck` fields a 0.20.0–0.20.1 record may still carry.
 //
 // Error codes returned here are the contract with the Host:
 //   review_card_required    the document is not `type: card`
@@ -23,6 +29,9 @@
 //   review_status_invalid   the requested queue status does not exist
 //   review_note_required    an evaluation arrived without a note
 //   review_note_too_long    a note exceeds the stored budget
+//   review_result_invalid   the key-step result is not one of REVIEW_RESULTS
+//   review_key_step_required the teacher judged a key step without naming it
+//   review_key_step_invalid the key step is not a string of 1..200 characters
 //   review_day_regression   the evaluation day is earlier than last_review
 //   review_conflict         one id was reused for a different evaluation
 //   review_undo_unavailable no record is left to undo
@@ -33,10 +42,36 @@ import { matchedQueryTerms, queryTokens } from './learning-data.js';
 
 /** interval follows the mastery tier: mastery 1..5 -> 1, 3, 7, 16, 35 days. */
 export const REVIEW_INTERVALS = Object.freeze([1, 3, 7, 16, 35]);
+/** Key-step results, the only input to the tier. Shared by the CLI, writer and UI. */
+export const REVIEW_RESULTS = Object.freeze({ done: '做出来', missed: '没做出来', unchecked: '这次没考' });
+/** Second-generation outcomes, kept to read and display those rows. */
 export const REVIEW_OUTCOMES = Object.freeze({ demonstrated: '已表现出来', needs_practice: '仍有困难', not_observed: '尚未观察' });
 
-/** One observation per intended ability; assistance is evidence in the note,
- * never a machine penalty. Shared by the CLI, writer and UI. */
+export function validateResult(value, code = 'review_result_invalid') {
+  if (typeof value !== 'string' || !Object.hasOwn(REVIEW_RESULTS, value)) fail(code);
+  return value;
+}
+
+/** The step that was judged; blank means none was named. */
+export function validateKeyStep(value, code = 'review_key_step_invalid') {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string') fail(code);
+  const text = value.trim();
+  if (!text) return undefined;
+  if (codePoints(text).length > TEXT_BUDGET) fail(code);
+  return text;
+}
+
+/** The key step of one record, normalized so a retry compares equal. Only the
+ * teacher must name the step it judged. */
+function keyStepEvidence(source, { code, teacher }) {
+  const result = validateResult(source.result, code ?? 'review_result_invalid');
+  const keyStep = validateKeyStep(source.keyStep, code ?? 'review_key_step_invalid');
+  if (teacher && result !== 'unchecked' && keyStep === undefined) fail(code ?? 'review_key_step_required');
+  return { ...(keyStep === undefined ? {} : { keyStep }), result };
+}
+
+/** Second-generation rows: one observation per ability. Read-only since 0.20.0. */
 export function validateAssessments(value, code = 'review_assessments_invalid') {
   if (!Array.isArray(value) || !value.length || value.length > 8) fail(code);
   const seen = new Set();
@@ -50,8 +85,8 @@ export function validateAssessments(value, code = 'review_assessments_invalid') 
   });
 }
 
-/** Derived scheduling result, not a second writable assessment. Legacy rows
- * remain legacy: no invented abilities or assistance are backfilled. */
+/** The folded result of a second-generation row, as it was scheduled. Other
+ * generations remain what they are: nothing is backfilled. */
 export function reviewOutcome(record) {
   if (!record.assessments) return null;
   if (record.assessments.some(item => item.outcome === 'needs_practice')) return 'needs_practice';
@@ -60,12 +95,17 @@ export function reviewOutcome(record) {
 }
 
 export function reviewAssessmentText(record) {
+  if (typeof record.result === 'string') {
+    return `关键一步${record.keyStep ? `（${record.keyStep}）` : ''}：${REVIEW_RESULTS[record.result] ?? '无法识别'}`;
+  }
   if (!Array.isArray(record.assessments)) return typeof record.passed === 'boolean' ? `旧评估 · ${record.passed ? '通过' : '还需练习'}` : '评估格式待检查';
   return record.assessments.map(item => `${item?.ability ?? '未说明能力'}：${REVIEW_OUTCOMES[item?.outcome] ?? '无法识别'}`).join('；');
 }
 
 const CARD = 'card';
 const HISTORY = 'review_history';
+/** Each row belongs to exactly one generation. */
+const GENERATIONS = ['passed', 'assessments', 'result'];
 const ACTORS = ['self', 'teacher'];
 const STATUSES = ['all', 'due', 'pending', 'learning', 'familiar'];
 const FAMILIAR_MASTERY = 4;
@@ -245,10 +285,12 @@ function fieldObject(value, code) {
 function historyRecord(value) {
   const code = 'review_history_invalid';
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail(code);
-  const assessment = value.assessments !== undefined
-    ? { assessments: validateAssessments(value.assessments, code) }
-    : { passed: passedFlag(value.passed, code) };
-  if (value.assessments !== undefined && Object.hasOwn(value, 'passed')) fail(code);
+  const generation = GENERATIONS.filter(key => Object.hasOwn(value, key));
+  if (generation.length !== 1) fail(code);
+  const actor = actorText(value.actor, code);
+  const assessment = generation[0] === 'passed' ? { passed: passedFlag(value.passed, code) }
+    : generation[0] === 'assessments' ? { assessments: validateAssessments(value.assessments, code) }
+    : keyStepEvidence(value, { code, teacher: false });
   const record = {
     ...value,
     id: boundedText(value.id, TEXT_BUDGET, code),
@@ -257,7 +299,7 @@ function historyRecord(value) {
     ...assessment,
     note: noteText(value.note, code, false),
     sessionId: sessionText(value.sessionId, code),
-    actor: actorText(value.actor, code),
+    actor,
     before: { ...fieldObject(value.before, code), ...readState(value.before, code) },
     after: { ...fieldObject(value.after, code), ...readState(value.after, code) },
   };
@@ -301,24 +343,26 @@ function parsedCard(document) {
 function evaluationRequest(request) {
   const code = 'review_request_invalid';
   if (!request || typeof request !== 'object' || Array.isArray(request)) fail(code);
-  if (Object.hasOwn(request, 'passed')) fail(code);
+  // New records are written in the current shape only.
+  if (['passed', 'assessments', 'depth', 'nextCheck'].some(key => Object.hasOwn(request, key))) fail(code);
+  const actor = actorText(request.actor, code);
   return {
     id: boundedText(request.id, TEXT_BUDGET, code),
     at: stampText(request.at, code),
     day: validateDay(request.day),
-    assessments: validateAssessments(request.assessments),
+    ...keyStepEvidence(request, { teacher: actor === 'teacher' }),
     note: validateReviewNote(request.note),
     sessionId: sessionText(request.sessionId, code),
-    actor: actorText(request.actor, code),
+    actor,
   };
 }
 
-/** Unknown evidence and early success preserve the original due date. Only
- * observed difficulty lowers the tier; elicitation alone never does. */
-function nextState(before, day, outcome) {
-  if (outcome === 'not_observed' || (outcome === 'demonstrated' && before.learned && day < before.next_review)) return before;
+/** An unchecked key step and early success preserve the original due date.
+ * Only a missed key step lowers the tier. */
+function nextState(before, day, result) {
+  if (result === 'unchecked' || (result === 'done' && before.learned && day < before.next_review)) return before;
   const mastery = before.learned
-    ? Math.min(REVIEW_INTERVALS.length, Math.max(1, before.mastery + (outcome === 'demonstrated' ? 1 : -1)))
+    ? Math.min(REVIEW_INTERVALS.length, Math.max(1, before.mastery + (result === 'done' ? 1 : -1)))
     : 1;
   const interval = REVIEW_INTERVALS[mastery - 1];
   return { learned: true, mastery, interval, last_review: day, next_review: addReviewDays(day, interval) };
@@ -327,7 +371,8 @@ function nextState(before, day, outcome) {
 /** A retry is the same evaluation when the observation itself matches; a new
  * `at` only means the Host tried again later. */
 function sameEvaluation(record, entry) {
-  return record.day === entry.day && JSON.stringify(record.assessments) === JSON.stringify(entry.assessments) && record.note === entry.note
+  const evidence = item => JSON.stringify([item.passed ?? null, item.assessments ?? null, item.keyStep ?? null, item.result ?? null]);
+  return record.day === entry.day && evidence(record) === evidence(entry) && record.note === entry.note
     && record.sessionId === entry.sessionId && record.actor === entry.actor;
 }
 
@@ -362,12 +407,13 @@ export function recordReviewContent(document, request = {}) {
   if ((before.learned && entry.day < before.last_review)
     || history.some(item => !item.revertedAt && entry.day < item.day)) fail('review_day_regression');
 
-  const after = nextState(before, entry.day, reviewOutcome(entry));
+  const after = nextState(before, entry.day, entry.result);
   const record = {
     id: entry.id,
     at: entry.at,
     day: entry.day,
-    assessments: entry.assessments,
+    ...(entry.keyStep === undefined ? {} : { keyStep: entry.keyStep }),
+    result: entry.result,
     note: entry.note,
     sessionId: entry.sessionId,
     actor: entry.actor,

@@ -17,11 +17,11 @@ const headingLines = content => content.split(/\r?\n/).filter(line => /^##\s+\S/
 const nodeOf = (graph, path) => graph.nodes.find(node => node.path === path);
 const edgeKeys = (graph, kind) => graph.edges.filter(edge => edge.kind === kind).map(edge => `${edge.source} -> ${edge.target}`);
 
-for (const name of ['lesson.md', 'lesson-script.md']) {
-  test(`lesson template upgrade preserves custom templates and existing lessons: ${name}`, async t => {
+for (const [name, version] of ['lesson.md', 'lesson-script.md'].flatMap(name => ['0.13.0', '0.16.21'].map(version => [name, version]))) {
+  test(`lesson template upgrade preserves custom templates and existing lessons: ${name} from ${version}`, async t => {
     const root = await mkdtemp(join(tmpdir(), 'notara-lesson-seed-'));
     t.after(() => rm(root, { recursive: true, force: true }));
-    const old = await readFile(new URL(`../../tests/fixtures/native-vault/${name.replace('.md', '-0.13.0.md')}`, import.meta.url), 'utf8');
+    const old = await readFile(new URL(`../../tests/fixtures/native-vault/${name.replace('.md', `-${version}.md`)}`, import.meta.url), 'utf8');
     const current = await bundled(name);
     assert.notEqual(current.trim(), old.trim(), 'fixture must exercise a superseded template');
     const store = createVaultStore(root, fileURLToPath(new URL('./templates/', import.meta.url)));

@@ -28,6 +28,12 @@ test('reads single-line JSON arrays, including nodes with nested values', () => 
   assert.deepEqual(nested.meta, { a: [1, true, null], b: { c: 'd' } });
 });
 
+test('reads the block lists Obsidian writes for list properties', () => {
+  const content = block(['title: 抛物线', 'tags:', '  - 数学', '  - "解析几何"', 'aliases:', '- 中点弦', 'status: draft']);
+  assert.deepEqual(parseFrontmatter(content).frontmatter, { title: '抛物线', tags: ['数学', '解析几何'], aliases: ['中点弦'], status: 'draft' });
+  assert.deepEqual(parseFrontmatter(block(['tags:', '', 'type: card'])).frontmatter, { tags: '', type: 'card' });
+});
+
 test('rejects structured values it cannot read instead of guessing or skipping', () => {
   // A multi-line block sequence is still outside the flat subset: the file is
   // reported, never partially indexed.

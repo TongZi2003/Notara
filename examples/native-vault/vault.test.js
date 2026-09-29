@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
@@ -8,6 +8,8 @@ import { VAULT_REMOTE_METHODS } from './remote-client.js';
 import {
   buildBacklinks,
   createVaultStore,
+  pathSegments,
+  portablePath,
   parseMarkdownDocument,
   projectTree,
   queryDocuments,
@@ -162,6 +164,47 @@ test('renders a template with explicit values and preserves unknown placeholders
   assert.equal(renderTemplate('# {{title}}\n\n创建于 {{date}}\n{{unknown}}', { title: '新课', date: '2026-09-20' }), '# 新课\n\n创建于 2026-09-20\n{{unknown}}');
 });
 
+test('one page with a header the Vault cannot read is listed and opens, and the rest of the Vault keeps working', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-vault-test-'));
+  try {
+    await writeFile(join(root, '好页.md'), '---\ntype: card\n---\n# 好页\n\n链接到 [[坏页]]\n');
+    // A map inside a block list is outside the Vault's header subset.
+    await writeFile(join(root, '坏页.md'), '---\nlessons:\n  - id: n1\n    title: 第一课\n---\n# 坏页\n\n正文里有关键词\n');
+    const store = createVaultStore(root);
+    assert.deepEqual((await store.list()).files.map(item => item.path).sort(), ['坏页.md', '好页.md']);
+    assert.deepEqual((await store.search('关键词', 10)).map(hit => hit.path), ['坏页.md']);
+    assert.ok((await store.graph()).nodes.some(node => node.path === '好页.md' || node.id === '好页.md'));
+    await store.learningStars();
+    const bad = await store.read('坏页.md');
+    assert.equal(bad.frontmatterError, 'vault_frontmatter_invalid');
+    assert.deepEqual(bad.frontmatter, {});
+    assert.equal((await store.read('好页.md')).frontmatterError, undefined);
+    // Saving a header it still cannot read is refused with that reason.
+    await assert.rejects(() => store.save('坏页.md', bad.content + '\n补一句\n', bad.revision), /vault_frontmatter_invalid/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('path segments under the Vault root are found with either separator, so a junction in the middle is checked on Windows', async () => {
+  const { win32, posix } = await import('node:path');
+  assert.deepEqual(pathSegments('C:\\Vault', 'C:\\Vault\\卡片\\链接\\a.md', win32), ['卡片', '链接', 'a.md']);
+  assert.deepEqual(pathSegments('/v', '/v/卡片/链接/a.md', posix), ['卡片', '链接', 'a.md']);
+});
+
+test('a new file needs a name every system can hold; files that already exist keep opening', async () => {
+  for (const bad of ['题目:斜率.md', '问号?.md', '引号"x.md', 'x|y.md', '尾点.', '尾空格 ', 'CON.md', 'nul', '卡片/aux.txt', 'com1.md']) assert.throws(() => portablePath(bad), /vault_path_not_portable/, bad);
+  for (const good of ['卡片/第1题：斜率.md', 'console.md', '版本1.2.md', 'con-notes.md']) assert.equal(portablePath(good), good);
+  const root = await mkdtemp(join(tmpdir(), 'notara-vault-test-'));
+  try {
+    const store = createVaultStore(root);
+    await assert.rejects(() => store.save('题目:斜率.md', '# x\n', null), /vault_path_not_portable/);
+    await assert.rejects(() => stat(join(root, '题目:斜率.md')), /ENOENT/);
+    // A name written before, by another tool on a system that allows it, still reads and saves.
+    await writeFile(join(root, 'old:name.md'), '# 旧\n');
+    const old = await store.read('old:name.md');
+    await store.save('old:name.md', '# 旧\n\n改过\n', old.revision);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test('stores Markdown as the only source of truth and uses revision guarded atomic writes', async () => {
   const root = await mkdtemp(join(tmpdir(), 'notara-vault-test-'));
   try {
@@ -190,7 +233,8 @@ test('declares strict client codecs for the native Remote contribution', async (
   const source = await readFile(new URL('./client-source.ts', import.meta.url), 'utf8');
   assert.match(source, /mode: 'strict'/);
   assert.doesNotMatch(source, /mode: 'src-json'/);
-  assert.match(source, /schema: strictJsonSchema/);
+  // DSH 0.2.0 typert refuses a strict codec without a create() factory.
+  assert.match(source, /create: \(\) => strictJsonSchema/);
   assert.ok(VAULT_REMOTE_METHODS.includes('readAsset'));
   assert.ok(VAULT_REMOTE_METHODS.includes('saveAsset'));
   assert.match(source, /const REMOTE_METHODS = VAULT_REMOTE_METHODS/);
@@ -253,7 +297,7 @@ test('bridges tag-filtered card batches through the same native input reference 
 
 test('refreshes external vault changes without overwriting an unsaved editor draft', async () => {
   const source = await readFile(new URL('./assets-client.js', import.meta.url), 'utf8');
-  assert.match(source, /setInterval\(syncExternal/);
+  assert.match(source, /visibleInterval\(syncExternal/);
   assert.match(source, /当前页面在外部发生变化/);
   assert.match(source, /页面已从文件刷新/);
 });
@@ -298,6 +342,10 @@ test('lists, reads and revision-saves binary assets beside Markdown pages', asyn
     await writeFile(join(root, '图.png'), Buffer.from([137, 80, 78, 71]));
     await writeFile(join(root, '说明.html'), '<h1>说明</h1>');
     await writeFile(join(root, '课堂.md'), '# 课堂\n');
+    // Running code leaves caches behind; they are not Vault content.
+    await mkdir(join(root, '代码/__pycache__'), { recursive: true });
+    await writeFile(join(root, '代码/__pycache__/传球.cpython-313.pyc'), Buffer.from([0x61, 0x0d, 0x0d, 0x0a]));
+    await writeFile(join(root, '代码/__pycache__/笔记.md'), '# 不是资料\n');
     const store = createVaultStore(root);
     const listed = await store.list();
     assert.deepEqual(listed.files.map(item => [item.path, item.kind]), [
@@ -371,4 +419,35 @@ test('collects the text a PDF rectangle selection covers, in reading order', () 
   assert.equal(quoteFromItems(items, [0.04, 0.15, 0.20, 0.04]).trim(), 'A basis gives');
   assert.equal(quoteFromItems(undefined, [0, 0, 1, 1]), '');
   assert.equal(quoteFromItems(items, 'bad'), '');
+});
+
+test('scans reuse unchanged pages and assets and still see every outside change at once', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-scan-cache-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, '卡片'), { recursive: true });
+  await writeFile(join(root, '卡片', 'a.md'), '# A\n\nalpha');
+  await writeFile(join(root, '卡片', 'b.md'), '# B\n\nbeta');
+  await writeFile(join(root, 'figure.png'), Buffer.from([1, 2, 3, 4]));
+  const store = createVaultStore(root);
+
+  const first = await store.scan(), firstAssets = await store.scanAssets();
+  const second = await store.scan(), secondAssets = await store.scanAssets();
+  assert.equal(second.find(doc => doc.path === '卡片/a.md'), first.find(doc => doc.path === '卡片/a.md'), 'an unchanged page is not parsed again');
+  assert.equal(secondAssets[0], firstAssets[0], 'an unchanged asset is not hashed again');
+  assert.ok(Object.isFrozen(second[0]) && Object.isFrozen(second[0].links), 'shared scan results are frozen');
+  assert.throws(() => { second[0].links.push('x'); }, TypeError);
+
+  // Same size, new bytes: the nanosecond mtime/ctime still changes the key.
+  await writeFile(join(root, '卡片', 'a.md'), '# A\n\nALPHA');
+  await writeFile(join(root, 'figure.png'), Buffer.from([4, 3, 2, 1]));
+  const edited = await store.scan(), editedAssets = await store.scanAssets();
+  assert.match(edited.find(doc => doc.path === '卡片/a.md').content, /ALPHA/);
+  assert.notEqual(editedAssets[0].revision, firstAssets[0].revision);
+  assert.equal(edited.find(doc => doc.path === '卡片/b.md'), first.find(doc => doc.path === '卡片/b.md'));
+
+  await rm(join(root, '卡片', 'b.md'));
+  await writeFile(join(root, '卡片', 'c.md'), '# C');
+  assert.deepEqual((await store.scan()).map(doc => doc.path).sort(), ['卡片/a.md', '卡片/c.md']);
+  const saved = await store.save('卡片/c.md', '# C\n\n改过', (await store.read('卡片/c.md')).revision);
+  assert.equal((await store.scan()).find(doc => doc.path === '卡片/c.md').revision, saved.revision);
 });

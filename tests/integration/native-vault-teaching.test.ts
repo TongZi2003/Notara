@@ -45,14 +45,14 @@ interface TeachingSettings {
 interface RouteNode { id: string; title: string; routePath: string; routeRevision: string; parent: string | null; scriptPath: string | null; sessionId: string | null }
 interface RoutesView { routes: { path: string; title: string; revision: string; ref: string }[]; nodes: RouteNode[] }
 interface LessonLogView { hits: { path: string; ref: string; title?: string; continuation?: string | null }[]; total: number }
-interface SavedSummary { saved?: boolean; archived?: boolean; path?: string; anchor?: string }
+interface SavedSummary { saved?: boolean; archived?: boolean; archiveScheduled?: boolean; path?: string; anchor?: string }
 
 /** The only dedicated classroom tools left after the minimal split. */
 const NOTARA_TOOL_NAMES = ['save_lesson_summary', 'open_learning_lesson', 'set_teaching_settings', 'ask_worker'];
 /** Native rows the main classroom must actually offer in the assembled request:
  * Bash carries reading, searching and the deterministic commands, image reading
  * and Skills stay rows of their own. */
-const TEACHER_NATIVE_TOOL_NAMES = ['bash', 'read_image', 'skill'];
+const TEACHER_NATIVE_TOOL_NAMES = ['bash', 'read_image', 'skill', 'job_output', 'job_list', 'job_kill'];
 /** Native text-file rows the main classroom hides AND refuses. The teacher reads
  * and searches through Bash and saves through the command line instead; a
  * delegation child keeps its own surface and is not covered by this rule. */
@@ -147,19 +147,21 @@ test('教学设置进入真实装配请求，同课切教法改变下一次请�
   // 教学预设真实挂载：四个课堂生命周期工具＋原生 Bash、读图与技能工具。
   expect(toolNames(firstTurn!)).toEqual(expect.arrayContaining([...NOTARA_TOOL_NAMES, ...TEACHER_NATIVE_TOOL_NAMES]));
   // 主课堂没有原生文本文件工具：读写走 Bash 与 write-batch，不再挂 read/write/edit/glob/grep。
-  for (const name of HIDDEN_NATIVE_TOOL_NAMES) expect(toolNames(firstTurn!), `主课堂仍挂着原生文本工具 ${name}`).not.toContain(name);
+  // Search stays in Bash; read/write/edit stay offered for code files only (the guard refuses anything else).
+  for (const name of ['glob', 'grep']) expect(toolNames(firstTurn!), `主课堂仍挂着原生检索工具 ${name}`).not.toContain(name);
+  for (const name of ['read', 'write', 'edit']) expect(toolNames(firstTurn!)).toContain(name);
   // write-batch 是命令行命令，不是模型工具：工具面里不会出现同名模型工具。
   expect(toolNames(firstTurn!).filter(name => /write[-_]?batch/i.test(name))).toEqual([]);
   // 退役工具既不可调用也不再出现在工具面里，不保留旧的兼容形状。
   for (const name of RETIRED_TOOL_NAMES) expect(toolNames(firstTurn!)).not.toContain(name);
   expect(skillNames(firstTurn!).filter(name => name.startsWith('notara-')).length).toBeGreaterThan(0);
 
-  // 同课切到讲解式：下一次真实请求换成新教法，目标与课堂都不变。
+  // 同课切到讲解—变式：下一次真实请求换成新教法，目标与课堂都不变。
   harness.value(await harness.rpc('notaraVault/updateTeachingSettings', { input: { sessionId, expectedRevision: 1, patch: { teachingRef: 'lecture' } } }));
   const [secondTurn] = await harness.ask(sessionId, '还是你直接讲一遍吧。', { '还是你直接讲一遍吧。': '好，我按结构讲。' });
   const secondWire = JSON.stringify(secondTurn);
-  // 生效的正文换成讲解式；原生提示词按 in-history 更新，旧快照留在历史里。
-  expect(effectiveSystemText(secondTurn!)).toContain('讲解式');
+  // 生效的正文换成讲解—变式；原生提示词按 in-history 更新，旧快照留在历史里。
+  expect(effectiveSystemText(secondTurn!)).toContain('讲解—变式');
   expect(effectiveSystemText(secondTurn!)).not.toContain('费曼法');
   expect(secondTurn!.messages.filter(message => message.role === 'system')).toHaveLength(2);
   expect(secondWire).toContain('理解条件概率');
@@ -172,7 +174,7 @@ test('教学设置进入真实装配请求，同课切教法改变下一次请�
   expect(harness.value(await harness.rpc<TeachingSettings>('notaraVault/teachingSettings', { input: { sessionId } })))
     .toMatchObject({ revision: 2, teachingRef: 'lecture', learningGoal: { title: '理解条件概率' }, temporaryInstructions: '先让我自己试', subjects: ['数学'] });
   const [thirdTurn] = await harness.ask(sessionId, '我们接着上一次继续。', { '我们接着上一次继续。': '继续。' });
-  expect(effectiveSystemText(thirdTurn!)).toContain('讲解式');
+  expect(effectiveSystemText(thirdTurn!)).toContain('讲解—变式');
   expect((await harness.turns(sessionId)).length).toBe(3);
   expect((await harness.sessions()).filter(row => row.sessionId === sessionId)).toHaveLength(1);
 
@@ -467,7 +469,9 @@ test('路线开课复用同一会话、交错时绑定真实前课，小结落�
   await harness.ask(lessonB, '这节课就到这里，请总结并归档。', { '这节课就到这里，请总结并归档。': [{ name: 'save_lesson_summary', arguments: { body: '## 本课进度\n\n第二课完成。\n\n## 下次从这里继续\n\n下次做综合题。\n', archive: true } }] });
   const archivedOutcome = (await harness.outcomes(lessonB)).filter(outcome => outcome.name === 'save_lesson_summary').at(-1);
   expect(archivedOutcome?.failed).toBe(false);
-  expect(outcomeJson<SavedSummary>(archivedOutcome!)).toMatchObject({ saved: true, archived: true, path: freePath });
+  // DSH 0.2.0 refuses to archive during the teacher's own turn: the tool reports the archive as
+  // scheduled, and it happens once the turn ends.
+  expect(outcomeJson<SavedSummary>(archivedOutcome!)).toMatchObject({ saved: true, archived: false, archiveScheduled: true, path: freePath });
   await expect.poll(async () => harness!.archivedSessionIds(), { timeout: 20_000 }).toContain(lessonB);
   // 归档不吞掉小结：日志仍能定位到这节课真实的最后一次小结块。
   const afterArchive = harness.value(await harness.rpc<LessonLogView>('notaraVault/lessonLog', { input: { sessionId: bench } }));
@@ -488,4 +492,104 @@ test('路线开课复用同一会话、交错时绑定真实前课，小结落�
   const unbound = (await harness.outcomes(lessonC)).filter(outcome => outcome.name === 'set_teaching_settings').at(-1);
   expect(unbound?.failed).toBe(false);
   expect(outcomeJson<TeachingSettings>(unbound!)?.scriptPath).toBe(null);
+}, 300_000);
+
+test('老师在课堂里打开路线节点：未绑定的课堂就地绑定，已有上过的课堂不抢，重复学习记为新节点', async () => {
+  runtime = await startVaultIsolated({ testModel: true });
+  harness = await connectVault(runtime);
+  const bench = await harness.createSession();
+  const route = harness.value(await harness.rpc<{ path: string }>('notaraVault/createRoute', { input: { sessionId: bench, title: '条件概率', lessons: [
+    { title: '条件概率的定义', brief: '本节目标：用新袋子数球理解条件概率 BRIEF-7731。' }, { title: '全概率公式' }, { title: '贝叶斯公式' },
+  ] } }));
+  const node = async (title: string) => nodeIn(await routes(harness!, bench), route.path, title);
+  const open = async (sessionId: string, title: string, extra: Record<string, unknown> = {}) => {
+    const text = `打开「${title}」${Object.keys(extra).length ? '再学一次' : ''}`;
+    await harness!.ask(sessionId, text, { [text]: [{ name: 'open_learning_lesson', arguments: { path: route.path, nodeId: (await node(title)).id, ...extra } }] });
+    const outcome = (await harness!.outcomes(sessionId)).filter(row => row.name === 'open_learning_lesson').at(-1)!;
+    expect(outcome.failed, outcome.text).toBe(false);
+    return outcomeJson<{ sessionId: string; bound: boolean; already?: boolean; repeat?: boolean; reason?: string }>(outcome);
+  };
+
+  // The student asked in an unbound lesson: that lesson becomes the node's classroom.
+  const lessonA = await harness.createSession();
+  expect(await open(lessonA, '条件概率的定义')).toMatchObject({ sessionId: lessonA, bound: true });
+  expect((await node('条件概率的定义')).sessionId).toBe(lessonA);
+  expect(harness.value(await harness.rpc<TeachingSettings & { routePath: string; nodeId: string }>('notaraVault/teachingSettings', { input: { sessionId: lessonA } }))).toMatchObject({ routePath: route.path, nodeId: (await node('条件概率的定义')).id });
+  const [next] = await harness.ask(lessonA, '我们开始吧。', { '我们开始吧。': '好。' });
+  expect(JSON.stringify(next), 'the node plan is this lesson\'s background now').toContain('BRIEF-7731');
+  expect(await open(lessonA, '条件概率的定义')).toMatchObject({ sessionId: lessonA, bound: true, already: true });
+  // Its summary belongs to the node.
+  await harness.ask(lessonA, '今天先到这，保存小结。', { '今天先到这，保存小结。': [{ name: 'save_lesson_summary', arguments: { body: '## 本课进度\n\n数球。\n\n## 下次从这里继续\n\n全概率。\n' } }] });
+  const logFile = (await harness.vaultFiles('lesson_log/'))[0]!;
+  expect(await harness.readVaultFile(logFile)).toContain(`node: "${(await node('条件概率的定义')).id}"`);
+
+  // A lesson already bound elsewhere is not rebound.
+  const other = await open(lessonA, '全概率公式');
+  expect(other).toMatchObject({ sessionId: lessonA, bound: false });
+  expect(other?.reason).toContain('「条件概率的定义」');
+  expect((await node('全概率公式')).sessionId).toBe(null);
+
+  // A node the student has already learned in is not taken over; repeat records this lesson as a new pass.
+  const lessonB = await harness.createSession();
+  const taken = await open(lessonB, '条件概率的定义');
+  expect(taken).toMatchObject({ sessionId: lessonA, bound: false });
+  expect(taken?.reason).toContain('repeat');
+  expect((await node('条件概率的定义')).sessionId).toBe(lessonA);
+  expect(await open(lessonB, '条件概率的定义', { repeat: true })).toMatchObject({ sessionId: lessonB, bound: true, repeat: true });
+  const view = await routes(harness, bench);
+  const again = view.nodes.find(row => row.routePath === route.path && row.sessionId === lessonB)!;
+  expect(again.parent).toBe((await node('条件概率的定义')).id);
+
+  // A node whose classroom was opened but never used (no student message) is taken over.
+  const planned = await node('贝叶斯公式');
+  const empty = await openLesson(harness, bench, planned);
+  expect((await node('贝叶斯公式')).sessionId).toBe(empty);
+  const lessonC = await harness.createSession();
+  expect(await open(lessonC, '贝叶斯公式')).toMatchObject({ sessionId: lessonC, bound: true });
+  expect((await node('贝叶斯公式')).sessionId).toBe(lessonC);
+}, 300_000);
+
+test('主教师用原生 read/write/edit 写代码文件：真实落盘并留下原生结果；Markdown 与 Vault 以外的文件仍被拒绝', async () => {
+  runtime = await startVaultIsolated({ testModel: true });
+  harness = await connectVault(runtime);
+  harness.approvals.auto('allowed-once');
+  const sessionId = await harness.createSession();
+  const file = join(harness.workspace, 'vault', '代码', 'hog.py');
+  // A file outside the Vault would be listed to the student as this turn's work.
+  const outside = join(harness.workspace, '..', 'notara-scratch.json');
+  await mkdir(join(harness.workspace, 'vault', '代码'), { recursive: true });
+  const ask = '写一个掷骰子的函数，再改一下返回值。';
+  await harness.ask(sessionId, ask, { [ask]: [
+    { name: 'write', arguments: { file_path: file, content: 'def roll(n):\n    return n\n' } },
+    { name: 'read', arguments: { file_path: file } },
+    { name: 'edit', arguments: { file_path: file, old_string: '    return n\n', new_string: '    return n + 1\n' } },
+    { name: 'write', arguments: { file_path: join(harness.workspace, 'vault', '卡片', '代码.md'), content: '# 不该写入\n' } },
+    { name: 'write', arguments: { file_path: outside, content: '{"files":[]}' } },
+  ] });
+  const outcomes = (await harness.outcomes(sessionId)).filter(row => ['write', 'read', 'edit'].includes(row.name ?? ''));
+  expect(outcomes.map(row => `${row.name}:${row.failed}`)).toEqual(['write:false', 'read:false', 'edit:false', 'write:true', 'write:true']);
+  expect(outcomes.at(-2)!.text).toContain('write-batch');
+  expect(outcomes.at(-1)!.text).toContain('heredoc');
+  await expect(readFile(outside, 'utf8')).rejects.toThrow();
+  expect(await readFile(file, 'utf8')).toBe('def roll(n):\n    return n + 1\n');
+  expect(await harness.vaultExists('卡片/代码.md')).toBe(false);
+}, 300_000);
+
+test('每轮真实请求的本课背景都带上学习集梗概的状态', async () => {
+  runtime = await startVaultIsolated({ testModel: true });
+  harness = await connectVault(runtime);
+  const sessionId = await harness.createSession();
+  await harness.ask(sessionId, '先看看这个学习集。');
+  const background = (request: Awaited<ReturnType<VaultHarness['turns']>>[number]) => JSON.parse(JSON.stringify(request.messages)).flatMap((message: { content: { text?: string }[] }) => message.content.map(block => block.text ?? ''))
+    .filter((text: string) => text.includes('"learningSet"')).at(-1);
+  const first = (await harness.turns(sessionId)).at(-1)!;
+  expect(background(first), 'the overview state reaches the model').toContain('"learningSet":{"status":"missing"');
+  await mkdir(join(harness.vault, '技能'), { recursive: true });
+  const { writeFile } = await import('node:fs/promises');
+  await writeFile(join(harness.vault, '技能', 'learning-set.md'), '---\ntype: skill\nid: learning-set\ntitle: 学习集梗概\ndescription: 梗概。\nstatus: active\nsubjects: [数学]\ncoverage: 高中解析几何\nlevel: 高二\ngoal: 期末 120 分\ndeadline: 2027-01\n---\n# 学习集梗概\n\n以课本为主。\n');
+  await harness.ask(sessionId, '继续。');
+  const next = background((await harness.turns(sessionId)).at(-1)!);
+  expect(next).toContain('"status":"active"');
+  expect(next).toContain('"subjectSkills":["notara-subject-math"]');
+  expect(next).toContain('"subjectsSource":"learning-set"');
 }, 300_000);

@@ -1,32 +1,31 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 
-// rc.2 hard-codes a 264px minimum and a 280px reset. The original StudyForge
-// sidebar is 196px. Add a narrow, reversible geometry action so the *native*
-// column solver, resize handles and narrow/rightbar concessions agree on it.
-// Defaults remain 280px unless a deployment calls the new action.
+// DSH 0.2.0 hard-codes a 280px sidebar reset. Native Vault's sidebar is a 56px
+// rail plus its panel (360px). Add a narrow, reversible geometry action so the
+// *native* column solver, resize handles and narrow/rightbar concessions agree
+// on it; the native 264–420px range is kept. Defaults remain 280px unless a
+// deployment calls the new action.
 const patches = [
   {
-    path: 'lib/client.js', sha: '930c10a9bed1094e7bca6242276c22ba7020fd58bac47d70a0fef174544508ef',
+    path: 'lib/client.js', sha: '587d109681891295aed5bf0a4b1ca7c005113124be5b043246f09fccce47f492',
     replacements: [
       // The hidden native right sidebar extends beyond the frame. `hidden`
       // makes that outer frame programmatically scrollable: focusing a graph
       // node or navigating an editor can pan the entire app into the offscreen
       // column. Only the inner panes should scroll; the shell is a clip frame.
-      ['grid-template-rows:100%;display:grid;position:relative;overflow:hidden', 'grid-template-rows:100%;display:grid;position:relative;overflow:clip'],
-      ['clampWidth(sidebar, 264, 420)', 'clampWidth(sidebar, 196, 420)'],
+      ['grid-template-rows:100%;height:100%;display:grid;position:relative;overflow:hidden', 'grid-template-rows:100%;height:100%;display:grid;position:relative;overflow:clip'],
       ['layoutInfo.sidebar === 0 ? 280 : layoutInfo.sidebar', 'layoutInfo.sidebar === 0 ? layoutInfo.sidebarDefault : layoutInfo.sidebar'],
       ['sidebar: 280,', 'sidebar: 280,\n\t\t\t\t\t\tsidebarDefault: 280,'],
-      ['setSidebar: (d, px) => {', 'setSidebarDefaultWidth: (d, px) => {\n\t\t\t\t\t\td.layoutInfo.sidebarDefault = clampWidth(px, 196, 420);\n\t\t\t\t\t\tif (d.layoutInfo.sidebar !== 0) d.layoutInfo.sidebar = d.layoutInfo.sidebarDefault;\n\t\t\t\t\t},\n\t\t\t\t\tsetSidebar: (d, px) => {'],
-      ['d.layoutInfo.sidebar = clampWidth(px, 264, 420)', 'd.layoutInfo.sidebar = clampWidth(px, 196, 420)'],
+      ['setSidebar: (d, px) => {', 'setSidebarDefaultWidth: (d, px) => {\n\t\t\t\t\t\td.layoutInfo.sidebarDefault = clampWidth(px, 264, 420);\n\t\t\t\t\t\tif (d.layoutInfo.sidebar !== 0) d.layoutInfo.sidebar = d.layoutInfo.sidebarDefault;\n\t\t\t\t\t},\n\t\t\t\t\tsetSidebar: (d, px) => {'],
       ['d.layoutInfo.sidebar === 0 ? 280 : 0', 'd.layoutInfo.sidebar === 0 ? d.layoutInfo.sidebarDefault : 0'],
       ['toggleSidebar() {\n\t\t\t\tthis.panels.toggleSidebar();', 'setSidebarDefaultWidth(width) {\n\t\t\t\tthis.panels.setSidebarDefaultWidth(width);\n\t\t\t}\n\t\t\ttoggleSidebar() {\n\t\t\t\tthis.panels.toggleSidebar();'],
     ],
   },
   {
-    path: 'lib/types/client/service.d.ts', sha: 'a54853a90ffd8e1ba018a3cc22a84b2b0bdfcb7ce9b5adf31d1dca594513dddb',
+    path: 'lib/types/client/service.d.ts', sha: '5a7ba6db633eeda6792179fd13be316dcc06fd640b5413e2267068f70db7424e',
     replacements: [
-      ['export interface ILayout {', 'export interface ILayout {\n    /** Deployment sidebar width, 196–420px; native geometry and toggling retain it. */\n    setSidebarDefaultWidth(width: number): void;'],
+      ['export interface ILayout {', 'export interface ILayout {\n    /** Deployment sidebar width, 264–420px; native geometry and toggling retain it. */\n    setSidebarDefaultWidth(width: number): void;'],
       ['export declare class LayoutController implements ILayout {', 'export declare class LayoutController implements ILayout {\n    setSidebarDefaultWidth(width: number): void;'],
     ],
   },

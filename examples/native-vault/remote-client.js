@@ -18,7 +18,7 @@
 /** Every method the wrapper mirrors, in protocol order (see the Remote marker). */
 export const VAULT_REMOTE_METHODS = Object.freeze([
   'pdfAnnotations', 'updatePdfAnnotations',
-  'board', 'mutateBoard', 'mutateBoardInteraction',
+  'board', 'mutateBoard', 'mutateBoardInteraction', 'answerBoard', 'resendBoardAnswer',
   'list', 'read', 'readAsset', 'save', 'saveAsset', 'search', 'query', 'links', 'graph', 'learningStars', 'templates', 'createFromTemplate', 'tasks', 'toggleTask',
   // 回收站: one file at a time, always recoverable. Delete proves the revision it
   // saw; restore refuses any name that already exists.
@@ -30,6 +30,10 @@ export const VAULT_REMOTE_METHODS = Object.freeze([
   // 查看分析: the parent/child binding of one real solver task, so the bench can
   // open the native child session the backend already keeps for that receipt.
   'solverTask',
+  // 番茄钟: one timer per classroom; the Host owns ids, times and the wake-up.
+  'pomodoro', 'startPomodoro', 'stopPomodoro',
+  // 技能: the student's own decisions on the two skill tiers.
+  'userSkills', 'setUserSkillStatus', 'resolveUserSkillRevision', 'inheritUserSkill', 'createLearningSetOverview',
   'calendar', 'reviewQueue', 'reviewDetail', 'recordReview', 'undoReview', 'dailyNote', 'scheduleLesson',
 ]);
 
@@ -56,4 +60,17 @@ export function createVaultClient(ctx, sessionId) {
     client[method] = (input = {}) => ctx.remote.notaraVault[method]({ ...input, ...scope });
   }
   return client;
+}
+
+/**
+ * A refresh timer for a visible view: it skips its ticks while the page is
+ * hidden and refreshes once as soon as the page is shown again. Returns the
+ * function that stops it.
+ */
+export function visibleInterval(callback, ms) {
+  const hidden = () => typeof document !== 'undefined' && document.hidden;
+  const timer = setInterval(() => { if (!hidden()) callback(); }, ms);
+  const onShow = () => { if (!hidden()) callback(); };
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onShow);
+  return () => { clearInterval(timer); if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onShow); };
 }

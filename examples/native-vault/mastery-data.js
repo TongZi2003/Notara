@@ -6,12 +6,14 @@
 // the next read. The projection never writes `mastery`, `review_history` or
 // the review schedule back; `mastery 1–5` stays the review tier it is.
 //
-// Leaves: a `type: card` page with no split children. Only its new-format
-// assessments count as evidence. `not_observed` never updates the state, a
-// reverted record is not evidence, and a legacy `passed` row stays legacy — no
-// ability is invented for it. One evaluation record is one practice
-// opportunity: any `needs_practice` makes it a miss (a real difficulty was
-// seen), otherwise any `demonstrated` makes it a hit.
+// Leaves: a `type: card` page with no split children. One evaluation record is
+// one practice opportunity, and a reverted record is not evidence. Since
+// 0.20.0 a record is evidence through its key step only: `done` is a hit,
+// `missed` a miss, `unchecked` nothing; depth and the next check never count.
+// A second-generation `assessments` row keeps its old reading: any
+// `needs_practice` is a miss, otherwise any `demonstrated` a hit,
+// `not_observed` nothing. A first-generation `passed` row stays legacy — no
+// ability is invented for it.
 //
 // Parents: every node with split children. Mastery is the weighted geometric
 // mean over *all* leaf descendants (priors included), coverage is the weighted
@@ -31,7 +33,9 @@ const clamp = value => Math.min(1, Math.max(0, value));
 
 /** The observation one record contributes, or null when it carries none. */
 export function evidenceOf(record) {
-  if (!record || record.revertedAt || !Array.isArray(record.assessments)) return null;
+  if (!record || record.revertedAt) return null;
+  if (typeof record.result === 'string') return record.result === 'done' ? 'hit' : record.result === 'missed' ? 'miss' : null;
+  if (!Array.isArray(record.assessments)) return null;
   if (record.assessments.some(item => item?.outcome === 'needs_practice')) return 'miss';
   if (record.assessments.some(item => item?.outcome === 'demonstrated')) return 'hit';
   return null;

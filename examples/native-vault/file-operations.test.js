@@ -216,6 +216,9 @@ test('a partly invalid revision is refused before anything is written', async ()
 test('safeTitlePath stays the single file-name rule for route pages', () => {
   assert.equal(safeTitlePath('  圆锥曲线  '), '圆锥曲线');
   assert.equal(safeTitlePath('高二/圆锥:曲线'), '高二-圆锥-曲线');
+  assert.equal(safeTitlePath('结尾有点...'), '结尾有点');
+  assert.equal(safeTitlePath('CON'), 'CON-笔记');
+  assert.equal(safeTitlePath('con-notes'), 'con-notes');
   assert.throws(() => safeTitlePath(''), /vault_title_invalid/);
 });
 

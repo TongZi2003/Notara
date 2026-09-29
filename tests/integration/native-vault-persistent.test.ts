@@ -20,9 +20,12 @@ test('persistent Vault keeps its origin, browser login, settings, files and clas
     expect(await liveVaultUrl(root)).toBe(oldUrl);
     const cookie = login.headers.getSetCookie().map(item => item.split(';')[0]).join('; ');
     expect(cookie).not.toBe('');
-    const settingsPath = join(root, 'home/settings.yaml');
-    const settings = await readFile(settingsPath, 'utf8') + '\n# retained user settings\n';
-    await writeFile(settingsPath, settings);
+    // Writable defaults belong to the profile; home overlay fields lock their UI.
+    const patchPath = (base: string): string => join(base, 'home/cordis.patch.yml');
+    const settings = await readFile(patchPath(root), 'utf8');
+    expect(await readFile(join(root, 'home/profiles/web/cordis.patch.yml'), 'utf8')).toContain('welcomeNoticeVersion');
+    expect(settings).not.toContain('transcriptView');
+    await expect(stat(join(root, 'home/settings.yaml'))).rejects.toThrow(/ENOENT/);
     await writeFile(join(root, 'workspace/vault/保留.md'), '# 保留资料\n');
     const client = await connectVault(runtime);
     const session = await client.createSession();
@@ -31,6 +34,7 @@ test('persistent Vault keeps its origin, browser login, settings, files and clas
     await expect(launches.startVaultPersistent(root)).rejects.toThrow(/lock|locked|使用|运行/i);
     await runtime.stop(); runtime = undefined;
     expect(await liveVaultUrl(root)).toBeUndefined();
+    await expect(stat(join(root, 'launcher.json'))).rejects.toThrow(/ENOENT/);
     expect(await stat(join(root, 'home/.credentials.yaml')).then(() => true)).toBe(true);
     runtime = await launches.startVaultPersistent(root);
     expect(new URL(runtime.authUrl).origin).toBe(origin);
@@ -38,7 +42,7 @@ test('persistent Vault keeps its origin, browser login, settings, files and clas
     expect((await fetch(origin, { headers: { cookie } })).status).toBe(200);
     expect((await fetch(oldUrl, { redirect: 'manual' })).status).toBe(401);
     expect((await fetch(runtime.authUrl, { redirect: 'manual' })).status).toBe(303);
-    expect(await readFile(settingsPath, 'utf8')).toBe(settings);
+    expect(await readFile(patchPath(root), 'utf8')).toBe(settings);
     expect(await readFile(join(root, 'workspace/vault/保留.md'), 'utf8')).toBe('# 保留资料\n');
     const resumed = await connectVault(runtime);
     expect((await resumed.sessions()).some(row => row.sessionId === session)).toBe(true);
@@ -53,7 +57,7 @@ test('persistent Vault keeps its origin, browser login, settings, files and clas
     expect((await moved.sessions()).some(row => row.sessionId === session)).toBe(true);
     expect((await moved.ask(session, '继续课堂', { '继续课堂': '课堂已续接。' })).length).toBeGreaterThan(0);
     await moved.close();
-    expect(await readFile(join(migrated, 'home/settings.yaml'), 'utf8')).toBe(settings);
+    expect(await readFile(patchPath(migrated), 'utf8')).toBe(settings);
     expect(await readFile(join(migrated, 'workspace/vault/保留.md'), 'utf8')).toBe('# 保留资料\n');
   } finally { await runtime?.stop(); for (const path of [root, migrated, root + '.pre-persistent']) await rm(path, { recursive: true, force: true }); }
 }, 120_000);

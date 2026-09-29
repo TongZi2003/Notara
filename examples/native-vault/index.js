@@ -2,9 +2,10 @@ import { TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createVaultStore, safeRelativePath, resolveVaultRoot } from './vault.js';
+import { createVaultStore, safeRelativePath, resolveVaultRoot, pathKey } from './vault.js';
 import { installTeachingRuntime } from './teaching-runtime.js';
 import { VAULT_REMOTE_METHODS } from './remote-client.js';
+import { USER_SKILL_DIRECTORY, announceUserSkills } from './user-skills.js';
 import { createPdfAnnotationStore } from './pdf-annotations.js';
 import { installFontRoute } from './font-route.js';
 
@@ -40,8 +41,14 @@ function limitInput(value, fallback, maximum) {
 }
 
 function pathInput(value, name = 'path') {
-  try { return safeRelativePath(stringInput(value, name, 1_000)); }
+  let path;
+  try { path = safeRelativePath(stringInput(value, name, 1_000)); }
   catch { fail('vault_path_invalid'); }
+  // Dot folders (.git, .trash, .notara) and node_modules are never Vault
+  // material: the page reaches the recycle bin and annotations through their
+  // own methods, and nothing here reads or writes inside them.
+  if (path.split('/').some(part => part.startsWith('.') || pathKey(part) === 'node_modules')) fail('vault_path_invalid');
+  return path;
 }
 
 /**
@@ -123,17 +130,35 @@ export class NotaraVaultRemote extends TypertRemoteService {
     const content = stringInput(data.content, 'content', MAX_CONTENT_LENGTH);
     // The Host editor and the model share one writer, so the asset page and the
     // model must resolve the same workspace for the same session.
-    return (await this.editorFor(data)).save(pathInput(data.path), content, expectedRevision(data.expectedRevision));
+    const path = pathInput(data.path);
+    const saved = await (await this.editorFor(data)).save(path, content, expectedRevision(data.expectedRevision));
+    // A student editing a learning-set skill by hand may change what the teacher is offered.
+    if (path.split('/')[0] === USER_SKILL_DIRECTORY) announceUserSkills();
+    return saved;
   }
 
   async teachingSettings(input) {return this.teachingCall('settings',exactInput(input,['sessionId']));}
   async board(input) {return this.teachingCall('board',exactInput(input,['sessionId']));}
   async mutateBoard(input) {return this.teachingCall('mutateBoard',exactInput(input,['sessionId','expectedRevision','patch'],['blockId','sourcePath']));}
+  async answerBoard(input) {
+    const data=exactInput(input,['sessionId','blockId','component','fingerprint','value']);
+    if(!Number.isInteger(data.component)||typeof data.fingerprint!=='string'||typeof data.blockId!=='string') fail('vault_input_invalid');
+    return this.teachingCall('answerBoard',data);
+  }
+  async resendBoardAnswer(input) {return this.teachingCall('resendBoardAnswer',exactInput(input,['sessionId','blockId','answerId']));}
   async mutateBoardInteraction(input) {return this.teachingCall('mutateBoardInteraction',exactInput(input,['sessionId','boardRevision','interactionId','interactionRevision','patch']));}
   async classroom(input) {return this.teachingCall('classroom',exactInput(input,['sessionId']));}
   async solverTask(input) {return this.teachingCall('solverTask',exactInput(input,['sessionId','taskId']));}
-  async configureSolver(input) {return this.teachingCall('configureSolver',exactInput(input,['sessionId','expectedRevision','preset','route','tools'],['persona']));}
+  async configureSolver(input) {return this.teachingCall('configureSolver',exactInput(input,['sessionId','expectedRevision','preset','route','tools'],['persona','scope','inherit']));}
   async cancelSolver(input) {return this.teachingCall('cancelSolver',exactInput(input,['sessionId','taskId']));}
+  async pomodoro(input) {return this.teachingCall('pomodoro',exactInput(input,['sessionId']));}
+  async userSkills(input) {return this.teachingCall('userSkills',exactInput(input,[],['sessionId']));}
+  async setUserSkillStatus(input) {return this.teachingCall('setUserSkillStatus',exactInput(input,['scope','id','status','expectedRevision'],['workspaceId','sessionId']));}
+  async resolveUserSkillRevision(input) {return this.teachingCall('resolveUserSkillRevision',exactInput(input,['scope','id','action','expectedRevision'],['workspaceId','sessionId']));}
+  async inheritUserSkill(input) {return this.teachingCall('inheritUserSkill',exactInput(input,['fromWorkspaceId','toWorkspaceId','id'],['sessionId']));}
+  async createLearningSetOverview(input) {return this.teachingCall('createLearningSetOverview',exactInput(input,['workspaceId'],['sessionId']));}
+  async startPomodoro(input) {return this.teachingCall('startPomodoro',exactInput(input,['sessionId','phase'],['minutes']));}
+  async stopPomodoro(input) {return this.teachingCall('stopPomodoro',exactInput(input,['sessionId']));}
   async updateTeachingSettings(input) {return this.teachingCall('updateSettings',exactInput(input,['sessionId','expectedRevision','patch']));}
   async routes(input) {const data=exactInput(input,[],['sessionId']);return this.teachingCall('routes',scopeOf(data));}
   async createRoute(input) {return this.teachingCall('createRoute',exactInput(input,['title','lessons'],['sessionId']));}
@@ -147,7 +172,7 @@ export class NotaraVaultRemote extends TypertRemoteService {
   async calendar(input) {return this.teachingCall('calendar',exactInput(input,['from','to'],['sessionId','timeZone']));}
   async reviewQueue(input) {return this.teachingCall('reviewQueue',exactInput(input,[],['sessionId','timeZone','query','tag','status','offset','limit']));}
   async reviewDetail(input) {return this.teachingCall('reviewDetail',exactInput(input,['path'],['sessionId']));}
-  async recordReview(input) {return this.teachingCall('recordReview',exactInput(input,['path','expectedRevision','assessments','note'],['sessionId','timeZone']));}
+  async recordReview(input) {return this.teachingCall('recordReview',exactInput(input,['path','expectedRevision','result','note'],['keyStep','sessionId','timeZone']));}
   async undoReview(input) {return this.teachingCall('undoReview',exactInput(input,['path','expectedRevision'],['sessionId']));}
   async dailyNote(input) {return this.teachingCall('dailyNote',exactInput(input,['date'],['sessionId']));}
   async scheduleLesson(input) {return this.teachingCall('scheduleLesson',exactInput(input,['path','nodeId','date','expectedRevision'],['sessionId']));}
@@ -156,9 +181,11 @@ export class NotaraVaultRemote extends TypertRemoteService {
     if(!teaching) throw new Error('教学功能正在准备，请稍后重试。');
     try{return await teaching[method](input);}catch(error){
       const messages={teaching_settings_conflict:'设置已被修改，请重新打开后再保存。',teaching_session_required:'请在教学会话中使用此功能。',vault_revision_conflict:'资料已被修改，请刷新后再试。',vault_file_not_found:'找不到对应资料，请检查文件是否已移动。',lesson_script_required:'请选择一份真实的备课资料。'};
-      const solverMessages={solver_teacher_required:'请在老师的课堂中使用此功能。',solver_settings_conflict:'解题者设置已被修改，请刷新后再保存。',solver_model_unavailable:'这个解题模型尚未接入或当前不可用，请重新选择。',solver_task_not_found:'找不到这次分析任务，请刷新后再试。',solver_task_unavailable:'分析正在准备，稍后就可以查看。'};
-      const reviewMessages={vault_reference_stale:'资料已被修改，请刷新后再试。',review_assessments_invalid:'请为每项填写不同的具体能力，并选择对应的观察结果。',review_history_invalid:'这张卡片的评估历史有格式问题，请在资产页检查后再记录。',review_conflict:'这条评估已存在且内容不同，请重新读取后处理。',review_state_invalid:'复习属性不完整或互相冲突，请在资产页检查。',review_date_invalid:'请填写有效日期。',review_note_required:'请先写下这次回忆或作答的情况。',review_state_mismatch:'评估后资料已被调整，请刷新并检查复习属性。',review_undo_unavailable:'没有可以撤销的评估。',calendar_daily_ambiguous:'这一天有多份日记，请从日历列表选择。',calendar_scan_incomplete:'资料还没读取完整，请刷新后再创建日记。'};
-      throw new Error(messages[error.message]??solverMessages[error.message]??reviewMessages[error.message]??'操作未完成，请检查内容后重试。',{cause:error});
+      const solverMessages={solver_teacher_required:'请在老师的课堂中使用此功能。',solver_settings_conflict:'解题者设置已被修改，请刷新后再保存。',solver_model_unavailable:'这个模型现在不在可用的模型里，请重新选择。',solver_defaults_unavailable:'这里没有可写的共享设置位置，只能改本课。',solver_task_not_found:'找不到这次分析任务，请刷新后再试。',solver_task_unavailable:'分析正在准备，稍后就可以查看。'};
+      const reviewMessages={vault_reference_stale:'资料已被修改，请刷新后再试。',review_result_invalid:'请选择这次关键一步的结果。',review_key_step_invalid:'“检验的是哪一步”最多写 200 字。',review_history_invalid:'这张卡片的评估历史有格式问题，请在 Vault 里打开它检查后再记录。',review_conflict:'这条评估已存在且内容不同，请重新读取后处理。',review_state_invalid:'复习属性不完整或互相冲突，请在 Vault 里打开这张卡片检查。',review_date_invalid:'请填写有效日期。',review_note_required:'请先写下这次回忆或作答的情况。',review_state_mismatch:'评估后资料已被调整，请刷新并检查复习属性。',review_undo_unavailable:'没有可以撤销的评估。',calendar_daily_ambiguous:'这一天有多份日记，请从日历列表选择。',calendar_scan_incomplete:'资料还没读取完整，请刷新后再创建日记。'};
+      const pomodoroMessages={pomodoro_input_invalid:'番茄钟时长不在可选范围内，请重新选择。',skill_revision_conflict:'这份技能刚被改过，请刷新后再确认。',skill_not_found:'找不到这份技能，请刷新列表。',skill_exists:'这个学习集已经有同名技能，不能再继承一份。',skill_scope_unavailable:'当前运行环境没有学科层技能目录。',skill_revision_not_found:'这份修订已经处理过了，请刷新列表。',skill_inherit_same_set:'请选择另一个学习集作为来源。',overview_incomplete:'梗概还有待填写的必填项（科目、学什么、学段或水平、目标与期限），补全后再启用。',overview_exists:'这个学习集已经有梗概了。',overview_field_missing:'梗概缺少必填项，请在资料库里补上。'};
+      const boardMessages={board_answer_stale:'这道题刚被老师改过，请看一眼新题目再作答。',board_answer_invalid:'作答还不完整，请检查后再交。',board_answer_reason_required:'这道题要写一句理由再交。',board_answer_empty:'至少填一个空再交。',board_component_missing:'这道题已经不在白板上了，请刷新。',board_answer_missing:'找不到这次作答，请刷新白板。',board_component_locked:'老师写的题目和图里不能加高亮，请选择旁边的文字。',board_unpin_unavailable:'这一块来自旧白板，不能放回排版。',board_block_missing:'这一块已经不在白板上了，请刷新。'};
+      throw new Error(messages[error.message]??solverMessages[error.message]??reviewMessages[error.message]??boardMessages[error.message]??pomodoroMessages[error.message.split(':')[0]]??'操作未完成，请检查内容后重试。',{cause:error});
     }
   }
 

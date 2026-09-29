@@ -1,51 +1,52 @@
 {
-  "$comment": "P0.1 upstream version baseline. Every fact here was verified first-hand on 2026-09-11 from the official GitHub tags/releases API and the npm registry. P0.2+ may only consume these pinned versions.",
-  "verifiedAt": "2026-09-11",
-  "verifiedBy": "codex/deepseek-v4.1-flash (P0.1)",
+  "$comment": "Upstream version baseline. Every fact here was verified first-hand on 2026-09-28 from the npm registry, the GitHub tags and releases API, and the installed 0.2.0-rc.1 packages. The 0.1.5-rc.2 baseline this replaces is in git history.",
+  "verifiedAt": "2026-09-28",
+  "verifiedBy": "claude-opus-5-5 (DSH 0.2.0 migration)",
   "package": "@deepseek-ai/dsh",
-  "selectedVersion": "0.1.5-rc.2",
+  "selectedVersion": "0.2.0-rc.1",
   "selectedSource": {
     "registry": "https://registry.npmjs.org/@deepseek-ai%2Fdsh",
     "npmSelfReportedRepository": "git+https://github.com/deepseek-ai/deepseek-harness.git",
     "npmSelfReportedDirectory": "apps/cli",
-    "tarball": "https://registry.npmjs.org/@deepseek-ai/dsh/-/dsh-0.1.5-rc.2.tgz",
-    "integrity": "sha512-8Xc8hCQHcIWRmTCVU/xZdp6/qMsWMeAd2ObChKDEsfhUPJFXx6H0lgeb1DxUMD86HZrrVN+1bCvn1ppjZ/fOxw==",
-    "shasum": "2c78db39568d910868f1e4f34062a4f346d4815d",
-    "fileCount": 10,
-    "unpackedSize": 48910,
+    "tarball": "https://registry.npmjs.org/@deepseek-ai/dsh/-/dsh-0.2.0-rc.1.tgz",
+    "integrity": "sha512-F6hKNVoGgBDIzSiyRaIlobq4UD6cwxUjh+nwXqcDmufDh87TE1izsYzs8L5cZNpF2JmPnFM1mXRNnRJ0cs43ng==",
+    "shasum": "205c35227b6e923956dc767a02e2605f7d5fe840",
+    "fileCount": 20,
+    "unpackedSize": 69936,
     "registrySignatureKeyId": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
   },
   "selectedCommit": {
-    "gitTag": "dsh-v0.1.5-rc.2",
-    "commit": "fb2c4b9e698e30edb738bca4cf0618587db7d203",
-    "releaseName": "v0.1.5-rc.2",
-    "releasePublishedAt": "2026-09-10T15:09:34Z",
+    "gitTag": "dsh-v0.2.0-rc.1",
+    "commit": "4878cdabd87d4041bdaff61d04c966883b9fd07a",
+    "releaseName": "v0.2.0-rc.1",
+    "releasePublishedAt": "2026-09-28T12:36:21Z",
     "releasePrerelease": true,
     "releaseTargetCommitish": "master",
-    "npmPublishAt": "2026-09-10T14:57:10.790Z",
+    "npmPublishAt": "2026-09-28T12:34:03.181Z",
     "tagCommitMatchesReleaseTag": true,
-    "sourceArchive": "https://codeload.github.com/deepseek-ai/deepseek-harness/tar.gz/fb2c4b9e698e30edb738bca4cf0618587db7d203",
-    "sourceArchiveSha256": "60038295d9ea8849dc50a9d77dfcbed6c14397f0d54fadb035f768841415a3bd"
+    "sourceArchive": "https://codeload.github.com/deepseek-ai/deepseek-harness/tar.gz/4878cdabd87d4041bdaff61d04c966883b9fd07a",
+    "sourceArchiveSha256": "not recorded: the source archive was not downloaded for this migration"
   },
   "registryChannelReality": {
-    "$comment": "The tag name is NOT the selection basis. On 2026-09-11 npm `latest` still points at the older rc.1; rc.2 is reachable only through the `next` tag.",
+    "$comment": "The tag name is NOT the selection basis. On 2026-09-28 npm `latest` points at the 0.1.7 line; 0.2.0-rc.1 is reachable only through the `next` tag.",
     "distTags": {
-      "alpha": "0.1.5-alpha.2",
-      "next": "0.1.5-rc.2",
-      "latest": "0.1.5-rc.1"
+      "alpha": "0.1.7-alpha.2",
+      "next": "0.2.0-rc.1",
+      "latest": "0.1.7-rc.2"
     },
     "latestStillOlder": true,
     "rejected": {
-      "0.1.5-rc.1": "superseded by rc.2 (published ~12h earlier); no correctness defect recorded, only recency"
+      "0.1.7-rc.2": "the 0.1.x line the 0.2.0 release supersedes; selected 0.2.0-rc.1 as the formal update, on the user's request",
+      "0.1.5-rc.3": "a patch release of the previous baseline; not adopted"
     }
   },
   "node": {
-    "enginesFloor": ">=24.0.0",
+    "enginesFloor": ">=24.0.0 (this repository's own floor; @deepseek-ai/dsh 0.2.0-rc.1 declares no engines)",
     "verifiedRuntime": "v24.13.0",
     "verifiedNpm": "11.6.2"
   },
   "cliIsolationContract": {
-    "$comment": "Verified first-hand from apps/cli/src/{args,profile-boot}.ts at the selected commit AND by running the installed 0.1.5-rc.2 CLI. These replace the conceptual names used in the plan (empty learning-space path, isolated DSH home, plugin assembly command, temporary port).",
+    "$comment": "Re-verified in the installed 0.2.0-rc.1 CLI (lib/bin.js, lib/profile-boot, dsh-web-app/lib/startup.js) and by the Vault launcher, which boots `dsh web` with DSH_HOME, the home patch layer, --host 127.0.0.1, --port and --no-open.",
     "homeEnv": "DSH_HOME",
     "defaultHome": "~/.dsh",
     "homePrecedence": "explicit configured path > $DSH_HOME > ~/.dsh; blank/whitespace $DSH_HOME is ignored",
@@ -55,7 +56,8 @@
       "--from-default-profile <name>": "one-time init of a custom profile from a shipped template (web|headless|acp|sdk|sdk-minimal); shipped names cannot be used as custom targets",
       "--patch <path>": "repeatable extra overlay applied after the profile layer and the home layer",
       "--dump-config": "print composed profile tree and exit without booting",
-      "--dump-default-config": "print bundle layers only (no user layer, no --patch) and exit"
+      "--dump-default-config": "print bundle layers only (no user layer, no --patch) and exit",
+      "--dump-config-schema": "print JSON Schema for profile entries and patches without mounting (new in 0.2.0)"
     },
     "homePatchLayer": "$DSH_HOME/cordis.patch.yml",
     "profileRootFile": "cordis.yml",
@@ -78,43 +80,24 @@
       "source": "packages/bundle/web-app/cordis.patch.yml row `webserver`: config.host = ctx.webStartup.host ?? '127.0.0.1', config.port = ctx.webStartup.port ?? 3080"
     },
     "runtimeObservedNotes": {
-      "profileInitOnHelp": "`dsh --profile web --help` still initializes the profile directory (package.json, cordis.yml, cordis.patch.yml, pnpm-workspace.yaml) and links profile node_modules; the app reports neither service provides a bind, so no server listens",
-      "proxyWarningObserved": "on this machine the CLI prints a warning that `all_proxy` names a SOCKS proxy and then connects directly"
+      "loginRedirect": "the one-time login URL answers 303 with Location `./`"
     },
     "isolationBoundary": {
-      "verifiedIn": "/tmp (mkdtemp-style scratch), DSH_HOME pointed at a scratch directory",
-      "realHomeUntouched": "~/.dsh mtime unchanged (2026-08-24) across every probe in this task",
-      "sharedServiceUntouched": "no boot of any profile that binds a port; StudyForge 4877, the old DSH checkout, and other worktrees were never started or stopped"
-    }
+      "verifiedIn": "temporary DSH_HOME and classroom directories from scripts/dev-isolated.ts, random ports",
+      "realHomeUntouched": "~/.dsh and the long-term Vault (~/.notara/vault-runtime) were not started or modified by this migration",
+      "sharedServiceUntouched": "only isolated instances were booted from the migration worktree"
+    },
+    "settingsDocument": "0.2.0 removed $DSH_HOME/settings.yaml: an existing file is imported once into the active profile's cordis.patch.yml after the Loader settles, and renamed settings.yaml.imported. Notara 0.21.1 seeds writable display defaults in $DSH_HOME/profiles/web/cordis.patch.yml; a home overlay locks those fields against UI edits (verified by the debug-toggle browser regression on 2026-09-29)."
   },
   "dependencyTreePolicy": {
-    "$comment": "The lockfile is the arbiter. Every @deepseek-ai/dsh-* and @deepseek-ai/cordis dependency in dsh/package-lock.json must resolve to 0.1.5-rc.2 / 4.0.2-family; a mixed rc is a defect.",
-    "pinnedDshFamily": "0.1.5-rc.2",
-    "pinnedCordis": "4.0.2"
+    "$comment": "The lockfile is the arbiter. Every @deepseek-ai/dsh-* dependency in package-lock.json must resolve to 0.2.0-rc.1, and @deepseek-ai/cordis to 4.0.4; a mixed release is a defect.",
+    "pinnedDshFamily": "0.2.0-rc.1",
+    "pinnedCordis": "4.0.4"
   },
   "typescript": {
     "selected": "6.0.3",
-    "reason": "@deepseek-ai/dsh-typert-generator@0.1.5-rc.2 declares dependencies.typescript = ^6.0.3; a TS 5 install would not satisfy the rc.2 generator baseline",
+    "reason": "the 0.2.0-rc.1 packages are built against TypeScript ^6.0.3 (dsh-typert-generator declares dependencies.typescript = ^6.0.3)",
     "satisfiesGeneratorRange": true
-  },
-  "generator": {
-    "localBuildFix": {
-      "reason": "Recognize canonical npm protocol declarations in isTypeMetaSymbol",
-      "review": "../evidence/P0/generator-pre-review.md",
-      "script": "scripts/patch-sdk.ts",
-      "originalArtifactSha256": "06a187cfc6c7e12eb88d260dc7a5d09029159a17cf9a9a54bea4e27939d0b009",
-      "patchedArtifactSha256": "59f8200e082408255a5dd64d78850b69890c288f0a85d531ad379db9f697247e",
-      "runtimeModified": false
-    },
-    "package": "@deepseek-ai/dsh-typert-generator",
-    "version": "0.1.5-rc.2",
-    "integrity": "sha512-II4+JIRwODl9WiD2QgKpKPJ9vc9K1y0ZaDzrAf3Vuqp1hPHF0qVXgFHh7HwvSZuv+Ja5mmrRy2LQBzXhosinQQ==",
-    "shasum": "555b7dbe65fd4e96d64d1ae4718b8c414c13abfd",
-    "exports": {
-      ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
-      "./tsdown": { "types": "./lib/types/tsdown-plugin.d.ts", "default": "./lib/types/tsdown-plugin.js" }
-    },
-    "$comment": "P0.2 consumes WorkspaceTypertGenerator(root).generate(packages, ['host']) and the official ctx.remote.$mount path; the coordinating Codex verified the rc.2 public API source. Runtime assembly is not yet verified."
   },
   "officialEntryPoints": {
     "releases": "https://github.com/deepseek-ai/deepseek-harness/releases",

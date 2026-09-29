@@ -32,11 +32,15 @@ import { pathToFileURL } from 'node:url';
 import { createEditorVaultIO, sourceRef } from './agent-io.js';
 import { createRouteInVault, reviseRouteInVault } from './file-operations.js';
 import { lessonLog, parseRoute, ROUTE_PATHWAYS } from './lesson-data.js';
+import { scriptBindingStale } from './script-binding.js';
 import { lessonOutline, readLessonStage } from './lesson-script.js';
-import { embedTarget, parseMediaTarget } from './media.js';
+import { buildVaultGraph, childCardsOf, KNOWLEDGE_CARD_TYPES, MATERIAL_TYPES } from './graph.js';
+import { embedTarget, mediaForPath, parseMediaTarget } from './media.js';
 import { createReviewRuntime } from './review-runtime.js';
-import { validateAssessments, validateReviewNote } from './review-data.js';
-import { safeRelativePath, resolveVaultRoot } from './vault.js';
+import { reviewState, validateReviewNote, validateResult, validateKeyStep, REVIEW_RESULTS } from './review-data.js';
+import { safeRelativePath, resolveVaultRoot, revisionFor, pathKey, portablePath } from './vault.js';
+import { BOARD_DIRECTORY } from './board-data.js';
+import { USER_SKILL_DIRECTORY, globalSkillRoot, readUserSkills, saveUserSkill, setSkillRoot } from './user-skills.js';
 
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;
@@ -59,6 +63,20 @@ const ERROR_HELP = {
   cli_field_required: ['缺少必填字段。', '按 <command> --help 补齐必填字段后重试。'],
   cli_field_invalid: ['字段类型或格式不对。', '按 <command> --help 修正该字段后重试。'],
   vault_path_invalid: ['路径不合法。', '改成 Vault 内的真实相对路径，不含 .. 或符号链接。'],
+  board_path_reserved: ['课堂白板文件只由白板工具维护。', '用 write_lesson_board 修改板书，不直接改白板文件。'],
+  skill_path_reserved: ['技能/ 下的学习集 Skill 不用 write-batch 写。', '用 skill-save 保存；新建是草稿，已启用的 Skill 会生成待学生确认的修订。'],
+  skill_scope_unavailable: ['当前运行环境没有学科层 Skill 目录。', '只保存学习集层（scope: set），或如实说明学科层暂不可用。'],
+  skill_status_reserved: ['Skill 只能由你保存为草稿。', '把 status 写成 draft；启用由学生在技能页确认。'],
+  skill_revision_required: ['这份 Skill 已存在，需要带上读到的版本。', '先 skill-read 取 revision（有待确认修订时用 pending.revision），再保存。'],
+  skill_revision_conflict: ['Skill 在你读取之后被改过。', '重新 skill-read，基于最新内容修改后再保存。'],
+  skill_type_invalid: ['不是合法的 Skill 文件。', '页头要有 type: skill 与扁平 frontmatter。'],
+  skill_id_invalid: ['Skill 的 id 不合法。', 'id 用小写字母、数字和连字符，最多48个字符。'],
+  skill_title_invalid: ['Skill 缺少标题或标题过长。', 'title 写1..40字的中文名称。'],
+  skill_description_invalid: ['Skill 缺少说明或说明过长。', 'description 写1..300字：何时使用、包含什么。'],
+  skill_status_invalid: ['Skill 的 status 不合法。', 'status 只能是 draft 或 active。'],
+  skill_body_empty: ['Skill 没有正文。', '补上正文后再保存。'],
+  skill_content_invalid: ['Skill 内容过长或格式不对。', '控制在40000字符内；内容多时按主题拆成几份。'],
+  skill_not_found: ['找不到这份 Skill。', '先 skill-list 查看真实的 scope 与 id。'],
   vault_session_required: ['这次调用没有绑定真实课堂。', '在教学会话里使用，或在独立使用时显式传 --workspace。'],
   vault_scope_unavailable: ['当前工作区没有注册。', '确认会话绑定的是已注册工作区。'],
   vault_reference_invalid: ['path 与 expectedRevision 不完整。', '先读取资料，再照抄它的真实 revision。'],
@@ -79,10 +97,12 @@ const ERROR_HELP = {
   review_state_invalid: ['卡片复习属性互相冲突。', '按卡片模板修好属性，无法确定时交给用户处理。'],
   review_history_invalid: ['卡片的历史记录格式不对。', '修正文件的 review_history 后再试。'],
   review_date_invalid: ['日期不是真实的 YYYY-MM-DD。', '给出真实日期；不要用模型估的今天。'],
-  review_request_invalid: ['这次记录的字段不完整或使用了旧格式。', '运行 record-review --help，按具体能力传 assessments 与 note；passed 仅供读取旧历史。'],
+  review_request_invalid: ['这次记录的字段不完整或使用了旧格式。', '运行 record-review --help，按 keyStep、result 与 note 记录；学生到了哪一层、下次查什么写进卡片的学生理解。'],
   review_status_invalid: ['status 不在允许的取值里。', '使用 --help 列出的状态。'],
   review_note_required: ['这次评估没有写说明。', '先写下真实作答或讲解情况再记录。'],
-  review_assessments_invalid: ['能力观察缺失或格式不对。', '传1..8个不重复的 {ability, outcome}；outcome为demonstrated、needs_practice或not_observed。具体引导与学生贡献写在note。'],
+  review_result_invalid: ['result 不在允许的取值里。', `按这次关键那一步的实际情况，从 ${Object.keys(REVIEW_RESULTS).join('、')} 中选一个。`],
+  review_key_step_required: ['记了做出来或没做出来，却没写检验的是哪一步。', '在 keyStep 写这道题关键的思维步骤。'],
+  review_key_step_invalid: ['keyStep 不是字符串或超过 200 字符。', '用一句话写清检验的那一步。'],
   review_note_too_long: ['说明超过 4000 字符。', '压缩到真实要点。'],
   review_day_regression: ['记录日期早于上一次复习。', '确认记录时间是否正确；不要倒填历史。'],
   review_conflict: ['同一个记录身份写入了不同内容。', '重新读取卡片后按当前状态记录。'],
@@ -170,6 +190,8 @@ function integer({ min = 0, max = 10000 } = {}) {
 }
 
 const pathField = description => field('string', description, { check: text(1000) });
+/** A field whose shape the writer owns: its own error code, with the field named. */
+const ownedBy = (validate, name) => value => { try { validate(value); return true; } catch (error) { throw new CliError(error.message, name); } };
 const revisionField = description => field('string', description, { check: text(100) });
 
 const LESSON_FIELDS = {
@@ -217,7 +239,11 @@ const COMMANDS = {
       const seen=new Set();
       for(const [index,item] of files.entries()) {
         const path=safeRelativePath(item.path);
-        if(!path.toLowerCase().endsWith('.md')||path.split('/').some(part=>part.startsWith('.')||part==='node_modules')||path.startsWith('_templates/'))throw new CliError('vault_path_invalid',`files[${index}].path`);
+        // Folder names compare as a case-insensitive file system stores them.
+        const first=pathKey(path.split('/')[0]);
+        if(!path.toLowerCase().endsWith('.md')||path.split('/').some(part=>part.startsWith('.')||pathKey(part)==='node_modules')||first==='_templates')throw new CliError('vault_path_invalid',`files[${index}].path`);
+        if(first===pathKey(BOARD_DIRECTORY))throw new CliError('board_path_reserved',`files[${index}].path`);
+        if(first===pathKey(USER_SKILL_DIRECTORY))throw new CliError('skill_path_reserved',`files[${index}].path`);
         if(seen.has(path))throw new CliError('batch_duplicate_path',`files[${index}].path`);
         seen.add(path);
         const required=item.op==='create'?['content']:['oldText','newText'];
@@ -228,6 +254,34 @@ const COMMANDS = {
     },
     result:'{results:[{path,op,saved,revision?,ref?,error?}],savedCount,failedCount}；部分失败顶层ok=false并退出1，成功项保留，只重试失败项。重复create不覆盖，重试已完成edit可能原文不再匹配；先回读判断。',
     example:'{"files":[{"op":"create","path":"知识/例.md","content":"# 例\\n正文\\n"},{"op":"edit","path":"卡片/基底.md","oldText":"原有理解。","newText":"原有理解。\\n新的真实修正。"}]}',
+  },
+  'skill-list': {
+    summary: '列出学习集层（本 Vault 的 技能/）与学科层（全局）的 Skill：id、标题、说明、draft/active 与是否有待确认修订；不含正文。',
+    write: false,
+    fields: {},
+    result: '{skills:[{scope:"set"|"global",id,name,title,description,status,revision,pending:{revision}|null,error?}]}',
+    example: '{}',
+  },
+  'skill-read': {
+    summary: '读取一份 Skill 的完整原文与版本；有待确认修订时一并返回修订原文。',
+    write: false,
+    fields: {
+      scope: field('string', 'set（本学习集）| global（学科层）。', { required: true, check: value => value === 'set' || value === 'global' }),
+      id: field('string', 'skill-list 返回的 id。', { required: true, check: text(48) }),
+    },
+    result: '{scope,id,status,content,revision,pending:{content,revision}|null}',
+    example: '{"scope":"set","id":"conic-points"}',
+  },
+  'skill-save': {
+    summary: '保存一份 Skill（完整 Markdown，页头 type: skill、id、title、description、status: draft）。新建即草稿；草稿按版本覆盖；已启用的 Skill 不改原文，只生成一份待学生确认的修订。',
+    write: true,
+    fields: {
+      scope: field('string', 'set（本学习集的具体要点与教学提示）| global（学科共通的核心思想）。', { required: true, check: value => value === 'set' || value === 'global' }),
+      content: field('string', '完整 Skill 原文，最多40000字符；status 必须是 draft。', { required: true, check: value => typeof value === 'string' && value.length > 0 && value.length <= 40000 }),
+      expectedRevision: field('string', '改已有 Skill 时必填：skill-read 返回的 revision；已有待确认修订时填 pending.revision。', { check: text(64) }),
+    },
+    result: '{id,status,op:"create"|"edit"|"revision",revision}',
+    example: '{"scope":"set","content":"---\\ntype: skill\\nid: conic-points\\ntitle: 解析几何要点\\ndescription: 本学习集解析几何题的方法要点与适用条件。\\nstatus: draft\\n---\\n# 解析几何要点\\n"}',
   },
   'route-outline': {
     summary: '读取路线节点导航、先修关系与真实revision；不读取每课规划正文，也不把有课堂记录当作已掌握。',
@@ -285,11 +339,13 @@ const COMMANDS = {
     fields: {
       path: { ...pathField('卡片的 Vault 相对路径，如 卡片/基底.md。'), required: true },
       expectedRevision: { ...revisionField('刚读到的卡片 revision。'), required: true },
-      assessments: field('list<object>', '本轮原定要检验的1..8项能力，不重复。每项仅有ability（1..200字符的具体能力）与outcome：demonstrated=学生完成了该能力的关键认知工作，needs_practice=实际暴露困难，not_observed=证据尚不足。判据是这项能力的具体证据，不是有没有写出某一步：学生用等价表达完成了同一项认知工作就记demonstrated；该过程证据不足（未写出、未作答、未被问到或没有被学生做到）才记not_observed。教师引导本身不减分，老师代替做的那一步不算学生做到；不能省略原定但尚未观察的能力。needs_practice只用于学生实际做出的错误或有证据的困难，它会把复习档位降一档。', { required: true, check: value => { try { validateAssessments(value); return true; } catch (error) { throw new CliError(error.message, 'assessments'); } } }),
-      note: field('string', '1..4000字符：学生具体完成了什么、教师提供了哪些引导及判断依据；不按提示次数扣分，未知不写成失败。本命令只追加评估，不会替你写卡片正文的 `## 学生理解`：本轮有真实困难或转折时，先在正文补上这一阶段再记录评估，没有学生证据才留空。', { required: true, check: value => { try { validateReviewNote(value); return true; } catch (error) { throw new CliError(error.message, 'note'); } } }),
+      keyStep: field('string', '1..200字符：检验的是哪一步，写这道题关键的思维步骤，如“用条件删掉不满足的情况，在剩下的等可能结果里数”。result 为 done 或 missed 时必填。', { check: ownedBy(validateKeyStep, 'keyStep') }),
+      result: field('string', 'done | missed | unchecked：这次关键那一步学生有没有独立做出来。done=做出来（讲解之后在变式里独立做出来也算）；missed=学生试了、没做出来，或最后由老师点出了这一步；unchecked=这次没考（只有讲解、学生没试，说明里写“讲过”）。只有它决定复习档位：missed 让已在复习的卡降一档，done 在到期后升一档，unchecked 不动；还没开始复习的卡，done 或 missed 都从第1档开始。判断细则见 notara-method-distillation', { required: true, check: ownedBy(validateResult, 'result') }),
+      note: field('string', '1..4000字符：学生具体完成了什么、老师给了哪些引导、据以判断的证据。本命令只追加评估；本轮有真实的尝试或转折时，先用 write-batch 在卡片正文的 `## 学生理解` 补上这一阶段，再记录评估', { required: true, check: ownedBy(validateReviewNote, 'note') }),
     },
-    result: '{path, title, revision, ref, saved, state, scheduleChanged}；尚未观察或提前成功只记历史、不推迟到期。',
-    example: '{"path":"卡片/基底.md","expectedRevision":"0123456789abcdef01234567","assessments":[{"ability":"解释基底的作用","outcome":"demonstrated"},{"ability":"自主选择基底","outcome":"not_observed"}],"note":"老师给出基底后，学生自行解释了坐标意义；尚未检验其自主选择。"}',
+    result: '{path, title, revision, ref, saved, state, scheduleChanged}；这次没考或提前做出来只记历史、不推迟到期。',
+    example: '{"path":"卡片/两孩条件概率.md","expectedRevision":"0123456789abcdef01234567","keyStep":"用条件删掉不满足的情况，在剩下的等可能结果里数","result":"done","note":"先答 1/2，列出四种情况后自己改到 1/3；随后独立答对“已知老大是男孩”。"}',
+    retired: { assessments: 'review_request_invalid', passed: 'review_request_invalid', depth: 'review_request_invalid', nextCheck: 'review_request_invalid' },
   },
   'undo-review': {
     summary: '撤销最近一次未撤销的评估，恢复它之前的档位；当前值已被外部改动时拒绝。',
@@ -373,6 +429,15 @@ const COMMANDS = {
     },
     result: '{path, page, pageCount, text, revision, imagePath, locator, embed}; embed可直接写入资料节点，区域仍需看裁切图核对',
     example: '{"path":"媒体/向量讲义.pdf","page":2}',
+  },
+  'source-cards': {
+    summary: '按引用位置列出已从某份资料拆出的卡片：PDF 按页（含选区与还没有卡的页），视频/音频按时间段，图片按区域，Markdown/HTML 按锚点；没带位置的引用单列。拆书或补卡前用它核对，不按文件名判断。',
+    write: false,
+    fields: {
+      path: { ...pathField('资料的 Vault 相对路径：PDF、视频、图片等原件（如 媒体/向量讲义.pdf），或资料页（如 知识/向量讲义.md，同时核对它嵌入的原件）。'), required: true },
+    },
+    result: '{path, targets[{path,kind,revision?,pageCount?,pages?[{page,cards[{path,rect?,annotationId?,otherRevision?}]}],uncoveredPages?,ranges?,regions?,anchors?,wholeFile[],invalid[]}], cards[{path,title,type,parent,state,stateError?}], materials[{path,title,type,uncitedCards[]}], truncated, unreadable}; uncitedCards 是专题/源目录名下没带这份资料出处的卡，要读正文核对；一页有卡不等于这页每道题都有卡，整页引用要看标题或题干对上；otherRevision 是引用了旧版本，不算空缺',
+    example: '{"path":"知识/向量讲义.md"}',
   },
 };
 
@@ -482,6 +547,9 @@ async function readStdin(limit=STDIN_LIMIT) {
  * workspace or file is touched, so a bad call can never write. */
 function validateArgs(command, raw) {
   const spec = COMMANDS[command];
+  // A retired field names the current format instead of reading as a typo.
+  const retired = Object.keys(raw).find(key => Object.hasOwn(spec.retired ?? {}, key));
+  if (retired) throw new CliError(spec.retired[retired], retired);
   const unknown = Object.keys(raw).filter(key => !Object.hasOwn(spec.fields, key));
   if (unknown.length) throw new CliError('cli_field_unknown', unknown.join(', '));
   const args = {};
@@ -561,12 +629,13 @@ async function runCommand(command, args, { fs, root, env }) {
     : null;
   const review = createReviewRuntime({ ctx, editorFor: async () => io });
   if(command==='write-batch')return writeBatch(io,args.files);
+  if(command.startsWith('skill-'))return skillCommand(command,args,{workspacePath,env});
 
   if (command === 'lesson-outline' || command === 'lesson-section') {
     let pin = null, lessonIO = io, path = args.path;
     if (bound && env.DSH_NOTARA_LESSON) {
       try { pin = JSON.parse(env.DSH_NOTARA_LESSON); } catch { throw new CliError('cli_context_missing'); }
-      if (!pin || typeof pin.workspacePath !== 'string' || typeof pin.workspaceId !== 'string' || typeof pin.path !== 'string' || (pin.revision!==null && typeof pin.revision !== 'string')) throw new CliError('cli_context_missing');
+      if (!pin || typeof pin.workspacePath !== 'string' || typeof pin.workspaceId !== 'string' || typeof pin.path !== 'string' || (pin.revision!==null && typeof pin.revision !== 'string') || (pin.bodyRevision!==undefined && typeof pin.bodyRevision !== 'string')) throw new CliError('cli_context_missing');
     }
     // Absolute paths are accepted only for the explicitly bound script. All
     // other CLI operations still read only the current registered workspace.
@@ -580,7 +649,7 @@ async function runCommand(command, args, { fs, root, env }) {
     }
     const selectedPin = pin && resolve(resolveVaultRoot(lessonIO.workspace.path),path) === pinnedAbsolute ? pin : null;
     const document=await lessonIO.read(path,args.expectedRevision);
-    const stale=Boolean(selectedPin?.revision&&selectedPin.revision!==document.revision);
+    const stale=scriptBindingStale({revision:selectedPin?.revision,bodyRevision:selectedPin?.bodyRevision},document);
     if(command==='lesson-section'&&stale)throw new CliError('lesson_script_rebind_required');
     const result=command==='lesson-outline'?lessonOutline(document,args):readLessonStage(document,args);
     return {...result,readPath:args.path,boundRevision:selectedPin?.revision??null,stale,workspaceId:lessonIO.workspace.id,standalone};
@@ -627,13 +696,149 @@ async function runCommand(command, args, { fs, root, env }) {
   if (command === 'pdf-page') {
     return await pdfPage(io, args, workspacePath, workspace.id, standalone);
   }
+  if (command === 'source-cards') {
+    return { ...(await sourceCards(io, args.path)), workspaceId: workspace.id, standalone };
+  }
   throw new CliError('cli_command_unknown');
+}
+
+/* ------------------------------------------------------------------ source cards */
+
+// Which cards were lifted from a material, found by where their embeds point —
+// the same parse the graph uses for its split edges, so this table and the
+// graph never disagree. A file name is never evidence of coverage.
+const SOURCE_TARGET_LIMIT = 10;
+const LOCATOR_KINDS = { pdf: ['pdf-page', 'pdf-region'], video: ['video-time'], audio: ['video-time'], image: ['image-region'], html: ['html-range'], page: ['html-range'], file: [] };
+const byText = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
+
+async function sourceCards(io, rawPath) {
+  let path;
+  try { path = safeRelativePath(rawPath); } catch { throw new CliError('vault_path_invalid', 'path'); }
+  const scan = await io.scan();
+  const known = new Set(scan.files.map(row => row.path));
+  if (!known.has(path)) throw new CliError('vault_file_not_found', 'path');
+  const assets = scan.files.filter(row => row.kind === 'asset').map(row => ({ path: row.path, title: row.title, assetKind: mediaForPath(row.path).kind }));
+  const graph = buildVaultGraph(scan.documents, assets);
+  const nodes = new Map(graph.nodes.map(node => [node.path, node]));
+  const documents = new Map(scan.documents.map(document => [document.path, document]));
+  // A material page is checked together with the originals it embeds (a chapter note and its PDF).
+  const page = documents.get(path);
+  const embedded = page ? [...new Set((nodes.get(path)?.sources ?? []).map(source => source.path))].filter(target => target !== path && known.has(target) && !documents.has(target)) : [];
+  const targets = [path, ...embedded].slice(0, SOURCE_TARGET_LIMIT);
+  const cardNodes = graph.nodes.filter(node => node.kind === 'page' && KNOWLEDGE_CARD_TYPES.has(node.type));
+  const used = new Set();
+
+  const results = [];
+  for (const target of targets) {
+    const kind = documents.has(target) ? 'page' : mediaForPath(target).kind;
+    const allowed = new Set(LOCATOR_KINDS[kind] ?? []);
+    const located = [], wholeFile = new Set(), invalid = new Set();
+    for (const node of cardNodes) {
+      if (node.path === target) continue;
+      const refs = node.sources.filter(source => source.path === target);
+      const linked = documents.get(node.path)?.links.includes(target) ?? false;
+      if (!refs.length && !linked) continue;
+      used.add(node.path);
+      let placed = false;
+      for (const ref of refs) {
+        if (ref.invalidLocator || (ref.locator && !allowed.has(ref.locator.kind))) { invalid.add(node.path); continue; }
+        if (ref.locator) { located.push({ card: node.path, locator: ref.locator }); placed = true; }
+      }
+      if (!placed && !invalid.has(node.path)) wholeFile.add(node.path);
+    }
+    const entry = { path: target, kind };
+    if (kind === 'pdf') Object.assign(entry, await pdfCoverage(io, target, located));
+    else if (kind === 'video' || kind === 'audio') entry.ranges = located.map(({ card, locator }) => ({ path: card, startMs: locator.startMs, ...(locator.endMs === undefined ? {} : { endMs: locator.endMs }) })).sort((left, right) => left.startMs - right.startMs || byText(left.path, right.path));
+    else if (kind === 'image') entry.regions = located.map(({ card, locator }) => ({ path: card, rect: locator.rect }));
+    else if (kind === 'page' || kind === 'html') {
+      const anchors = new Map();
+      for (const { card, locator } of located) { const list = anchors.get(locator.anchor) ?? []; if (!list.includes(card)) list.push(card); anchors.set(locator.anchor, list); }
+      entry.anchors = [...anchors].map(([anchor, cards]) => ({ anchor, cards: cards.sort(byText) }));
+      if (kind === 'page') entry.revision = documents.get(target).revision;
+    }
+    entry.wholeFile = [...wholeFile].sort(byText);
+    entry.invalid = [...invalid].sort(byText);
+    results.push(entry);
+  }
+
+  const cards = [...used].sort(byText).map(cardPath => {
+    const node = nodes.get(cardPath), document = documents.get(cardPath);
+    const row = { path: cardPath, title: node.title, type: node.type, parent: node.parent ?? null, revision: node.revision };
+    if (node.type !== 'card') return row;
+    try { return { ...row, state: reviewState(document) }; }
+    catch (error) { return { ...row, state: null, stateError: error.message }; }
+  });
+  // 专题与源目录也引用了这份资料。它们名下不带这份资料出处的卡，引用查不到，单独列出来读正文核对。
+  const targetSet = new Set(targets);
+  const materials = graph.nodes
+    .filter(node => node.kind === 'page' && MATERIAL_TYPES.has(node.type) && !targetSet.has(node.path) && (node.sources.some(source => targetSet.has(source.path)) || (documents.get(node.path)?.links ?? []).some(link => targetSet.has(link))))
+    .map(node => ({ path: node.path, title: node.title, type: node.type, uncitedCards: childCardsOf(graph, node.path).map(child => child.path).filter(child => !used.has(child)).sort(byText) }))
+    .sort((left, right) => byText(left.path, right.path));
+  return { path, targets: results, cards, materials, truncated: scan.truncated, unreadable: scan.errors.length };
+}
+
+/** Every page of the PDF that a card cites, and the pages none does. A citation
+ * pinned to another revision still names this material: it is marked, never
+ * counted as a gap, and never taken as a position in the current version. */
+async function pdfCoverage(io, path, located) {
+  const asset = await io.readAsset(path);
+  let pageCount = null, pageCountError;
+  try {
+    const { readPdfPageCount } = await import('./agent-media.js');
+    pageCount = await readPdfPageCount(asset.bytes);
+  } catch (error) { pageCountError = error.message; }
+  const pages = new Map();
+  for (const { card, locator } of located) {
+    const list = pages.get(locator.page) ?? [];
+    list.push({
+      path: card,
+      ...(locator.kind === 'pdf-region' ? { rect: locator.rect } : {}),
+      ...(locator.annotationId ? { annotationId: locator.annotationId } : {}),
+      ...(locator.revision && locator.revision !== asset.revision ? { otherRevision: locator.revision } : {}),
+    });
+    pages.set(locator.page, list);
+  }
+  const covered = [...pages.keys()].sort((left, right) => left - right);
+  return {
+    revision: asset.revision,
+    pageCount,
+    ...(pageCountError ? { pageCountError } : {}),
+    pages: covered.map(number => ({ page: number, cards: pages.get(number).sort((left, right) => byText(left.path, right.path)) })),
+    ...(pageCount === null ? {} : { uncoveredPages: Array.from({ length: pageCount }, (_, index) => index + 1).filter(number => !pages.has(number)) }),
+  };
 }
 
 /* ------------------------------------------------------------------ pdf */
 
 // A batch is intentionally not a multi-file transaction. Each write uses the
 // existing native CAS seam and reports its own result, so retries stay local.
+function skillRoot(scope,{workspacePath,env}) {
+  if(scope==='set')return setSkillRoot(workspacePath);
+  const root=globalSkillRoot(env);
+  if(!root)throw new CliError('skill_scope_unavailable');
+  return root;
+}
+async function skillCommand(command,args,context) {
+  if(command==='skill-list'){
+    const scopes=[['set',setSkillRoot(context.workspacePath)],['global',globalSkillRoot(context.env)]].filter(([,root])=>root);
+    const skills=[];
+    for(const [scope,root] of scopes)for(const row of await readUserSkills(root,scope)){
+      const {body:_body,pending,...rest}=row;
+      skills.push({...rest,pending:pending?{revision:pending.revision}:null});
+    }
+    return {skills};
+  }
+  const root=skillRoot(args.scope,context);
+  if(command==='skill-save')return saveUserSkill(root,{content:args.content,expectedRevision:args.expectedRevision});
+  const {readFile}=await import('node:fs/promises');
+  const read=async name=>{try{return await readFile(join(root,name),'utf8');}catch(error){if(error?.code==='ENOENT')return null;throw error;}};
+  const content=await read(`${args.id}.md`);
+  if(content===null)throw new CliError('skill_not_found');
+  const [row]=(await readUserSkills(root,args.scope)).filter(item=>item.id===args.id);
+  const pending=await read(`${args.id}.revision.md`);
+  return {scope:args.scope,id:args.id,status:row?.status??null,content,revision:revisionFor(content),pending:pending===null?null:{content:pending,revision:revisionFor(pending)}};
+}
+
 async function writeBatch(io,files) {
   const results=[];
   for(const item of files) {
@@ -641,9 +846,13 @@ async function writeBatch(io,files) {
       let content=item.content,revision=null;
       if(item.op==='edit') {
         const current=await io.read(item.path);
-        const at=current.content.indexOf(item.oldText);
-        if(at<0||current.content.indexOf(item.oldText,at+1)>=0)throw new CliError('batch_original_mismatch');
-        content=current.content.slice(0,at)+item.newText+current.content.slice(at+item.oldText.length);
+        // A file checked out or saved on Windows may use CRLF while the teacher
+        // quotes it with LF: match and replace in the file's own line endings.
+        const crlf=current.content.includes('\r\n')&&!item.oldText.includes('\r');
+        const oldText=crlf?item.oldText.replace(/\n/g,'\r\n'):item.oldText,newText=crlf?item.newText.replace(/\r?\n/g,'\r\n'):item.newText;
+        const at=current.content.indexOf(oldText);
+        if(at<0||current.content.indexOf(oldText,at+1)>=0)throw new CliError('batch_original_mismatch');
+        content=current.content.slice(0,at)+newText+current.content.slice(at+oldText.length);
         revision=current.revision;
       }
       const saved=await io.save(item.path,content,revision);

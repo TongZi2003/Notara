@@ -8,15 +8,13 @@
  * student clicked a card in the conversation, so the card belongs in the pane
  * that can read and edit it.
  *
- * Two shapes in a closing turn carry a produced path, and both put the path in
- * `title` exactly as the writing tool recorded it — which is what lets a
- * `vault/...` title mean "Vault asset" without guessing:
- *   - an inline-code mention: `code > button[title]`
- *     (`@deepseek-ai/dsh-client-ui-primitives` MarkdownText inlineCode);
- *   - a produced-files chip: `[data-produced-files-row] > button[title]`
- *     (`@deepseek-ai/dsh-client-ui-deliverables` ProducedFiles).
+ * An inline-code mention of a produced path (`code > button[title]`,
+ * `@deepseek-ai/dsh-client-ui-deliverables` producedFileMentions) carries the
+ * path in `title` exactly as the writing tool recorded it — which is what lets a
+ * `vault/...` title mean "Vault asset" without guessing.
  * A presented-file card (`[data-presented-file]`, absolute title) means "open in
- * the default application"; external links, composer reference chips and every
+ * the default application"; DSH 0.2.0's changed-files card ("View changes to …")
+ * opens a diff review; external links, composer reference chips and every
  * non-Vault path keep their native routing.
  */
 
@@ -49,7 +47,7 @@ export function vaultConversationAssetPath(title) {
 
 /**
  * Vault asset behind one conversation click, or null when the click is not a
- * produced Vault file mention/chip.
+ * produced Vault file mention.
  */
 export function conversationVaultTarget(target) {
   const button = closest(target, 'button[title]');
@@ -57,7 +55,7 @@ export function conversationVaultTarget(target) {
   const asset = vaultConversationAssetPath(button.getAttribute?.('title') ?? button.title ?? null);
   if (!asset) return null;
   if (closest(button, '[data-presented-file]')) return null;
-  if (!closest(button, 'code') && !closest(button, '[data-produced-files-row]')) return null;
+  if (!closest(button, 'code')) return null;
   return asset;
 }
 

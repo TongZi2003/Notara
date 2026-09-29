@@ -1,4 +1,4 @@
-import { parseFrontmatter } from './frontmatter.js';
+import { frontmatterBody } from './frontmatter.js';
 import { embedTarget, mediaForPath, parseMediaTarget } from './media.js';
 
 // The graph is a pure projection of the vault files: no table, no cache and no
@@ -16,7 +16,7 @@ const CARD_TYPE = 'card';
 // 锦囊 keeps the card identity (it can be split into sub-cards) but its own
 // type, so the projection and the UI label it without guessing from the title.
 const INSIGHT_TYPE = 'insight';
-const KNOWLEDGE_CARD_TYPES = new Set([CARD_TYPE, INSIGHT_TYPE]);
+export const KNOWLEDGE_CARD_TYPES = Object.freeze(new Set([CARD_TYPE, INSIGHT_TYPE]));
 // The two material types are the vault's own teaching material. `source` mirrors
 // the original book: one page per chapter or section, its embeds carrying the
 // real PDF pages. `topic` is the teacher's own summary of a subject across
@@ -198,7 +198,7 @@ function excerptOf(content) {
     const value = truncateExcerpt(previewLines(section.content.split(/\r?\n/).slice(1)));
     if (value) return value;
   }
-  const { body } = parseFrontmatter(text);
+  const body = frontmatterBody(text);
   return truncateExcerpt(previewLines(body.split(/\r?\n/)));
 }
 
@@ -403,8 +403,7 @@ export function buildVaultGraph(documents = [], assets = []) {
     for (const target of record.links) {
       // A wiki link that mirrors an embed is the same relationship, so it never
       // becomes a second (reference) edge in either direction.
-      const mirrored = edges.some(edge => edge.kind === 'split'
-        && ((edge.source === record.path && edge.target === target) || (edge.source === target && edge.target === record.path)));
+      const mirrored = signatures.has(`split\u0000${record.path}\u0000${target}`) || signatures.has(`split\u0000${target}\u0000${record.path}`);
       if (!mirrored) addEdge(record.path, target, 'reference');
     }
   }
@@ -415,10 +414,9 @@ export function buildVaultGraph(documents = [], assets = []) {
   // parallel edge. Direction is ignored here exactly like the embed/link rule.
   const splitPairs = new Set(edges.filter(edge => edge.kind === 'split').map(edge => `${edge.source}\u0000${edge.target}`));
   const mirrorsSplit = (from, to) => splitPairs.has(`${from}\u0000${to}`) || splitPairs.has(`${to}\u0000${from}`);
-  for (let index = edges.length - 1; index >= 0; index -= 1) {
-    const edge = edges[index];
-    if (edge.kind === 'reference' && mirrorsSplit(edge.source, edge.target)) edges.splice(index, 1);
-  }
+  let kept = 0;
+  for (const edge of edges) if (!(edge.kind === 'reference' && mirrorsSplit(edge.source, edge.target))) edges[kept++] = edge;
+  edges.length = kept;
 
   const counts = childCounts(edges);
   const connected = new Set();
@@ -530,8 +528,10 @@ export function collapseVaultGraph(graph, expanded = []) {
   const byPath = new Map(nodes.map(node => [node.path, node]));
   const roots = nodes.filter(node => !incoming.has(node.path));
   const visible = new Set(roots.length ? roots.map(node => node.path) : nodes.slice(0, 1).map(node => node.path));
+  const splitParent = new Map();
+  for (const edge of edges) if (edge.kind === 'split' && !splitParent.has(edge.target)) splitParent.set(edge.target, edge.source);
   const ensureAncestors = path => {
-    const parent = edges.find(edge => edge.kind === 'split' && edge.target === path)?.source;
+    const parent = splitParent.get(path);
     if (!parent || visible.has(parent)) return;
     ensureAncestors(parent); visible.add(parent);
   };
@@ -635,8 +635,8 @@ export function taggedCardNodes(graph, tags = []) {
  */
 function scanSections(content) {
   const text = typeof content === 'string' ? content : String(content ?? '');
-  const { body } = parseFrontmatter(text);
-  // parseFrontmatter hands back the body; the prefix it removed is exactly the
+  const body = frontmatterBody(text);
+  // frontmatterBody hands back the body; the prefix it removed is exactly the
   // frontmatter block, whose line count offsets every body line number.
   const lineOffset = text.length > body.length ? text.slice(0, text.length - body.length).split(/\r?\n/).length - 1 : 0;
   const lines = body.split(/\r?\n/);

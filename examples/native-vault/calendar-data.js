@@ -28,6 +28,12 @@ export function dailyDate(document) {
   try { return validateDay(date); } catch { return null; }
 }
 
+/** Each generation projects the fields it actually holds; nothing is backfilled. */
+function reviewEvidence(record) {
+  if (typeof record.result === 'string') return { ...(record.keyStep === undefined ? {} : { keyStep: record.keyStep }), result: record.result };
+  return record.assessments ? { assessments: record.assessments, outcome: reviewOutcome(record) } : { passed: record.passed };
+}
+
 /** One projection over the files. No event database, automatic daily-note
  * writes, or inference that opening a file constitutes learning. */
 export function calendarProjection(documents, { from, to, timeZone, today }) {
@@ -45,7 +51,7 @@ export function calendarProjection(documents, { from, to, timeZone, today }) {
         for (const record of reviewHistory(doc)) {
           if (record.revertedAt) continue;
           put({ ...base, key: `review:${doc.path}:${record.id}`, kind: 'review', date: civilDay(record.at, timeZone),
-            ...(record.assessments ? { assessments: record.assessments, outcome: reviewOutcome(record) } : { passed: record.passed }),
+            ...reviewEvidence(record),
             note: record.note, actor: record.actor, sessionId: record.sessionId });
         }
       } catch { invalid.push({ path: doc.path, kind: 'review' }); }

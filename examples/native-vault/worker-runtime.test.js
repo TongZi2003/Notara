@@ -6,14 +6,16 @@ import { appendTeachingEvent } from './teaching-state.js';
 import { teachingManifest, teachingResource } from './teaching-catalog.js';
 
 function setup() {
-  const session = Session.create('workers-parent', [], { version: 3, id: 'workers-parent', createdAt: Date.now(), isSeeded: false, agentPreset: 'notara-teacher' });
+  const session = Session.create('workers-parent', [], { version: 4, id: 'workers-parent', createdAt: Date.now(), isSeeded: false, agentPreset: 'notara-teacher' });
+  // The teacher's current request: workers without a saved model follow it.
+  session.append('request/header', { header: { config: { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'high' } }, reason: 'initial' });
   const agent = { session }, calls = [], handlers = {}, schemas = [];
   const ctx = { llm: { listProviders: () => [{ id: 'test' }], listModels: async () => ['gpt-5.6-sol', 'other'].map(id => ({ id })), resolveModelInfo: async () => ({ reasoning: { efforts: [{ id: 'high' }, { id: 'low' }] } }) }, subagents: {
     start: async (provider, request) => { calls.push({ provider, request }); return { id: `child-${calls.length}`, result: Promise.resolve({ stopReason: 'completed', output: [{ type: 'text', text: 'PRIVATE_ARTIFACT' }] }), dispose: async () => {} }; },
   }, tools: { register: schema => schemas.push(schema), guard: () => {} }, effect: fn => fn(), on: (name, handler) => { handlers[name] = handler; } };
   ctx.get = name => ctx[name];
   const teaching = { isTeaching: a => a?.session?.header?.agentPreset === 'notara-teacher', agentFor: async () => agent, flush: async () => {} };
-  return { solver: new NotaraSolver(ctx, teaching), ctx, teaching, session, agent, calls, handlers, schemas, exec: { agent, callId: 'one', signal: new AbortController().signal } };
+  return { solver: new NotaraSolver(ctx, teaching, { defaultsPath: null }), ctx, teaching, session, agent, calls, handlers, schemas, exec: { agent, callId: 'one', signal: new AbortController().signal } };
 }
 
 test('classroom offers five independently configurable work presets', async () => {
@@ -72,7 +74,9 @@ test('only ask_worker is advertised and selected teaching skills are actually co
   const service = installSolver(ctx, teaching);
   assert.deepEqual(schemas.map(row => row.name), ['ask_worker']);
   const skill = 'notara-subject-math';
-  assert.ok(schemas[0].parameters.properties.skills.items.enum.includes(skill));
+  const skillsField = schemas[0].parameters.properties.skills;
+  assert.match(skill, new RegExp(skillsField.items.pattern));
+  assert.ok(skillsField.description.includes(skill), 'the built-in skill is named for the model');
   await service.ask({ preset: 'exercise', goal: '出一道小测', skills: [skill] }, exec);
   assert.match(calls[0].request.persona, /notara-subject-math/);
   assert.doesNotMatch(calls[0].request.persona, /notara-subject-humanities/);
@@ -99,7 +103,7 @@ for (const subject of subjects) {
     const solver = installSolver(ctx, teaching), id = `subject-${subject}`;
     const selected = teachingManifest.skills.find(item => item.id === id);
     assert.ok(selected, `${id} must be discoverable`);
-    assert.ok(schemas[0].parameters.properties.skills.items.enum.includes(`notara-${id}`));
+    assert.ok(schemas[0].parameters.properties.skills.description.includes(`notara-${id}`));
     await solver.ask({ preset: 'general', goal: '研究一个完整知识单元', skills: [`notara-${id}`], materials: [{ title: '单元原文', text: 'ONLY_THIS_UNIT' }] }, exec);
     const { request } = calls[0];
     assert.ok(request.persona.includes(teachingResource(selected.file)));
@@ -129,4 +133,115 @@ test('cross-subject work composes only explicit principles and rejects workflow 
     await assert.rejects(solver.ask({ preset: 'general', goal: '不应启动', skills }, exec), /skills/);
   }
   assert.equal(calls.length, 1);
+});
+
+function deferredWorker(ctx, calls) {
+  const pending = [];
+  ctx.subagents.start = async (provider, request) => {
+    calls.push({ provider, request });
+    let settle; const result = new Promise(resolve => { settle = resolve; });
+    const run = { id: `child-${calls.length}`, result, dispose: async () => {} };
+    pending.push({ run, finish: text => settle({ stopReason: 'completed', output: [{ type: 'text', text }] }), abort: () => settle({ stopReason: 'aborted', output: [] }) });
+    request.signal?.addEventListener('abort', () => pending.at(-1) && settle({ stopReason: 'aborted', output: [] }), { once: true });
+    return run;
+  };
+  return pending;
+}
+
+function fakeJobs(ctx, { refuse = false } = {}) {
+  const jobs = [];
+  ctx.jobs = { start(spec) {
+    if (refuse) throw new Error('background jobs unavailable: no job controller serves this agent (load @deepseek-ai/dsh-tool-jobs in its composition)');
+    const id = `subagent-${jobs.length + 1}`; jobs.push({ id, spec, hooks: spec.run() }); return id;
+  } };
+  return jobs;
+}
+
+const until = async predicate => { for (let i = 0; i < 50 && !predicate(); i++) await new Promise(resolve => setImmediate(resolve)); };
+
+test('a background worker returns at once and hands its result to the native job', async () => {
+  const { solver, ctx, calls, exec, session } = setup();
+  const pending = deferredWorker(ctx, calls), jobs = fakeJobs(ctx);
+  const receipt = await solver.ask({ preset: 'general', goal: '整理向量基底的知识单元', run_in_background: true }, exec);
+  assert.equal(receipt.status, 'running');
+  assert.equal(receipt.jobId, 'subagent-1');
+  assert.equal(jobs[0].spec.kind, 'subagent');
+  assert.equal(jobs[0].spec.owner, exec.agent.session.id);
+  await until(() => pending.length === 1);
+  assert.equal((await solver.read({ sessionId: session.id })).tasks[0].status, 'running');
+  pending[0].finish('基底的研究结果');
+  const outcome = await jobs[0].hooks.done;
+  assert.equal(outcome.status, 'completed');
+  assert.match(outcome.result, /基底的研究结果/);
+  assert.equal((await solver.read({ sessionId: session.id })).tasks[0].status, 'completed');
+});
+
+test('at most five workers run at once in one classroom', async () => {
+  const { solver, ctx, calls, exec } = setup();
+  const pending = deferredWorker(ctx, calls), jobs = fakeJobs(ctx);
+  for (let index = 0; index < 5; index++) await solver.ask({ preset: 'general', goal: `第${index + 1}个单元`, run_in_background: true }, { ...exec, callId: `bg-${index}` });
+  await until(() => pending.length === 5);
+  await assert.rejects(solver.ask({ preset: 'general', goal: '第六个单元', run_in_background: true }, { ...exec, callId: 'bg-6' }), /solver_busy/);
+  await assert.rejects(solver.ask({ preset: 'general', goal: '同步的第六个' }, { ...exec, callId: 'sync-6' }), /solver_busy/);
+  pending[0].finish('完成一个');
+  await jobs[0].hooks.done;
+  const sixth = await solver.ask({ preset: 'general', goal: '第六个单元', run_in_background: true }, { ...exec, callId: 'bg-6' });
+  assert.equal(sixth.status, 'running');
+});
+
+test('killing the native job cancels the worker and records it as canceled', async () => {
+  const { solver, ctx, calls, exec, session } = setup();
+  const pending = deferredWorker(ctx, calls), jobs = fakeJobs(ctx);
+  await solver.ask({ preset: 'problem', goal: '研究这道题', run_in_background: true }, exec);
+  await until(() => pending.length === 1);
+  jobs[0].hooks.cancel('teacher stopped it');
+  const outcome = await jobs[0].hooks.done;
+  assert.equal(outcome.status, 'killed');
+  assert.equal((await solver.read({ sessionId: session.id })).tasks[0].status, 'canceled');
+});
+
+test('without a job controller a background request starts nothing and frees its slot', async () => {
+  const { solver, ctx, calls, exec, session } = setup();
+  fakeJobs(ctx, { refuse: true });
+  await assert.rejects(solver.ask({ preset: 'general', goal: '后台整理', run_in_background: true }, exec), /solver_background_unavailable/);
+  assert.equal(calls.length, 0);
+  assert.deepEqual((await solver.read({ sessionId: session.id })).tasks, []);
+  assert.equal(solver.active.size, 0);
+  delete ctx.jobs;
+  await assert.rejects(solver.ask({ preset: 'general', goal: '后台整理', run_in_background: true }, { ...exec, callId: 'two' }), /solver_background_unavailable/);
+  assert.equal(calls.length, 0);
+});
+
+test('model setup errors still return synchronously for a background request', async () => {
+  const { solver, ctx, calls, exec, session } = setup();
+  const jobs = fakeJobs(ctx);
+  // A saved model this deployment no longer offers.
+  await solver.configure({ sessionId: session.id, expectedRevision: 0, preset: 'general', tools: 'none', route: { provider: 'test', model: 'gpt-5.6-sol' } });
+  ctx.llm.listModels = async () => [{ id: 'other' }]; solver.catalog = null;
+  await assert.rejects(solver.ask({ preset: 'general', goal: '后台整理', run_in_background: true }, exec), /solver_model_unavailable/);
+  assert.equal(jobs.length, 0);
+  assert.equal(calls.length, 0);
+  assert.equal(solver.active.size, 0);
+});
+
+test('a worker gets an adopted user skill by name, and never a draft', async t => {
+  const { mkdtemp, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { saveUserSkill, setUserSkillStatus } = await import('./user-skills.js');
+  const { solver, calls } = setup();
+  const workspace = await mkdtemp(join(tmpdir(), 'notara-worker-skill-'));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  const session = Session.create('workers-cwd', [], { version: 4, id: 'workers-cwd', createdAt: Date.now(), isSeeded: false, agentPreset: 'notara-teacher', cwd: workspace });
+  session.append('request/header', { header: { config: { provider: 'test', model: 'gpt-5.6-sol' } }, reason: 'initial' });
+  const exec = { agent: { session }, callId: 'one', signal: new AbortController().signal };
+  const root = join(workspace, '技能');
+  const file = id => `---\ntype: skill\nid: ${id}\ntitle: 解析几何要点\ndescription: 本学习集的解析几何要点。\nstatus: draft\n---\n# 要点\nADOPTED_SET_POINT ${id}\n`;
+  const saved = await saveUserSkill(root, { content: file('conic-points') });
+  await saveUserSkill(root, { content: file('still-draft') });
+  await assert.rejects(solver.ask({ preset: 'lesson', goal: '完善一节课', skills: ['notara-set-conic-points'] }, { ...exec, callId: 'before' }), /学生尚未启用/);
+  await setUserSkillStatus(root, { id: 'conic-points', status: 'active', expectedRevision: saved.revision });
+  await solver.ask({ preset: 'lesson', goal: '完善一节课', skills: ['notara-set-conic-points', 'notara-subject-math'] }, { ...exec, callId: 'after' });
+  assert.match(calls.at(-1).request.persona, /## 按需原则 notara-set-conic-points[\s\S]*ADOPTED_SET_POINT conic-points/);
+  await assert.rejects(solver.ask({ preset: 'lesson', goal: '完善一节课', skills: ['notara-set-still-draft'] }, { ...exec, callId: 'draft' }), /学生尚未启用/);
 });

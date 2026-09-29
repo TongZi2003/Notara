@@ -1,2 +1,0 @@
-Verified rc.2 Session.append ignorable envelope passthrough
-native-vault client: 5462055 bytes

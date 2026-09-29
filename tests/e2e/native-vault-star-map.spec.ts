@@ -20,11 +20,11 @@ import { renderRoute, upsertLessonSummary } from '../../examples/native-vault/le
  * as a 森林, the dark theme as the 深夜 sky.
  */
 let sequence = 0;
-function evaluate(path: string, content: string, outcomes: string[][]) {
+function evaluate(path: string, content: string, results: string[]) {
   let document = parseMarkdownDocument(path, content, revisionFor(content));
-  outcomes.forEach((outcome, index) => {
+  results.forEach((result, index) => {
     const day = `2026-09-${String(10 + index * 4).padStart(2, '0')}`;
-    const next = recordReviewContent(document, { id: `e2e-${++sequence}`, at: `${day}T08:00:00.000Z`, day, assessments: outcome.map((value, i) => ({ ability: `能力${i + 1}`, outcome: value })), note: '合成的评估记录。', actor: 'teacher', sessionId: 'e2e-lesson' });
+    const next = recordReviewContent(document, { id: `e2e-${++sequence}`, at: `${day}T08:00:00.000Z`, day, keyStep: '关键一步', result, note: '合成的评估记录。', actor: 'teacher', sessionId: 'e2e-lesson' });
     document = parseMarkdownDocument(path, next, revisionFor(next));
   });
   return document.content;
@@ -33,9 +33,9 @@ function evaluate(path: string, content: string, outcomes: string[][]) {
 async function seed(vault: string) {
   const write = async (path: string, content: string) => { await mkdir(dirname(join(vault, path)), { recursive: true }); await writeFile(join(vault, path), content); };
   const card = (path: string, parent: string) => serializeFrontmatter({ type: 'card', parent, tags: ['数学'] }) + `# ${(path.split('/').pop() ?? path).replace(/\.md$/, '')}\n`;
-  const D = ['demonstrated'], N = ['needs_practice'], O = ['not_observed'];
+  const D = 'done', N = 'missed', O = 'unchecked';
   await write('专题/圆锥曲线.md', serializeFrontmatter({ type: 'topic', tags: ['数学'] }) + '# 圆锥曲线\n');
-  const tree: Array<[string, string, string[][]]> = [
+  const tree: Array<[string, string, string[]]> = [
     ['卡片/椭圆.md', '专题/圆锥曲线.md', []], ['卡片/双曲线.md', '专题/圆锥曲线.md', []], ['卡片/抛物线.md', '专题/圆锥曲线.md', [D]],
     ['卡片/焦点与准线.md', '卡片/椭圆.md', [D, D, D]], ['卡片/标准方程.md', '卡片/椭圆.md', [D, D]], ['卡片/离心率.md', '卡片/椭圆.md', [N, D]], ['卡片/参数方程.md', '卡片/椭圆.md', [O]],
     ['卡片/渐近线.md', '卡片/双曲线.md', [D]], ['卡片/离心率范围.md', '卡片/双曲线.md', []],
@@ -75,7 +75,7 @@ test('the star map lights from real evidence, aggregates every leaf and follows 
     try { await later.waitFor({ timeout: 8000 }); await later.click(); } catch { /* already acknowledged */ }
     const input = page.locator('[data-composer-input][contenteditable="true"]').last();
     await input.fill('打开资料'); await input.press('Enter');
-    await page.getByRole('button', { name: '资料库', exact: true }).click();
+    await page.getByRole('button', { name: 'Vault', exact: true }).click();
     await page.getByRole('tab', { name: '图谱', exact: true }).click();
     const views = page.getByRole('group', { name: '图谱视图' });
     await views.getByRole('button', { name: '森林', exact: true }).click();
@@ -131,7 +131,7 @@ test('the star map lights from real evidence, aggregates every leaf and follows 
 
     // New evidence written outside the page lights the leaf and widens its parent.
     const parametric = join(vault, '卡片/参数方程.md');
-    await writeFile(parametric, evaluate('卡片/参数方程.md', await readFile(parametric, 'utf8'), [['demonstrated']]));
+    await writeFile(parametric, evaluate('卡片/参数方程.md', await readFile(parametric, 'utf8'), ['done']));
     await page.evaluate(() => window.dispatchEvent(new Event('notara-vault-changed')));
     await expect(star(page, '参数方程')).toHaveAttribute('data-state', 'lit');
     await star(page, '椭圆').click();
@@ -159,8 +159,9 @@ test('the star map lights from real evidence, aggregates every leaf and follows 
     // Courses light only from a saved summary; an opened classroom stays unlit.
     await page.getByRole('button', { name: '计划', exact: true }).click();
     await page.getByRole('tab', { name: '路线', exact: true }).click();
-    const routeSelect = page.getByLabel('学习路线', { exact: true });
-    if (await routeSelect.count()) await routeSelect.selectOption('路线/圆锥曲线路线.md');
+    // The panel lists the routes; picking one there moves the route page with it.
+    await page.locator('.nv-panel').getByRole('button', { name: /圆锥曲线路线/ }).click();
+    await expect(page.getByRole('combobox', { name: '学习路线' })).toHaveValue('路线/圆锥曲线路线.md');
     await page.getByRole('group', { name: '路线视图' }).getByRole('button', { name: '森林', exact: true }).click();
     await expect(page.getByRole('group', { name: '课程森林' })).toBeVisible();
     await expect(page.getByRole('group', { name: '课程森林' }).locator('.nv-star-group', { hasText: '认识曲线' })).toBeVisible();
@@ -182,7 +183,9 @@ test('the star map lights from real evidence, aggregates every leaf and follows 
 
     // 801px: the sky stays usable without horizontal overflow.
     await page.setViewportSize({ width: 801, height: 900 });
-    await page.getByRole('button', { name: '资料库', exact: true }).click();
+    // Narrow: the panel is folded; the first press switches the section, the second opens its panel.
+    await page.getByRole('button', { name: 'Vault', exact: true }).click();
+    await page.getByRole('button', { name: 'Vault', exact: true }).click();
     await page.getByRole('tab', { name: '图谱', exact: true }).click();
     await expect(page.getByRole('group', { name: '知识森林' })).toBeVisible();
     const overflow = await page.evaluate(() => document.scrollingElement!.scrollWidth - document.scrollingElement!.clientWidth);

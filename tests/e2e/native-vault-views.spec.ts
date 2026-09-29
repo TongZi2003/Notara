@@ -12,7 +12,12 @@ import { startVaultIsolated, type VaultRuntime } from '../../scripts/dev-isolate
  * native chat split pane instead of a dialog. Every behaviour assertion of the
  * pre-migration spec is kept — only the entry points moved.
  */
-const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true });
+const railNav = (page: Page) => page.getByRole('navigation', { name: '学习导航' });
+const tab = (page: Page, name: string) => {
+  const vault = ['文件','图谱','卡片'].includes(name);
+  const target = vault ? page.getByRole('tablist', { name: 'Vault 视图' }).getByRole('tab', { name, exact: true }) : page.getByRole('tablist', { name: '课堂视图' }).getByRole('tab', { name, exact: true });
+  return { click: async () => { if (vault) { if (!(await target.isVisible())) await railNav(page).getByRole('button', { name: 'Vault', exact: true }).click(); await page.waitForTimeout(500); if (!(await target.isVisible()) && await railNav(page).getByRole('button', { name: '展开面板', exact: true }).isVisible()) await railNav(page).getByRole('button', { name: '展开面板', exact: true }).click(); } else if (!(await target.isVisible())) { await railNav(page).getByRole('button', { name: '首页', exact: true }).click(); await page.locator('.nv-panel .nv-session-row').first().click(); } await target.click(); }, target };
+};
 const detailsPane = (page: Page) => page.getByRole('complementary', { name: '节点详情' });
 // The wording of the card-creation action inside 打开摘录工具 is still moving.
 const createCard = (page: Page) => page.getByRole('button', { name: /创建摘录卡片|提取为 Markdown 卡片|提取段落为卡片/ });
@@ -20,7 +25,7 @@ const cardCreated = /已(?:提取|创建)/;
 
 test('vault views keep file facts, node-centred graph details and one chat mount', async ({ page }, testInfo) => {
   test.setTimeout(240_000);
-  const runtime: VaultRuntime = await startVaultIsolated();
+  const runtime: VaultRuntime = await startVaultIsolated({ testModel: true });
   await testInfo.attach('isolated-runtime', { body: JSON.stringify({ root: runtime.root, workspace: join(runtime.root, 'workspace'), url: new URL(runtime.authUrl).origin, node: process.version }), contentType: 'application/json' });
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -33,17 +38,17 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     await page.goto(runtime.authUrl);
     const later = page.getByRole('button', { name: 'Configure later', exact: true });
     try { await later.waitFor({ timeout: 8000 }); await later.click(); } catch { /* already configured */ }
-    await page.getByText('Notara Vault', { exact: true }).first().click();
     const composer = page.locator('[data-composer-input][contenteditable="true"], textarea[placeholder]').last();
     await composer.fill('打开知识库'); await composer.press('Enter');
 
     // One unified tab strip; the reader tab is deleted and the composer is the
     // native chat's single instance, hidden outside the chat tab.
-    await expect(tab(page, '对话')).toBeVisible();
-    await expect(tab(page, '文件')).toBeVisible();
-    await expect(tab(page, '图谱')).toBeVisible();
-    await expect(tab(page, '卡片')).toBeVisible();
-    await expect(tab(page, '阅读器')).toHaveCount(0);
+    await expect(tab(page, '对话').target).toBeVisible();
+    await railNav(page).getByRole('button', { name: 'Vault', exact: true }).click();
+    await expect(tab(page, '文件').target).toBeVisible();
+    await expect(tab(page, '图谱').target).toBeVisible();
+    await expect(tab(page, '卡片').target).toBeVisible();
+    await expect(page.getByRole('tab', { name: '阅读器', exact: true })).toHaveCount(0);
 
     await tab(page, '卡片').click();
     await expect(page.locator('[data-composer-input]')).toHaveCount(1);
@@ -51,12 +56,11 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     await expect(page.getByText(/还没有卡片/)).toBeVisible();
     await tab(page, '对话').click();
     await expect(page.locator('[data-composer-input]')).toBeVisible();
+    // The native shell sidebar still folds and unfolds: the rail drives it.
+    await railNav(page).getByRole('button', { name: '收起面板', exact: true }).click();
+    await railNav(page).getByRole('button', { name: '展开面板', exact: true }).click();
+    await expect(railNav(page).getByRole('button', { name: '收起面板', exact: true })).toBeVisible();
     await tab(page, '卡片').click();
-
-    // The native shell sidebar keeps its own controls.
-    await page.getByRole('button', { name: 'Open right sidebar', exact: true }).click();
-    await page.getByRole('button', { name: 'Collapse right sidebar', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Open right sidebar', exact: true })).toBeVisible();
 
     // External writes are file facts. Both views must refresh without a reload.
     const cards = join(runtime.root, 'workspace/vault/卡片');
@@ -71,18 +75,16 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     await page.getByRole('button', { name: /媒体\/向量讲义\.pdf · 第 2 页/ }).click();
     await expect(page.locator('canvas[aria-label="向量讲义.pdf"]')).toBeVisible();
     await expect(page.getByRole('spinbutton', { name: '页码' })).toHaveValue('2');
-    await expect(page.getByText(/已框选第 2 页区域/)).toBeVisible();
+    // The card's region is the current selection: the excerpt tool opens on it.
+    await expect(page.getByText(/第 2 页原始区域/)).toBeVisible();
 
     // Switching views keeps that locate target without a second reader tab.
     await tab(page, '图谱').click();
     await tab(page, '文件').click();
     await expect(page.getByRole('spinbutton', { name: '页码' })).toHaveValue('2');
 
-    // The file rail starts collapsed and 展开文件栏 reveals the file list.
-    await expect(page.getByRole('button', { name: '展开文件栏', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: /向量讲义\.pdf/ }).first()).toBeHidden();
-    await page.getByRole('button', { name: '展开文件栏', exact: true }).click();
-    await expect(page.getByRole('button', { name: /向量讲义\.pdf/ }).first()).toBeVisible();
+    // The Vault section lists the files in the side panel.
+    await expect(page.getByRole('group', { name: '文件列表' }).getByRole('button', { name: /向量讲义\.pdf/ }).first()).toBeVisible();
 
     // 新建页面 opens a dialog; the Markdown page lands in the vault.
     await page.getByRole('button', { name: '新建页面', exact: true }).click();
@@ -229,8 +231,8 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     await expect(page.locator('[data-composer-input]')).toContainText('拆分');
     await expect(page.locator('[data-composer-input]')).toContainText('基底摘录');
     await expect(page.locator('[data-nv-split]')).toContainText('向量');
-    await page.getByRole('tablist', { name: '左侧分页' }).getByRole('tab', { name: '卡片', exact: true }).click();
-    await page.getByRole('tablist', { name: '左侧分页' }).getByRole('tab', { name: '对话', exact: true }).click();
+    await page.getByRole('tablist', { name: '资料面板视图' }).getByRole('tab', { name: '卡片', exact: true }).click();
+    await page.getByRole('tablist', { name: '课堂视图' }).getByRole('tab', { name: '对话', exact: true }).click();
     await expect(page.locator('[data-composer-input]')).toContainText('拆分');
     await page.screenshot({ path: testInfo.outputPath('split.png') });
 
@@ -242,10 +244,14 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     await tab(page, '图谱').click();
     await page.getByRole('button', { name: '图谱节点 坐标卡', exact: true }).click();
     await expect(detailsPane(page)).toBeVisible();
-    await expect(page.locator('.nv-graph-board')).toBeHidden();
+    // On a narrow pane the graph stacks above the details instead of beside them.
+    const graphBox = (await page.locator('.nv-graph-board').boundingBox())!;
+    expect(graphBox.y + graphBox.height).toBeLessThanOrEqual((await detailsPane(page).boundingBox())!.y + 1);
     expect((await detailsPane(page).boundingBox())!.x).toBeGreaterThanOrEqual(0);
-    await expect(detailsPane(page).getByRole('button', { name: '带入对话', exact: true })).toBeVisible();
-    await expect(detailsPane(page).getByRole('button', { name: '带入对话拆分', exact: true })).toHaveCount(0);
+    // 坐标卡 now has a child card, so it is brought to be split, not whole.
+    await expect(detailsPane(page).getByRole('heading', { name: '子卡片 1', exact: true })).toBeVisible();
+    await expect(detailsPane(page).getByRole('button', { name: '带入对话拆分', exact: true })).toBeVisible();
+    await expect(detailsPane(page).getByRole('button', { name: '带入对话', exact: true })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('narrow.png') });
 
     await writeFile(join(cards, '失效来源.md'), '---\ntype: card\n---\n# 失效来源\n\n![[媒体/不存在.pdf#page=3]]\n');
@@ -256,12 +262,14 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     // An empty vault still renders explicit empty states in every view.
     await rm(join(runtime.root, 'workspace/vault'), { recursive: true });
     await tab(page, '图谱').click();
-    await expect(page.getByText('还没有文件。在资产页导入资料或创建页面。')).toBeVisible();
+    await expect(page.getByText('还没有文件。在 Vault 的「文件」里导入资料或新建页面。')).toBeVisible();
     await expect(page.locator('[data-node]')).toHaveCount(0);
     await tab(page, '卡片').click();
     await expect(page.getByText(/还没有卡片/)).toBeVisible();
     await tab(page, '文件').click();
-    await expect(page.getByRole('button', { name: '展开文件栏', exact: true })).toBeVisible();
+    await expect(page.getByText('资料库还是空的')).toBeVisible();
+    // With nothing open, the bar names the view by its current name.
+    await expect(page.locator('.nv-assets .nv-breadcrumb')).toHaveText('文件');
     await expect(page.locator('canvas[aria-label]')).toHaveCount(0);
     expect(errors.filter(text => !/favicon|net::|downloadable font/i.test(text))).toEqual([]);
   } finally {

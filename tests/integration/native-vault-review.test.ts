@@ -18,14 +18,14 @@ test('native teacher loads the assessment Skill and writes scoped ability eviden
     const queue = harness.value(await harness.rpc<Queue>('notaraVault/reviewQueue', { input: {sessionId, status:'all'} }));
     const target = queue.hits.find(item => item.path === '卡片/选法.md')!;
     const payload = { path: target.path, expectedRevision: target.revision,
-      assessments: [{ability:'判断极点极线是否适用', outcome:'demonstrated'}, {ability:'未经提醒主动唤起方法', outcome:'not_observed'}],
-      note:'老师只提出候选方法；学生指出缺少对称结构并提出参数方程，自主唤起尚未观察。' };
+      result:'unchecked',
+      note:'老师讲了候选方法；学生指出缺少对称结构并提出参数方程。不提醒时能否自己想到，留到下次。' };
     // This copied synthetic environment intentionally exercises native full
     // access, not an extra teaching-layer permission bypass.
     harness.value(await harness.rpc('commands/execute', { agentId:sessionId, line:'/permission danger-full-access', submittedAttachments:[] }));
     const command = `"$DSH_NOTARA_NODE" "$DSH_NOTARA_CLI" record-review <<'NOTARA_REVIEW_JSON'\n${JSON.stringify(payload)}\nNOTARA_REVIEW_JSON`;
-    const message = '/notara-method-distillation\n记录刚才的具体能力观察。';
-    const turns = await harness.ask(sessionId, message, { [message]: [{name:'bash', arguments:{command, description:'[notara:review-record] 记录这次能力观察'}}] });
+    const message = '/notara-method-distillation\n记录刚才的评估。';
+    const turns = await harness.ask(sessionId, message, { [message]: [{name:'bash', arguments:{command, description:'[notara:review-record] 记录这次评估'}}] });
     const firstRequest = JSON.stringify(turns[0]);
     const skill = await readFile(new URL('../../resources/vault-teaching/skills/method-distillation.md', import.meta.url), 'utf8');
     expect(turns[0]!.messages.flatMap(row=>row.content).map(block=>block.text??'').join('\n')).toContain(skill);
@@ -36,7 +36,8 @@ test('native teacher loads the assessment Skill and writes scoped ability eviden
     const saved = parseFrontmatter(await harness.readVaultFile(target.path)).frontmatter;
     expect(saved.learned).toBe(false);
     expect(saved.review_history).toHaveLength(1);
-    expect(saved.review_history[0]).toMatchObject({assessments:payload.assessments, note:payload.note, actor:'teacher', sessionId});
+    expect(saved.review_history[0]).toMatchObject({result:payload.result, note:payload.note, actor:'teacher', sessionId});
+    expect(saved.review_history[0].depth).toBeUndefined();
     expect(saved.review_history[0].id).toBeTruthy();
     expect(saved.review_history[0].at).toBeTruthy();
   } finally {

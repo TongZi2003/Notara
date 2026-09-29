@@ -16,7 +16,7 @@ export function partialBoardArgs(raw='') {
   function string(){let token='"';i++;while(i<raw.length){const c=raw[i++];if(c==='"'){try{return {value:JSON.parse(token+'"'),closed:true};}catch{return {value:'',closed:false};}}
     if(c==='\\'){const escape=raw[i];if(escape===undefined)break;if(escape==='u'){if(!/^[0-9a-f]{4}$/i.test(raw.slice(i+1,i+5)))break;token+='\\'+raw.slice(i,i+5);i+=5;}else{token+='\\'+escape;i++;}}else token+=c;
   }try{return {value:JSON.parse(token+'"'),closed:false};}catch{return {value:'',closed:false};}}
-  while(i<raw.length){const c=raw[i];if(c==='{'){depth++;i++;}else if(c==='}'){depth--;i++;}else if(c==='"'){const key=string();while(/\s/.test(raw[i]??'')&&i<raw.length)i++;if(depth===1&&key.closed&&raw[i]===':'){i++;while(/\s/.test(raw[i]??'')&&i<raw.length)i++;if(raw[i]==='"'){const value=string();if(['title','body','kind'].includes(key.value)&&(value.closed||key.value==='body'))values[key.value]=value.value;}}}else i++;}
+  while(i<raw.length){const c=raw[i];if(c==='{'){depth++;i++;}else if(c==='}'){depth--;i++;}else if(c==='"'){const key=string();while(/\s/.test(raw[i]??'')&&i<raw.length)i++;if(depth===1&&key.closed&&raw[i]===':'){i++;while(/\s/.test(raw[i]??'')&&i<raw.length)i++;if(raw[i]==='"'){const value=string();if(['title','body','kind','section','size'].includes(key.value)&&(value.closed||key.value==='body'))values[key.value]=value.value;}}}else i++;}
   return values;
 }
 export function createBoardEventTracker(){
@@ -24,11 +24,14 @@ export function createBoardEventTracker(){
   function accept(entry){const event=entry.event,d=event.data;
     if(event.type==='assistant/live-chunk'){
       const c=d.chunk,key=d.attemptId+':'+c.index;
-      if(c.type==='tool-call-delta'){const p=parts.get(key)??{callId:'',name:'',argsRaw:''};p.callId=p.callId||c.id;p.name=c.name??p.name;p.argsRaw+=c.argumentsDelta;parts.set(key,p);if(p.name==='write_lesson_board')events.set(p.callId,{callId:p.callId,status:'streaming',...partialBoardArgs(p.argsRaw)});}
+      if(c.type==='tool-call-delta'){const p=parts.get(key)??{callId:'',name:'',argsRaw:'',parsed:-1};p.callId=p.callId||c.id;p.name=c.name??p.name;p.argsRaw+=c.argumentsDelta;parts.set(key,p);
+        // Short arguments re-decode on every delta; a long body streamed in small
+        // deltas re-decodes once it grew by 2%, so streaming never turns quadratic.
+        if(p.name==='write_lesson_board'&&(p.argsRaw.length<4000||p.argsRaw.length-p.parsed>=p.parsed*.02)){p.parsed=p.argsRaw.length;events.set(p.callId,{callId:p.callId,status:'streaming',...partialBoardArgs(p.argsRaw)});}}
     }else if(event.type==='assistant/message'){
       for(const block of d.message?.content??[])if(block.type==='tool-call'&&block.name==='write_lesson_board')events.set(block.id,{callId:block.id,status:d.interrupted?'error':'pending',...partialBoardArgs(block.arguments)});
     }else if(event.type==='tool/call'&&d.name==='write_lesson_board')events.set(d.callId,{callId:d.callId,status:'pending',...partialBoardArgs(d.arguments)});
-    else if(event.type==='tool/result'){const id=d.message?.source?.callId,previous=events.get(id);if(previous)events.set(id,{...previous,status:d.message?.content?.[0]?.isError?'error':'completed'});}
+    else if(event.type==='tool/result'){const id=d.message?.source?.callId,previous=events.get(id);if(previous)events.set(id,{...previous,status:(d.message?.isError??d.message?.content?.[0]?.isError)?'error':'completed'});}
     else if(event.type==='turn/end')for(const [id,value] of events)if(['streaming','pending'].includes(value.status))events.set(id,{...value,status:'error'});
   }
   return window=>{if(window.revision===revision)return events;const append=revision>=0&&window.revision===revision+1&&window.change?.kind==='append';if(!append){events=new Map();parts=new Map();}for(const entry of append?window.change.entries:window.entries)accept(entry);revision=window.revision;return events;};
@@ -38,7 +41,9 @@ export function createBoardStream(React) {
     const binding=React.useSyncExternalStore(fn=>ctx.sessions.list.subscribe(fn),()=>ctx.sessions.binding(sessionId));
     const source=binding?.eventSource;
     const tracker=React.useMemo(()=>createBoardEventTracker(),[sessionId]);
-    const serialized=React.useSyncExternalStore(fn=>source?.subscribe(fn)??(()=>{}),()=>source?JSON.stringify([...tracker(source.getSnapshot())]):'[]');
+    const last=React.useRef({window:null,json:'[]'});
+    // One serialization per event window, however often React asks for the snapshot.
+    const serialized=React.useSyncExternalStore(fn=>source?.subscribe(fn)??(()=>{}),()=>{if(!source)return '[]';const window=source.getSnapshot();if(last.current.window!==window)last.current={window,json:JSON.stringify([...tracker(window)])};return last.current.json;});
     const seen=React.useRef(new Map());
     React.useEffect(()=>{seen.current=new Map(JSON.parse(serialized).filter(([,value])=>['completed','error'].includes(value.status)));return()=>{current.delete(sessionId);};},[sessionId]);
     React.useEffect(()=>{

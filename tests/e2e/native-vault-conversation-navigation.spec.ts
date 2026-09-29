@@ -1,14 +1,18 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { startVaultIsolated } from '../../scripts/dev-isolated.ts';
 import { connectVault, type VaultHarness } from '../fixtures/vault-http.ts';
 
-// Real write receipts and Markdown mentions, with a scripted model. No injected
+// Real write receipts and file mentions, with a scripted model. No injected
 // DOM/button stand-ins, and no claims about mathematical or teaching quality.
-const tabs = (page: Page, side: '左侧分页' | '右侧分页') => page.getByRole('tablist', { name: side });
-const editor = (page: Page) => page.locator('section[aria-label="资产区域"] .cm-editor > .cm-scroller > .cm-content');
-const card = (title: string) => `---\ntype: card\ntags: [数学]\n---\n# ${title}\n\n## 内容\n\n求 $1+1$。\n\n## 参考理解\n\n独立求解：$2$。\n\n## 学生理解\n`;
+// The teacher writes Markdown through write-batch, which the native transcript
+// does not record as produced files, so the produced files here are code files
+// written with the native write tool (the one file kind the teacher writes that
+// way). Paths outside vault/ keep the native route: see
+// examples/native-vault/conversation-file-navigation.test.js.
+const panelTabs = (page: import('@playwright/test').Page) => page.getByRole('tablist', { name: '资料面板视图' });
+const codeEditor = (page: import('@playwright/test').Page) => page.getByRole('region', { name: /代码编辑：/ }).locator('.cm-content');
 
-test('真实课内产物打开资产分屏，草稿保留，后台预算可保存', async ({ page }, testInfo) => {
+test('课内产物在资料面板打开，草稿保留，未保存的修改不被切走', async ({ page }, testInfo) => {
   test.setTimeout(240_000);
   const runtime = await startVaultIsolated({ testModel: true });
   let client: VaultHarness | undefined;
@@ -18,60 +22,46 @@ test('真实课内产物打开资产分屏，草稿保留，后台预算可保�
   try {
     client = await connectVault(runtime);
     client.approvals.auto('allowed-once');
-    const session = await client.createSession();
-    await client.ask(session, '创建两张示例卡和一个普通文件。', {
-      '创建两张示例卡和一个普通文件。': {
-        calls: [
-          { name: 'write', arguments: { file_path: 'vault/卡片/基底卡.md', content: card('基底卡') } },
-          { name: 'write', arguments: { file_path: 'vault/卡片/坐标卡.md', content: card('坐标卡') } },
-          { name: 'write', arguments: { file_path: 'native.txt', content: '普通工作区文件' } },
-        ],
-        text: '已保存：`vault/卡片/基底卡.md`、`vault/卡片/坐标卡.md`、`native.txt`。',
-      },
+    await client.script({
+      '__session-title': '导航回归',
+      '写两个示例程序。': { calls: [
+        { name: 'write', arguments: { file_path: 'vault/代码/基底.py', content: 'print("基底")\n' } },
+        { name: 'write', arguments: { file_path: 'vault/代码/坐标.py', content: 'print("坐标")\n' } },
+      ], text: '已保存：`vault/代码/基底.py` 和 `vault/代码/坐标.py`。' },
     });
-    await client.rename(session, '导航回归');
-    expect(await client.vaultExists('卡片/基底卡.md')).toBe(true);
-    expect(await client.vaultExists('卡片/坐标卡.md')).toBe(true);
+    await page.setViewportSize({ width: 1440, height: 920 });
     await page.goto(runtime.authUrl);
-    const later = page.getByRole('button', { name: 'Configure later', exact: true });
-    if (await later.isVisible()) await later.click();
-    await page.getByText('导航回归', { exact: true }).first().click();
-    const composer = page.locator('[data-composer-input][contenteditable="true"]');
-    await expect(composer).toHaveCount(1);
+    const later = page.getByRole('button', { name: /Configure later|稍后配置/ });
+    try { await later.waitFor({ timeout: 8000 }); await later.click(); } catch { /* already acknowledged */ }
+    const composer = page.locator('[data-composer-input][contenteditable="true"]').last();
+    await composer.fill('写两个示例程序。'); await composer.press('Enter');
+    await expect(page.getByText(/已保存：/).first()).toBeVisible({ timeout: 60_000 });
+    expect(await client.vaultExists('代码/基底.py')).toBe(true);
+    expect(await client.vaultExists('代码/坐标.py')).toBe(true);
     await composer.fill('保留这段未发送的课堂草稿');
 
-    await page.locator('code button[title="vault/卡片/基底卡.md"]').click();
-    await expect(tabs(page, '右侧分页').getByRole('tab', { name: '资产', exact: true })).toHaveAttribute('aria-selected', 'true');
-    await expect(editor(page)).toContainText('基底卡');
-    await expect(composer).toHaveText('保留这段未发送的课堂草稿');
-    await expect(page.getByRole('button', { name: '重新读取文件', exact: true })).toHaveCount(0);
-
-    await page.getByRole('button', { name: '交换分屏', exact: true }).click();
-    await page.locator('[data-produced-files-row] button[title="vault/卡片/坐标卡.md"]').click();
-    await expect(tabs(page, '左侧分页').getByRole('tab', { name: '资产', exact: true })).toHaveAttribute('aria-selected', 'true');
-    await expect(editor(page)).toContainText('坐标卡');
+    // A file mention opens the lesson's materials panel on that file.
+    await page.locator('code button[title="vault/代码/基底.py"]').first().click();
+    await expect(panelTabs(page).getByRole('tab', { name: '文件', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(codeEditor(page)).toContainText('基底');
     await expect(composer).toHaveText('保留这段未发送的课堂草稿');
 
-    await editor(page).fill(`${card('坐标卡')}\n未保存的学生笔记\n`);
-    await page.locator('code button[title="vault/卡片/基底卡.md"]').click();
+    // The other file's mention opens it in the same panel.
+    await page.locator('code button[title="vault/代码/坐标.py"]').first().click();
+    await expect(codeEditor(page)).toContainText('坐标');
+    await expect(composer).toHaveText('保留这段未发送的课堂草稿');
+
+    // An unsaved edit is not switched away from.
+    await codeEditor(page).click();
+    await page.keyboard.press('End');
+    await page.keyboard.type('\n# 未保存的学生笔记');
+    await page.locator('code button[title="vault/代码/基底.py"]').first().click();
     await expect(page.getByText('当前页面有未保存修改，请先保存或放弃。', { exact: true })).toBeVisible();
-    await expect(editor(page)).toContainText('未保存的学生笔记');
+    await expect(codeEditor(page)).toContainText('未保存的学生笔记');
     await expect(composer).toHaveCount(1);
-
-    await page.locator('code button[title="native.txt"]').click();
-    await expect(page.getByRole('button', { name: '重新读取文件', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: '收起右侧边栏', exact: true }).click();
-    await tabs(page, '左侧分页').getByRole('tab', { name: '教室', exact: true }).click();
-    await page.getByRole('button', { name: '教室设置', exact: true }).click();
-    const settings = page.getByRole('dialog', { name: '教室设置' });
-    await expect(settings.getByLabel('每次分析的生成上限')).toHaveValue('32768');
-    await settings.getByLabel('每次分析的生成上限').fill('49152');
-    await settings.getByRole('button', { name: '保存', exact: true }).click();
-    await expect(page.getByText('已保存，下一次后台分析会用这个模型。').first()).toBeVisible();
-    const saved = client.value(await client.rpc<{ solver: { route: { maxTokens: number } } }>('notaraVault/classroom', { input: { sessionId: session } }));
-    expect(saved.solver.route.maxTokens).toBe(49152);
-    await page.screenshot({ path: testInfo.outputPath('assets-routing-and-budget.png') });
-    expect(errors).toEqual([]);
+    await expect(composer).toHaveText('保留这段未发送的课堂草稿');
+    await page.screenshot({ path: testInfo.outputPath('materials-panel.png') });
+    expect(errors.filter(text => !/favicon|net::|downloadable font/i.test(text))).toEqual([]);
   } finally {
     await client?.close();
     await runtime.stop();

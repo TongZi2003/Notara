@@ -112,11 +112,12 @@ const rendered = new Map();
 export function renderMath(source, display) {
   ensureMathStyles();
   const key = `${display ? 'display' : 'inline'}\u0000${source}`;
-  if (rendered.has(key)) return rendered.get(key) ?? null;
+  if (rendered.has(key)) { const hit = rendered.get(key); rendered.delete(key); rendered.set(key, hit); return hit ?? null; }
   let html = null;
   try { html = katex.renderToString(source, { ...KATEX_SETTINGS, displayMode: display }); }
   catch { html = null; }
-  if (rendered.size > 300) rendered.clear();
+  // Least recently used out first; a formula-heavy page never empties the cache.
+  if (rendered.size >= 1000) rendered.delete(rendered.keys().next().value);
   rendered.set(key, html);
   return html;
 }
@@ -157,6 +158,11 @@ export function mathWidget(kind, source, from, to) {
 // The build inlines KaTeX's stylesheet and webfonts here; an unbuilt checkout
 // keeps the placeholder and simply renders with the surrounding theme.
 const mathStyles = { css: '__NOTARA_VAULT_LATEX_CSS__', applied: false };
+
+/** The KaTeX styles themselves (fonts inlined), for pages that carry their own, like an export or an archive. */
+export function mathStyleText() {
+  return typeof mathStyles.css === 'string' && mathStyles.css.includes('@font-face') ? mathStyles.css : '';
+}
 
 export function ensureMathStyles() {
   if (mathStyles.applied || typeof document === 'undefined') return;

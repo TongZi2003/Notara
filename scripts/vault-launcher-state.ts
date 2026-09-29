@@ -41,11 +41,59 @@ export async function liveVaultUrl(root: string): Promise<string | undefined> {
   const url = new URL(record.authUrl);
   if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.username || url.password || url.pathname !== '/' || Number(url.port) !== state.port || !url.searchParams.has('token')) throw new Error('Invalid Vault login address');
   try { process.kill(record.pid, 0); } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ESRCH') return undefined; throw error; }
+  let response: Response;
+  try { response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(3000) }); }
+  catch (error) {
+    // Nothing listens on the recorded port: the pid now belongs to another
+    // process (Windows reuses ids quickly), so no Vault is running here.
+    if (((error as { cause?: NodeJS.ErrnoException }).cause)?.code === 'ECONNREFUSED') return undefined;
+    throw new Error('无法核对运行中的 Vault；未尝试替换服务。', { cause: error });
+  }
   try {
-    const response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(3000) });
     await response.body?.cancel();
-    if (response.status !== 303 || response.headers.get('location') !== '/' || !response.headers.getSetCookie().some(value => value.startsWith('dsh-auth-'))) throw new Error('运行中的服务与保存的登录入口不一致；请检查该实例，不要另起服务。');
+    // DSH 0.2.0 answers with a relative `./`; what matters is that it lands on the root without the token.
+    const landing = new URL(response.headers.get('location') ?? '', url);
+    if (response.status !== 303 || landing.origin !== url.origin || landing.pathname !== '/' || landing.search !== '' || !response.headers.getSetCookie().some(value => value.startsWith('dsh-auth-'))) throw new Error('运行中的服务与保存的登录入口不一致；请检查该实例，不要另起服务。');
   } catch (error) { throw new Error('无法核对运行中的 Vault；未尝试替换服务。', { cause: error }); }
   await chmod(join(root, 'launcher.json'), 0o600);
   return record.authUrl;
+}
+
+async function packageVersion(dir: string): Promise<string | undefined> {
+  try { return (JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as { version?: string }).version; }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; }
+}
+/** The plugin version an instance runs, and the one the checkout at `project` would install. */
+export const vaultPluginLinks = (root: string): string[] => ['workspace', 'home/profiles/web'].map(prefix => join(root, prefix, 'node_modules/@notara/vault-native'));
+
+/** Earlier installs linked a versioned snapshot; the module links are authoritative. */
+export async function installedPluginRoot(root: string): Promise<string> {
+  const targets = await Promise.all(vaultPluginLinks(root).map(path => realpath(path).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return undefined;
+    throw error;
+  })));
+  const installed = [...new Set(targets.filter((path): path is string => path !== undefined))];
+  if (installed.length > 1) throw new Error('Vault 的两处插件链接指向不同快照；请先核对安装目录。');
+  return installed[0] ?? join(resolve(root), 'vault-plugin');
+}
+
+export async function pluginVersions(root: string, project: string): Promise<{ snapshot: string | undefined; checkout: string | undefined }> {
+  return { snapshot: await packageVersion(await installedPluginRoot(root)), checkout: await packageVersion(join(project, 'examples/native-vault')) };
+}
+
+/** The Vault release that moved to DSH 0.2.0. */
+const DSH_020_VAULT = [0, 21, 0];
+const release = (version: string): number[] | undefined => {
+  const match = /^(\d+)\.(\d+)\.(\d+)/.exec(version);
+  return match ? match.slice(1).map(Number) : undefined;
+};
+const before = (a: number[], b: number[]): boolean => { for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i]! < b[i]!; return false; };
+/**
+ * DSH 0.2.0 (Vault 0.21.0) cannot boot an older snapshot and converts each
+ * lesson it opens, which the older DSH then cannot read: a directory on an
+ * older snapshot is backed up and upgraded before a 0.21+ checkout starts it.
+ */
+export function mustUpgradeBeforeStart({ snapshot, checkout }: { snapshot: string | undefined; checkout: string | undefined }): boolean {
+  const from = snapshot === undefined ? undefined : release(snapshot), to = checkout === undefined ? undefined : release(checkout);
+  return !!from && !!to && before(from, DSH_020_VAULT) && !before(to, DSH_020_VAULT);
 }

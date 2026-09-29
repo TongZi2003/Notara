@@ -15,11 +15,15 @@ export async function relocateVaultRuntime(sourceInput: string, destinationInput
   const release = await lockfile.lock(source, { retries: 0, realpath: false });
   let copied = false, moved = false, aliased = false;
   try {
-    const launcher = JSON.parse(await readFile(join(source, 'launcher.json'), 'utf8')) as { pid: number };
-    if (!Number.isInteger(launcher.pid) || launcher.pid < 1) throw new Error('Invalid source launcher');
-    let active = true;
-    try { process.kill(launcher.pid, 0); } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ESRCH') active = false; else throw error; }
-    if (active) throw new Error('Stop the source Vault before migrating');
+    // A stopped Vault removes its launcher record; one left behind must name a dead process.
+    const recorded = await readFile(join(source, 'launcher.json'), 'utf8').catch((error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return undefined; throw error; });
+    if (recorded !== undefined) {
+      const launcher = JSON.parse(recorded) as { pid: number };
+      if (!Number.isInteger(launcher.pid) || launcher.pid < 1) throw new Error('Invalid source launcher');
+      let active = true;
+      try { process.kill(launcher.pid, 0); } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ESRCH') active = false; else throw error; }
+      if (active) throw new Error('Stop the source Vault before migrating');
+    }
     await mkdir(dirname(destination), { recursive: true, mode: 0o700 });
     await mkdir(destination, { mode: 0o700 });
     copied = true;

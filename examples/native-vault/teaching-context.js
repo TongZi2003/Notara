@@ -14,22 +14,23 @@
 
 import { lessonOutline } from './lesson-script.js';
 import { parseLessonSummaries } from './lesson-data.js';
+import { scriptBindingStale } from './script-binding.js';
 
 /** 教学记忆动态 context 的默认总预算，见 docs/migration/2026-09-21-teaching-memory-loading.md 第 4 节。 */
 export const CONTEXT_BUDGET = 1200;
 
 /** L0 只披露入口，不替教师决定查什么。 */
 export const CONTEXT_ENTRIES = Object.freeze({
-  memory: 'glob / grep 查画像、锦囊与卡片的学生理解 → read 历史及后续修正；规范见 notara-material-search Skill',
-  lessonLog: '辅助脚本 lesson-log 查询 → read 对应小结',
-  material: 'glob / grep → read；PDF 按页读取见 notara-vault-workflow Skill',
+  memory: '先看技能目录里已启用的学习集层技能；再用 shell 的 "$DSH_NOTARA_RG"（缺省时 grep）检索画像、旧锦囊与卡片的学生理解，用 sed -n 读历史及后续修正；规范见 notara-material-search Skill',
+  lessonLog: '辅助脚本 lesson-log 查询，再用 shell 读对应小结',
+  material: 'shell 用 "$DSH_NOTARA_RG"（缺省时 grep）缩小候选，再用 sed -n 读原文；PDF 按页读取见 notara-material-outline Skill',
 });
 
+// When to recall is written once, in base.md「主动召回」; this only frames the entries.
 export const CONTEXT_TRIGGER = [
-  '新题讲解、选路或诊断前，按当前结构、目标与实际作答查相关画像、锦囊和学生理解；',
-  '出现新障碍、学生提出另一条路线或提起旧经历时可以再查；',
-  '候选只由字面/标签/图关系产生，是否相关与是否换教法由教师语义判断，命中不自动切换教法。',
-  '旧错误须结合后来修正及反证，不直接代表当前认识。',
+  '何时召回按常驻的“主动召回”，这里只列入口；',
+  '候选只由字面/标签/图关系产生，是否相关由教师读正文判断，命中后按学生当前情况取用，教法照旧；',
+  '旧错误要结合后来的修正与反证来读，当前认识以本次作答为准。',
 ].join('');
 
 const SCRIPT_TYPE = 'lesson';
@@ -123,7 +124,7 @@ async function scriptOverview(reader, settings, limits, failures) {
   catch (error) { failures.push({ code: failureCode(error), target: `剧本 ${path}` }); return { path, error: failureCode(error) }; }
 
   const revision = asText(document?.revision).trim() || null;
-  const stale = Boolean(boundRevision && revision && boundRevision !== revision);
+  const stale = scriptBindingStale({ revision: boundRevision, bodyRevision: asText(settings.scriptBodyRevision).trim() || null }, document);
   const type = asText(document?.type).trim() || asText(document?.frontmatter?.type).trim() || null;
   if (stale) failures.push({ code: 'script_stale', target: `剧本 ${path}` });
   else if (type && type !== SCRIPT_TYPE) failures.push({ code: 'script_type_mismatch', target: `剧本 ${path}` });

@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { startVaultIsolated } from '../../scripts/dev-isolated.ts';
 import { connectVault, type VaultHarness } from '../fixtures/vault-http.ts';
 
-test('the command button discovers teaching Skills and picks through the native invocation without sending the draft', async ({ page }, testInfo) => {
+test('the command menu discovers teaching Skills and picks through the native invocation without sending the draft', async ({ page }, testInfo) => {
   test.setTimeout(180_000);
   const runtime = await startVaultIsolated({ testModel: true });
   let harness: VaultHarness | undefined;
@@ -16,12 +16,11 @@ test('the command button discovers teaching Skills and picks through the native 
   try {
     harness = await connectVault(runtime);
     await page.goto(runtime.authUrl);
-    await page.getByText('Notara Vault', { exact: true }).first().click();
     const composer = page.locator('[data-composer-input][contenteditable="true"]').last();
     await composer.fill('请帮我回顾这道错题的理解变化');
     const session = (await harness.sessions())[0]!.sessionId;
     expect(await harness.turns(session)).toHaveLength(0);
-    await page.getByRole('button', { name: /^(指令|Commands)$/ }).click();
+    await page.getByRole('button', { name: /^(指令|Commands|Add files or run commands|添加文件或调用指令)$/ }).click();
     const menu = page.locator('[data-trigger-menu]');
     const manifest = JSON.parse(await readFile(new URL('../../resources/vault-teaching/manifest.json', import.meta.url), 'utf8'));
     for (const row of [...manifest.choices, ...manifest.skills]) {
@@ -72,11 +71,12 @@ test('the command button discovers teaching Skills and picks through the native 
     // Native sidebar hides non-selected blank sessions even after a rename.
     await harness.ask(plain, '普通助手菜单检查');
     await harness.rename(plain, '普通助手菜单检查');
+    // RPC-created sessions are not in any learning directory, so the rail's Home
+    // does not list them; the tab's remembered lesson (notara-vault-view) reopens it.
+    await page.evaluate(sessionId => sessionStorage.setItem('notara-vault-view', JSON.stringify({ section: 'lesson', sessionId })), plain);
     await page.reload();
-    // RPC-created sessions are not added to the UI's workspace membership.
-    await page.getByRole('treeitem', { name: /^(未分组|Ungrouped)$/ }).click();
-    await page.getByText('普通助手菜单检查', { exact: true }).click();
-    await page.getByRole('button', { name: /^(指令|Commands)$/ }).click();
+    await expect(page.getByText('普通助手菜单检查').first()).toBeVisible();
+    await page.getByRole('button', { name: /^(指令|Commands|Add files or run commands|添加文件或调用指令)$/ }).click();
     await expect(menu.getByRole('option').first()).toBeVisible();
     await expect(menu.getByRole('status')).toHaveCount(0);
     await expect(menu.getByRole('option', { name: /^更多技能/ })).toHaveCount(0);
@@ -84,7 +84,10 @@ test('the command button discovers teaching Skills and picks through the native 
       const title = row.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       await expect(menu.getByRole('option', { name: new RegExp('^' + title) })).toHaveCount(0);
     }
-    expect(errors).toEqual([]);
+    // DSH 0.2.0 (dsh-client-ui-sidebar-right SidebarSessionView) logs this when a
+    // main selection is superseded before its sidebar view finished opening; here
+    // the tab's remembered lesson supersedes the selection DSH restored on reload.
+    expect(errors.filter(text => !/^Sidebar Session opening failed: Error: Session reference "[^"]+" is released/.test(text))).toEqual([]);
   } finally {
     await testInfo.attach('browser-diagnostics', { body: JSON.stringify({ errors, wire, sessions: await harness?.sessions() }), contentType: 'application/json' });
     await testInfo.attach('isolated-runtime-log', { body: runtime.log(), contentType: 'text/plain' });

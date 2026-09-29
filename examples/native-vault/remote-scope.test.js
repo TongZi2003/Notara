@@ -18,7 +18,7 @@ import { createAgentVaultIO } from './agent-io.js';
  * and the real local filesystem against temp workspaces — no shared instance.
  */
 
-const sessionMeta = (id, cwd) => ({ version: 3, id, createdAt: Date.now(), isSeeded: false, cwd, agentPreset: 'notara-teacher' });
+const sessionMeta = (id, cwd) => ({ version: 4, id, createdAt: Date.now(), isSeeded: false, cwd, agentPreset: 'notara-teacher' });
 
 /**
  * `startup` names the workspace the Host registered for itself at boot:
@@ -210,4 +210,15 @@ test('PDF 批注与 Remote、模型共用同一资料根', async t => {
     note: '直接根批注', expectedPdfRevision: directRead.pdfRevision,
   });
   assert.equal(await exists(join(direct.math, '.notara', 'pdf-annotations')), true);
+});
+
+test('the Vault remote never reads or writes inside dot folders or node_modules', async t => {
+  const world = await openWorld(t, { startup: 'physics' });
+  await mkdir(join(world.math, 'vault', '.git'), { recursive: true });
+  await writeFile(join(world.math, 'vault', '.git', 'config'), '[core]\n');
+  for (const path of ['.git/config', '卡片/.hidden.md', '.trash/x/meta.json', 'node_modules/x/index.md']) {
+    await assert.rejects(world.remote.read({ path, sessionId: 'lesson-math' }), /vault_path_invalid/, path);
+    await assert.rejects(world.remote.saveAsset({ path, dataBase64: Buffer.from('x').toString('base64'), mime: 'text/plain', expectedRevision: null, sessionId: 'lesson-math' }), /vault_path_invalid/, path);
+  }
+  assert.equal(await readFile(join(world.math, 'vault', '.git', 'config'), 'utf8'), '[core]\n');
 });

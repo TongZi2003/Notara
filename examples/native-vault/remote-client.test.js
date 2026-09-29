@@ -87,3 +87,26 @@ test('vaultScope only accepts a real non-empty sessionId', () => {
   assert.deepEqual(vaultScope(42), {});
   assert.deepEqual(vaultScope({ sessionId: 'x' }), {});
 });
+
+test('a visible refresh timer skips ticks while the page is hidden and catches up when shown', async t => {
+  const { visibleInterval } = await import('./remote-client.js');
+  // Mocked timers: the ticks are counted exactly, however busy the machine is.
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const listeners = new Map(), previous = globalThis.document;
+  globalThis.document = { hidden: false, addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: name => listeners.delete(name) };
+  let stop = () => {};
+  try {
+    let calls = 0;
+    stop = visibleInterval(() => { calls += 1; }, 5);
+    t.mock.timers.tick(12);
+    assert.equal(calls, 2, 'a refresh every 5 ms while visible');
+    globalThis.document.hidden = true;
+    t.mock.timers.tick(20);
+    assert.equal(calls, 2, 'no refresh while hidden');
+    globalThis.document.hidden = false;
+    listeners.get('visibilitychange')();
+    assert.equal(calls, 3, 'one refresh as the page is shown again');
+    stop();
+    assert.equal(listeners.has('visibilitychange'), false);
+  } finally { stop(); globalThis.document = previous; }
+});

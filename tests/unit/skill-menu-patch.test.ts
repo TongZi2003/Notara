@@ -14,5 +14,18 @@ test('the rc.2 Skill presentation patch is idempotent and refreshes renamed disp
 });
 
 test('an unrecognized upstream Skill module is refused without guessing a patch', () => {
-  expect(() => patchSkillMenu(source + '\n/* unknown upstream change */\n', {})).toThrow(/Unknown rc\.2/);
+  expect(() => patchSkillMenu(source + '\n/* unknown upstream change */\n', {})).toThrow(/Unknown DSH Skill menu module/);
+});
+
+test('adopted learning-set and discipline skills are titled from their description', () => {
+  const patched = patchSkillMenu(source, {});
+  expect(patched).toContain('/^notara-(set|global)-/.test(name)');
+  expect(patched).toContain('description.slice(0, description.indexOf("："))');
+});
+
+test('the menu re-lists skills when the page announces a changed catalog', () => {
+  const patched = patchSkillMenu(source, {});
+  expect(patched).toContain('globalThis.addEventListener?.("notara:skills-changed", refresh)');
+  expect(patched.match(/notara:skill-refresh:start/g)).toHaveLength(1);
+  expect(patchSkillMenu(patched, {})).toBe(patched);
 });

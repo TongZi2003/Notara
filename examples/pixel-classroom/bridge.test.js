@@ -26,8 +26,8 @@ function mount() {
       version: 1, visible: true, error: '', opening: '', stopping: '',
       teacher: { name: '大肥鱼', description: '主教师', active: false, error: '' },
       workers: [
-        { id: 'problem', name: '题目研究员', description: '独立研究一道完整题。', ready: true, tools: 'read', preferredModel: 'gpt-5.6-sol', route: null, reason: '', notice: '后台分析会自动匹配 gpt-5.6-sol。', active: true },
-        { id: 'lesson', name: '课时备课员', description: '按框架完善一节课。', ready: false, tools: 'none', preferredModel: 'gpt-5.6-sol', route: null, reason: '', notice: '后台分析暂时不可用。', active: false },
+        { id: 'problem', name: '题目研究员', description: '独立研究一道完整题。', ready: true, tools: 'read', route: null, reason: '', notice: '后台分析跟随老师。', active: true },
+        { id: 'lesson', name: '课时备课员', description: '按框架完善一节课。', ready: false, tools: 'none', route: null, reason: '', notice: '后台分析暂时不可用。', active: false },
       ],
       tasks: [{ id: 'task-a', preset: 'problem', name: '题目研究员', status: 'running', label: '分析中', time: '刚刚开始', inspectable: true, cancelable: true }],
       secret: 'PRIVATE_PARENT_FIELD',

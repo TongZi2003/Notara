@@ -7,7 +7,7 @@ export interface LiveRoute {
 export interface LiveWorker {
   id: string; name: string; description: string;
   ready: boolean; tools: 'none' | 'read';
-  preferredModel: string; route: LiveRoute | null; reason: string; notice: string;
+  route: LiveRoute | null; reason: string; notice: string;
   active: boolean;
 }
 export interface LiveTask {

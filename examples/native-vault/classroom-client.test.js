@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { CLASSROOM_VIEW, WORKER_MODEL_PLACEHOLDER, WORKER_STATUS, WORKER_TOOL_NAME, availableRoute, canInspectTask, candidateRouteFor, showsInspectAction, workerFootnote, classroomSummary, draftPersona, draftRoute, draftTools, elapsedLabel, hasRunningTask, isWorkerTool, modelChoices, normalizeRoute, normalizeTools, preferredCandidate, presetLabel, taskRows, toolRowProjection, workerById, workerDraft, workerDraftKey, workerPresetLabel, workerRouteNotice, workerRowProjection, workerRows, workerScopeLabel } from './classroom-client.js';
+import { CLASSROOM_VIEW, WORKER_MODEL_PLACEHOLDER, WORKER_STATUS, WORKER_TOOL_NAME, availableRoute, canInspectTask, candidateRouteFor, showsInspectAction, workerFootnote, classroomSummary, draftPersona, draftRoute, draftTools, elapsedLabel, hasRunningTask, isWorkerTool, modelChoices, normalizeRoute, normalizeTools, followLabel, presetLabel, taskRows, toolRowProjection, workerById, workerDraft, workerDraftKey, workerPresetLabel, workerRouteNotice, workerRowProjection, workerRows, workerScopeLabel } from './classroom-client.js';
 import { VAULT_REMOTE_METHODS } from './remote-client.js';
 import { WORKER_PRESETS, WORKER_TOOLS } from './worker-catalog.js';
 import { PERSONA_TEXT_LIMIT } from './persona.js';
@@ -23,7 +23,7 @@ test('finished task durations stay fixed; interrupted tasks without an end time 
 /** The five real worker rows the Host sends, before any per-preset override. */
 const WORKERS = WORKER_PRESETS.map(preset => ({
   id: preset.id, name: preset.name, description: preset.description,
-  preferredModel: 'gpt-5.6-sol', route: null, ready: false, tools: 'none',
+  route: null, ready: false, tools: 'none',
 }));
 
 const payload = (extra = {}) => ({
@@ -82,9 +82,9 @@ test('一个 preset 的 route/ready/tools 不会串到其他 preset', () => {
   assert.equal(review.route, null);
   assert.equal(review.tools, 'none');
   // 草稿也是每位一份：配置 problem 的模型与工具范围不会改掉 review 的草稿。
-  assert.deepEqual(workerDraft(problem, summary.models), { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'high', maxTokens: 32768, tools: 'read', persona: '' });
+  assert.deepEqual(workerDraft(problem, summary.models), { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'high', maxTokens: 32768, tools: 'read', persona: '', scope: 'default' });
   assert.equal(workerDraft(review, summary.models).tools, 'none');
-  assert.equal(workerDraft(review, summary.models).reasoningEffort, 'high');
+  assert.equal(workerDraft(review, summary.models).reasoningEffort, '', 'nothing saved: it follows the teacher, no model is preselected');
 });
 
 test('每位工作员的人格各自保存与回读，空白只用角色职责', () => {
@@ -117,26 +117,34 @@ test('路由只接受 provider+model，重复或残缺的模型不会进入选�
   assert.deepEqual(choices, [{ provider: 'test', model: 'gpt-5.6-sol', label: 'gpt-5.6-sol', reasoningEfforts: ['high'] }]);
 });
 
-test('首选模型只认确切同名，绝不用父模型或别的模型代替', () => {
-  const summary = view();
-  assert.equal(preferredCandidate(workerById(summary, 'problem'), summary.models).model, 'gpt-5.6-sol');
-  const other = view({ models: [{ provider: 'test', model: 'teacher-flash', label: '通用', reasoningEfforts: [] }] });
-  assert.equal(preferredCandidate(workerById(other, 'problem'), other.models), null);
+test('没有保存模型的工作员跟随老师，并写明老师现在用的模型', () => {
+  const following = classroomSummary({ ...payload({ worker: { route: null, ready: true, scope: 'none' } }), teacherRoute: { provider: 'test', model: 'teacher-flash', label: '通用 · Test' }, defaultsRevision: 2 });
+  const worker = workerById(following, 'problem');
+  assert.equal(worker.follow, true);
+  assert.equal(worker.scope, 'none');
+  assert.equal(following.defaultsRevision, 2);
+  assert.deepEqual(following.teacherRoute, { provider: 'test', model: 'teacher-flash', label: '通用 · Test' });
+  assert.equal(workerRouteNotice(worker, following.models, following.teacherRoute), '后台分析跟随老师 · 通用 · Test。');
+  // Before the lesson's first request the teacher's model is not known yet.
+  assert.equal(followLabel(null), '跟随老师');
+  assert.equal(view().defaultsRevision, null, 'no shared defaults in this runtime');
+  assert.equal(workerById(view({ worker: { route: { provider: 'test', model: 'gpt-5.6-sol' }, scope: 'default' } }), 'problem').scope, 'default');
 });
 
 test('未接入时说明缺口，自动匹配时不谎称已经在用某个模型', () => {
   const missing = view({ models: [], worker: { reason: '后台模型没有接入。' } });
   const missingWorker = workerById(missing, 'problem');
   assert.equal(workerRouteNotice(missingWorker, missing.models), '后台模型没有接入。');
-  assert.equal(workerFootnote(missingWorker, missing.models), '请在教室设置里接入 gpt-5.6-sol；老师自己的模型不会用来代替它。');
+  assert.equal(workerFootnote(missingWorker, missing.models), '后台模型没有接入。');
+  assert.equal(workerFootnote(workerById(view({ models: [] }), 'problem'), []), '请在教室设置里为这位工作员选一个能用的模型。');
   const auto = view({ worker: { route: { provider: 'test', model: 'gpt-5.6-sol' }, ready: true } });
   const autoWorker = workerById(auto, 'problem');
   assert.equal(workerRouteNotice(autoWorker, auto.models), '后台分析使用 解题专用。');
   assert.equal(workerFootnote(autoWorker, auto.models), '后台结果只交给老师，老师会用自己的方式讲给你。');
-  // route 为空但 ready=true：Host 的自动匹配已可用，不能再说“请接入”。
+  // route 为空但 ready=true：跟随老师，不能再说“请接入”。
   const autoOnly = view({ worker: { route: null, ready: true } });
   const autoOnlyWorker = workerById(autoOnly, 'problem');
-  assert.equal(workerRouteNotice(autoOnlyWorker, autoOnly.models), '后台分析会自动匹配 gpt-5.6-sol。');
+  assert.equal(workerRouteNotice(autoOnlyWorker, autoOnly.models), '后台分析跟随老师。');
   assert.equal(workerFootnote(autoOnlyWorker, autoOnly.models), '后台结果只交给老师，老师会用自己的方式讲给你。');
   // 已保存的模型当前没接入：route 明说不可用，即使 ready 由默认匹配算出。
   const gone = view({ models: [{ provider: 'test', model: 'teacher-flash', label: '通用', reasoningEfforts: [] }], worker: { route: { provider: 'test', model: 'gpt-5.6-sol' }, ready: true } });
@@ -156,45 +164,47 @@ test('已保存但当前不可用时先讲原因，不宣称正在使用该模�
   assert.doesNotMatch(workerRouteNotice(noReasonWorker, noReason.models), /后台分析使用/);
 });
 
-test('候选路由顺序为已保存 > 确切首选；没有任何已保存时只认确切首选', () => {
+test('候选路由只认已保存且仍可用的模型；没有就跟随老师', () => {
   const MODELS = [
     { provider: 'test', model: 'teacher-flash', label: '通用', reasoningEfforts: ['medium'] },
     { provider: 'test', model: 'gpt-5.6-sol', label: '解题专用', reasoningEfforts: ['high', 'medium'] },
   ];
   const fresh = view({ models: MODELS });
-  assert.deepEqual(candidateRouteFor(workerById(fresh, 'problem'), fresh.models), { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'high' });
+  assert.equal(candidateRouteFor(workerById(fresh, 'problem'), fresh.models), null);
   const saved = view({ models: MODELS, worker: { route: { provider: 'test', model: 'teacher-flash', reasoningEffort: 'medium' } } });
   assert.deepEqual(candidateRouteFor(workerById(saved, 'problem'), saved.models), { provider: 'test', model: 'teacher-flash', reasoningEffort: 'medium' });
-  // 已保存的失效选择不会被静默清掉：草稿仍指向它，候选退回确切首选。
+  // 已保存的失效选择不会被静默清掉：草稿仍指向它，候选不替它另选一个。
   const savedMissing = view({ models: MODELS, worker: { route: { provider: 'test', model: 'retired-sol' } } });
   const staleWorker = workerById(savedMissing, 'problem');
   assert.equal(workerDraft(staleWorker, savedMissing.models).model, 'retired-sol');
-  assert.deepEqual(candidateRouteFor(staleWorker, savedMissing.models), { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'high' });
+  assert.equal(candidateRouteFor(staleWorker, savedMissing.models), null);
   const noPreferred = view({ models: [{ provider: 'test', model: 'teacher-flash', label: '通用', reasoningEfforts: [] }], worker: { route: { provider: 'test', model: 'retired-sol' } } });
   assert.equal(candidateRouteFor(workerById(noPreferred, 'problem'), noPreferred.models), null);
   assert.equal(workerDraft(workerById(noPreferred, 'problem'), noPreferred.models).model, 'retired-sol');
 });
 
-test('没有确切首选时不预选任何普通模型，空选项等待老师自己选', () => {
+test('没有保存模型时草稿停在“跟随老师”，不预选任何模型', () => {
   const noSol = view({ models: [{ provider: 'test', model: 'teacher-flash', label: '通用', reasoningEfforts: ['medium'] }] });
   const worker = workerById(noSol, 'problem');
   assert.equal(candidateRouteFor(worker, noSol.models), null);
   const draft = workerDraft(worker, noSol.models);
-  assert.deepEqual(draft, { provider: '', model: '', reasoningEffort: '', maxTokens: 32768, tools: 'none', persona: '' });
+  assert.deepEqual(draft, { provider: '', model: '', reasoningEffort: '', maxTokens: 32768, tools: 'none', persona: '', scope: 'default' });
   assert.equal(draftRoute(draft), null);
-  assert.equal(WORKER_MODEL_PLACEHOLDER, '请选择已接入的解题模型');
+  assert.equal(WORKER_MODEL_PLACEHOLDER, '跟随老师');
+  assert.equal(workerDraft(workerById(view({ worker: { scope: 'lesson' } }), 'problem'), []).scope, 'lesson', 'a lesson override is edited in place');
   assert.equal(candidateRouteFor(workerById(view({ models: [] }), 'problem'), []), null);
 });
 
 test('预算与工具范围独立保存，默认不取列表里的低等级', () => {
-  const worker = workerById(view({ models: [{ provider: 'test', model: 'gpt-5.6-sol', reasoningEfforts: ['low', 'high', 'xhigh'] }] }), 'problem');
+  const worker = workerById(view({ models: [{ provider: 'test', model: 'gpt-5.6-sol', reasoningEfforts: ['low', 'high', 'xhigh'] }], worker: { route: { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'retired' } } }), 'problem');
   assert.equal(candidateRouteFor(worker, [{ provider: 'test', model: 'gpt-5.6-sol', reasoningEfforts: ['low', 'high', 'xhigh'] }]).reasoningEffort, 'xhigh');
   assert.equal(workerDraft(worker, view({ models: [{ provider: 'test', model: 'gpt-5.6-sol', reasoningEfforts: ['low', 'high', 'xhigh'] }] }).models).maxTokens, 32768);
   const route = draftRoute({ provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'high', maxTokens: '49152' });
   assert.equal(route.maxTokens, 49152);
-  assert.equal(draftRoute({ provider: 'test', model: 'gpt-5.6-sol', maxTokens: '' }), null);
-  assert.equal(draftRoute({ provider: 'test', model: 'gpt-5.6-sol', maxTokens: '-2' }), null);
-  // 空选项不是“关闭”，而是交给 Host 的自动匹配；对话框对此另有明确按钮。
+  // 填错的生成上限不能保存，也不会被当成“跟随老师”。
+  assert.equal(draftRoute({ provider: 'test', model: 'gpt-5.6-sol', maxTokens: '' }), undefined);
+  assert.equal(draftRoute({ provider: 'test', model: 'gpt-5.6-sol', maxTokens: '-2' }), undefined);
+  // 空选项不是“关闭”，而是跟随老师。
   assert.equal(draftRoute({ provider: 'test', model: '' }), null);
   assert.equal(draftRoute({}), null);
   assert.equal(draftRoute(null), null);
@@ -221,6 +231,22 @@ test('只有真的 spawn 出子会话的任务才给“查看分析”入口', (
   assert.equal(taskRows(payload({ tasks: [{ id: 'x', status: 'completed' }] }))[0].inspectable, false);
   assert.equal(canInspectTask({ status: 'completed' }), false);
   assert.equal(canInspectTask({ status: 'running', inspectable: true }), true);
+});
+
+test('失败的任务写明原因；模型调不通的任务没有可看的内容，不给查看入口', () => {
+  const rows = taskRows(payload({ tasks: [
+    { id: 'no-model', preset: 'exercise', status: 'failed', inspectable: true, failureCode: 'solver_model_unavailable', startedAt: '2026-09-21T05:02:00.000Z' },
+    { id: 'budget', preset: 'problem', status: 'failed', inspectable: true, failureCode: 'solver_budget_exhausted', startedAt: '2026-09-21T05:01:00.000Z' },
+    { id: 'other', preset: 'review', status: 'failed', inspectable: true, failureCode: 'solver_analysis_failed', startedAt: '2026-09-21T05:00:00.000Z' },
+  ] }));
+  const byId = Object.fromEntries(rows.map(row => [row.id, row]));
+  assert.equal(byId['no-model'].label, '没有完成：模型调不通');
+  assert.equal(showsInspectAction(byId['no-model']), false);
+  assert.equal(byId.budget.label, '没有完成：超出生成上限');
+  assert.equal(byId.budget.inspectLabel, '查看记录');
+  assert.equal(showsInspectAction(byId.budget), true);
+  assert.equal(byId.other.label, '分析失败', 'an unknown code keeps the plain status');
+  assert.equal(byId.other.inspectLabel, '查看记录');
 });
 
 test('任务按 preset 归到岗位，只暴露状态、时间与停止资格', () => {
@@ -339,3 +365,15 @@ test('教室组件在有值之前只发一次 classroom 读取，不借用其它
   assert.match(row, /data-tool="ask_worker"/);
   assert.doesNotMatch(row, /PRIVATE_GOAL|call-9|child-9|argsRaw/);
 }));
+
+test('the status line counts several running workers', async () => {
+  const { runningLabel } = await import('./classroom-client.js');
+  const rows = taskRows({ tasks: [
+    { id: 'a', preset: 'general', status: 'running', startedAt: '2026-09-26T10:00:00Z' },
+    { id: 'b', preset: 'problem', status: 'running', startedAt: '2026-09-26T10:01:00Z' },
+    { id: 'c', preset: 'review', status: 'completed', startedAt: '2026-09-26T09:00:00Z' },
+  ] });
+  assert.equal(rows.filter(row => row.cancelable).length, 2, 'each running worker keeps its own stop control');
+  assert.equal(runningLabel(rows), '2个后台任务进行中');
+  assert.equal(runningLabel(rows.slice(1)), '后台任务进行中');
+});

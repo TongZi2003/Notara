@@ -36,10 +36,14 @@ const result = await build({
   target: 'es2022',
   external: ['react'],
   legalComments: 'none',
+  minify: true,
   write: false,
+  // The version the student sees in 设置 → 学习界面 is the plugin package's own.
+  define: { __NOTARA_VERSION__: JSON.stringify(JSON.parse(await readFile(resolve('examples/native-vault/package.json'), 'utf8')).version) },
   plugins: [
-    { name: 'local-pdf-worker', setup(builder) {
-      builder.onLoad({ filter: /pdf\.worker(?:\.min)?\.mjs$/ }, async args => ({ contents: await readFile(args.path, 'utf8'), loader: 'text' }));
+    // Lazy modules are Host routes, never bundle content (`lazy-assets.js`).
+    { name: 'no-bundled-pdfjs', setup(builder) {
+      builder.onResolve({ filter: /^pdfjs-dist(?:\/|$)/ }, args => ({ errors: [{ text: `pdfjs-dist must load through the lazy route, not be bundled (imported by ${args.importer})` }] }));
     } },
     // A stylesheet belongs to the module that injects it (math-latex.js); the
     // default esbuild CSS output would be a file this plugin cannot ship, so
@@ -63,9 +67,23 @@ if (!output.includes('data:font/woff2;base64')) throw new Error('native-vault La
 await writeFile(resolve('examples/native-vault/client.js'), output);
 // The notebook face ships beside the plugin and is served on demand by
 // `font-route.js`; it is never inlined into the client bundle.
-if (!output.includes('url("/notara/vault/fonts/wenkai.woff2")')) throw new Error('native-vault notebook font must stay a Host route reference, not an inlined face');
+if (!/url\(\\?["']?\/notara\/vault\/fonts\/wenkai\.woff2/.test(output)) throw new Error('native-vault notebook font must stay a Host route reference, not an inlined face');
 await rm(resolve('examples/native-vault/fonts'), { recursive: true, force: true });
-await cp(resolve('packages/client/assets/notebook/fonts/wenkai.woff2'), resolve('examples/native-vault/fonts/wenkai.woff2'));
+await cp(resolve('resources/fonts/wenkai.woff2'), resolve('examples/native-vault/fonts/wenkai.woff2'));
+// The lazy route serves exactly the allowlisted modules, copied fresh each build.
+const { LAZY_FILES } = await import('../examples/native-vault/lazy-assets.js');
+const LAZY_SOURCES: Record<string, string> = { 'pdf.min.mjs': 'node_modules/pdfjs-dist/build/pdf.min.mjs', 'pdf.worker.min.mjs': 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs' };
+// Modules without a shipped browser ES build are bundled from their ES source.
+const LAZY_BUILDS: Record<string, string> = { 'jsxgraph.mjs': 'node_modules/jsxgraph/src/index.js' };
+await rm(resolve('examples/native-vault/lazy'), { recursive: true, force: true });
+for (const name of Object.keys(LAZY_FILES)) {
+  const source = LAZY_SOURCES[name], entry = LAZY_BUILDS[name];
+  if (source) await cp(resolve(source), resolve('examples/native-vault/lazy', name));
+  else if (entry) await build({ entryPoints: [resolve(entry)], outfile: resolve('examples/native-vault/lazy', name), bundle: true, format: 'esm', platform: 'browser', target: 'es2022', minify: true, legalComments: 'eof', logLevel: 'error' });
+  else throw new Error(`native-vault lazy module ${name} has no build source`);
+}
+// JSXGraph is dual MIT/LGPL; its notice ships beside the module it is built into.
+await cp(resolve('node_modules/jsxgraph/LICENSE.MIT'), resolve('examples/native-vault/lazy/LICENSE-JSXGraph.txt'));
 // This directory is generated. Retired prompts must not survive a rebuild.
 await rm(resolve('examples/native-vault/teaching'), { recursive: true, force: true });
 await cp(resolve('resources/vault-teaching'),resolve('examples/native-vault/teaching'),{recursive:true});

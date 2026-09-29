@@ -60,18 +60,42 @@ export function parseFrontmatter(content) {
   const match = content.match(/^---\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/m);
   if (!match) fail();
   const frontmatter = {};
+  let list = null;
   for (const line of match[1].split(/\r?\n/)) {
     if (!line.trim() || line.trim().startsWith('#')) continue;
+    // Obsidian writes list properties as a key with no value followed by
+    // `- item` lines; each item is a scalar, never a nested map.
+    const item = list && line.match(/^\s*-\s+(.*)$/);
+    if (item) {
+      // `- key: value` is a map in YAML, outside this subset: never read it as text.
+      if (/^[^\s'"][^:]*:(?:\s|$)/.test(item[1])) fail();
+      const value = parseScalar(item[1]);
+      if (value !== null && typeof value === 'object') fail();
+      if (!Array.isArray(frontmatter[list])) Object.defineProperty(frontmatter, list, { value: [], enumerable: true, writable: true });
+      frontmatter[list].push(value);
+      continue;
+    }
+    if (/^\s/.test(line)) fail();
+    list = null;
     const separator = line.indexOf(':');
     if (separator <= 0) fail();
     const key = line.slice(0, separator).trim();
     if (!KEY.test(key) || Object.hasOwn(frontmatter, key)) fail();
-    Object.defineProperty(frontmatter, key, { value: parseScalar(line.slice(separator + 1)), enumerable: true });
+    const raw = line.slice(separator + 1);
+    Object.defineProperty(frontmatter, key, { value: parseScalar(raw), enumerable: true, writable: true });
+    if (!raw.trim()) list = key;
   }
   return {
     frontmatter, body: content.slice(match[0].length),
     range: { from: 0, to: match[0].replace(/\r?\n$/, '').length },
   };
+}
+
+/** A page's body for projections that only need its text: a header the Vault
+ * cannot parse leaves the whole page as body instead of failing the view. */
+export function frontmatterBody(content) {
+  try { return parseFrontmatter(content).body; }
+  catch (error) { if (error instanceof Error && error.message === 'vault_frontmatter_invalid') return content; throw error; }
 }
 
 function plainSafe(value) {

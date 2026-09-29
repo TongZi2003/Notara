@@ -3,7 +3,9 @@ import test from 'node:test';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FONT_PATH, NOTEBOOK_FONT_URL, createFontHandler } from './font-route.js';
+import { FONT_PATH, NOTEBOOK_FONT_URL, createFontHandler, createLazyHandler } from './font-route.js';
+import { LAZY_FILES, LAZY_PATH, lazyUrl } from './lazy-assets.js';
+import { access, readFile } from 'node:fs/promises';
 
 async function call(handler, method, url) {
   const response = { status: 0, headers: {}, body: undefined };
@@ -55,4 +57,24 @@ test('the notebook stylesheet asks for the face on exactly the route the Host se
   assert.ok(css.includes(`url("${NOTEBOOK_FONT_URL}")`), 'the @font-face points at the Host route');
   const minimal = await readFile(new URL('./modern-theme.css', import.meta.url), 'utf8');
   assert.ok(!minimal.includes('woff2'), 'the minimal theme never references the notebook face');
+});
+
+test('lazy modules are served only from their allowlist, as JavaScript', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'notara-lazy-'));
+  await writeFile(join(dir, 'pdf.min.mjs'), 'export const ok = 1;');
+  await writeFile(join(dir, 'secret.mjs'), 'nope');
+  const handler = createLazyHandler(dir);
+  const got = await call(handler, 'GET', lazyUrl('pdf.min.mjs'));
+  assert.equal(got.status, 200);
+  assert.equal(got.headers['content-type'], 'text/javascript');
+  for (const url of [`${LAZY_PATH}/secret.mjs`, `${LAZY_PATH}/../index.js`, `${LAZY_PATH}/`, `${LAZY_PATH}/sub/pdf.min.mjs`]) assert.equal((await call(handler, 'GET', url)).status, 404, url);
+  assert.equal((await call(handler, 'GET', lazyUrl('pdf.worker.min.mjs'))).status, 404, 'a missing build file is a 404, not a crash');
+  assert.throws(() => lazyUrl('other.mjs'), /lazy_module_unknown/);
+});
+
+test('the build ships every lazy module and the bundle no longer carries pdfjs', async () => {
+  for (const name of Object.keys(LAZY_FILES)) await access(new URL(`./lazy/${name}`, import.meta.url));
+  const bundle = await readFile(new URL('./client.js', import.meta.url), 'utf8');
+  assert.ok(Buffer.byteLength(bundle) < 3_000_000, 'the startup bundle stays well under the old 6 MB');
+  assert.doesNotMatch(bundle, /pdfjsVersion|PDFWorker\b.*WorkerMessageHandler/);
 });

@@ -1,13 +1,19 @@
-import { chmod, cp, mkdir, mkdtemp, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, cp, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import lockfile from 'proper-lockfile';
-import { ensureVaultAliases, readVaultState, writeVaultState, validateVaultPort } from './vault-launcher-state.ts';
+import { ensureVaultAliases, installedPluginRoot, liveVaultUrl, mustUpgradeBeforeStart, pluginVersions, readVaultState, vaultPluginLinks, writeVaultState, validateVaultPort } from './vault-launcher-state.ts';
+import { packageBin } from './package-bin.ts';
+import { findGitBash, windowsProbe } from './git-bash.ts';
+import { upgradeLegacySettings } from './legacy-settings.ts';
+import { studentProfile } from './vault-profile.ts';
 import { VAULT_TEST_MODEL, VAULT_TEST_PROVIDER } from './fixtures/vault-test-model.ts';
+// @ts-expect-error Native Vault is plain JS; the preset module has no declarations.
+import { TEACHER_PRESET, TEACHER_PRESET_ID } from '../examples/native-vault/teacher-preset.js';
 
 await import('./build-native-vault.ts');
 
@@ -65,7 +71,13 @@ export interface VaultOptions {
   testModel?: boolean;
   /** Optional Pixel Agents demo, installed as a separate native DSH plugin. */
   pixelClassroom?: boolean;
+  /** Tests only: run the teacher's Bash through Notara's Git Bash executor with
+   * this bash on any platform. On Windows the executor is always used. */
+  gitBash?: string;
 }
+
+/** Whether this instance's teacher runs Bash through Notara's Git Bash executor. */
+const usesGitBash = (options: { gitBash?: string | undefined }): boolean => process.platform === 'win32' || options.gitBash !== undefined;
 
 export interface VaultPersistentOptions extends Omit<VaultOptions, 'pixelClassroom'> { port?: number }
 
@@ -94,6 +106,10 @@ export async function startVaultPersistent(rootInput: string, options: VaultPers
   const unlock = async () => { if (!released) { released = true; await release(); } };
   try {
     let state = await readVaultState(root);
+    if (state) {
+      const versions = await vaultVersions(root);
+      if (mustUpgradeBeforeStart(versions)) throw new Error(`这个数据目录的插件是 ${versions.snapshot}，代码目录是 ${versions.checkout}。0.21.0 起 DSH 升到 0.2.0，会把打开过的课迁成新格式，旧版读不了。先整份备份数据目录，再运行 npm run vault:upgrade，然后启动。`);
+    }
     if (!state) {
       if ((await readdir(root)).length) throw new Error('数据目录已存在且未登记为持久化 Vault；请先迁移，不能重新初始化。');
       await seedVault(root, options, false);
@@ -110,6 +126,88 @@ export async function startVaultPersistent(rootInput: string, options: VaultPers
       async stop() { try { await runtime.stop(); } finally { await unlock(); } },
     };
   } catch (error) { await unlock(); throw error; }
+}
+
+/** The plugin version an instance runs, and the one this checkout would install. */
+export function vaultVersions(root: string): Promise<{ snapshot: string | undefined; checkout: string | undefined }> {
+  return pluginVersions(root, project);
+}
+
+/**
+ * `npm run vault:upgrade`: give a stopped instance this checkout's plugin. The
+ * old snapshot stays beside it as vault-plugin-<version>, the patch is written
+ * again from the registered options, and dependencies link to this checkout.
+ * Lessons and credentials are untouched. Only obsolete display seeds are migrated.
+ */
+export async function upgradeVaultPersistent(rootInput: string): Promise<{ upgraded: boolean; from: string | undefined; to: string | undefined; backup?: string }> {
+  const root = resolve(rootInput);
+  const state = await readVaultState(root);
+  if (!state) throw new Error('这个目录不是已登记的 Vault 运行目录，没有可升级的内容。');
+  if (await liveVaultUrl(root)) throw new Error('Vault 正在运行。先停止它（在运行它的终端窗口按 Ctrl+C，或关闭那个窗口），再升级。');
+  let release: () => Promise<void>;
+  try { release = await lockfile.lock(root, { retries: 0, stale: 10_000 }); }
+  catch { throw new Error('Vault 正在运行或刚刚停止。先停止它，稍等十几秒再升级。'); }
+  try {
+    const { snapshot: from, checkout: to } = await vaultVersions(root);
+    const pluginRoot = join(root, 'vault-plugin');
+    const installed = await installedPluginRoot(root);
+    const dependencyRoot = await realpath(join(installed, 'node_modules')).catch(() => undefined);
+    if (from === to && installed === await realpath(pluginRoot).catch(() => undefined) && dependencyRoot === await realpath(join(project, 'node_modules'))) return { upgraded: false, from, to };
+    const patchPath = join(root, 'home', 'cordis.patch.yml');
+    const patch = await readFile(patchPath, 'utf8');
+    // This file is generated JSON. Retain the optional classroom across regeneration.
+    const pixelRow = (JSON.parse(patch) as { insert?: { id?: string; name?: string }[] }[])
+      .flatMap(row => row.insert ?? []).find(row => row.id === 'notara-pixel-classroom');
+    const pixelPluginRoot = pixelRow?.name ? dirname(pixelRow.name) : undefined;
+    const settingsPath = join(root, 'home', 'settings.yaml');
+    const settings = await readFile(settingsPath, 'utf8').catch((error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return undefined; throw error; });
+    const profilePath = join(root, 'home/profiles/web/cordis.patch.yml');
+    const profile = await readFile(profilePath, 'utf8').catch((error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return undefined; throw error; });
+    const nextProfile = studentProfile(profile);
+    const present = await lstat(pluginRoot).then(() => true, (error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return false; throw error; });
+    const fixedRoot = present ? await realpath(pluginRoot) : undefined;
+    const fixedVersion = present ? (JSON.parse(await readFile(join(pluginRoot, 'package.json'), 'utf8')) as { version: string }).version : undefined;
+    let backup = `${pluginRoot}-${fixedVersion ?? 'unknown'}`;
+    for (let n = 2; await lstat(backup).then(() => true, () => false); n++) backup = `${pluginRoot}-${fixedVersion ?? 'unknown'}-${n}`;
+    const rollback: (() => Promise<void>)[] = [];
+    const replacedLinks: string[] = [];
+    const writeAtomic = async (path: string, text: string) => {
+      const pending = `${path}.${randomUUID()}.next`;
+      try { await writeFile(pending, text, { mode: 0o600 }); await rename(pending, path); }
+      finally { await rm(pending, { force: true }); }
+    };
+    const replaceLink = async (path: string, target: string) => {
+      const old = await lstat(path).catch((error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return undefined; throw error; });
+      if (old && !old.isSymbolicLink()) throw new Error(`安装链接被普通文件或目录占用：${path}`);
+      const saved = `${path}.${randomUUID()}.previous`;
+      if (old) { await rename(path, saved); replacedLinks.push(saved); }
+      rollback.push(async () => { await rm(path, { force: true }); if (old) await rename(saved, path); });
+      await symlink(target, path, dirLink);
+    };
+    try {
+      if (present) await rename(pluginRoot, backup);
+      rollback.push(async () => { await rm(pluginRoot, { recursive: true, force: true }); if (present) await rename(backup, pluginRoot); });
+      await installPluginSnapshot(root);
+      for (const path of vaultPluginLinks(root)) await replaceLink(path, pluginRoot);
+      rollback.push(() => writeAtomic(patchPath, patch));
+      await writeAtomic(patchPath, vaultPatch(root, pluginRoot, { testModel: state.testModel, gitBash: usesGitBash({}), ...(pixelPluginRoot ? { pixelPluginRoot } : {}) }));
+      rollback.push(async () => { if (profile === undefined) await rm(profilePath, { force: true }); else await writeAtomic(profilePath, profile); });
+      await writeAtomic(profilePath, nextProfile);
+      if (state.testModel) await replaceLink(join(root, 'plugins', 'node_modules'), join(project, 'node_modules'));
+      // Before DSH 0.2.0 first imports it: the old seeds become what the Vault sets now.
+      if (settings !== undefined && upgradeLegacySettings(settings) !== settings) {
+        rollback.push(() => writeAtomic(settingsPath, settings));
+        await writeAtomic(settingsPath, upgradeLegacySettings(settings));
+      }
+    } catch (error) {
+      const failures: unknown[] = [];
+      for (const undo of rollback.reverse()) { try { await undo(); } catch (failure) { failures.push(failure); } }
+      if (failures.length) throw new AggregateError([error, ...failures], '升级失败，部分回滚也失败；请保留数据目录并从整份备份恢复。');
+      throw error;
+    }
+    for (const path of replacedLinks) await rm(path, { force: true });
+    return { upgraded: true, from, to, backup: installed === fixedRoot ? backup : installed };
+  } finally { await release(); }
 }
 
 /** Roots, seed files and the plugin patch are written once per instance: a
@@ -164,15 +262,12 @@ tags: [math, vector]
     writeFile(join(workspace, 'vault/媒体/色板.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="240"><rect width="640" height="240" fill="#eef2ff"/><circle cx="150" cy="120" r="70" fill="#6370ff"/><circle cx="320" cy="120" r="70" fill="#ffb45c"/><circle cx="490" cy="120" r="70" fill="#55c79a"/></svg>'),
     writeFile(join(workspace, 'vault/媒体/向量讲义.pdf'), samplePdf()),
   ]);
-  // Freeze this instance's plugin: another isolated build must not hot-reload
-  // an in-progress browser test or change the version its classroom is using.
-  const pluginRoot=join(root,'vault-plugin');
-  await cp(join(project,'examples/native-vault'),pluginRoot,{recursive:true,filter:source=>!source.endsWith('.test.js')&&!source.endsWith('/node_modules')});
-  await symlink(join(project,'node_modules'),join(pluginRoot,'node_modules'),dirLink);
+  const pluginRoot=await installPluginSnapshot(root);
   await mkdir(join(workspace, 'node_modules/@notara'), { recursive: true });
   await symlink(pluginRoot, join(workspace, 'node_modules/@notara/vault-native'), dirLink);
   await mkdir(join(home, 'profiles/web/node_modules/@notara'), { recursive: true });
   await symlink(pluginRoot, join(home, 'profiles/web/node_modules/@notara/vault-native'), dirLink);
+  await writeFile(join(home, 'profiles/web/cordis.patch.yml'), studentProfile(), { mode: 0o600 });
   let pixelPluginRoot: string | undefined;
   if (options.pixelClassroom) {
     await (await import('./build-pixel-classroom.ts')).buildPixelClassroom();
@@ -182,20 +277,43 @@ tags: [math, vector]
       await cp(join(project, 'examples/pixel-classroom', file), join(pixelPluginRoot, file), { recursive: true });
     }
   }
-  await writeFile(join(home, 'settings.yaml'), 'ui-onboarding:\n  welcomeNoticeVersion: 2026-08-13.1\n');
   if (options.testModel) await seedTestModel(root);
-  await writeFile(join(home, 'cordis.patch.yml'), JSON.stringify([
-    ...(options.testModel ? [
+  await writeFile(join(home, 'cordis.patch.yml'), vaultPatch(root, pluginRoot, { testModel: options.testModel === true, pixelPluginRoot, gitBash: usesGitBash(options) }));
+}
+
+/** Freeze this instance's plugin: another build must not hot-reload an
+ * in-progress lesson or change the version its classroom is using. Seeding and
+ * `npm run vault:upgrade` both install it this way; dependencies link to the
+ * checkout that installs it. */
+export async function installPluginSnapshot(root: string): Promise<string> {
+  const pluginRoot=join(root,'vault-plugin');
+  await cp(join(project,'examples/native-vault'),pluginRoot,{recursive:true,filter:source=>!source.endsWith('.test.js')&&basename(source)!=='node_modules'});
+  await symlink(join(project,'node_modules'),join(pluginRoot,'node_modules'),dirLink);
+  return pluginRoot;
+}
+
+/** The DSH patch an instance boots with, derived only from its root and options. */
+export function vaultPatch(root: string, pluginRoot: string, { testModel = false, pixelPluginRoot, gitBash = false }: { testModel?: boolean; pixelPluginRoot?: string | undefined; gitBash?: boolean } = {}): string {
+  return JSON.stringify([
+    // One ctx.shell per host: the Git Bash executor replaces the native one
+    // (pwsh on Windows, the sandboxed bash elsewhere), under the same sandbox.
+    ...(gitBash ? [{ id: process.platform === 'win32' ? 'pwsh-sandbox' : 'bash-sandbox', disabled: true }] : []),
+    ...(testModel ? [
       { id: 'agent-default-model', config: { provider: VAULT_TEST_PROVIDER, model: VAULT_TEST_MODEL } },
       { id: 'llm-deepseek', disabled: true },
+      { id: 'llm-deepseek-account', disabled: true },
     ] : []),
-    { id: 'agent-presets', config: { default: 'notara-teacher', roots: [{ path: join(pluginRoot,'presets'), trust: 'system' }], includeShippedRoot: true, includeUserRoot: false } },
+    // DSH 0.2.0: a preset is one `@deepseek-ai/dsh-agent-preset` row; the registry names the default.
+    { id: 'agent-preset-registry', config: { default: TEACHER_PRESET_ID } },
+    // Student display defaults live in the writable profile (vault-profile.ts).
     { insert: [
+      { id: 'preset-notara-teacher', name: '@deepseek-ai/dsh-agent-preset', config: TEACHER_PRESET },
       { id: 'notara-vault-native', name: '@notara/vault-native' },
+      ...(gitBash ? [{ id: 'notara-git-bash', name: '@notara/vault-native/git-bash-executor', config: { timeoutMs: 60000 } }] : []),
       ...(pixelPluginRoot ? [{ id: 'notara-pixel-classroom', name: join(pixelPluginRoot, 'index.js') }] : []),
-      ...(options.testModel ? [{ id: 'notara-vault-test-model', name: join(root, 'plugins/vault-test-model/index.js'), config: { logPath: join(root, 'model-requests.jsonl'), repliesPath: join(root, 'teacher-replies.json') } }] : []),
+      ...(testModel ? [{ id: 'notara-vault-test-model', name: join(root, 'plugins/vault-test-model/index.js'), config: { logPath: join(root, 'model-requests.jsonl'), repliesPath: join(root, 'teacher-replies.json') } }] : []),
     ] },
-  ]));
+  ]);
 }
 
 /** Bundle the synthetic adapter outside the product package and give it a
@@ -225,10 +343,17 @@ async function bootVault(root: string, options: VaultOptions & { preserve?: bool
   for (const key of Object.keys(env)) {
     if (key.startsWith('DSH_') && key !== 'DSH_HOME' && key !== 'DSH_TELEMETRY_DISABLED') delete env[key];
   }
+  // The Git Bash executor reads its program from here (git-bash-executor.js).
+  if (options.gitBash !== undefined) env.NOTARA_GIT_BASH = options.gitBash;
+  else if (process.platform === 'win32') {
+    const found = findGitBash(windowsProbe());
+    if (found.path === undefined) throw new Error('reason' in found ? found.reason : '没有找到 Git Bash。');
+    env.NOTARA_GIT_BASH = found.path;
+  }
   const redact = (text: string): string => text.replace(/([?&]token=)[^\s&]+/g, '$1[redacted]');
   let port = options.port ?? 0;
   function launch(): VaultProcess {
-    const child = spawn(process.execPath, [`--max-http-header-size=${webMaxHeaderSizeBytes}`, join(project, 'node_modules/.bin/dsh'), 'web', '--host', '127.0.0.1', '--port', String(port), '--no-open'], { cwd: workspace, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, [`--max-http-header-size=${webMaxHeaderSizeBytes}`, packageBin(project, '@deepseek-ai/dsh', 'dsh'), 'web', '--host', '127.0.0.1', '--port', String(port), '--no-open'], { cwd: workspace, env, stdio: ['ignore', 'pipe', 'pipe'] });
     let output = '';
     let authUrl = '';
     let spawnError: Error | undefined;
@@ -243,7 +368,10 @@ async function bootVault(root: string, options: VaultOptions & { preserve?: bool
     child.stdout.on('data', collect); child.stderr.on('data', collect);
     async function stopProcess(): Promise<void> {
       if (child.pid !== undefined && child.exitCode === null && child.signalCode === null) {
-        child.kill('SIGTERM');
+        // On Windows a signal only ends DSH itself; taskkill /T also ends the
+        // shells and jobs it started, which would otherwise keep the port.
+        if (process.platform === 'win32') spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+        else child.kill('SIGTERM');
         const timer = setTimeout(() => child.kill('SIGKILL'), killGraceMs);
         try { await exited; } finally { clearTimeout(timer); }
       }
@@ -252,7 +380,10 @@ async function bootVault(root: string, options: VaultOptions & { preserve?: bool
       const deadline = Date.now() + bootTimeoutMs;
       while (!authUrl) {
         if (spawnError) throw new Error(`Notara Vault spawn failed: ${spawnError.message}`);
-        if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Notara Vault boot failed: ${redact(output)}`);
+        if (child.exitCode !== null || child.signalCode !== null) {
+          if (/EADDRINUSE|EACCES/.test(output)) throw new Error(`端口 ${port} 无法使用：已被别的程序占用，或属于 Windows 预留的端口段。换一个端口启动，例如 npm run vault -- --port 47093；Windows 上可用 netsh interface ipv4 show excludedportrange protocol=tcp 查看预留段。\n${redact(output)}`);
+          throw new Error(`Notara Vault boot failed: ${redact(output)}`);
+        }
         if (Date.now() > deadline) throw new Error(`Notara Vault boot timed out after ${bootTimeoutMs}ms: ${redact(output)}`);
         await new Promise(resolveReady => setTimeout(resolveReady, 50));
       }
@@ -272,7 +403,9 @@ async function bootVault(root: string, options: VaultOptions & { preserve?: bool
   // stop() only clears the root once the child has actually exited: a boot that
   // failed mid-write must not be deleted out from under its own process.
   function stop(): Promise<void> {
-    stopping ??= (async () => { await active.stopProcess(); if (!options.preserve) await rm(root, { recursive: true, force: true }); })();
+    // A kept root drops its login record with the process, so a later start
+    // never mistakes an unrelated process that reused the pid for this Vault.
+    stopping ??= (async () => { await active.stopProcess(); await rm(options.preserve ? join(root, 'launcher.json') : root, { recursive: true, force: true }); })();
     return stopping;
   }
   async function restart(): Promise<void> {

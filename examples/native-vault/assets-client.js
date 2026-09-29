@@ -1,26 +1,42 @@
 import { buildMarkdownCardContent, markdownSections } from './graph.js';
 import { buildPdfCardContent, cardPathFor } from './pdf.js';
-import { embedTarget, parseMediaTarget } from './media.js';
+import { embedTarget, isCodePath, mediaForPath, parseMediaTarget } from './media.js';
 import { VIEW_IDS } from './views-client.js';
-import { createVaultClient } from './remote-client.js';
+import { createVaultClient, visibleInterval } from './remote-client.js';
 import { createDraftStore } from './draft-client.js';
 import { createFileActions } from './file-actions-client.js';
-export function createVaultAssets(React,{STYLE,CodeMirrorMarkdown,PdfReader,AssetPreview,insertVaultReference,IconButton,Menu,Dialog,ensureSession}) {
+import { createFileTree } from './file-tree-client.js';
+import { announceSkillsChanged } from './skills-client.js';
+import { parseBoard } from './board-data.js';
+import { exportBoard } from './board-render.js';
+import { mathStyleText } from './math-latex.js';
+
+const USER_SKILL_DIRECTORY = '技能';
+/** Why a page did not save, in the student's words; the Host's reason code decides. */
+export function saveFailureNotice(error) {
+  const reason = `${error?.code ?? ''} ${error?.message ?? ''}`;
+  if (reason.includes('vault_frontmatter_invalid')) return '页头（开头两行 --- 之间的属性）格式不对，这一页没有保存。每行写成“名称: 值”，列表写成 [甲, 乙] 或逐行“- 甲”，改好后再保存。';
+  if (reason.includes('vault_revision_conflict')) return '页面已经被别人改过，请刷新后决定保留哪一版。';
+  return '保存失败，当前修改仍保留在页面中。';
+}
+
+/** Why a new file was not created, in the student's words. */
+export function createFailureNotice(error, what = '页面') {
+  const reason = `${error?.code ?? ''} ${error?.message ?? ''}`;
+  if (reason.includes('vault_path_not_portable')) return '没有创建：文件名里不能有 < > : " | ? *，不能以点或空格结尾，也不能叫 CON、NUL 这类系统保留的名字。换个名字再试。';
+  if (reason.includes('vault_revision_conflict')) return `没有创建：同名的${what}已经存在。`;
+  if (reason.includes('vault_path_invalid')) return `没有创建：这个位置不能放${what}，例如以点开头的文件夹。`;
+  return `没有创建${what}，请检查名字后再试。`;
+}
+
+export function createVaultAssets(React,{STYLE,EmptyState,CodeMirrorMarkdown,CodeEditor,PdfReader,AssetPreview,insertVaultReference,IconButton,Menu,Dialog,ensureSession,openLessonBoard=()=>{}}) {
 const {useState,useEffect,useMemo,useCallback,useRef}=React, h=React.createElement;
 const buttonStyle=active=>({...STYLE.row,...(active?STYLE.rowActive:{})});
 const useFileActions=createFileActions(React,{STYLE,Dialog});
-    function Tree({ node, selected, onSelect, onContext, depth = 0 }) {
-      return React.createElement(React.Fragment, null, node.children.map(child => child.path
-        ? React.createElement('button', { key: child.path, 'aria-current': child.path === selected ? 'true' : undefined, style: { ...buttonStyle(child.path === selected), paddingLeft: 10 + depth * 12 }, onContextMenu: event => { event.preventDefault(); onContext(child.path, event); }, onClick: () => onSelect(child.path) }, `${child.kind === 'asset' ? '▧ ' : ''}${child.name}`)
-        : React.createElement('details', { key: `${depth}:${child.name}`, open: true },
-          React.createElement('summary', { style: { ...STYLE.treeFolder, paddingLeft: 10 + depth * 12 } }, child.name),
-          React.createElement(Tree, { node: child, selected, onSelect, onContext, depth: depth + 1 }),
-        )),
-      );
-    }
+    const Tree = createFileTree(React, { STYLE });
 
     const drafts = createDraftStore('asset-draft');
-    function App({ ctx, sessionId, visible, global = false, openView, viewRequest, completeViewRequest }) {
+    function App({ ctx, sessionId, visible, global = false, openView, viewRequest, completeViewRequest, onSelectedChange }) {
       // ctx.remote.* returns a fresh proxy per access; pin it once or every
       // render would re-fire the effects and loops that take it as a dep.
       // The whole page — files, templates, embeds, PDF cards — stays in this
@@ -28,11 +44,15 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
       const vault = useMemo(() => createVaultClient(ctx, sessionId), [ctx, sessionId]);
       const fileActions=useFileActions(vault);
       const [files, setFiles] = useState([]);
+      // Whether the file list has been read: an empty library is only claimed after a successful read.
+      const [listing, setListing] = useState('loading');
       const [tree, setTree] = useState({ name: '', children: [] });
       const [selected, setSelected] = useState(drafts.get(sessionId)?.path ?? (viewRequest?.focus ? parseMediaTarget(viewRequest.focus).path : ''));
       const [anchor, setAnchor] = useState('');
       const [sidebar, setSidebar] = useState(false), [searching, setSearching] = useState(false), [creating, setCreating] = useState(false);
-      useEffect(()=>{setSidebar(global&&window.innerWidth>760);},[global]);
+      // In the Vault section the panel holds the file tree; the page keeps its own only beside a lesson.
+      useEffect(()=>{setSidebar(false);},[global]);
+      useEffect(()=>{if(global)onSelectedChange?.(selected);},[global,selected]);
       const [extracting, setExtracting] = useState(false), [extractTitle, setExtractTitle] = useState(''), [extractQuote, setExtractQuote] = useState(''), [section, setSection] = useState('');
       const [assetLocator, setAssetLocator] = useState(null), [contextMenu, setContextMenu] = useState(null);
       useEffect(() => {
@@ -50,6 +70,8 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
       const [draft, setDraft] = useState('');
       const [selection, setSelection] = useState('');
       const [dirty, setDirty] = useState(false);
+      // The code editor keeps its own buffer; it reports here so a switch never drops unsaved code.
+      const [codeDirty, setCodeDirty] = useState(false);
       const [saving, setSaving] = useState(false);
       const [backlinks, setBacklinks] = useState([]);
       const [templates, setTemplates] = useState([]);
@@ -59,6 +81,7 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
       const [error, setError] = useState('');
       const [templatePath, setTemplatePath] = useState('');
       const [newPath, setNewPath] = useState('路线/新页面.md');
+      const [creatingCode, setCreatingCode] = useState(false), [codePath, setCodePath] = useState('代码/新建.py');
       const [newTitle, setNewTitle] = useState('新页面');
       const [embeddedAssets, setEmbeddedAssets] = useState({});
       const uploadRef = useRef(null);
@@ -72,9 +95,9 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
       const refresh = useCallback(async (preferred) => {
         let result;
         try { result = await vault.list({}); }
-        catch { setNotice('文件树暂时无法读取。'); return false; }
-        if (!result?.ok) { setNotice('文件树暂时无法读取。'); return false; }
-        setFiles(result.value.files); setTree(result.value.tree);
+        catch { setNotice('文件树暂时无法读取。'); setListing(value => value === 'ready' ? value : 'failed'); return false; }
+        if (!result?.ok) { setNotice('文件树暂时无法读取。'); setListing(value => value === 'ready' ? value : 'failed'); return false; }
+        setFiles(result.value.files); setTree(result.value.tree); setListing('ready');
         setSelected(previous => preferred || previous || result.value.files[0]?.path || '');
         setNotice('');
         return true;
@@ -116,7 +139,7 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
       useEffect(() => {
         if (!viewRequest?.focus) return;
         const target = parseMediaTarget(viewRequest.focus);
-        if (dirty || (drafts.has(sessionId) && drafts.get(sessionId).path !== target.path)) { setNotice('当前页面有未保存修改，请先保存或放弃。'); completeViewRequest(); return; }
+        if (dirty || codeDirty || (drafts.has(sessionId) && drafts.get(sessionId).path !== target.path)) { setNotice('当前页面有未保存修改，请先保存或放弃。'); completeViewRequest(); return; }
         setAnchor(target.locator?.anchor ?? '');
         void open(target.path, target.invalidLocator ? '引用位置无效，已打开原文件，请核对页码或区域。' : undefined, target.locator);
         completeViewRequest();
@@ -162,7 +185,10 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
         return () => { live = false; };
       }, [document?.path, document?.revision, embedPaths, vault]);
       useEffect(() => {
-        if (!visible || !selected || (!document && !asset)) return undefined;
+        // The list follows outside changes whenever the view is visible, even
+        // with nothing open (or a file that failed to open); only the open file
+        // below needs one.
+        if (!visible) return undefined;
         let live = true, checking = false;
         const syncExternal = async () => {
           if (checking) return;
@@ -171,6 +197,7 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
             const result = await vault.list({});
             if (!live || !result.ok) return;
             setFiles(result.value.files); setTree(result.value.tree);
+            if (!selected || (!document && !asset)) return;
             const summary = result.value.files.find(item => item.path === selected);
             if(!summary){
               if(dirty){setNotice('文件已被移走，未保存修改仍保留在编辑器中。');return;}
@@ -191,17 +218,27 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
           finally { checking = false; }
         };
         void syncExternal();
-        const timer = setInterval(syncExternal, 2500);
+        const timer = visibleInterval(syncExternal, 2500);
         const onFocus = () => { void syncExternal(); };
         window.addEventListener('focus', onFocus);
         window.addEventListener('visibilitychange', onFocus);
-        return () => { live = false; clearInterval(timer); window.removeEventListener('focus', onFocus); window.removeEventListener('visibilitychange', onFocus); };
+        return () => { live = false; timer(); window.removeEventListener('focus', onFocus); window.removeEventListener('visibilitychange', onFocus); };
       }, [visible, selected, document?.path, document?.revision, asset?.path, asset?.revision, dirty, vault]);
 
       const shownFiles = useMemo(() => query.trim() ? hits : files, [files, hits, query]);
+      // A lesson board is written only through the classroom: the library shows its
+      // archive read-only (the export renderer, sandboxed) and leads back to the lesson.
+      const boardArchive = useMemo(() => {
+        if (document?.type !== 'lesson-board') return null;
+        try {
+          const session = document.frontmatter?.session;
+          const html = exportBoard(parseBoard(document.content, session), { hint: true, reference: true, attempt: true, mathCss: mathStyleText() }).html;
+          return { session, html };
+        } catch { return { error: true }; }
+      }, [document?.path, document?.revision]);
       const selectPage = path => {
         if (!path || path === selected) return;
-        if (dirty) { setNotice('当前页面有未保存修改，请先保存或放弃。'); return; }
+        if (dirty || codeDirty) { setNotice('当前页面有未保存修改，请先保存或放弃。'); return; }
         if (!files.some(file => file.path === path)) { setNotice(`还没有这个页面：${path}`); return; }
         setQuery(''); setHits([]); setAnchor(''); setSelected(path);
       };
@@ -216,10 +253,11 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
         setSaving(true);
         try {
           const result = await vault.save({ path: document.path, content: draft, expectedRevision: document.revision });
+          if (result?.ok && document.path.split('/')[0] === USER_SKILL_DIRECTORY) announceSkillsChanged();
           if (result.ok) {
             setDocument(result.value); setDraft(result.value.content); setDirty(false); setNotice('已保存');
             await refresh(result.value.path);
-          } else setNotice('页面已经被别人改过，请刷新后决定保留哪一版。');
+          } else setNotice(saveFailureNotice(result.error));
         } catch { setNotice('保存失败，当前修改仍保留在页面中。'); }
         setSaving(false);
       };
@@ -274,6 +312,17 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
           setNotice('已将媒体文件带入对话'); return true;
         } catch { setNotice('无法读取这个文件，请刷新后重试。'); return false; }
       };
+      // The Vault panel asks this page for its own actions (新建, 导入, 带入对话, 回收站).
+      useEffect(()=>{
+        const command=viewRequest?.command;if(!command)return;
+        completeViewRequest();
+        if(command.type==='create-page')setCreating(true);
+        else if(command.type==='create-code')setCreatingCode(true);
+        else if(command.type==='upload')uploadRef.current?.click();
+        else if(command.type==='bring')void bringPath(command.path);
+        else if(command.type==='trash')fileActions.requestDelete(command.path);
+        else if(command.type==='trash-list')fileActions.showTrash();
+      },[viewRequest]);
       const copyAssetEmbed = async selectionValue => {
         if (!asset) return;
         const chosen=selectionValue||pdfSelection;
@@ -314,22 +363,35 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
         const file = event.target.files?.[0];
         event.target.value = '';
         if (!file) return;
+        if (codeDirty) { setNotice('当前页面有未保存修改，请先保存或放弃。'); return; }
         try {
           const bytes = new Uint8Array(await file.arrayBuffer()), parts = [];
           for (let index = 0; index < bytes.length; index += 0x8000) parts.push(String.fromCharCode(...bytes.subarray(index, index + 0x8000)));
           const dataBase64 = btoa(parts.join('')), path = `媒体/${file.name}`;
           const result = await vault.saveAsset({ path, dataBase64, mime: file.type || 'application/octet-stream', expectedRevision: null });
-          if (!result.ok) { setNotice('媒体文件保存失败：目标文件可能已经存在。'); return; }
-          await refresh(path); setSelected(path); setNotice('媒体文件已保存');
+          if (!result.ok) { setNotice(createFailureNotice(result.error, '媒体文件')); return; }
+          await refresh(path); setSelected(path); setNotice('媒体文件已保存'); window.dispatchEvent(new Event('notara-vault-changed'));
         } catch { setNotice('媒体文件保存失败，文件可能过大或格式不受支持。'); }
+      };
+      // A code file starts empty and opens in the code editor; the extension decides the language.
+      const createCode = async event => {
+        event.preventDefault();
+        const path = codePath.trim();
+        if (codeDirty) { setNotice('当前页面有未保存修改，请先保存或放弃。'); return; }
+        if (!isCodePath(path)) { setNotice('请用代码文件的扩展名，例如 .py、.js、.cpp。'); return; }
+        try {
+          const result = await vault.saveAsset({ path, dataBase64: '', mime: mediaForPath(path).mime, expectedRevision: null });
+          if (!result.ok) { setNotice(createFailureNotice(result.error, '代码文件')); return; }
+          setCreatingCode(false); await refresh(path); setSelected(path); setNotice(`已创建代码文件：${path}`); window.dispatchEvent(new Event('notara-vault-changed'));
+        } catch { setNotice('代码文件没有创建，请检查路径后再试。'); }
       };
       const create = async event => {
         event.preventDefault();
-        if (dirty) { setNotice('当前页面有未保存修改，请先保存或放弃。'); return; }
+        if (dirty || codeDirty) { setNotice('当前页面有未保存修改，请先保存或放弃。'); return; }
         if (!templatePath || !newPath.trim()) return;
         const result = await vault.createFromTemplate({ templatePath, path: newPath.trim(), values: { title: newTitle.trim() || '新页面', date: new Date().toISOString().slice(0, 10) }, expectedRevision: null });
-        if (result.ok) { setCreating(false); setNewPath('路线/新页面.md'); await refresh(result.value.path); setSelected(result.value.path); }
-        else setNotice('创建失败：目标页面可能已经存在。');
+        if (result.ok) { setCreating(false); setNewPath('路线/新页面.md'); await refresh(result.value.path); setSelected(result.value.path); window.dispatchEvent(new Event('notara-vault-changed')); }
+        else setNotice(createFailureNotice(result.error, '页面'));
       };
       const selectFromResult = path => selectPage(path);
       const sections = useMemo(() => document ? markdownSections(document.content) : [], [document?.content]);
@@ -370,10 +432,11 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
 
       return h('div',{className:'nv-assets',style:STYLE.page},
         h('div',{className:'nv-bar'},
-          h(IconButton,{icon:'sidebar',label:sidebar?'收起文件栏':'展开文件栏',onClick:()=>setSidebar(v=>!v)}),
+          !global&&h(IconButton,{icon:'sidebar',label:sidebar?'收起文件栏':'展开文件栏',onClick:()=>setSidebar(v=>!v)}),
           h(IconButton,{icon:'plus',label:'新建页面',onClick:()=>setCreating(true)}),
-          h(IconButton,{icon:'search',label:'搜索文件',onClick:()=>{setSidebar(true);setSearching(v=>!v);}}),
-          h('span',{className:'nv-breadcrumb',title:current?.path},current?.path ?? '资产'),
+          // Beside a lesson the page keeps its own search; in the Vault section it lives in the panel.
+          !global&&h(IconButton,{icon:'search',label:'搜索文件',onClick:()=>{setSidebar(true);setSearching(v=>!v);}}),
+          h('span',{className:'nv-breadcrumb',title:current?.path},current?.path ?? '文件'),
           document && dirty && h(IconButton,{icon:'save',label:saving?'保存中…':'保存',disabled:saving,onClick:save}),
           document && h(IconButton,{icon:'extract',label:'打开摘录工具',disabled:dirty,'aria-pressed':extracting,onClick:startExtract}),
           current && h(IconButton,{icon:'chat',label:document?'带入整个文件':'带入媒体文件',disabled:dirty,onClick:()=>{void bringIntoConversation();}}),
@@ -386,12 +449,16 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
           sidebar && h('aside',{className:'nv-file-rail','aria-label':'文件列表'},
             h('div',{className:'nv-bar'},h('span',{className:'nv-breadcrumb'},'文件'),
               h(IconButton,{icon:'upload',label:'导入媒体文件',onClick:()=>uploadRef.current?.click()}),
-              h(Menu,{label:'文件列表操作',items:[{label:'从模板新建',run:()=>setCreating(true)},{label:'刷新文件列表',run:()=>refresh()},{label:'回收站',run:fileActions.showTrash}]})),
+              h(Menu,{label:'文件列表操作',items:[{label:'从模板新建',run:()=>setCreating(true)},{label:'新建代码文件',run:()=>setCreatingCode(true)},{label:'刷新文件列表',run:()=>refresh()},{label:'回收站',run:fileActions.showTrash}]})),
             searching && h('input',{style:{...STYLE.search,margin:'8px',width:'calc(100% - 16px)'},autoFocus:true,placeholder:'搜索标题、内容或路径…',value:query,onChange:event=>runSearch(event.target.value)}),
             query.trim()?shownFiles.map(item=>h('button',{key:item.path,style:buttonStyle(item.path===selected),onClick:()=>selectFromResult(item.path)},item.path)):
               h(Tree,{node:tree,selected,onSelect:selectPage,onContext:(path,event)=>setContextMenu({path,x:event.clientX,y:event.clientY})})),
           h('main',{className:'nv-document'+(asset?.assetKind==='pdf'?' nv-document-pdf':'')},current?h('article',null,
             document ? h(React.Fragment,null,
+              boardArchive&&!boardArchive.error?h('section',{className:'nv-board-archive','aria-label':'课堂白板存档'},
+                h('p',{style:{...STYLE.notice,display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},'这是课堂白板的存档，这里只能查看；作答、拖动与排版在课堂的白板里进行。',
+                  h('button',{className:'nv-quiet',disabled:!ctx.sessions.list.getSnapshot().byId?.[boardArchive.session],title:ctx.sessions.list.getSnapshot().byId?.[boardArchive.session]?undefined:'这节课已不在课堂列表里',onClick:()=>openLessonBoard(ctx,boardArchive.session)},'在课堂白板中打开')),
+                h('iframe',{title:'课堂白板存档',sandbox:'',srcDoc:boardArchive.html,style:{width:'100%',height:'calc(100dvh - 240px)',border:'1px solid var(--dsw-alias-border-l1)',borderRadius:12,background:'#fff'}})):
               h(CodeMirrorMarkdown,{key:`${document.path}:${Object.values(embeddedAssets).map(item=>item.revision).join(',')}`,content:draft,assets:embeddedAssets,anchor,onChange:value=>{setDraft(value);setDirty(value!==document.content.replace(/\r\n?/g,'\n'));setNotice('');},onSelectionChange:setSelection,onTag:tag=>openView(VIEW_IDS.graph,'tag:'+encodeURIComponent(tag)),onOpenPage:path=>{const target=parseMediaTarget(path);if(target.locator||target.invalidLocator)openView(VIEW_IDS.assets,path);else selectPage(target.path);}}),
               extracting && h('section',{className:'nv-extract','aria-label':'摘录工具'},
                 h('label',null,'摘录段落',h('select',{'aria-label':'摘录段落',style:STYLE.templateInput,value:section,onChange:event=>{const next=sections.find(item=>item.anchor===event.target.value);setSection(next.anchor);setAnchor(next.anchor);setExtractQuote(next.content);setExtractTitle(`${document.title} · ${next.anchor}`);}},sections.map(item=>h('option',{key:item.anchor,value:item.anchor},item.anchor)))),
@@ -400,9 +467,18 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
                 h('button',{className:'nv-quiet',disabled:busy||dirty||!extractTitle.trim()||!extractQuote.trim(),onClick:saveExtract},'提取段落为卡片')),
               (document.links.length>0||backlinks.length>0) && h('details',{style:{marginTop:28,fontSize:12}},h('summary',{style:{cursor:'pointer',color:'var(--dsw-alias-label-secondary)'}},'相关链接'),
                 h('section',{style:STYLE.links},document.links.map(path=>h('button',{key:'out:'+path,className:'nv-link',style:STYLE.link,onClick:()=>selectFromResult(path)},'→ '+path)),backlinks.map(path=>h('button',{key:'in:'+path,className:'nv-link',style:STYLE.link,onClick:()=>selectFromResult(path)},'← '+path))))) :
+            asset.assetKind==='code'&&CodeEditor?h(CodeEditor,{key:asset.path,vault,asset,onDirty:setCodeDirty,onSaved:value=>setAsset(current=>current?.path===value.path?{...current,...value}:current)}):
             asset.assetKind==='pdf'?h(PdfReader,{key:asset.path+JSON.stringify(assetLocator),vault,asset,page:assetPage,initialRegion:assetLocator?.kind==='pdf-region'?assetLocator:undefined,onPage:setAssetPage,onSelectionChange:setPdfSelection,onCopyEmbed:copyAssetEmbed,onBring:bringIntoConversation,onCreateCard:createPdfCard,busy}):
               h(AssetPreview,{asset,onCopyEmbed:copyAssetEmbed,onBring:bringIntoConversation})
-          ):h('div',{style:STYLE.empty},files.length?'选择一个文件':'还没有文件。点击 + 新建页面。'))),
+          ):files.length?h('div',{style:STYLE.empty},'选择一个文件')
+            :listing==='loading'?h('div',{style:STYLE.empty},h('p',{role:'status'},'正在读取…'))
+            :listing==='failed'?h('div',{style:STYLE.empty},h('p',{role:'alert',style:{marginBottom:14}},'文件列表暂时读不出来。'),h('button',{type:'button',className:'nv-quiet',onClick:()=>{setListing('loading');void refresh();window.dispatchEvent(new Event('notara-vault-changed'));}},'重试'))
+            :!EmptyState?h('div',{style:STYLE.empty},'还没有文件。点击 + 新建页面。'):h(EmptyState,{kind:'vault',onAction:[()=>uploadRef.current?.click(),()=>setCreating(true)]}))),
+        creatingCode && h(Dialog,{title:'新建代码文件',onClose:()=>setCreatingCode(false)},
+          h('form',{onSubmit:createCode},
+            h('label',null,'文件路径',h('input',{'aria-label':'代码文件路径',style:STYLE.templateInput,value:codePath,onChange:event=>setCodePath(event.target.value)})),
+            h('p',{style:STYLE.notice},'扩展名决定语言，例如 .py、.js、.cpp；运行与测试用本机的工具链。'),
+            h('button',{type:'submit',className:'nv-quiet'},'创建代码文件'))),
         creating && h(Dialog,{title:'从模板新建',onClose:()=>setCreating(false)},
           h('form',{onSubmit:create},
             h('label',null,'模板',h('select',{'aria-label':'模板',style:STYLE.templateInput,value:templatePath,onChange:event=>setTemplatePath(event.target.value)},templates.map(item=>h('option',{key:item.path,value:item.path},item.title||item.path)))),
@@ -414,6 +490,7 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
           ['将整个文件带入对话',()=>{void bringPath(contextMenu.path);}],
           ['在图谱中查看',()=>openView(VIEW_IDS.graph,contextMenu.path)],
           ['从模板新建',()=>setCreating(true)],
+          ['新建代码文件',()=>setCreatingCode(true)],
           ['移到回收站',()=>fileActions.requestDelete(contextMenu.path)],
         ].map(([label,run])=>h('button',{key:label,role:'menuitem',onClick:()=>{setContextMenu(null);run();}},label))),
         fileActions.dialog

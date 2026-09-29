@@ -25,30 +25,30 @@ body[data-notara-style=notebook] .katex{font-family:KaTeX_Main,"Times New Roman"
 
 /* ---- 侧栏：线圈本的装订孔、印章、便签 ---- */
 body[data-notara-style=notebook] .pI_x6G_sidebarCol{border-right-color:transparent}
-body[data-notara-style=notebook] .nv-sidebar{border-radius:6px;border-color:var(--dsw-alias-border-l2);padding-right:26px;font-size:15px;box-shadow:var(--nb-shadow-1);
-  background-color:var(--dsw-specific-sidebar-fill);
-  background-image:radial-gradient(circle at calc(100% - 11px) 50%,var(--nb-hole) 0 3.5px,var(--dsw-alias-border-l2) 4px 4.8px,transparent 5.2px);background-size:100% 28px}
-body[data-notara-style=notebook] .nv-sidebar[data-collapsed=true]{padding-right:4px;background-image:none}
-body[data-notara-style=notebook] .nv-sidebar-brand{font-size:17px;font-weight:400}
-body[data-notara-style=notebook] .nv-brand-mark{border:1.6px solid var(--nb-seal);border-radius:50%;color:var(--nb-seal);background:transparent;transform:rotate(-8deg);font-size:14px}
+body[data-notara-style=notebook] .nv-sidebar{font-size:15px;background-color:var(--dsw-specific-sidebar-fill)}
+body[data-notara-style=notebook] .nv-rail{position:relative;background-image:radial-gradient(circle at calc(100% - 7px) 50%,var(--nb-hole) 0 3.5px,var(--dsw-alias-border-l2) 4px 4.8px,transparent 5.2px);background-size:100% 28px}
+body[data-notara-style=notebook] .nv-rail-button[aria-current=page]{background:var(--nb-hl);border-radius:var(--nb-scribble)}
+body[data-notara-style=notebook] .nv-panel{border-radius:6px 0 0 0;border-color:var(--dsw-alias-border-l2);box-shadow:var(--nb-shadow-1);background:var(--nb-card,var(--dsw-alias-bg-base))}
+body[data-notara-style=notebook] .nv-panel-head h2{font-size:22px;font-weight:400}
+body[data-notara-style=notebook] .nv-panel-group h3{font-size:13px}
 body[data-notara-style=notebook] .nv-new-lesson{min-height:40px;background:var(--nb-note);border-radius:2px;box-shadow:var(--nb-note-shadow);transform:rotate(-.8deg);font-size:16px;font-weight:400;transition:transform .14s,color .14s}
 body[data-notara-style=notebook] .nv-new-lesson:hover{background:var(--nb-note);color:var(--nb-accent);transform:rotate(0)}
-body[data-notara-style=notebook] :is(.nv-nav-button,.nv-session-row){font-size:15px}
-body[data-notara-style=notebook] :is(.nv-nav-button,.nv-session-row)[aria-current=page]{background:var(--nb-hl);color:var(--dsw-alias-label-primary)!important;border-radius:var(--nb-scribble)}
-body[data-notara-style=notebook] .nv-sidebar-label{font-size:13px}
+body[data-notara-style=notebook] :is(.nv-session-row,.nv-panel-views [role=tab],.nv-panel-foot){font-size:15px}
+body[data-notara-style=notebook] .nv-session-row[aria-current=page],body[data-notara-style=notebook] .nv-panel-views [role=tab][aria-selected=true]{background:var(--nb-hl);color:var(--dsw-alias-label-primary)!important;border-radius:var(--nb-scribble)}
 body[data-notara-style=notebook] .nv-session-row time{font-size:12px}
 body[data-notara-style=notebook] .nv-directory-button{border-style:dashed;border-color:var(--dsw-alias-border-l3);background:transparent}
 body[data-notara-style=notebook] .nv-directory-button>span:first-of-type{font-size:14px}
-body[data-notara-style=notebook] .nv-sidebar-foot{font-size:14px}
+body[data-notara-style=notebook] .nv-empty b{font-size:18px;font-weight:400}
+body[data-notara-style=notebook] .nv-empty-icon{background:var(--nb-note);border-radius:var(--nb-scribble)}
+body[data-notara-style=notebook] .nv-empty-primary{background:var(--nb-note);color:var(--dsw-alias-label-primary)!important;border-radius:2px;box-shadow:var(--nb-note-shadow);transform:rotate(-.8deg);font-weight:400}
+body[data-notara-style=notebook] .nv-empty-primary:hover{color:var(--nb-accent);transform:rotate(0)}
 
 /* ---- 页面标题与分段控件：荧光笔标出选中 ---- */
-body[data-notara-style=notebook] .nv-shell-heading{background:var(--dsw-alias-bg-base);border-bottom-color:var(--dsw-alias-border-l2)}
-body[data-notara-style=notebook] .nv-shell-heading h1{font-size:22px;font-weight:400;letter-spacing:.04em}
 body[data-notara-style=notebook] .nv-workspace :is(h1,h2,h3){letter-spacing:.02em}
-body[data-notara-style=notebook] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views){background:transparent;padding:0;gap:4px}
-body[data-notara-style=notebook] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) button{height:30px;padding:0 12px;border-radius:3px;font-size:15px;font-weight:400}
-body[data-notara-style=notebook] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) button:hover{background:var(--dsw-alias-interactive-bg-hover)}
-body[data-notara-style=notebook] :is(.nv-shell-tabs,.nv-route-views,.nv-class-views) button:is([aria-selected=true],[aria-pressed=true]){background:var(--nb-hl);color:var(--dsw-alias-label-primary);box-shadow:none;border-radius:var(--nb-scribble)}
+body[data-notara-style=notebook] :is(.nv-route-views,.nv-class-views){background:transparent;padding:0;gap:4px}
+body[data-notara-style=notebook] :is(.nv-route-views,.nv-class-views) button{height:30px;padding:0 12px;border-radius:3px;font-size:15px;font-weight:400}
+body[data-notara-style=notebook] :is(.nv-route-views,.nv-class-views) button:hover{background:var(--dsw-alias-interactive-bg-hover)}
+body[data-notara-style=notebook] :is(.nv-route-views,.nv-class-views) button:is([aria-selected=true],[aria-pressed=true]){background:var(--nb-hl);color:var(--dsw-alias-label-primary);box-shadow:none;border-radius:var(--nb-scribble)}
 body[data-notara-style=notebook] .nv-workspace-tabs button{font-size:15px;font-weight:400}
 body[data-notara-style=notebook] .nv-workspace-tabs button:is([aria-selected=true],[aria-pressed=true]){background:var(--nb-hl);border-radius:var(--nb-scribble)}
 

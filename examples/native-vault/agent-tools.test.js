@@ -20,12 +20,14 @@ test('teaching tools register native validated schemas and require approval for 
   assert.equal(calls.length,0);
 });
 
-test('write_lesson_board exposes only the controlled math interaction contract', async () => {
+test('write_lesson_board takes sections and sizes; figures are body components, not an interaction argument', async () => {
   const contract = module.VAULT_TOOL_CONTRACTS.find(item => item.name === 'write_lesson_board');
   assert.ok(contract);
-  assert.ok(contract.parameters.properties.interactive);
-  assert.equal(contract.parameters.properties.interactive.properties.provider.enum[0], 'math');
-  assert.deepEqual(contract.parameters.properties.interactive.properties.preset.enum, ['parabola']);
+  assert.equal(contract.parameters.properties.interactive, undefined);
+  assert.equal(contract.parameters.additionalProperties, false);
+  assert.deepEqual(contract.parameters.properties.size.enum, ['narrow', 'wide', 'full']);
+  assert.equal(contract.parameters.properties.section.maxLength, 80);
+  for (const type of ['choice', 'blank', 'order', 'figure', 'flow']) assert.match(contract.description, new RegExp('```' + type));
 });
 
 test('read-only subagents cannot write teaching facts even through a callable tool',async()=>{
@@ -59,6 +61,24 @@ test('teacher text tools are retired while Bash and ordinary agents keep native 
     assert.notEqual(result.isError,true);
   }
   assert.equal(called,6);
+});
+
+test('the retired tools take their native prompt guidance with them for the teacher only',async()=>{
+  const ctx=new Context();
+  new SystemPrompt(ctx,{includeHarnessIdentity:true,includeRuntimeContext:true});
+  new ToolRuntime(ctx,{mode:'native'});
+  const retired=['read','write','edit','glob','grep'];
+  for(const name of [...retired,'bash']){
+    ctx.tools.register({name,description:'Native seam',parameters:{type:'object',properties:{},additionalProperties:false},output:{schema:{type:'object'},render:()=>[]},execute:async()=>({})});
+    // The shape the native packages use: "Use the grep tool — not shell grep or rg".
+    ctx.systemPrompt.section({name:`tool:${name}`,order:100,text:({scope})=>ctx.tools.get(name,scope)===undefined?'':`Use the ${name} tool.`});
+  }
+  module.installAgentTools(ctx,{isTeaching:agent=>agent?.session?.header?.agentPreset==='notara-teacher',executeTool:async()=>({})});
+  const sectionsFor=async header=>(await ctx.systemPrompt.assemble({agent:{session:{header}}})).sections.map(section=>section.name).filter(name=>name.startsWith('tool:'));
+  assert.deepEqual(await sectionsFor({origin:'user',agentPreset:'notara-teacher'}),['tool:bash']);
+  assert.deepEqual((await sectionsFor({origin:'user',agentPreset:'default'})).sort(),[...retired,'bash'].map(name=>`tool:${name}`).sort());
+  // A read-only worker keeps its native read/glob/grep guidance.
+  assert.ok((await sectionsFor({origin:'subagent',agentPreset:'notara-teacher'})).includes('tool:grep'));
 });
 
 test('native full access overrides teaching write approval without weakening native denials',async()=>{
@@ -95,4 +115,38 @@ test('teacher Bash never overrides a native denial, including full access mode',
   const result=await ctx.tools.execute({name:'bash',callId:'native-denied-bash',arguments:{},agent:{session:{header:{origin:'user'}}},signal:new AbortController().signal});
   assert.equal(result.isError,true);
   assert.equal(invoked,false);
+});
+
+test('the teacher may use native read/write/edit on code files only; search stays in Bash', async () => {
+  const ctx = new Context();
+  new SystemPrompt(ctx, { includeHarnessIdentity: true, includeRuntimeContext: true });
+  new ToolRuntime(ctx, { mode: 'native' });
+  let called = 0;
+  for (const name of ['read', 'write', 'edit', 'glob', 'grep']) ctx.tools.register({ name, description: 'Native seam', parameters: { type: 'object', properties: {}, additionalProperties: true }, output: { schema: { type: 'object' }, render: () => [] }, execute: async () => { called++; return {}; } });
+  module.installAgentTools(ctx, { isTeaching: agent => agent?.session?.header?.agentPreset === 'notara-teacher', executeTool: async () => ({}) });
+  const teacher = { session: { header: { origin: 'user', agentPreset: 'notara-teacher', cwd: '/synthetic/notara-workspace' } } };
+  const run = (name, args) => ctx.tools.execute({ name, callId: `${name}-${JSON.stringify(args)}`, arguments: args, agent: teacher, signal: new AbortController().signal });
+  for (const [name, args] of [['read', { file_path: '代码/hog.py' }], ['write', { file_path: '代码/lab01.scm', content: '(define x 1)' }], ['edit', { file_path: 'os/proc.c', old_string: 'a', new_string: 'b' }]]) {
+    assert.notEqual((await run(name, args)).isError, true, `${name} ${args.file_path}`);
+  }
+  assert.equal(called, 3);
+  const refusals = [];
+  for (const [name, args] of [['read', { file_path: '知识/向量.md' }], ['write', { file_path: '卡片/x.md', content: '#' }], ['edit', { file_path: 'notes', old_string: 'a', new_string: 'b' }], ['glob', { pattern: '**/*.py' }], ['grep', { pattern: 'def' }]]) {
+    const result = await run(name, args);
+    assert.equal(result.isError, true, `${name} ${JSON.stringify(args)}`);
+    refusals.push(JSON.stringify(result));
+  }
+  assert.equal(called, 3, 'nothing refused reached the native tool');
+  assert.ok(refusals.every(text => text.includes('bash') && text.includes('代码文件')));
+  // A code file outside the Vault would be listed to the student as this turn's work.
+  for (const [name, args] of [['write', { file_path: '../scratch.json', content: '{}' }], ['write', { file_path: '/tmp/notara-reviews.json', content: '{}' }], ['edit', { file_path: '../lab.py', old_string: 'a', new_string: 'b' }]]) {
+    const result = await run(name, args);
+    assert.equal(result.isError, true, `${name} ${args.file_path}`);
+    assert.match(JSON.stringify(result), /heredoc/);
+  }
+  assert.equal(called, 3, 'nothing outside the Vault reached the native tool');
+  // The code tools are offered to the teacher; the search tools stay hidden.
+  const tools = (await ctx.systemPrompt.assemble({ agent: teacher })).tools.map(tool => tool.name);
+  assert.ok(['read', 'write', 'edit'].every(name => tools.includes(name)));
+  assert.ok(!tools.includes('glob') && !tools.includes('grep'));
 });

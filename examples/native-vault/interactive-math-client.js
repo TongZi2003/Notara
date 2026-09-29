@@ -74,11 +74,13 @@ export function createMathInteractive(React, { scene: input, expanded = false, o
   const h = React.createElement, { useEffect, useRef, useState } = React;
   const [scene, setScene] = useState(() => normalizeMathScene(input));
   const [dragging, setDragging] = useState(false);
-  const latest = useRef(scene), pending = useRef(null), timer = useRef(null);
+  const [closing, setClosing] = useState(false);
+  const latest = useRef(scene), pending = useRef(null), timer = useRef(null), saving = useRef(Promise.resolve());
   latest.current = scene;
   useEffect(() => { setScene(normalizeMathScene(input)); }, [JSON.stringify(input)]);
   useEffect(() => () => clearTimeout(timer.current), []);
-  const commit = next => { const normalized = normalizeMathScene(next); setScene(normalized); latest.current = normalized; pending.current = normalized; clearTimeout(timer.current); timer.current = setTimeout(() => { const value = pending.current; pending.current = null; onChange({ parameters: value.parameters, observation: value.observation }); }, 240); };
+  const persist = value => { saving.current = Promise.resolve(onChange({ parameters: value.parameters, observation: value.observation })); return saving.current; };
+  const commit = next => { const normalized = normalizeMathScene(next); setScene(normalized); latest.current = normalized; pending.current = normalized; clearTimeout(timer.current); timer.current = setTimeout(() => { const value = pending.current; pending.current = null; void persist(value); }, 240); };
   const vertex = event => {
     if (event.type === 'start') { setDragging(true); return; }
     if (event.type === 'end') { setDragging(false); return; }
@@ -87,15 +89,17 @@ export function createMathInteractive(React, { scene: input, expanded = false, o
   };
   const updateA = event => commit({ ...latest.current, parameters: { ...latest.current.parameters, a: Number(event.target.value) } });
   const updateObservation = event => setScene(current => { const next = { ...current, observation: event.target.value }; latest.current = next; return next; });
-  const saveObservation = () => { clearTimeout(timer.current); pending.current = null; onChange({ parameters: latest.current.parameters, observation: latest.current.observation }); };
-  const close = () => {
-    if (pending.current) {
+  const saveObservation = () => { clearTimeout(timer.current); pending.current = null; void persist(latest.current); };
+  const close = async () => {
+    if (closing) return;
+    setClosing(true);
+    try {
       clearTimeout(timer.current);
-      const value = pending.current;
-      pending.current = null;
-      onChange({ parameters: value.parameters, observation: value.observation });
-    }
-    onClose();
+      const value = pending.current; pending.current = null;
+      if (await saving.current === false) return;
+      if (value && await persist(value) === false) return;
+      onClose();
+    } finally { setClosing(false); }
   };
   const content = [
     h('div', { className: 'nb-interactive-head', key: 'head' }, h('div', null, h('strong', null, '抛物线的形状'), h('small', null, sceneEquation(scene))), h('span', { className: 'nb-interactive-chip' }, expanded ? '完整互动' : '互动块')),
@@ -103,7 +107,7 @@ export function createMathInteractive(React, { scene: input, expanded = false, o
     h('div', { className: 'nb-interactive-controls', key: 'controls' }, h('label', null, '开口 a', h('input', { type: 'range', min: '0.1', max: '3', step: '0.1', value: scene.parameters.a, onChange: updateA }), h('b', null, numberText(scene.parameters.a))), h('span', { className: 'nb-interactive-status' }, dragging ? '正在移动顶点' : '拖动顶点或调整参数')),
   ];
   if (expanded) content.push(h('label', { className: 'nb-interactive-observation', key: 'observation' }, '观察记录', h('textarea', { value: scene.observation, onChange: updateObservation, placeholder: '记录你从图像变化中看到的现象…' })));
-  const toggle = expanded ? event => { event.preventDefault(); close(); } : onExpand;
-  content.push(h('div', { className: 'nb-interactive-actions', key: 'actions' }, expanded ? h('button', { onClick: saveObservation }, '保存观察') : null, h('button', { onClick: () => onDiscuss(`${sceneEquation(scene)}。${scene.observation}`) }, '带入对话'), h('button', { onPointerDown: expanded ? toggle : undefined, onClick: toggle }, expanded ? '收起' : '展开互动图 ↗')));
+  const toggle = expanded ? event => { event.preventDefault(); void close(); } : onExpand;
+  content.push(h('div', { className: 'nb-interactive-actions', key: 'actions' }, expanded ? h('button', { onClick: saveObservation, disabled:closing }, '保存观察') : null, h('button', { onClick: () => onDiscuss(`${sceneEquation(scene)}。${scene.observation}`), disabled:closing }, '带入对话'), h('button', { disabled:closing, onPointerDown: expanded ? toggle : undefined, onClick: toggle }, expanded ? (closing?'正在保存…':'收起') : '展开互动图 ↗')));
   return h('section', { className: `nb-interactive ${expanded ? 'is-expanded' : ''}`, 'data-interactive-provider': 'math', 'data-interactive-preset': scene.preset }, content);
 }

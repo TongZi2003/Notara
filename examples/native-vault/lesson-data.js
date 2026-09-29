@@ -7,8 +7,9 @@
 // their lesson order in frontmatter and never reuse the knowledge graph's
 // `split` relation for course sequencing.
 
-import { parseFrontmatter, serializeFrontmatter } from './frontmatter.js';
+import { frontmatterBody, parseFrontmatter, serializeFrontmatter } from './frontmatter.js';
 import { validateDay } from './review-data.js';
+import { civilDay } from './calendar-data.js';
 import { markdownLines, markdownSectionIndex, matchedQueryTerms, queryTokens } from './learning-data.js';
 import { appendRouteLogEntry, composeRouteBody, parseRouteBody, routeBriefText, routeIdList, routeOverviewText, routePathwayValue, routeStageText } from './route-plan.js';
 
@@ -222,8 +223,11 @@ function normalizeSummary(summary) {
 
 function summaryHeading(record) {
   const stamp = asText(record.throughAt) || asText(record.startedAt);
-  const date = stamp.match(/^\d{4}-\d{2}-\d{2}/);
-  return date ? `## 课堂小结 · ${date[0]}` : '## 课堂小结';
+  // The heading names the learner's local day (as reviews do), not the UTC date
+  // an ISO timestamp starts with.
+  let day = null;
+  try { day = stamp ? civilDay(stamp) : null; } catch { /* no usable time */ }
+  return day ? `## 课堂小结 · ${day}` : '## 课堂小结';
 }
 
 function summaryBlock(record) {
@@ -546,7 +550,7 @@ function routeTitle(frontmatter, document) {
 function routeBody(document) {
   if (typeof document?.body === 'string') return document.body;
   if (typeof document?.content !== 'string') return '';
-  return parseFrontmatter(document.content).body;
+  return frontmatterBody(document.content);
 }
 
 /**

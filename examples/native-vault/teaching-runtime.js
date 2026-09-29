@@ -1,3 +1,4 @@
+import { pluginEventType } from './plugin-events.js';
 import { Service } from '@deepseek-ai/cordis';
 import { createHash,randomUUID } from 'node:crypto';
 import { isAbsolute,relative,resolve } from 'node:path';
@@ -6,6 +7,7 @@ import { createAgentVaultIO,createEditorVaultIO,vaultScopes,sourceRef } from './
 import { serializeFrontmatter } from './frontmatter.js';
 import { safeRelativePath, resolveVaultRoot } from './vault.js';
 import { lessonLog,parseLessonSummaries,upsertLessonSummary,parseRoute,renderRoute } from './lesson-data.js';
+import { scriptBodyRevision } from './script-binding.js';
 import { TEACHING_PRESET,teachingManifest,teachingResource,teachingResourcePath,currentTeachingBody } from './teaching-catalog.js';
 import { readTeachingSettings,updateTeachingSettings,validateTeachingPatch,bindTeachingLesson,appendTeachingEvent,teachingCutoff,LESSON_EVENT,SUMMARY_EVENT } from './teaching-state.js';
 import { installAgentTools } from './agent-tools.js';
@@ -14,7 +16,26 @@ import { assembleTeachingContext } from './teaching-context.js';
 import { installSolver } from './solver-runtime.js';
 import { createReviewRuntime } from './review-runtime.js';
 import { createRouteInVault, safeTitlePath as titlePath } from './file-operations.js';
-import { createBoardRuntime,readBoardDocument,boardPath } from './board-runtime.js';
+import { createBoardRuntime,readBoardDocument,boardPath,boardBodyView } from './board-runtime.js';
+import { boardOverview } from './board-data.js';
+import { packagedRipgrep } from './ripgrep-path.js';
+import { createPomodoroRuntime } from './pomodoro-runtime.js';
+import { createUserSkillRuntime } from './user-skill-runtime.js';
+import { activeUserSkills,learningSetOverview } from './user-skills.js';
+
+/** A path as the teacher's shell should see it. Git Bash, node and rg on
+ * Windows all accept C:/... , while a backslash path breaks prefix stripping
+ * and becomes C:\c\... once bash turns /c/... back into a Windows path. */
+export const shellPath=(value,platform=process.platform)=>platform==='win32'?String(value).replace(/\\/g,'/'):value;
+
+/** DSH_NOTARA_LESSON: the bound script the local commands may read, and the
+ * revisions the lesson was bound at. */
+export function lessonPinText(workspace,settings){
+  return JSON.stringify({workspacePath:shellPath(workspace.path),workspaceId:workspace.id,path:settings.scriptPath,revision:settings.scriptRevision,...(settings.scriptBodyRevision?{bodyRevision:settings.scriptBodyRevision}:{})});
+}
+
+/** Built-in subject skills and the subject names they cover (the manifest is the one source). */
+const BUILTIN_SUBJECT_SKILLS=teachingManifest.skills.filter(item=>Array.isArray(item.subjects)).map(item=>({name:`notara-${item.id}`,subjects:item.subjects}));
 
 const fail=code=>{throw new Error(code);};
 /** One root for the Bash environment and the per-turn context. */
@@ -23,7 +44,7 @@ function materialRoot(workspacePath){
   return {path:root,prefix:resolve(root)===resolve(workspacePath)?'':'vault/'};
 }
 const summaryTitle=session=>session.snapshotEvents().filter(e=>e.type==='session/title').at(-1)?.data?.title??'课堂小结';
-const summaryRecords=session=>session.snapshotEvents().filter(event=>event.type===SUMMARY_EVENT&&event.seq>=(session.inheritedEventCount??0));
+const summaryRecords=session=>session.snapshotEvents().filter(event=>pluginEventType(event.type)===SUMMARY_EVENT&&event.seq>=(session.inheritedEventCount??0));
 function pendingInputs(session) {
   const queues={'next-step':[],'next-turn':[]};
   for(const event of session.snapshotEvents()) if(event.type==='agent/inbox/spliced'){
@@ -47,12 +68,26 @@ export class NotaraTeaching extends Service {
   constructor(ctx,{root=process.cwd()}={},internals={}) {
     super(ctx,'notaraTeaching');this.root=resolve(root);this.internals=internals;this.prepared=new WeakMap();this.requests=new Map();this.routeLocks=new Map();this.summaryLocks=new Map();this.operations=new Map();
     this.nativeArchive=internals.archive??(ctx.get('workspaceRegistry')?.archiveSession.bind(ctx.workspaceRegistry));
+    this.archiveAfterTurn=new Set();
     this.review=createReviewRuntime(this);
     this.lessonBoard=createBoardRuntime(this);
+    this.pomodoroTimer=createPomodoroRuntime(this,internals.pomodoro);
+    this.userSkillStore=createUserSkillRuntime(this,internals.userSkills);
+    ctx.effect(()=>()=>this.pomodoroTimer.dispose());
   }
   isTeaching(agent) {return agent?.session?.header?.agentPreset===TEACHING_PRESET;}
   async board(input) {return this.lessonBoard.read(input);}
+  async pomodoro(input) {return this.pomodoroTimer.status(input);}
+  async startPomodoro(input) {return this.pomodoroTimer.start(input);}
+  async stopPomodoro(input) {return this.pomodoroTimer.stop(input);}
+  async userSkills() {return this.userSkillStore.list();}
+  async setUserSkillStatus(input) {return this.userSkillStore.setStatus(input);}
+  async resolveUserSkillRevision(input) {return this.userSkillStore.resolveRevision(input);}
+  async inheritUserSkill(input) {return this.userSkillStore.inherit(input);}
+  async createLearningSetOverview(input) {return this.userSkillStore.createOverview(input);}
   async mutateBoard(input) {return this.lessonBoard.mutate(input);}
+  async answerBoard(input) {return this.lessonBoard.answer(input);}
+  async resendBoardAnswer(input) {return this.lessonBoard.resendAnswer(input);}
   async mutateBoardInteraction(input) {return this.lessonBoard.mutateInteraction(input);}
   async classroom(input) {return this.solver.read(input);}
   async solverTask(input) {return this.solver.task(input);}
@@ -107,7 +142,7 @@ export class NotaraTeaching extends Service {
       if(script.type!=='lesson')fail('lesson_script_required');
     }
     if(expectedRevision!==undefined&&readTeachingSettings(exec.agent.session).revision!==expectedRevision)fail('teaching_settings_conflict');
-    return bindTeachingLesson(exec.agent.session,{...settings,scriptPath:script?.path??null,scriptRevision:script?.revision??null,scriptWorkspaceId:workspace?.id??null,scriptSnapshot:script?this.scriptSnapshot(script):null});
+    return bindTeachingLesson(exec.agent.session,{...settings,scriptPath:script?.path??null,scriptRevision:script?.revision??null,scriptBodyRevision:script?scriptBodyRevision(script.content):null,scriptWorkspaceId:workspace?.id??null,scriptSnapshot:script?this.scriptSnapshot(script):null});
   }
   async lessonLog(args={}) {
     const io=await this.editorFor(args),scan=await io.scan(),result=lessonLog(scan.documents,args);
@@ -124,13 +159,20 @@ export class NotaraTeaching extends Service {
     const key=`${exec.agent.session.id}:${exec.callId}`;
     if(!this.operations.has(key))this.operations.set(key,{cutoff:teachingCutoff(exec.agent.session),settings:readTeachingSettings(exec.agent.session)});
   }
-  async archiveSaved(session,result) {
+  async archiveSaved(session,result,{afterTurn=false}={}) {
     await this.solver?.cancelAll(session);
     if(teachingCutoff(session).cutoff!==result.cutoff||pendingInputs(session)) return {...result,archived:false,archivePending:true,reason:'课堂有新的输入，小结已保存，本次尚未归档。'};
+    // DSH 0.2.0 refuses to archive a session while its turn runs. The teacher's
+    // own summary call is inside that turn, so the archive waits for turn/end.
+    if(afterTurn&&this.nativeArchive){this.archiveAfterTurn.add(session.id);return {...result,archived:false,archiveScheduled:true,reason:'小结已保存，这一轮结束后收起课堂。'};}
     try {
       if(!this.nativeArchive) fail('lesson_archive_unavailable');
       await this.nativeArchive(session.id);return {...result,archived:true};
     }catch{return {...result,archived:false,archivePending:true,reason:'小结已保存，归档未完成，可以重试。'};}
+  }
+  /** Archive once the turn that asked for it has let go of the session. */
+  archiveWhenIdle(sessionId,attempt=0) {
+    setTimeout(()=>{Promise.resolve(this.nativeArchive(sessionId)).catch(()=>{if(attempt<40)this.archiveWhenIdle(sessionId,attempt+1);});},attempt?250:0);
   }
   async writeSummary(exec,args) {
     if(typeof args.body!=='string'||!args.body.trim()) fail('lesson_summary_body_required');
@@ -160,7 +202,7 @@ export class NotaraTeaching extends Service {
     if(replay||stale){
       if(!existing) fail('lesson_summary_index_failed');
       const result={path,anchor:existing.anchor,title:existing.title,revision:document.revision,ref:sourceRef(io.workspace.id,path,document.revision,{anchor:existing.anchor}),saved:true,archived:false,cutoff:existing.cutoff,replayed:true};
-      return args.archive?this.archiveSaved(session,result):result;
+      return args.archive?this.archiveSaved(session,result,{afterTurn:true}):result;
     }
     const original=document?.content??serializeFrontmatter({type:'lesson-summary',title:summaryTitle(session)});
     const summary={sessionId:session.id,learningSetRef:currentWorkspace.id,subjects:settings.subjects,...cutoff,savedAt:new Date().toISOString(),routePath:settings.routePath,nodeId:settings.nodeId,title:summaryTitle(session),body:args.body};
@@ -170,13 +212,17 @@ export class NotaraTeaching extends Service {
     if(!hit) fail('lesson_summary_index_failed');
     const result={path,anchor:hit.anchor,title:hit.title,revision:saved.revision,ref:sourceRef(io.workspace.id,path,saved.revision,{anchor:hit.anchor}),saved:true,archived:false,cutoff:cutoff.cutoff};
     appendTeachingEvent(session,SUMMARY_EVENT,{path,workspaceId:io.workspace.id,script:scriptTarget,anchor:hit.anchor,revision:saved.revision,cutoff:cutoff.cutoff,...(operationId?{operationId}:{})});await this.flush(session);
-    return args.archive?this.archiveSaved(session,result):result;
+    return args.archive?this.archiveSaved(session,result,{afterTurn:true}):result;
   }
   async routes(args={},exec) {
     const io=exec?createAgentVaultIO(this.ctx,exec):await this.editorFor(args),scan=await io.scan(),routes=[],nodes=[],edges=[];
     const summaries=scan.documents.flatMap(doc=>{try{return parseLessonSummaries(doc);}catch{return [];}});
     for(const document of scan.documents.filter(doc=>doc.type==='route')){
-      const route=parseRoute(document);routes.push({path:document.path,title:route.title,revision:document.revision,ref:document.ref,overview:route.overview??''});
+      // A route the planner cannot read (a hand edit broke its blocks) is listed
+      // with its reason and no lessons; the other routes are unaffected.
+      let route;
+      try{route=parseRoute(document);}catch(error){routes.push({path:document.path,title:document.title,revision:document.revision,ref:document.ref,overview:'',error:error instanceof Error?error.message:'lesson_route_invalid'});continue;}
+      routes.push({path:document.path,title:route.title,revision:document.revision,ref:document.ref,overview:route.overview??''});
       for(const node of route.nodes){
         const summary=summaries.find(hit=>hit.sessionId===node.sessionId);
         nodes.push({...node,routePath:document.path,routeRevision:document.revision,parent:node.parent??null,scriptPath:node.scriptPath||null,sessionId:node.sessionId||null,summary:summary?{path:summary.path,anchor:summary.anchor,title:summary.title,continuation:summary.continuation,savedAt:summary.savedAt||summary.throughAt||null}:null});
@@ -195,7 +241,7 @@ export class NotaraTeaching extends Service {
       return {path:document.path,title:route.title,revision:document.revision,ref:document.ref,
         node:{id:node.id,title:node.title,stage:node.stage??'',pathway:node.pathway??'main',
           prerequisites:(node.prerequisites??[]).map(id=>({id,title:route.nodes.find(item=>item.id===id)?.title??id}))},
-        ...(withinBudget?{brief}:{readWith:'用原生 Bash 中的 rg/grep 定位该 node id 的路线正文块，再用 sed 按行读取；未读部分不推测。'}),
+        ...(withinBudget?{brief}:{readWith:'用原生 Bash 中的 "$DSH_NOTARA_RG"（缺省时 grep）定位该 node id 的路线正文块，再用 sed 按行读取；未读部分不推测。'}),
         briefRead:withinBudget,briefAvailable:!!brief,
         instruction:'这是当前课程规划，不是掌握记录；仅注入当前节点。按实际表现决定继续或补练，有小结不等于通过检查。'};
     }catch(error){
@@ -206,8 +252,71 @@ export class NotaraTeaching extends Service {
   async createRoute(args) {
     return createRouteInVault(await this.editorFor(args),args);
   }
+  /** Bind one lesson session to a route node: its script, the predecessor's summary, materials and subjects. */
+  async bindRouteNode(session,io,{path,doc,route,node,existing=null}) {
+    let continuation=null;
+    const predecessor=route.nodes.find(item=>item.id===node.parent);
+    if(predecessor?.sessionId){
+      const hit=(await io.scan()).documents.flatMap(doc=>{try{return parseLessonSummaries(doc);}catch{return [];}}).find(item=>item.sessionId===predecessor.sessionId);
+      if(hit) continuation={ref:sourceRef(io.workspace.id,hit.path,hit.revision,{anchor:hit.anchor}),text:hit.continuation,title:hit.title};
+    }
+    const script=node.scriptPath?await io.read(node.scriptPath):null;
+    if(script&&script.type!=='lesson') fail('lesson_script_required');
+    const materials=[];
+    for(const path of node.materials??[]){const source=path.toLowerCase().endsWith('.md')?await io.read(path):await io.readAsset(path);materials.push({path:source.path,title:source.title,revision:source.revision,ref:source.ref});}
+    // A lesson that already had a script bound keeps it when the node brings none.
+    const kept=!script&&existing?.scriptPath?existing:null;
+    bindTeachingLesson(session,{scriptPath:node.scriptPath||kept?.scriptPath||null,scriptRevision:script?.revision??kept?.scriptRevision??null,scriptBodyRevision:script?scriptBodyRevision(script.content):kept?.scriptBodyRevision??null,scriptWorkspaceId:script?io.workspace.id:kept?.scriptWorkspaceId??null,scriptSnapshot:script?this.scriptSnapshot(script):kept?.scriptSnapshot??null,routePath:path,nodeId:node.id,continuation,materials});
+    const subjects=script?.frontmatter?.subjects??doc.frontmatter?.subjects;
+    if(Array.isArray(subjects)&&subjects.length) updateTeachingSettings(session,{subjects},readTeachingSettings(session).revision);
+  }
+  /** Whether a lesson session has had the student in it: a real student message. */
+  async hasStudentTurns(sessionId) {
+    try{return (await this.agentFor(sessionId)).session.snapshotEvents().some(event=>event.type==='user/message'&&event.data?.source?.kind==='user');}
+    catch{return false;}
+  }
+  /**
+   * The teacher opens a route node from inside a lesson. The student stays in
+   * this lesson, so this lesson becomes the node's classroom when it is not bound
+   * yet and the node has no lesson the student has been in; otherwise nothing is
+   * rebound and the result says why and what the teacher can do.
+   */
+  async openRouteLessonHere({path,nodeId,expectedRevision,repeat=false},exec) {
+    // One lock per route file: writes to any of its nodes are serialized, so a
+    // neighbour's write cannot fail this node's revision check half-way.
+    const io=createAgentVaultIO(this.ctx,exec,{writeApproved:true}),session=exec.agent.session,key=`${io.workspace.id}:${path}`;
+    const previous=this.routeLocks.get(key)??Promise.resolve();
+    const work=previous.catch(()=>{}).then(async()=>{
+      const doc=await io.read(path,expectedRevision),route=parseRoute(doc);let node=route.nodes.find(item=>item.id===nodeId);
+      if(!node) fail('lesson_route_node_missing');
+      const current=readTeachingSettings(session);
+      if(current.routePath&&current.nodeId){
+        const own=route.nodes.find(item=>item.id===current.nodeId);
+        if(current.routePath===path&&(current.nodeId===node.id||own?.parent===node.id)){
+          // An earlier version could bind the lesson and then fail to write the
+          // route; the node it is bound to gets this lesson back.
+          if(own&&!own.sessionId){own.sessionId=session.id;await io.save(path,renderRoute({title:route.title,nodes:route.nodes},doc.content),doc.revision);}
+          return {sessionId:session.id,bound:true,already:true};
+        }
+        return {sessionId:session.id,bound:false,reason:`这节课已经对应另一节${own?.title?`「${own.title}」`:''}，没有改绑定；要学这一节，请学生从计划页打开它。`};
+      }
+      if(repeat){node={...node,id:randomUUID(),sessionId:undefined,parent:node.id};route.nodes.push(node);}
+      else if(node.sessionId&&node.sessionId!==session.id&&await this.hasStudentTurns(node.sessionId)){
+        return {sessionId:node.sessionId,bound:false,reason:'这一节已经有上过课的课堂，当前课堂没有绑定。可以请学生从计划页进入那节课接着上；想在当前课堂再学一遍，用 repeat。'};
+      }
+      // The route first: if binding then fails, the node already names this
+      // lesson and opening it again binds it; the other order left a bound
+      // lesson the route did not know about.
+      node.sessionId=session.id;
+      await io.save(path,renderRoute({title:route.title,nodes:route.nodes},doc.content),doc.revision);
+      await this.bindRouteNode(session,io,{path,doc,route,node,existing:current});
+      await this.flush(session);
+      return {sessionId:session.id,bound:true,...(repeat?{repeat:true}:{})};
+    });
+    this.routeLocks.set(key,work);try{return await work;}finally{if(this.routeLocks.get(key)===work)this.routeLocks.delete(key);}
+  }
   async openRouteLesson({path,nodeId,expectedRevision,sessionId:callerSessionId,repeat=false},exec) {
-    const io=exec?createAgentVaultIO(this.ctx,exec,{writeApproved:true}):await this.editorFor({sessionId:callerSessionId}),key=`${io.workspace.id}:${path}:${nodeId}`;
+    const io=exec?createAgentVaultIO(this.ctx,exec,{writeApproved:true}):await this.editorFor({sessionId:callerSessionId}),key=`${io.workspace.id}:${path}`;
     const previous=this.routeLocks.get(key)??Promise.resolve();
     const work=previous.catch(()=>{}).then(async()=>{
       const doc=await io.read(path,expectedRevision),route=parseRoute(doc);let node=route.nodes.find(item=>item.id===nodeId);
@@ -216,20 +325,8 @@ export class NotaraTeaching extends Service {
       const sessionId=node.sessionId||stableSessionId(io.workspace.id,path,nodeId);
       const created=await this.ctx.sessionController.create({sessionId:repeat?stableSessionId(io.workspace.id,path,node.id):sessionId,workspaceId:io.workspace.id,agentPreset:TEACHING_PRESET});
       const agent=await this.agentFor(created.sessionId);
-      if(!agent.session.snapshotEvents().some(event=>event.type===LESSON_EVENT)){
-        let continuation=null;
-        const predecessor=route.nodes.find(item=>item.id===node.parent);
-        if(predecessor?.sessionId){
-          const hit=(await io.scan()).documents.flatMap(doc=>{try{return parseLessonSummaries(doc);}catch{return [];}}).find(item=>item.sessionId===predecessor.sessionId);
-          if(hit) continuation={ref:sourceRef(io.workspace.id,hit.path,hit.revision,{anchor:hit.anchor}),text:hit.continuation,title:hit.title};
-        }
-        const script=node.scriptPath?await io.read(node.scriptPath):null;
-        if(script&&script.type!=='lesson') fail('lesson_script_required');
-        const materials=[];
-        for(const path of node.materials??[]){const source=path.toLowerCase().endsWith('.md')?await io.read(path):await io.readAsset(path);materials.push({path:source.path,title:source.title,revision:source.revision,ref:source.ref});}
-        bindTeachingLesson(agent.session,{scriptPath:node.scriptPath||null,scriptRevision:script?.revision??null,scriptWorkspaceId:script?io.workspace.id:null,scriptSnapshot:script?this.scriptSnapshot(script):null,routePath:path,nodeId:node.id,continuation,materials});
-        const subjects=script?.frontmatter?.subjects??doc.frontmatter?.subjects;
-        if(Array.isArray(subjects)&&subjects.length) updateTeachingSettings(agent.session,{subjects},readTeachingSettings(agent.session).revision);
+      if(!agent.session.snapshotEvents().some(event=>pluginEventType(event.type)===LESSON_EVENT)){
+        await this.bindRouteNode(agent.session,io,{path,doc,route,node});
         await this.ctx.sessionController.rename({sessionId:created.sessionId,title:node.title});await this.flush(agent.session);
       }
       if(!node.sessionId){node.sessionId=created.sessionId;await io.save(path,renderRoute({title:route.title,nodes:route.nodes},doc.content),doc.revision);}
@@ -272,7 +369,7 @@ export class NotaraTeaching extends Service {
     if(name==='open_learning_lesson'){
       const path=safeRelativePath(args.path?.startsWith('vault/')?args.path.slice(6):args.path);
       const doc=await createAgentVaultIO(this.ctx,exec).read(path);
-      return this.openRouteLesson({path,nodeId:args.nodeId,expectedRevision:doc.revision,repeat:args.repeat??false},exec);
+      return this.openRouteLessonHere({path,nodeId:args.nodeId,expectedRevision:doc.revision,repeat:args.repeat??false},exec);
     }
     if(name==='set_teaching_settings'){
       const {scriptPath,...patch}=args,current=readTeachingSettings(exec.agent.session);
@@ -303,6 +400,7 @@ export function installTeachingRuntime(ctx,config={}) {
       DSH_NOTARA_CALL_ID:{description:'Current native shell call identity, provided by Host.'},
       DSH_NOTARA_LESSON:{description:'Bound lesson location and revision, provided by Host; do not construct or override.'},
       DSH_NOTARA_TEACHING:{description:'Installed teaching resource directory; optional examples can be read here, never treated as learner records.'},
+      DSH_NOTARA_RG:{description:'Packaged ripgrep executable; call it for rg searches instead of relying on a system rg. Absent when unavailable.'},
     },
     resolve(exec){
       if(!service.isTeaching(exec.agent)||exec.agent.session.header.origin==='subagent')return {};
@@ -310,8 +408,9 @@ export function installTeachingRuntime(ctx,config={}) {
       const vaultRoot=materialRoot(workspace.path);
       const settings=readTeachingSettings(exec.agent.session);
       const bound=settings.scriptPath?vaultScopes(ctx,exec,'all').find(item=>item.id===(settings.scriptWorkspaceId??workspace.id)):null;
-      const lesson=bound?JSON.stringify({workspacePath:bound.path,workspaceId:bound.id,path:settings.scriptPath,revision:settings.scriptRevision}):'';
-      return {DSH_NOTARA_NODE:process.execPath,DSH_NOTARA_CLI:fileURLToPath(new URL('./vault-cli.js',import.meta.url)),DSH_NOTARA_WORKSPACE:workspace.path,DSH_NOTARA_VAULT_ROOT:vaultRoot.path,DSH_NOTARA_VAULT_PREFIX:vaultRoot.prefix,DSH_NOTARA_WORKSPACE_ID:workspace.id,DSH_NOTARA_CALL_ID:exec.callId??'',DSH_NOTARA_LESSON:lesson,DSH_NOTARA_TEACHING:teachingResourcePath('.')};
+      const lesson=bound?lessonPinText(bound,settings):'';
+      const rg=packagedRipgrep();
+      return {...(rg?{DSH_NOTARA_RG:shellPath(rg)}:{}),DSH_NOTARA_NODE:shellPath(process.execPath),DSH_NOTARA_CLI:shellPath(fileURLToPath(new URL('./vault-cli.js',import.meta.url))),DSH_NOTARA_WORKSPACE:shellPath(workspace.path),DSH_NOTARA_VAULT_ROOT:shellPath(vaultRoot.path),DSH_NOTARA_VAULT_PREFIX:vaultRoot.prefix,DSH_NOTARA_WORKSPACE_ID:workspace.id,DSH_NOTARA_CALL_ID:exec.callId??'',DSH_NOTARA_LESSON:lesson,DSH_NOTARA_TEACHING:shellPath(teachingResourcePath('.'))};
     },
   })));
 
@@ -343,9 +442,9 @@ export function installTeachingRuntime(ctx,config={}) {
       }
       memory=await assembleTeachingContext({readers,settings:{...settings,learningGoal:null,temporaryInstructions:''}});
       const board=await readBoardDocument(io,agent.session.id);
-      service.prepared.get(agent).boardRevision=board.revision;
-      // Semantic titles let the teacher target a region without inventing IDs or coordinates.
-      memory.text+='\n\n当前板书区域：'+JSON.stringify(board.board.blocks.map(({title,kind})=>({title,kind})))+'。同名写入会替换该区域全文；只写已向学生公开的内容。需核对已有正文时读取 '+resolve(io.rootPath,boardPath(agent.session.id))+'。';
+      Object.assign(service.prepared.get(agent),{boardRevision:board.revision,boardBodies:boardBodyView(board.board)});
+      // Semantic titles let the teacher target a block without inventing IDs or coordinates.
+      memory.text+='\n\n当前白板（同名标题替换该块正文，作答与位置保留；只写已向学生公开的内容；需核对已有正文时读取 '+resolve(io.rootPath,boardPath(agent.session.id))+'）：\n'+boardOverview(board.board);
     }
     catch(error){if(!['vault_scope_unavailable','vault_session_required'].includes(error.message))throw error;memory={text:'当前课堂尚未连接学习集，可以继续讨论题目；资料和学习记录需要先通过原生工作区入口接入，不能推测已有记录。'};}
     // Bindings and navigation are separate from the L0 memory budget. No script
@@ -353,14 +452,23 @@ export function installTeachingRuntime(ctx,config={}) {
     const bound=settings.scriptPath?ctx.get('workspaceRegistry')?.list().find(item=>item.id===settings.scriptWorkspaceId):null;
     const readPath=bound?resolve(resolveVaultRoot(bound.path),settings.scriptPath):settings.scriptWorkspaceId?null:settings.scriptPath;
     const course=await service.routeContext({agent,signal:context.signal},settings);
-    const background={learningGoal:settings.learningGoal,temporaryInstructions:settings.temporaryInstructions,subjects:settings.subjects,materialsRoot:materialsRoot?{env:'DSH_NOTARA_VAULT_ROOT',path:materialsRoot.path,legacyPrefix:materialsRoot.prefix}:null,course,script:settings.scriptPath?{...memory.script,path:settings.scriptPath,readPath,workspaceId:settings.scriptWorkspaceId,boundRevision:settings.scriptRevision,bodyRead:false}:null,previousLesson:settings.continuation,materials:settings.materials};
+    // The overview is read at every turn so a conversation always starts from it.
+    let learningSet=null;
+    if(materialsRoot){
+      const shared=(await activeUserSkills().catch(()=>[])).map(row=>({name:row.name,subjects:[row.title,...(row.tags??[])]}));
+      learningSet=await learningSetOverview(materialsRoot.path,{subjectSkills:[...BUILTIN_SUBJECT_SKILLS,...shared]}).catch(()=>null);
+    }
+    const lessonSubjects=Array.isArray(settings.subjects)&&settings.subjects.length?settings.subjects:null;
+    const subjects=lessonSubjects??(learningSet?.status==='active'?learningSet.subjects:settings.subjects);
+    const background={learningGoal:settings.learningGoal,temporaryInstructions:settings.temporaryInstructions,subjects,subjectsSource:lessonSubjects?'lesson':learningSet?.status==='active'?'learning-set':'none',learningSet,materialsRoot:materialsRoot?{env:'DSH_NOTARA_VAULT_ROOT',path:materialsRoot.path,legacyPrefix:materialsRoot.prefix}:null,course,script:settings.scriptPath?{...memory.script,path:settings.scriptPath,readPath,workspaceId:settings.scriptWorkspaceId,boundRevision:settings.scriptRevision,bodyRead:false}:null,previousLesson:settings.continuation,materials:settings.materials};
     return {...result,contexts:[...result.contexts,{name:'notara:learning-context',text:memory.text},{name:'notara:lesson-background',text:JSON.stringify(background)}]};
   });
-  ctx.on('session/event',(session,event)=>{if(event.type==='turn/end'){service.requests.delete(session.id);for(const key of service.operations.keys())if(key.startsWith(session.id+':'))service.operations.delete(key);}});
+  ctx.on('session/event',(session,event)=>{if(event.type==='turn/end'){service.requests.delete(session.id);if(service.archiveAfterTurn.delete(session.id))service.archiveWhenIdle(session.id);for(const key of service.operations.keys())if(key.startsWith(session.id+':'))service.operations.delete(key);}});
   const registry=ctx.get('workspaceRegistry');
   if(registry&&service.nativeArchive){
     const original=registry.archiveSession;
-    const wrapped=async sessionId=>{const snapshot=await ctx.sessionController.inspect(sessionId);if(snapshot.meta.agentPreset===TEACHING_PRESET){await service.archiveFromNativeEntry(sessionId);return;}return original.call(registry,sessionId);};
+    // DSH 0.2.0 archiveSession(sessionId, {stopActivity}): other sessions keep the native options.
+    const wrapped=async(sessionId,options)=>{const snapshot=await ctx.sessionController.inspect(sessionId);if(snapshot.meta.agentPreset===TEACHING_PRESET){await service.archiveFromNativeEntry(sessionId);return;}return original.call(registry,sessionId,options);};
     registry.archiveSession=wrapped;
     ctx.effect(()=>()=>{if(registry.archiveSession===wrapped)registry.archiveSession=original;});
   }

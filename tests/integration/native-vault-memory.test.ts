@@ -67,10 +67,11 @@ test('教学记忆：L0 只给入口，Bash 的 ls/grep/sed 逐步读正文，�
     expect(initialWire).not.toContain('原题001：曾优先试');
     expect(initialWire).not.toContain('原题002：曾优先试');
     // Verify the assembled tool surface, not a particular prompt sentence: the
-    // teacher reads and searches with Bash, and has no native text-file rows.
+    // teacher reads and searches Markdown with Bash; native search rows stay hidden.
     const teacherTools = toolNames(initial!);
     expect(teacherTools).toContain('bash');
-    for (const hidden of ['read', 'write', 'edit', 'glob', 'grep']) expect(teacherTools, `主课堂仍挂着原生文本工具 ${hidden}`).not.toContain(hidden);
+    // Search stays in Bash; native read/write/edit remain only for code files (the guard refuses anything else).
+    for (const hidden of ['glob', 'grep']) expect(teacherTools, `主课堂仍挂着原生检索工具 ${hidden}`).not.toContain(hidden);
     const candidates = (await host.outcomes(session)).find(row => row.name === 'bash');
     expect(candidates?.failed).toBe(false);
     expect(candidates?.text).toContain('vault/锦囊/选路.md');
@@ -150,7 +151,7 @@ test('教学记忆：L0 只给入口，Bash 的 ls/grep/sed 逐步读正文，�
     const compact = host.value(await host.rpc<{ result?: { kind: string; text: string } }>('commands/execute', { agentId: session, line: '/compact', submittedAttachments: [] }));
     expect(JSON.stringify(compact)).toContain('Compacted');
     const [afterCompact] = await host.ask(session, '压缩以后继续比较表示。', { '压缩以后继续比较表示。': '继续比较表示。' });
-    expect(effectiveSystemText(afterCompact!)).toContain('讲解式');
+    expect(effectiveSystemText(afterCompact!)).toContain('讲解—变式');
     expect(JSON.stringify(afterCompact)).toContain('保留我的选路理由');
 
     await mkdir('.runtime/teaching-implementation', { recursive: true });

@@ -1,9 +1,9 @@
 {
   "default": "socratic",
   "choices": [
-    { "id": "socratic", "menu": "more", "title": "苏格拉底", "description": "从学生能动手的一小步开始，一次一个问题，观察他的独立表现。", "file": "presets/socratic.md" },
+    { "id": "socratic", "menu": "more", "title": "苏格拉底", "description": "用问题引导学生自己走每一步，步子大小跟着学生变。", "file": "presets/socratic.md" },
     { "id": "feynman", "menu": "more", "title": "费曼法", "description": "先让学生用自己的话讲清楚，再一起找出解释里的缺口。", "file": "presets/feynman.md" },
-    { "id": "lecture", "menu": "more", "title": "讲解式", "description": "先讲清结构与完整例子，再用独立任务检验理解。", "file": "presets/lecture.md" },
+    { "id": "lecture", "menu": "more", "title": "讲解—变式", "description": "先讲清例题、打个类比，再请学生说出关键一步，用一串变式检验。", "file": "presets/lecture.md" },
     { "id": "structural", "menu": "more", "title": "结构分析", "description": "先看清条件、目标与不变关系，再决定表示和方法。", "file": "presets/structural.md" }
   ],
   "skills": [
@@ -13,18 +13,24 @@
     { "id": "material-outline", "title": "书籍拆解与资料整理", "description": "需要按选定范围拆解课本、讲义或其他材料，研究知识单元与题目并建立知识联系时使用；不要求先备课。", "file": "skills/material-outline.md" },
     { "id": "essay-review", "title": "作文批改", "description": "读实际作文，定位问题、给反馈并保留学生的观点和声音。", "file": "skills/essay-review.md" },
     { "id": "markdown-handout", "title": "讲义整理", "description": "把已核对的内容整理成可编辑的 Markdown 讲义并写回。", "file": "skills/markdown-handout.md" },
-    { "id": "method-distillation", "title": "学习经历与方法整理", "description": "记录学生理解的认知演变、综合过往错误与修正、整理可复用方法经历为锦囊时使用。", "file": "skills/method-distillation.md" },
-    { "id": "teaching-reflection", "menu": "more", "title": "教学反思与沉淀", "description": "老师三省吾身：回看教学判断、引导与学生实际表现，沉淀到小结、画像、锦囊或路线；必要时提出教学规则修订建议。", "file": "skills/teaching-reflection.md" },
+    { "id": "method-distillation", "title": "学习经历与方法整理", "description": "记录学生理解的认知演变与评估、综合过往错误与修正，或把可复用的方法经历写成本学习集的主题要点时使用。", "file": "skills/method-distillation.md" },
+    { "id": "teaching-reflection", "menu": "more", "title": "教学反思与沉淀", "description": "老师三省吾身：回看教学判断、引导与学生实际表现，沉淀到小结、画像、主题要点或路线；必要时提出教学规则修订建议。", "file": "skills/teaching-reflection.md" },
     { "id": "learning-review", "title": "学习复盘与建议", "description": "回顾近期学习，可跨已授权学习集综合进展、困难、兴趣与目标，提出值得优先学习的板块、方向和下一步任务。", "file": "skills/learning-review.md" },
+    { "id": "brainstorm", "title": "头脑风暴", "description": "学生想发散、找联系，或已经顺了想往前走时使用：从学生的问题出发退与进，核实每一条联系，用关系图留住没走完的分支，由学生决定停，再用更深的框架收回课堂中心。", "file": "skills/brainstorm.md" },
+    { "id": "consolidation", "title": "体系梳理", "description": "把一个主题下的几道题理成一套结构时用，也是复习课的主场：学生自己搭结构，马上拿它去攻新情境，攻不动就退回原理或特例；课后写回主题页和方法要点。", "file": "skills/consolidation.md" },
     { "id": "lesson-preparation", "title": "备课", "description": "用户要求按学习目标或资料准备一节课时使用；可用已有材料、网络资料或现场构造的学习任务。", "file": "skills/lesson-preparation.md" },
     { "id": "route-planning", "title": "路线规划", "description": "需要从学习目标规划多节课、专题训练或调整未来课程时使用，不要求预先拥有教材。", "file": "skills/route-planning.md" },
-    { "id": "subject-math", "menu": "more", "title": "数学关注", "description": "拆解或编排数学内容时使用：定义与条件、证明依赖、方法发现、结构识别与适用边界。", "file": "skills/subject-math.md" },
-    { "id": "subject-physics", "menu": "more", "title": "物理关注", "description": "拆解或编排物理内容时使用：研究对象、过程、模型假设、图像数据、守恒前提与近似边界。", "file": "skills/subject-physics.md" },
-    { "id": "subject-chemistry", "menu": "more", "title": "化学关注", "description": "拆解或编排化学内容时使用：结构与性质、反应条件、实验操作、现象与证据。", "file": "skills/subject-chemistry.md" },
-    { "id": "subject-computing", "menu": "more", "title": "计算机关注", "description": "学习语言特性、编程或算法时使用：语义与状态、离散表示、正确性、复杂度和测试依据。", "file": "skills/subject-computing.md" },
-    { "id": "subject-chinese", "menu": "more", "title": "语文关注", "description": "阅读、文言、写作及语文资料拆解时使用：语境、文本依据、篇章组织和表达效果。", "file": "skills/subject-chinese.md" },
-    { "id": "subject-english", "menu": "more", "title": "英语关注", "description": "英语阅读、语法、词汇、写作及有音频的听说任务中使用：形式、意义、语用与交际目标。", "file": "skills/subject-english.md" },
-    { "id": "subject-science", "menu": "more", "title": "其他自然科学与综合探究", "description": "生物等尚未细分的自然科学或综合探究中使用；物理、化学优先选各自关注 Skill。", "file": "skills/subject-science.md" },
-    { "id": "subject-humanities", "menu": "more", "title": "其他人文与语言学习", "description": "历史、其他人文与语言内容中使用；语文、英语优先选各自关注 Skill。", "file": "skills/subject-humanities.md" }
+    { "id": "research", "title": "调研", "description": "需要外部证据时使用：学科与课程的结构和难点、公开课复刻、大纲与版本事实；分级取证、读原文、交叉核对，读不到的如实写明。", "file": "skills/research.md" },
+    { "id": "skill-authoring", "title": "编写技能", "description": "为内置学科关注没覆盖的学科（如模电、操作系统）写学科层技能，或为本学习集写梗概与按主题的方法要点；写成草稿，由学生在技能页启用。", "file": "skills/skill-authoring.md" },
+    { "id": "board", "menu": "more", "title": "板书", "description": "组织白板板块、出作答题（选择与判断、补一步、排序与归类）、画图（函数与几何作图、关系与流程图、逐帧演示）或回应学生在白板上的作答时使用：什么内容上板、每种作答题与图的用途和写法、元方法与阶段怎样落到板上。", "file": "skills/board.md" },
+    { "id": "exam-prep", "title": "备考", "description": "目标是高考、高考模考、考研或公务员考试等具体考试时使用：确认考试身份，按来源等级查考纲与真题，区分官方文件与机构分析，按分值与差距安排，讲评模考错因。", "file": "skills/exam-prep.md" },
+    { "id": "subject-math", "subjects": ["数学"], "menu": "more", "title": "数学关注", "description": "拆解或编排数学内容时使用：定义与条件、证明依赖、方法发现、结构识别与适用边界。", "file": "skills/subject-math.md" },
+    { "id": "subject-physics", "subjects": ["物理"], "menu": "more", "title": "物理关注", "description": "拆解或编排物理内容时使用：研究对象、状态与过程、过程分段与临界状态、按过程选规律、模型假设与守恒前提。", "file": "skills/subject-physics.md" },
+    { "id": "subject-chemistry", "subjects": ["化学"], "menu": "more", "title": "化学关注", "description": "拆解或编排化学内容时使用：结构与性质、反应条件、实验操作、现象与证据。", "file": "skills/subject-chemistry.md" },
+    { "id": "subject-computing", "subjects": ["计算机", "编程", "程序设计"], "menu": "more", "title": "计算机关注", "description": "学习语言特性、编程或算法时使用：语义与状态、离散表示、正确性、复杂度和测试依据。", "file": "skills/subject-computing.md" },
+    { "id": "subject-chinese", "subjects": ["语文"], "menu": "more", "title": "语文关注", "description": "阅读、文言、写作及语文资料拆解时使用：语境、文本依据、篇章组织和表达效果。", "file": "skills/subject-chinese.md" },
+    { "id": "subject-english", "subjects": ["英语"], "menu": "more", "title": "英语关注", "description": "英语阅读、语法、词汇、写作及有音频的听说任务中使用：形式、意义、语用与交际目标。", "file": "skills/subject-english.md" },
+    { "id": "subject-science", "subjects": ["生物", "地理", "科学"], "menu": "more", "title": "其他自然科学与综合探究", "description": "生物、地理等尚未细分的自然科学或综合探究中使用；物理、化学优先选各自关注 Skill。", "file": "skills/subject-science.md" },
+    { "id": "subject-humanities", "subjects": ["历史", "政治", "思想政治", "道德与法治"], "menu": "more", "title": "其他人文与语言学习", "description": "历史、思想政治、其他人文与语言内容中使用；语文、英语优先选各自关注 Skill。", "file": "skills/subject-humanities.md" }
   ]
 }

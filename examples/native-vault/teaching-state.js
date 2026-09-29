@@ -1,3 +1,4 @@
+import { pluginEventType } from './plugin-events.js';
 import { parseSourceRef } from './agent-io.js';
 import { safeRelativePath } from './vault.js';
 import { defaultTeachingRef, teachingChoices } from './teaching-catalog.js';
@@ -138,10 +139,11 @@ function normalizeContinuation(value) {
 }
 
 export function readTeachingSettings(session) {
-  const result = {revision:0,teachingRef:defaultTeachingRef,learningGoal:null,temporaryInstructions:'',persona:'',subjects:[],scriptPath:null,routePath:null,nodeId:null,continuation:null,scriptRevision:null,scriptWorkspaceId:null,scriptSnapshot:null,scriptSnapshotTruncated:false,materials:[]};
+  const result = {revision:0,teachingRef:defaultTeachingRef,learningGoal:null,temporaryInstructions:'',persona:'',subjects:[],scriptPath:null,routePath:null,nodeId:null,continuation:null,scriptRevision:null,scriptBodyRevision:null,scriptWorkspaceId:null,scriptSnapshot:null,scriptSnapshotTruncated:false,materials:[]};
   for (const event of session.snapshotEvents()) {
-    if (event.type===SETTINGS_EVENT) Object.assign(result,event.data);
-    if (event.type===LESSON_EVENT) Object.assign(result,event.data);
+    const type=pluginEventType(event.type);
+    if (type===SETTINGS_EVENT) Object.assign(result,event.data);
+    if (type===LESSON_EVENT) Object.assign(result,event.data);
   }
   const snapshot=scriptSnapshotValue(result.scriptSnapshot);
   return {...result,scriptSnapshot:snapshot.value,scriptSnapshotTruncated:snapshot.truncated,continuation:projectContinuation(result.continuation),choices:teachingChoices};
@@ -195,7 +197,7 @@ export function updateTeachingSettings(session, patch, expectedRevision) {
 /**
  * 绑定本课的剧本、路线节点与前课快照。
  *
- * `scriptRevision` 是绑定时刻的剧本 revision；保留事件字段名 `scriptSnapshot`，
+ * `scriptRevision` 是绑定时刻的剧本 revision，`scriptBodyRevision` 是同一时刻去掉课堂小结块之后的正文 revision（`lesson-data.js / scriptBodyRevision`），写小结不算改剧本；保留事件字段名 `scriptSnapshot`，
  * 仅记录 title/path/revision/ref，不保存或注入截断原文，也不充当历史版本库。
  * 当前目录每轮重新读取；阶段正文要求匹配真实 revision。
  * `scriptWorkspaceId` 记录剧本所属学习集。`materials` 是路线节点携带的材料 refs
@@ -204,12 +206,14 @@ export function updateTeachingSettings(session, patch, expectedRevision) {
  * `{ref,text,title}` 形状；能从 ref 解析出作用域/路径/anchor/revision 时一并补齐。
  * 每次绑定都写全字段，重绑不会把上一课的快照留在新绑定里。
  */
-export function bindTeachingLesson(session,{scriptPath=null,routePath=null,nodeId=null,continuation=null,scriptRevision=null,scriptWorkspaceId=null,scriptSnapshot=null,materials=[]}={}) {
+export function bindTeachingLesson(session,{scriptPath=null,routePath=null,nodeId=null,continuation=null,scriptRevision=null,scriptBodyRevision=null,scriptWorkspaceId=null,scriptSnapshot=null,materials=[]}={}) {
   if(scriptPath!==null) safeRelativePath(scriptPath);
   if(routePath!==null) safeRelativePath(routePath);
   if(nodeId!==null&&(typeof nodeId!=='string'||nodeId.length>200)) fail('teaching_binding_invalid');
   const revision=bindingText(scriptRevision,200);
   if(scriptRevision!==null&&revision===null) fail('teaching_binding_invalid');
+  const body=bindingText(scriptBodyRevision,200);
+  if(scriptBodyRevision!==null&&body===null) fail('teaching_binding_invalid');
   const workspace=bindingText(scriptWorkspaceId,200);
   if(scriptWorkspaceId!==null&&workspace===null) fail('teaching_binding_invalid');
   const snapshot=scriptSnapshotValue(scriptSnapshot);
@@ -218,6 +222,7 @@ export function bindTeachingLesson(session,{scriptPath=null,routePath=null,nodeI
     materials:materialsValue(materials),
     continuation:normalizeContinuation(continuation),
     scriptRevision:revision,
+    scriptBodyRevision:body,
     scriptWorkspaceId:workspace,
     scriptSnapshot:snapshot.value,
     scriptSnapshotTruncated:snapshot.truncated,

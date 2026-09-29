@@ -36,9 +36,9 @@ export function createReviewRuntime(service) {
       const io = await ioFor(args, exec, true), doc = await readTarget(io, args);
       const at = new Date().toISOString(), day = civilDay(at, zoneFor(args, exec));
       const id = exec?.callId ? createHash('sha256').update(`${exec.agent.session.id}:${exec.callId}`).digest('hex').slice(0, 24) : randomUUID();
-      if (Object.hasOwn(args, 'passed')) fail('review_request_invalid');
+      if (['passed', 'assessments', 'depth', 'nextCheck'].some(key => Object.hasOwn(args, key))) fail('review_request_invalid');
       const before = reviewState(doc);
-      const content = recordReviewContent(doc, { id, at, day, assessments: args.assessments, note: args.note, actor: exec ? 'teacher' : 'self', sessionId: exec?.agent.session.id ?? null });
+      const content = recordReviewContent(doc, { id, at, day, ...(Object.hasOwn(args, 'keyStep') ? { keyStep: args.keyStep } : {}), result: args.result, note: args.note, actor: exec ? 'teacher' : 'self', sessionId: exec?.agent.session.id ?? null });
       const saved = await io.save(doc.path, content, doc.revision);
       const state = reviewState(saved);
       return { ...receipt(saved), state, scheduleChanged: JSON.stringify(state) !== JSON.stringify(before) };

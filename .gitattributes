@@ -1,2 +1,3 @@
-# Stored patch evidence contains significant context-line spaces.
-/docs/evidence/modern-theme-polish/changes.patch -whitespace
+# Check out text with LF on every platform: templates, prompts and patch digests
+# assume LF, and Git for Windows would otherwise convert them to CRLF.
+* text=auto eol=lf

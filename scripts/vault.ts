@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { liveVaultUrl, validateVaultPort } from './vault-launcher-state.ts';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { liveVaultUrl, pluginVersions, validateVaultPort } from './vault-launcher-state.ts';
 
 const args = process.argv.slice(2);
 let root = join(homedir(), '.notara', 'vault-runtime'), port: number | undefined, noOpen = false, openOnly = false;
@@ -20,6 +21,10 @@ function openBrowser(url: string): void {
   opener.on('error', () => console.error('无法打开默认浏览器；当前登录入口保存在数据目录的 launcher.json。'));
   opener.unref();
 }
+// A `git pull` does not change a running directory's plugin: say so when they differ.
+const versions = await pluginVersions(root, resolve(dirname(fileURLToPath(import.meta.url)), '..'));
+if (versions.snapshot && versions.checkout && versions.snapshot !== versions.checkout)
+  console.log(`这个数据目录运行的是 ${versions.snapshot}，代码目录里是 ${versions.checkout}。先停止服务，再运行 npm run vault:upgrade 升级（课堂与资料都保留）。`);
 const running = await liveVaultUrl(root);
 if (running) {
   if (port !== undefined && Number(new URL(running).port) !== port) throw new Error('Vault 已在其他端口运行，请先停止该实例。');
@@ -29,7 +34,8 @@ if (running) {
   if (openOnly) throw new Error('Vault 尚未运行，请先执行 npm run vault。');
   const { startVaultPersistent } = await import('./dev-isolated.ts');
   const runtime = await startVaultPersistent(root, port === undefined ? {} : { port });
-  console.log(`Notara：${new URL(runtime.authUrl).origin}/\n数据目录：${root}（停止服务不会删除）`);
+  const running = (await pluginVersions(root, resolve(dirname(fileURLToPath(import.meta.url)), '..'))).snapshot;
+  console.log(`Notara ${running ?? ''}：${new URL(runtime.authUrl).origin}/\n数据目录：${root}（停止服务不会删除）`);
   console.log('重新打开当前登录入口：npm run vault:open（自定义目录需带 -- --root <目录>）');
   if (!noOpen) openBrowser(runtime.authUrl);
   else console.log('本次不打开浏览器；登录链接保存在私有 launcher.json 中。');

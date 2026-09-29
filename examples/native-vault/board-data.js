@@ -1,11 +1,18 @@
 import { parseFrontmatter, serializeFrontmatter } from './frontmatter.js';
 import { validateInteractiveRef } from './interactive-data.js';
+import { BOARD_COMPONENTS, answersFor, boardAnswerSummary, boardComponents, validateBoardComponents, validateStoredAnswers } from './board-components.js';
+import { BOARD_SIZES } from './board-layout.js';
 
+/** Host-bound lesson boards live here; only write_lesson_board writes them. */
+export const BOARD_DIRECTORY='lesson-board';
 export const BOARD_KINDS = ['note','question','hint','reference','attempt'];
 const fail = code => { throw new Error(code); };
 const marker = /^<!-- notara-board (\{[^\n]*\}) -->\r?\n/gm;
 const validObject = value => value && typeof value === 'object' && !Array.isArray(value);
 const idPattern = /^[a-zA-Z0-9-]{1,80}$/;
+const sectionPattern = /^s-[a-f0-9]{8}$/;
+const META_KEYS = ['id','kind','section','size','place','x','y','width','interactive','answers'];
+const singleLine = (value,max) => typeof value==='string'&&value.trim()&&value.length<=max&&!/[\r\n]/.test(value);
 export function validateBoardBody(body) {
   if(typeof body !== 'string'||body.length>50000||/<!--\s*\/?notara-board\b/.test(body))fail('board_content_invalid');
   return body;
@@ -14,55 +21,94 @@ export function validateLayout(patch) {
   for(const key of ['x','y','width']) if(patch[key]!==undefined&&(!Number.isFinite(patch[key])||Math.abs(patch[key])>50000||(key==='width'&&(patch[key]<180||patch[key]>1600))))fail('board_layout_invalid');
   return patch;
 }
+function validateSections(value) {
+  if(value===undefined)return [];
+  if(!Array.isArray(value)||value.length>60)fail('board_format_invalid');
+  const seen=new Set();
+  for(const section of value){if(!validObject(section)||Object.keys(section).some(key=>!['id','title'].includes(key))||!sectionPattern.test(section.id)||seen.has(section.id)||!singleLine(section.title,80))fail('board_format_invalid');seen.add(section.id);}
+  return value.map(({id,title})=>({id,title}));
+}
+function validatePlace(value) {
+  if(value===undefined)return undefined;
+  if(!validObject(value)||Object.keys(value).some(key=>!['relativeTo','position'].includes(key))||!idPattern.test(value.relativeTo)||!['beside','below'].includes(value.position))fail('board_format_invalid');
+  return {relativeTo:value.relativeTo,position:value.position};
+}
+/**
+ * A block without x/y flows in its section; x/y mean the student pinned it
+ * (and every block of a board written before sections existed is pinned where
+ * it was). Answers live in the marker, never in the teacher's body.
+ */
 export function parseBoard(content,sessionId) {
-  if(content===null)return {sessionId,blocks:[],sourceNotes:{}};
+  if(content===null)return {sessionId,sections:[],blocks:[],sourceNotes:{}};
   const {frontmatter,body}=parseFrontmatter(content);
   if(frontmatter.type!=='lesson-board'||frontmatter.session!==sessionId)fail('board_binding_invalid');
+  const sections=validateSections(frontmatter.sections),known=new Set(sections.map(section=>section.id));
   const blocks=[],seen=new Set(),matches=[...body.matchAll(marker)];
   if(body.slice(0,matches[0]?.index??body.length).trim())fail('board_format_invalid');
   for(let i=0;i<matches.length;i++) {
     const match=matches[i];let meta;
     try{meta=JSON.parse(match[1]);}catch{fail('board_format_invalid');}
-    if(!validObject(meta)||!idPattern.test(meta.id)||seen.has(meta.id)||!BOARD_KINDS.includes(meta.kind))fail('board_format_invalid');
+    if(!validObject(meta)||Object.keys(meta).some(key=>!META_KEYS.includes(key))||!idPattern.test(meta.id)||seen.has(meta.id)||!BOARD_KINDS.includes(meta.kind))fail('board_format_invalid');
+    if(meta.section!==undefined&&!known.has(meta.section))fail('board_format_invalid');
+    if(meta.size!==undefined&&!BOARD_SIZES.includes(meta.size))fail('board_format_invalid');
+    if((meta.x===undefined)!==(meta.y===undefined)||(meta.x===undefined&&meta.section===undefined))fail('board_format_invalid');
     validateLayout(meta);seen.add(meta.id);
     const interactive=meta.interactive===undefined?undefined:validateInteractiveRef(meta.interactive);
+    const place=validatePlace(meta.place),answers=validateStoredAnswers(meta.answers);
     const text=body.slice(match.index+match[0].length,matches[i+1]?.index??body.length).trim();
     const heading=text.match(/^## ([^\n]+)\n?([\s\S]*)$/);
     if(!heading)fail('board_format_invalid');
-    blocks.push({id:meta.id,kind:meta.kind,x:meta.x??60,y:meta.y??60,width:meta.width??340,title:heading[1].trim(),body:validateBoardBody(heading[2].trim()),...(interactive?{interactive}: {})});
+    blocks.push({id:meta.id,kind:meta.kind,...(meta.section?{section:meta.section}:{}),size:meta.size??'narrow',...(place?{place}:{}),...(meta.x!==undefined?{x:meta.x,y:meta.y}:{}),...(meta.width!==undefined?{width:meta.width}:{}),title:heading[1].trim(),body:validateBoardBody(heading[2].trim()),...(interactive?{interactive}: {}),...(answers?.length?{answers}:{})});
   }
   const sourceNotes=frontmatter.sourceNotes??{};
   if(!validObject(sourceNotes))fail('board_format_invalid');
   for(const note of Object.values(sourceNotes)){if(!validObject(note))fail('board_format_invalid');validateLayout(note);if(note.body!==undefined)validateBoardBody(note.body);}
-  return {sessionId,blocks,sourceNotes};
+  return {sessionId,sections,blocks,sourceNotes};
 }
 export function renderBoard(board) {
-  const header=serializeFrontmatter({type:'lesson-board',title:'课堂板书',session:board.sessionId,sourceNotes:board.sourceNotes});
-  return header+'\n'+board.blocks.map(({id,kind,x,y,width,title,body,interactive})=>`<!-- notara-board ${JSON.stringify({id,kind,x,y,width,...(interactive?{interactive}: {})})} -->\n## ${title}\n\n${body}\n`).join('\n');
+  const header=serializeFrontmatter({type:'lesson-board',title:'课堂板书',session:board.sessionId,...(board.sections?.length?{sections:board.sections}:{}),sourceNotes:board.sourceNotes});
+  return header+'\n'+board.blocks.map(({id,kind,section,size,place,x,y,width,title,body,interactive,answers})=>`<!-- notara-board ${JSON.stringify({id,kind,...(section?{section}:{}),...(size&&size!=='narrow'?{size}:{}),...(place?{place}:{}),...(Number.isFinite(x)&&Number.isFinite(y)?{x,y}:{}),...(width!==undefined?{width}:{}),...(interactive?{interactive}: {}),...(answers?.length?{answers}:{})})} -->\n## ${title}\n\n${body}\n`).join('\n');
 }
-export function upsertBoard(board,args,id) {
-  if(!validObject(args)||Object.keys(args).some(key=>!['title','body','kind','placement','interactive'].includes(key)))fail('board_content_invalid');
-  if(typeof args.title!=='string'||!args.title.trim()||args.title.length>160||/[\r\n]/.test(args.title))fail('board_content_invalid');
+/**
+ * The teacher's write: the same title replaces that block's body (its answers,
+ * pin and identity stay), a new title adds a block. `section` names the board
+ * section by title — a new title opens a new section; omitted, a new block
+ * joins the section written last. `placement` only relates blocks of the same
+ * section. Every component in the body must parse, with a located error.
+ */
+export function upsertBoard(board,args,id,newSectionId=()=>'s-'+Math.random().toString(16).slice(2,10).padEnd(8,'0')) {
+  if(!validObject(args)||Object.keys(args).some(key=>!['title','body','kind','section','size','placement'].includes(key)))fail('board_content_invalid');
+  if(!singleLine(args.title,160))fail('board_content_invalid');
   validateBoardBody(args.body);
   if(args.kind!==undefined&&!BOARD_KINDS.includes(args.kind))fail('board_content_invalid');
-  const interactive=args.interactive===undefined?undefined:validateInteractiveRef(args.interactive);
+  if(args.size!==undefined&&!BOARD_SIZES.includes(args.size))fail('board_content_invalid');
+  if(args.section!==undefined&&!singleLine(args.section,80))fail('board_section_invalid');
+  validateBoardComponents(args.body);
+  board.sections??=[];
   const title=args.title.trim(),matches=board.blocks.filter(block=>block.title===title);
   if(matches.length>1)fail('board_title_ambiguous');
   const existing=matches[0];
-  if(existing){existing.body=args.body;existing.kind=args.kind??existing.kind;if(interactive)existing.interactive=interactive;return existing;}
-  let x=60+(board.blocks.length%3)*400,y=60;
-  const height=block=>100+Math.ceil(block.body.length/22)*25;
-  const column=board.blocks.filter(block=>Math.abs(block.x-x)<200);
-  if(column.length)y=Math.max(...column.map(block=>block.y+height(block)))+50;
+  const sectionFor=name=>{const wanted=name.trim();let section=board.sections.find(item=>item.title===wanted);if(!section){section={id:newSectionId(),title:wanted};board.sections.push(section);}return section.id;};
+  let section=args.section!==undefined?sectionFor(args.section):existing?.section;
+  if(!section&&!existing){const last=[...board.blocks].reverse().find(block=>block.section);section=last?.section??sectionFor('板书');}
+  let place;
   if(args.placement){
     const p=args.placement;
     if(!validObject(p)||Object.keys(p).some(key=>!['relativeTo','position'].includes(key))||!['beside','below'].includes(p.position))fail('board_layout_invalid');
     const anchor=board.blocks.find(block=>block.title===p.relativeTo);
-    if(!anchor)fail('board_anchor_missing');
-    x=anchor.x+(p.position==='beside'?anchor.width+60:0);y=anchor.y+(p.position==='below'?height(anchor)+50:0);
-    while(board.blocks.some(block=>Math.abs(block.x-x)<340&&y<block.y+height(block)+30&&y+150>block.y))y+=180;
+    if(!anchor||anchor===existing)fail('board_anchor_missing');
+    if(anchor.section!==section)fail('board_anchor_section');
+    place={relativeTo:anchor.id,position:p.position};
   }
-  const block={id,title,body:args.body,kind:args.kind??'note',x,y,width:340,...(interactive?{interactive}: {})};board.blocks.push(block);return block;
+  if(existing){
+    existing.body=args.body;existing.kind=args.kind??existing.kind;existing.size=args.size??existing.size??'narrow';
+    if(place)existing.place=place;
+    // Moving a block to another section returns it to that section's flow.
+    if(section&&section!==existing.section){existing.section=section;delete existing.x;delete existing.y;if(!place)delete existing.place;}
+    return existing;
+  }
+  const block={id,section,kind:args.kind??'note',size:args.size??'narrow',...(place?{place}:{}),title,body:args.body};
+  board.blocks.push(block);return block;
 }
 
 /** Only explicit references in the committed board count as used material. */
@@ -92,5 +138,33 @@ export function projectBoard(board,revision,files=[]) {
   for(const source of sources.values())for(const ref of boardReferences(known.get(source.path)?.content??'')) {
     const to=resolve(ref.path);if(to!==source.path&&sources.has(to)&&!edges.some(edge=>edge.from===source.path&&edge.to===to))edges.push({from:source.path,to,label:'引用'});
   }
-  return {revision,blocks:board.blocks,sources:[...sources.values()],edges};
+  return {revision,sections:board.sections??[],blocks:board.blocks,sources:[...sources.values()],edges};
+}
+
+const SIZE_NAMES={wide:'宽',full:'整行'};
+const clock=at=>{const date=new Date(at);return Number.isNaN(date.getTime())?'':date.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});};
+/**
+ * The teacher's per-turn view of the board: sections, then each block's title,
+ * kind and size, then every question on it with whether and how the student
+ * answered. The full answers already arrived as the student's messages.
+ */
+export function boardOverview(board) {
+  if(!board.blocks.length)return '当前白板还是空的。';
+  const line=block=>{
+    const extra=[block.kind,SIZE_NAMES[block.size]].filter(Boolean).join('，');
+    const parts=boardComponents(block.body).map(component=>{
+      const name=`${component.type}#${component.index+1}`;
+      if(component.error||!component.answerable)return name;
+      const {current,stale}=answersFor(component,block.answers);
+      const latest=current.at(-1);
+      const state=latest?`已作答 ${current.length} 次，最近 ${clock(latest.at)}：${boardAnswerSummary(component,latest.v)}`:'未作答';
+      return `${name}（${BOARD_COMPONENTS[component.type].title}）${state}${stale.length?`；另有 ${stale.length} 次题目修改前的作答`:''}`;
+    });
+    return `  - ${block.title}（${extra}）${parts.length?'：'+parts.join('；'):''}`;
+  };
+  const known=new Set(board.sections.map(section=>section.id)),rows=[];
+  const legacy=board.blocks.filter(block=>!known.has(block.section));
+  if(legacy.length)rows.push('- 旧板书（未分板块）',...legacy.map(line));
+  for(const section of board.sections){const blocks=board.blocks.filter(block=>block.section===section.id);if(blocks.length)rows.push(`- 板块「${section.title}」`,...blocks.map(line));}
+  return rows.join('\n');
 }

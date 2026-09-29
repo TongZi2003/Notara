@@ -36,7 +36,10 @@ const ADDITION_KEYS = Object.freeze(['title', 'stage', 'pathway', 'parentId', 'p
  * runtime cannot drift into two folder layouts. */
 export function safeTitlePath(title) {
   if (typeof title !== 'string' || !title.trim() || title.length > 200) fail('vault_title_invalid');
-  return title.trim().replace(/[\\/:*?"<>|\x00-\x1f]/g, '-').replace(/^\.+/,'').trim() || '学习笔记';
+  // A name every system can hold: no trailing dots or spaces, and a reserved
+  // device name (CON, NUL, COM1 …) gets a suffix instead of failing the write.
+  const name = title.trim().replace(/[\\/:*?"<>|\x00-\x1f]/g, '-').replace(/^\.+/,'').replace(/[. ]+$/,'').trim() || '学习笔记';
+  return /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(name.split('.')[0]) ? `${name}-笔记` : name;
 }
 
 /** A field this entry does not accept fails instead of being dropped: a typo in

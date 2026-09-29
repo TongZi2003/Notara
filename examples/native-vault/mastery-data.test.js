@@ -14,8 +14,8 @@ const doc = (path, content) => parseMarkdownDocument(path, content, revisionFor(
 const page = (path, fields, body = '') => doc(path, serializeFrontmatter(fields) + `# ${path.split('/').pop().replace(/\.md$/, '')}\n\n${body}`);
 const observed = (outcome, ability = '判断焦点位置') => ({ ability, outcome });
 let sequence = 0;
-const evaluate = (document, day, assessments) => doc(document.path, recordReviewContent(document, {
-  id: `review-${++sequence}`, at: `${day}T04:00:00.000Z`, day, assessments, note: '学生自己说出了判断依据。', actor: 'teacher', sessionId: 'synthetic-lesson',
+const evaluate = (document, day, result, keyStep = '判断焦点位置') => doc(document.path, recordReviewContent(document, {
+  id: `review-${++sequence}`, at: `${day}T04:00:00.000Z`, day, keyStep, result, note: '学生自己说出了判断依据。', actor: 'teacher', sessionId: 'synthetic-lesson',
 }));
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} ≈ ${expected}`);
 
@@ -38,6 +38,15 @@ test('BKT updates only on demonstrated or needs_practice evidence', () => {
   const supported = leafMastery([1, 2, 3].map(day => ({ at: `2026-09-0${day}`, assessments: [observed('demonstrated')] })));
   assert.equal(supported.confidence, 'supported');
   assert.ok(supported.probability > 0.95);
+});
+
+test('a new record is evidence through its key step only; depth and the plan never count', () => {
+  const edge = outcome => [{ level: '边界', ability: '条件的来源', outcome }];
+  assert.equal(evidenceOf({ result: 'done', depth: edge('not_reached') }), 'hit');
+  assert.equal(evidenceOf({ result: 'missed', depth: edge('reached') }), 'miss');
+  assert.equal(evidenceOf({ result: 'unchecked', depth: edge('reached'), nextCheck: '边界' }), null);
+  assert.equal(evidenceOf({ result: 'done', revertedAt: 'x' }), null);
+  close(leafMastery([{ at: 'a', result: 'done' }]).probability, 0.6);
 });
 
 test('no evidence is neither failure nor mastery: not_observed, reverted and legacy rows keep the prior', () => {
@@ -65,9 +74,9 @@ test('weighted geometric mean keeps weak leaves visible and epsilon bounds zero'
 
 test('parents aggregate every leaf descendant, whatever the filter or expansion shows', () => {
   let focus = page('卡片/焦点.md', { type: 'card', parent: '卡片/圆锥曲线.md', tags: ['几何'] });
-  focus = evaluate(evaluate(focus, '2026-09-20', [observed('demonstrated')]), '2026-09-21', [observed('demonstrated')]);
+  focus = evaluate(evaluate(focus, '2026-09-20', 'done'), '2026-09-21', 'done');
   let eccentricity = page('卡片/离心率.md', { type: 'card', parent: '卡片/椭圆.md' });
-  eccentricity = evaluate(eccentricity, '2026-09-22', [observed('needs_practice', '由离心率反推参数')]);
+  eccentricity = evaluate(eccentricity, '2026-09-22', 'missed', '由离心率反推参数');
   const documents = [
     page('卡片/圆锥曲线.md', { type: 'card', tags: ['总览'] }),
     page('卡片/椭圆.md', { type: 'card', parent: '卡片/圆锥曲线.md' }),
@@ -109,7 +118,7 @@ test('parents aggregate every leaf descendant, whatever the filter or expansion 
 
 test('undoing the only evaluation returns the leaf to the prior', () => {
   const card = page('卡片/单卡.md', { type: 'card' });
-  const evaluated = evaluate(card, '2026-09-20', [observed('demonstrated')]);
+  const evaluated = evaluate(card, '2026-09-20', 'done');
   const undone = doc(card.path, undoReviewContent(evaluated, { at: '2026-09-20T05:00:00.000Z' }));
   const graph = buildVaultGraph([undone], []);
   assert.deepEqual(reviewState(undone), reviewState(card));
@@ -130,7 +139,7 @@ test('store.learningStars() re-reads the cards, follows new evidence and writes 
     assert.equal(first['卡片/单调性.md'].observed, false);
     assert.equal(first['卡片/函数.md'].coverage, 0);
 
-    const evaluated = evaluate(empty, '2026-09-24', [observed('demonstrated', '由导数符号判断单调区间')]);
+    const evaluated = evaluate(empty, '2026-09-24', 'done', '由导数符号判断单调区间');
     await writeFile(join(root, '卡片/单调性.md'), evaluated.content);
     const second = (await store.learningStars()).nodes;
     close(second['卡片/单调性.md'].probability, 0.6);

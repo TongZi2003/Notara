@@ -1,9 +1,14 @@
 import { basename,join,resolve } from 'node:path';
-import { safeRelativePath,parseMarkdownDocument,revisionFor,resolveVaultRoot } from './vault.js';
-import { mediaForPath } from './media.js';
+import { safeRelativePath,parseMarkdownDocument,revisionFor,resolveVaultRoot,deepFreeze,pathKey,portablePath } from './vault.js';
+import { isToolCacheDirectory, mediaForPath } from './media.js';
 
 const MAX_FILE_BYTES=50*1024*1024, MAX_TEXT_BYTES=2*1024*1024;
 const fail=code=>{throw new Error(code);};
+// Pages parsed by earlier scans, keyed by resolved path and the native version
+// token (inode, size, nanosecond mtime/ctime). A scan still stats every file and
+// records the observation; only files whose version changed are read again.
+const SCAN_CACHE_LIMIT=50000;
+const scanCache=new Map();
 
 export function vaultScopes(ctx,exec,scope='current') {
   const cwd=exec.agent?.session?.header?.cwd;
@@ -41,7 +46,7 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
   async function target(path) {
     checkAbort();
     const value=safeRelativePath(path);
-    if(value.split('/').some(part=>part.startsWith('.')||part==='node_modules')||value.startsWith('_templates/')) fail('vault_path_invalid');
+    if(value.split('/').some(part=>part.startsWith('.')||pathKey(part)==='node_modules')||pathKey(value.split('/')[0])==='_templates') fail('vault_path_invalid');
     let absolute=rootPath;
     for(const part of value.split('/')){
       absolute=join(absolute,part);
@@ -88,6 +93,20 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
     return {path,title:basename(path),kind:'asset',assetKind:media.kind,mime:media.mime,revision:data.revision,bytes:data.bytes,workspaceId:workspace.id,ref:sourceRef(workspace.id,path,data.revision)};
   }
 
+  async function cachedRead(path,t,info) {
+    const key=t?.targetKey??t,hit=scanCache.get(key);
+    if(hit&&info.version!==undefined&&hit.version===info.version&&hit.workspaceId===workspace.id){
+      ctx.emit?.('fs/observed',t,{kind:'present',version:info.version},exec);
+      return hit.document;
+    }
+    const document=deepFreeze(await read(path));
+    if(info.version!==undefined){
+      scanCache.delete(key);scanCache.set(key,{version:info.version,workspaceId:workspace.id,document});
+      if(scanCache.size>SCAN_CACHE_LIMIT)scanCache.delete(scanCache.keys().next().value);
+    }
+    return document;
+  }
+
   async function scan({includeContent=true,limit=1000}={}) {
     checkAbort();
     const rootInfo=await fs.lstat(rootPath,undefined,signal);
@@ -99,7 +118,7 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
       for(const entry of await fs.listDir(directory,signal)) {
         checkAbort();
         if(files.length>=limit){truncated=true;return;}
-        if(entry.name.startsWith('.')||entry.name==='_templates'||entry.name==='node_modules') continue;
+        if(entry.name.startsWith('.')||entry.name==='_templates'||isToolCacheDirectory(entry.name)) continue;
         const path=prefix?`${prefix}/${entry.name}`:entry.name;
         try{
           const t=await target(path),info=await fs.stat(t,signal);
@@ -107,7 +126,7 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
           if(info?.type!=='file') continue;
           const row={path,title:entry.name,kind:path.toLowerCase().endsWith('.md')?'page':'asset',size:info.size??null};
           files.push(row);
-          if(includeContent&&row.kind==='page') documents.push(await read(path));
+          if(includeContent&&row.kind==='page') documents.push(await cachedRead(path,t,info));
         }catch(error){if(error.name==='AbortError') throw error;errors.push({path,code:error.message});}
       }
     }
@@ -129,6 +148,7 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
       if(current.revision!==expectedRevision) fail('vault_revision_conflict');
       expected={kind:'replaceIfVersion',version:current.nativeVersion};
     }else if(expectedRevision!==null) fail('vault_revision_conflict');
+    else portablePath(path);
     const policy=editorWorkspace||bound?{mode:'workspace-write',workspaceRoot:workspace.path}:ctx.get?.('sandboxPolicy')?.resolve({session:exec.agent.session,mode:'workspace-write'})??{mode:'workspace-write',workspaceRoot:workspace.path};
     try{
       const result=await fs.writeText(t,content,expected,signal,policy);

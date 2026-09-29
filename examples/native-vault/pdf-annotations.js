@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { lstat, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
+import { pathSegments } from './vault.js';
 
 /**
  * PDF 图层 / 矩形高亮批注持久化（native vault 配套模块）。
@@ -302,7 +303,7 @@ export function createPdfAnnotationStore(vaultRoot) {
 
   async function rejectSymlinkPath(target) {
     let cursor = rootPath;
-    const parts = relative(rootPath, target).split('/').filter(Boolean);
+    const parts = pathSegments(rootPath, target);
     for (const [index, part] of parts.entries()) {
       cursor = join(cursor, part);
       try {

@@ -23,7 +23,9 @@ test('browser login tolerates accumulated localhost cookies without bypassing au
     expect((await request(`${origin}/?token=invalid`, { headers: { cookie: oldCookies } })).status).toBe(401);
     const login = await request(runtime.authUrl, { headers: { cookie: oldCookies } });
     expect(login.status).toBe(303);
-    expect(login.headers.get('location')).toBe('/');
+    // DSH 0.2.0 redirects with a relative `./`: it must land on the root, without the token.
+    const landing = new URL(login.headers.get('location') ?? '', runtime.authUrl);
+    expect([landing.origin, landing.pathname, landing.search]).toEqual([origin, '/', '']);
     const sessionCookie = login.headers.getSetCookie().find(value => value.startsWith('dsh-auth-'));
     expect(sessionCookie).toContain('HttpOnly; SameSite=Strict');
     const cookie = `${oldCookies}; ${sessionCookie!.split(';')[0]}`;

@@ -18,7 +18,7 @@
 import { CANVAS_CSS, LESSON_ROLES, createVaultCanvas } from './canvas-client.js';
 import { VIEW_IDS } from './views-client.js';
 import { mediaLocatorSuffix, parseMediaTarget } from './media.js';
-import { createVaultClient } from './remote-client.js';
+import { createVaultClient, visibleInterval } from './remote-client.js';
 import { STAR_CSS, createStarMap, routeStarLayout } from './star-map-client.js';
 import { routeForestLayout } from './forest-client.js';
 
@@ -200,7 +200,9 @@ export function lessonLogTarget(hit) {
   return hit?.path ? summaryTarget({ path: hit.path, anchor: hit.anchor }) : '';
 }
 
-export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirrorMarkdown,askTeacher:requestTeacher }) {
+// openLesson shows the lesson itself: opening only the native session would leave
+// the plan on screen with the lesson behind it.
+export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirrorMarkdown,askTeacher:requestTeacher, EmptyState, openLesson: showLesson = (ctx, sessionId) => ctx.uiWorkspace.openSession(sessionId) }) {
   const h = React.createElement;
   const { useState, useEffect, useMemo, useRef } = React;
   const { useRemembered, NodeMark, Board } = createVaultCanvas(React, { STYLE, IconButton });
@@ -228,11 +230,11 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
     useEffect(() => {
       if (!visible) return;
       void call.current();
-      const timer = setInterval(() => { void call.current(); }, 2500);
+      const timer = visibleInterval(() => { void call.current(); }, 2500);
       const refresh = () => { void call.current(); };
       window.addEventListener('notara-vault-changed', refresh);
       window.addEventListener('focus', refresh);
-      return () => { clearInterval(timer); window.removeEventListener('notara-vault-changed', refresh); window.removeEventListener('focus', refresh); };
+      return () => { timer(); window.removeEventListener('notara-vault-changed', refresh); window.removeEventListener('focus', refresh); };
     }, [vault, visible]);
     return [state, () => call.current()];
   }
@@ -260,6 +262,9 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
     const routes = state.data?.routes ?? [];
     const route = routes.find(item => item.path === selectedPath) ?? routes[0];
     useEffect(() => { if (route && route.path !== selectedPath) setSelectedPath(route.path); }, [route?.path]);
+    // In 计划 the panel lists the routes: follow its choice and report ours back.
+    useEffect(() => { if (props.routePath && props.routePath !== selectedPath) { setSelectedPath(props.routePath); setSelected(''); } }, [props.routePath]);
+    useEffect(() => { if (route?.path) props.onRouteChange?.(route.path); }, [route?.path]);
     useEffect(() => {
       let live = true;
       const load = async () => {
@@ -344,13 +349,13 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
     const openLesson = async (repeat=false) => {
       if (!lesson || busy) return;
       setNotice('');
-      if (lesson.sessionId&&!repeat) { props.ctx.sessions.open(lesson.sessionId); return; }
+      if (lesson.sessionId&&!repeat) { showLesson(props.ctx, lesson.sessionId); return; }
       setBusy(true);
       try {
         const result = await vault.openRouteLesson({ path: route.path, nodeId: lesson.id, expectedRevision: route.revision, repeat });
         if (!result?.ok) { setNotice('这节课暂时打不开，请稍后重试。'); return; }
         await props.ctx.sessions.refresh();
-        props.ctx.sessions.open(result.value.sessionId);
+        showLesson(props.ctx, result.value.sessionId);
       } catch { setNotice('这节课暂时打不开，请稍后重试。'); }
       finally { setBusy(false); }
     };
@@ -408,9 +413,12 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
 
     const sequenceCount = projection.edges.filter(edge => edge.kind === 'sequence').length;
     const edgeKinds = new Set(projection.edges.map(edge => edge.kind));
-    const status = notice || state.error || (state.loading && !routes.length ? '正在读取…' : route
+    // Before any route has been read the page itself says why it is empty: still
+    // reading, or the read failed (with 重试) — never "no routes yet".
+    const readFailed = !routes.length && !!state.error, reading = !routes.length && state.loading && !readFailed;
+    const status = notice || (readFailed || reading ? '' : state.error || (route
       ? `${projection.nodes.length} 节课 · ${sequenceCount} 段接续${projection.nodes.length > visibleNodes.length ? ` · 显示 ${visibleNodes.length} 节` : ''}`
-      : '还没有学习路线');
+      : '还没有学习路线'));
 
     // 路线总述 comes from the route page itself and is folded by default: one
     // body, no second copy of the plan in local state.
@@ -430,8 +438,13 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
               h('span', null, [day(hit.throughAt), (hit.subjects ?? []).join('、')].filter(Boolean).join(' · ')),
               hit.continuation && h('span', { style: { color: 'var(--dsw-alias-label-secondary)' } }, hit.continuation)))));
     /** 三种真实的空态各有各的说法，也能各自新建一条路线。 */
-    const emptyState = !routes.length && !state.loading
-      ? h('div', { style: STYLE.empty }, h('p', { style: { marginBottom: 14 } }, '还没有学习路线。'), btn('新建路线', () => setCreating(true)))
+    const emptyState = readFailed
+      ? h('div', { style: STYLE.empty }, h('p', { role: 'alert', style: { marginBottom: 14 } }, state.error), btn('重试', () => window.dispatchEvent(new Event('notara-vault-changed'))))
+      : reading ? h('div', { style: STYLE.empty }, h('p', { role: 'status' }, '正在读取…'))
+      : !routes.length
+      ? (EmptyState ? h(EmptyState, { kind: 'routes', onAction: [() => props.onPlanInConversation?.(), () => setCreating(true)] }) : h('div', { style: STYLE.empty }, h('p', { style: { marginBottom: 14 } }, '还没有学习路线。'), btn('新建路线', () => setCreating(true))))
+      : route?.error
+      ? h('div', { style: STYLE.empty }, h('p', { role: 'alert', style: { marginBottom: 14 } }, '这条路线的格式有误，暂时显示不了课程。可以在 Vault 里打开这份文件改正，或者请老师帮忙修复。'), btn('在 Vault 中打开', () => props.openView(VIEW_IDS.assets, route.path)))
       : !projection.nodes.length
         ? h('div', { style: STYLE.empty }, h('p', { style: { marginBottom: 14 } }, '这条路线还没有课程。'), btn('新建路线', () => setCreating(true)))
         : !visibleNodes.length
@@ -511,7 +524,7 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
     const percent = (count, total) => total ? `${Math.round(count / total * 100)}%` : '0';
     /** 路线列表 keeps every route visible with its real counts, so 已有小结 can
      * never be read as 已掌握 and an empty route says 0 节课. */
-    const rail = railRows.length ? h('nav', { className: 'nv-route-rail', 'aria-label': '路线列表' },
+    const rail = !props.global && railRows.length ? h('nav', { className: 'nv-route-rail', 'aria-label': '路线列表' },
       railRows.map(row => h('button', { key: row.route.path, type: 'button', className: 'nv-route-card',
         'aria-current': route?.path === row.route.path, onClick: () => { setSelectedPath(row.route.path); setSelected(''); } },
         h('b', null, row.route.title || row.route.path),

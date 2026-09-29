@@ -14,7 +14,6 @@ test('subject resources are discoverable and a new task-based lesson keeps teach
     await page.goto(runtime.authUrl);
     const later = page.getByRole('button', { name: 'Configure later', exact: true });
     try { await later.waitFor({ timeout: 4000 }); await later.click(); } catch { /* configured test model */ }
-    await page.getByText('Notara Vault', { exact: true }).first().click();
     const composer = page.locator('[data-composer-input][contenteditable="true"]').last();
     await composer.fill('准备查看教学资源');
     await composer.press('Enter');
@@ -27,7 +26,8 @@ test('subject resources are discoverable and a new task-based lesson keeps teach
     }
     await composer.press('ControlOrMeta+A');
     await composer.press('Backspace');
-    await page.getByRole('tab', { name: '资产', exact: true }).click();
+    await page.getByRole('navigation', { name: '学习导航' }).getByRole('button', { name: 'Vault', exact: true }).click();
+    await page.getByRole('tablist', { name: 'Vault 视图' }).getByRole('tab', { name: '文件', exact: true }).click();
     await page.getByRole('button', { name: '新建页面', exact: true }).click();
     await page.getByLabel('模板', { exact: true }).selectOption('lesson.md');
     await page.getByLabel('页面标题').fill('数组入门');
@@ -49,7 +49,8 @@ test('subject resources are discoverable and a new task-based lesson keeps teach
     await page.reload();
     // The workspace returns to chat on reload. Reopen the saved artifact;
     // this checks folding and persistence, not unrelated tab persistence.
-    await page.getByRole('tab', { name: '资产', exact: true }).click();
+    await page.getByRole('navigation', { name: '学习导航' }).getByRole('button', { name: 'Vault', exact: true }).click();
+    await page.getByRole('tablist', { name: 'Vault 视图' }).getByRole('tab', { name: '文件', exact: true }).click();
     const expand = page.getByRole('button', { name: '展开文件栏', exact: true });
     if (await expand.isVisible()) await expand.click();
     await page.getByRole('button', { name: /数组入门\.md$/ }).click();

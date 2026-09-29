@@ -22,7 +22,7 @@ export interface ApprovalPrompt { toolName: string; callId?: string; reason?: st
 export type ApprovalDecision = 'allowed-once' | 'rejected';
 
 export interface AssembledBlock { type: string; text?: string; id?: string; name?: string; arguments?: string; attachment?: { attachmentId?: string } }
-export interface AssembledMessage { role: string; source?: { kind?: string; plugin?: string; form?: string; entries?: { name?: string }[] }; content: AssembledBlock[] }
+export interface AssembledMessage { role: string; toolCallId?: string; isError?: boolean; source?: { kind?: string; plugin?: string; form?: string; entries?: { name?: string }[] }; content: AssembledBlock[] }
 export interface AssembledRequest {
   sessionId: string | null;
   purpose: string | null;
@@ -111,11 +111,25 @@ export function blocks(request: AssembledRequest): AssembledBlock[] {
   return flat;
 }
 
+export interface AssembledToolResult { toolCallId?: string; isError: boolean; content: AssembledBlock[] }
+/** Every tool result the provider actually received in one request. DSH 0.2.0
+ * sends each as its own `role: 'tool'` message; older requests nested a
+ * `tool-result` block inside a user message. */
+export function toolResults(request: AssembledRequest): AssembledToolResult[] {
+  const results: AssembledToolResult[] = [];
+  for (const message of request.messages) {
+    if (message.role === 'tool') { results.push({ ...(message.toolCallId === undefined ? {} : { toolCallId: message.toolCallId }), isError: message.isError === true, content: message.content }); continue; }
+    for (const block of message.content) if (block.type === 'tool-result') {
+      const nested = block as { toolCallId?: string; isError?: boolean; content?: AssembledBlock[] };
+      results.push({ ...(nested.toolCallId === undefined ? {} : { toolCallId: nested.toolCallId }), isError: nested.isError === true, content: nested.content ?? [] });
+    }
+  }
+  return results;
+}
+
 /** Text of every tool result the provider actually received in one request. */
 export function toolResultTexts(request: AssembledRequest): string[] {
-  return blocks(request)
-    .filter(block => block.type === 'tool-result')
-    .flatMap(block => ((block as { content?: AssembledBlock[] }).content ?? []).filter(inner => inner.type === 'text').map(inner => inner.text ?? ''));
+  return toolResults(request).flatMap(result => result.content.filter(inner => inner.type === 'text').map(inner => inner.text ?? ''));
 }
 
 /** The system prompt snapshot that is in effect for this request: the Host
@@ -220,14 +234,13 @@ export async function connectVault(runtime: VaultRuntime): Promise<VaultHarness>
     const rows: ToolOutcome[] = [];
     for (const record of await records(sessionId)) {
       if (record.type !== 'event' || record.event.type !== 'tool/result') continue;
-      const message = (record.event.data as { message: { content: { isError?: boolean; toolCallId?: string; content: { type: string; text?: string }[] }[] } }).message;
-      const first = message.content[0];
-      if (first === undefined) continue;
+      // Session format v4: the result's call id, error flag and content sit on the message itself.
+      const message = (record.event.data as { message: { toolCallId?: string; isError?: boolean; content: { type: string; text?: string }[] } }).message;
       rows.push({
-        ...(first.toolCallId === undefined ? {} : { callId: first.toolCallId }),
-        ...(first.toolCallId === undefined || !byCallId.has(first.toolCallId) ? {} : { name: byCallId.get(first.toolCallId) as string }),
-        failed: first.isError === true,
-        text: first.content.find(block => block.type === 'text')?.text ?? '',
+        ...(message.toolCallId === undefined ? {} : { callId: message.toolCallId }),
+        ...(message.toolCallId === undefined || !byCallId.has(message.toolCallId) ? {} : { name: byCallId.get(message.toolCallId) as string }),
+        failed: message.isError === true,
+        text: message.content.find(block => block.type === 'text')?.text ?? '',
       });
     }
     return rows;

@@ -30,6 +30,9 @@ export const STAR_CSS = `
 .nv-star-board[data-sky=forest] .nv-star-label{font-weight:500}
 .nv-star-board[data-sky=forest] .nv-star-controls{z-index:100000}
 .nv-star-board[data-sky=forest] .nv-star-group{z-index:99999;transform:translate(-50%,-100%);padding:2px 10px;border-radius:6px;background:#fbf3e3;border:1px solid #d9c09a;box-shadow:0 1px 0 #c8aa7c;letter-spacing:.12em;text-shadow:none}
+/* A 阶段 sign stands on the verge before the stage's first lesson, whose name
+   runs right beside it; hanging the sign to the left keeps the two apart. */
+.nv-star-board[data-sky=forest] .nv-star-group[data-sign=stage]{transform:translate(calc(-100% - 6px),-50%)}
 .nv-star-board:active{cursor:grabbing}
 .nv-star-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
 .nv-star-hit{position:absolute;padding:0;border:0;border-radius:50%;background:transparent;transform:translate(-50%,-50%);cursor:pointer;color:inherit}
@@ -424,9 +427,13 @@ export function createStarMap(React, { STYLE, IconButton }) {
         ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
       };
       // ~30fps while the sky scintillates; under reduced motion the same loop
-      // only repaints a still frame after something changed.
+      // only repaints a still frame after something changed. A pane that is not
+      // shown (another view is in front, or the page is hidden) paints nothing and
+      // repaints once when it comes back.
+      const shown = () => !document.hidden && element.isConnected && !element.parentElement?.closest('[inert]') && (element.checkVisibility?.() ?? element.offsetParent !== null);
       const loop = time => {
         frame = requestAnimationFrame(loop);
+        if (!shown()) { scene.current.dirty = true; return; }
         const nowStill = reduced();
         if (nowStill !== still) { still = nowStill; scene.current.dirty = true; }
         if (still ? !scene.current.dirty : time - last < 32) return;
@@ -457,7 +464,7 @@ export function createStarMap(React, { STYLE, IconButton }) {
       onPointerUp: event => { if (drag.current) event.currentTarget.releasePointerCapture(event.pointerId); drag.current = null; },
       onPointerCancel: () => { drag.current = null; } },
       h('canvas', { ref: canvas, className: 'nv-star-canvas', 'aria-hidden': true }),
-      size.width > 0 && (layout.groups ?? []).map(group => { const p = screen(group); return h('span', { key: group.key, className: 'nv-star-group', style: { left: p.x, top: p.y } }, group.label); }),
+      size.width > 0 && (layout.groups ?? []).map(group => { const p = screen(group); return h('span', { key: group.key, className: 'nv-star-group', 'data-sign': group.key.startsWith('stage:') ? 'stage' : undefined, style: { left: p.x, top: p.y } }, group.label); }),
       size.width > 0 && drawn.map(node => {
         const point = layout.points.get(node.key), p = screen(point); if (!onScreen(p)) return null;
         // A tree stands on its tile: its button covers the tree and its label starts at the ground.
@@ -533,10 +540,10 @@ export function createStarMap(React, { STYLE, IconButton }) {
         ? [row(term, forest ? '已种下银杏' : '已点亮'), light.savedAt && row('完成于', dayOf(light.savedAt)), h('p', { key: 'note' }, `这节课已保存正式小结。${forest ? '银杏' : '点亮'}只表示课程完成过，不表示所有知识点已经掌握。`)]
         : [row(term, forest ? '尚未完成' : '尚未点亮'), h('p', { key: 'note' }, light?.role === 'opened' ? `已经开课，保存正式小结后${forest ? '种下银杏' : '点亮'}。` : '还没有开课。')];
     } else if (!light) body = [h('p', { key: 'note' }, error || (forest ? '正在读取…' : '星光正在读取…'))];
-    else if (light.kind === 'leaf' && light.unreadable) body = [row(term, '无法读取'), h('p', { key: 'note' }, '这张卡片的评估记录格式有问题，请在资产页检查。它不计入上层掌握度。')];
+    else if (light.kind === 'leaf' && light.unreadable) body = [row(term, '无法读取'), h('p', { key: 'note' }, '这张卡片的评估记录格式有问题，请在 Vault 里打开它检查。它不计入上层掌握度。')];
     else if (light.kind === 'leaf') body = light.observed
       ? [row('掌握估计', `约 ${percent(light.probability)}`), meter('m', light.probability), row('评估记录', `${light.evidenceCount} 次`), row('最近证据', dayOf(light.lastEvidenceAt) || '—'), row('证据', light.confidence === 'supported' ? '较充分' : '初步'), h('p', { key: 'note' }, '按这张卡片已记录的能力评估推算，不是考试分数。')]
-      : [row(term, '尚未评估'), h('p', { key: 'note' }, `还没有“已表现出来”或“仍有困难”的评估记录；尚未观察的评估${forest ? '不会让树长大' : '不改变星光'}。`)];
+      : [row(term, '尚未评估'), h('p', { key: 'note' }, `还没有关键一步“做出来”或“没做出来”的记录；“这次没考”${forest ? '不会让树长大' : '不改变星光'}。`)];
     else if (light.kind === 'parent' && light.leafCount) body = [
       state === 'lit' ? row('整体掌握', `约 ${percent(light.mastery)}`) : row(term, '尚未评估'), state === 'lit' && meter('m', light.mastery),
       row('已评估叶子', `${light.observedCount} / ${light.leafCount}`), meter('c', light.coverage), row('评估记录', `${light.evidenceCount} 次`), light.lastEvidenceAt && row('最近证据', dayOf(light.lastEvidenceAt)),

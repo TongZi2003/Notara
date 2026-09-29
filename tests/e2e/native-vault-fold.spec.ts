@@ -48,10 +48,10 @@ test('teacher material folds by default in the reading surfaces and still opens 
     await page.goto(runtime.authUrl);
     const later = page.getByRole('button', { name: 'Configure later', exact: true });
     try { await later.waitFor({ timeout: 8000 }); await later.click(); } catch { /* already acknowledged */ }
-    await page.getByText('Notara Vault', { exact: true }).first().click();
     const composer = page.locator('[data-composer-input][contenteditable="true"], textarea[placeholder]').last();
     await composer.fill('打开资料'); await composer.press('Enter');
-    await page.getByRole('tab', { name: '资产', exact: true }).click();
+    await page.getByRole('navigation', { name: '学习导航' }).getByRole('button', { name: 'Vault', exact: true }).click();
+    await page.getByRole('tablist', { name: 'Vault 视图' }).getByRole('tab', { name: '文件', exact: true }).click();
 
     await openFile(/数列路线\.md$/);
     const note = editor.locator('.cm-vault-teacher').filter({ hasText: '教师参考' }).first();
@@ -87,7 +87,8 @@ test('teacher material folds by default in the reading surfaces and still opens 
     await expect(editor).not.toContainText('独立求解');
     expect(await readFile(cardPath, 'utf8')).toBe(originalCard);
 
-    await page.getByRole('tab', { name: '路线', exact: true }).click();
+    await page.getByRole('navigation', { name: '学习导航' }).getByRole('button', { name: '计划', exact: true }).click();
+    await page.getByRole('tablist', { name: '计划视图' }).getByRole('tab', { name: '路线', exact: true }).click();
     await page.getByLabel('学习路线', { exact: true }).selectOption('路线/数列路线.md');
     const overview = page.locator('.nv-route-overview');
     await overview.locator('summary').first().click();
@@ -100,6 +101,7 @@ test('teacher material folds by default in the reading surfaces and still opens 
     await expect(overview.getByRole('button', { name: '编辑教师内容' })).toHaveCount(0);
     // Return the canvas to the visible area after inspecting the long overview.
     await overview.locator('summary').first().click();
+    await page.getByRole('group', { name: '路线视图' }).getByRole('button', { name: '图谱', exact: true }).click();
     await page.getByRole('button', { name: '居中', exact: true }).click();
     await page.locator('.nv-graph-node').filter({ hasText: '基础练习' }).click();
     const brief = page.locator('.nv-route-brief');

@@ -23,18 +23,21 @@ const paths = {
   chat:'M21 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 19 0Z', graph:'M12 5 5 19m7-14 7 14M5 19h14M10 3h4v4h-4zM3 17h4v4H3zM17 17h4v4h-4z',
   upload:'M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5', save:'M19 21H5l-2-2V3h15l3 3v13zM7 3v6h10V3M7 21v-8h10v8', refresh:'M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 6M4 12l2 6a7 7 0 0 0 12-1',
   copy:'M8 8h13v13H8zM16 8V3H3v13h5', extract:'M4 3h16v18H4zM8 7h8M8 11h8M8 15h4', left:'m15 5-7 7 7 7', right:'m9 5 7 7-7 7', minus:'M5 12h14', fit:'M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5', target:'M12 2v4M12 18v4M2 12h4M18 12h4M19 12a7 7 0 1 1-14 0 7 7 0 0 1 14 0', filter:'M3 4h18l-7 8v7l-4 2v-9z', book:'M3 4h7l2 2 2-2h7v16h-7l-2 2-2-2H3z',
-  folder:'M3 7V5h6l2 2h10v13H3z', sliders:'M4 8h9M17 8h3M4 16h3M11 16h9M15 5v6M7 13v6', log:'M5 4h14v16H5zM8 9h8M8 13h8M8 17h5',
+  folder:'M3 7V5h6l2 2h10v13H3z', sliders:'M4 8h9M17 8h3M4 16h3M11 16h9M15 5v6M7 13v6', log:'M5 4h14v16H5zM8 9h8M8 13h8M8 17h5', timer:'M12 8v4l2.5 2.5M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM10 2h4',
   calendar:'M4 5h16v16H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2',
-  trash:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7', layers:'M12 3 2 8l10 5 10-5-10-5ZM2 12l10 5 10-5M2 16l10 5 10-5',
+  trash:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7',
+  home:'M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z', clock:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
+  books:'M5 4h4v16H5zM10 4h4v16h-4zM15 5l3.5-1 3 15-3.5 1z', sparkle:'M12 3l2.2 5.3L20 9l-4.3 3.8L17 18.5 12 15.6 7 18.5l1.3-5.7L4 9l5.8-.7z',
+  route:'M6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 18h5a3 3 0 0 0 0-6h-2a3 3 0 0 1 0-6h5', layers:'M12 3 2 8l10 5 10-5-10-5ZM2 12l10 5 10-5M2 16l10 5 10-5',
 };
 export function createVaultUI(React) {
   const h = React.createElement;
   function Icon({ name }) { return h('svg', { width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.6,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':true },h('path',{d:paths[name] ?? paths.more})); }
   function IconButton({ icon, label, ...props }) { return h('button',{type:'button',className:'nv-icon',title:label,'aria-label':label,...props},h(Icon,{name:icon})); }
-  function Menu({ label='更多操作', items }) {
+  function Menu({ label='更多操作', icon='more', items }) {
     const [open,setOpen] = React.useState(false), root=React.useRef(null);
     React.useEffect(()=>{if(!open)return; const dismiss=e=>{if(!root.current?.contains(e.target))setOpen(false);};const key=e=>{if(e.key==='Escape')setOpen(false);};window.addEventListener('pointerdown',dismiss);window.addEventListener('keydown',key);return()=>{window.removeEventListener('pointerdown',dismiss);window.removeEventListener('keydown',key);};},[open]);
-    return h('div',{className:'nv-popover',ref:root},h(IconButton,{icon:'more',label,'aria-expanded':open,'aria-haspopup':'menu',onClick:()=>setOpen(v=>!v)}),open&&h('div',{className:'nv-popover-panel',role:'menu'},items.filter(Boolean).map(item=>h('button',{key:item.label,role:'menuitem',disabled:item.disabled,onClick:()=>{setOpen(false);item.run();}},item.label))));
+    return h('div',{className:'nv-popover',ref:root},h(IconButton,{icon,label,'aria-expanded':open,'aria-haspopup':'menu',onClick:()=>setOpen(v=>!v)}),open&&h('div',{className:'nv-popover-panel',role:'menu'},items.filter(Boolean).map(item=>h('button',{key:item.label,role:'menuitem',disabled:item.disabled,onClick:()=>{setOpen(false);item.run();}},item.label))));
   }
   function Dialog({title,onClose,children}) {
     const ref=React.useRef(null);

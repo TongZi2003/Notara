@@ -21,7 +21,7 @@ async function setup(t) {
   const ctx=new Context();
   ctx.reflect.provide('workspaceRegistry',{list:()=>[{id:'io-workspace',path:root,title:'测试'}]});
   new LocalFileSystem(ctx,{cwd:root,diffBasisMaxBytes:10*1024*1024});
-  const session=Session.create('io-session',[],{version:3,id:'io-session',createdAt:Date.now(),isSeeded:false,cwd:root});
+  const session=Session.create('io-session',[],{version: 4,id:'io-session',createdAt:Date.now(),isSeeded:false,cwd:root});
   return {root,ctx,exec:{agent:{session},signal:new AbortController().signal}};
 }
 
@@ -100,4 +100,20 @@ test('an unregistered session workspace cannot silently create a separate Vault'
   const {ctx,exec}=await setup(t);
   ctx.workspaceRegistry.list=()=>[];
   assert.throws(()=>module.createAgentVaultIO(ctx,exec,{writeApproved:true}),/vault_scope_unavailable/);
+});
+
+test('repeated scans reuse unchanged pages, still record each observation and see edits', async t => {
+  const {root,ctx,exec}=await setup(t);
+  await writeFile(join(root,'vault/a.md'),'# A\n\nalpha');
+  const observed=[],emit=ctx.emit.bind(ctx);
+  ctx.emit=(name,...rest)=>{if(name==='fs/observed')observed.push(rest[0]);return emit(name,...rest);};
+  const io=module.createAgentVaultIO(ctx,exec);
+  const first=await io.scan(),second=await io.scan();
+  const pick=scan=>scan.documents.find(doc=>doc.path==='a.md');
+  assert.equal(pick(second),pick(first),'an unchanged page is served from the cache');
+  assert.equal(observed.filter(target=>String(target?.targetKey??target).endsWith('/a.md')).length,2,'the cached page is still recorded as observed');
+  await writeFile(join(root,'vault/a.md'),'# A\n\nALPHA');
+  const third=await io.scan();
+  assert.match(pick(third).content,/ALPHA/);
+  assert.notEqual(pick(third).revision,pick(first).revision);
 });

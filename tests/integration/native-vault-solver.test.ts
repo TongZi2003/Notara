@@ -22,17 +22,17 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { startVaultIsolated, type VaultRuntime } from '../../scripts/dev-isolated.ts';
-import { blocks, connectVault, effectiveSystemText, outcomeJson, toolNames, toolResultTexts, type AssembledRequest, type VaultHarness } from '../fixtures/vault-http.ts';
+import { blocks, connectVault, effectiveSystemText, outcomeJson, toolNames, toolResults, toolResultTexts, type AssembledRequest, type VaultHarness } from '../fixtures/vault-http.ts';
 import {
-  VAULT_SOLVER_AMBIGUOUS_ENV, VAULT_SOLVER_AMBIGUOUS_PROVIDER, VAULT_SOLVER_MODEL, VAULT_SOLVER_PROVIDER, VAULT_SOLVER_REPLY_KEY,
+  VAULT_SOLVER_AMBIGUOUS_ENV, VAULT_SOLVER_AMBIGUOUS_PROVIDER, VAULT_SOLVER_MODEL, VAULT_SOLVER_PROVIDER, VAULT_SOLVER_REPLY_KEY, workerPresetOf,
   VAULT_TEST_MODEL, VAULT_TEST_PROVIDER,
 } from '../../scripts/fixtures/vault-test-model.ts';
 
 interface SolverRoute { provider: string; model: string; reasoningEffort?: string | null; maxTokens?: number }
-interface SolverView { name: string; description: string; preferredModel: string; route: SolverRoute | null; ready: boolean; reason?: string }
+interface SolverView { name: string; description: string; route: SolverRoute | null; follow: boolean; scope: 'lesson' | 'default' | 'none'; ready: boolean; reason?: string }
 interface ModelRow { provider: string; model: string; label: string; reasoningEfforts: string[] }
 interface TaskRow { id: string; status: string; startedAt?: string; finishedAt?: string; inspectable?: boolean }
-interface ClassroomView { revision: number; teacher: { name: string; description: string }; workers: (SolverView & {id: string; tools: string; persona: string})[]; models: ModelRow[]; tasks: TaskRow[] }
+interface ClassroomView { revision: number; defaultsRevision: number | null; teacher: { name: string; description: string }; teacherRoute: (SolverRoute & { label: string }) | null; workers: (SolverView & {id: string; tools: string; persona: string})[]; models: ModelRow[]; tasks: TaskRow[] }
 interface SessionRowWithParent { sessionId: string; running?: boolean; origin?: string; parentSessionId?: string }
 interface SolverOutcome { taskId?: string; status?: string; analysis?: string }
 /** The Host's own parent/child binding for one solver task (查看分析). */
@@ -72,8 +72,9 @@ async function childSessions(client: VaultHarness, sessionId: string): Promise<S
   const rows = await client.sessions() as unknown as SessionRowWithParent[];
   return rows.filter(row => row.parentSessionId === sessionId && row.origin === 'subagent');
 }
-function isSolverRoute(request: AssembledRequest): boolean {
-  return request.provider === VAULT_SOLVER_PROVIDER || request.provider === VAULT_SOLVER_AMBIGUOUS_PROVIDER;
+/** A worker's request starts from the task the Host handed over, under its role's system prompt. */
+function isWorkerRequest(request: AssembledRequest): boolean {
+  return workerPresetOf(request.messages) !== undefined;
 }
 function reasoningEffortOf(request: AssembledRequest): string | null {
   const value = (request as unknown as { reasoningEffort?: string | null }).reasoningEffort;
@@ -109,7 +110,7 @@ test('五预设真实请求使用独立人格与配置；只读工作员能读�
   const outcomes = (await harness.outcomes(session)).filter(row => row.name === 'ask_worker');
   expect(outcomes).toHaveLength(5);
   expect(outcomes.every(row => !row.failed), outcomes.map(row => row.text).join('\n')).toBe(true);
-  const requests = (await harness.requests()).filter(row => isSolverRoute(row) && !row.purpose);
+  const requests = (await harness.requests()).filter(row => isWorkerRequest(row) && !row.purpose);
   const childIds = [...new Set(requests.map(row => row.sessionId))];
   expect(childIds).toHaveLength(5);
   for (const preset of Object.keys(names)) {
@@ -124,7 +125,7 @@ test('五预设真实请求使用独立人格与配置；只读工作员能读�
     // classroom hides them; this boundary is deliberately not changed.
     expect(toolNames(group[0]!).sort()).toEqual(preset === 'general' ? ['glob', 'grep', 'read', 'read_image'] : []);
     if (preset === 'general') {
-      const result = blocks(group.at(-1)!).filter(block => block.type === 'tool-result');
+      const result = toolResults(group.at(-1)!);
       expect(result).toHaveLength(3);
       expect(result[0]).toMatchObject({ isError: false });
       expect(JSON.stringify(result[0])).toContain('WORKER_READ_EVIDENCE');
@@ -162,7 +163,7 @@ test('六科与旧领域关注只进入显式选择的知识工作员请求', as
   expect(outcomes).toHaveLength(subjects.length);
   expect(outcomes.every(row => !row.failed), outcomes.map(row => row.text).join('\n')).toBe(true);
   const requests = (await harness.requests()).filter(row => !row.purpose);
-  const children = requests.filter(isSolverRoute);
+  const children = requests.filter(isWorkerRequest);
   expect(new Set(children.map(row => row.sessionId)).size).toBe(subjects.length);
   for (const [index, id] of subjects.entries()) {
     const child = children.find(row => row.messages.some(message => message.role === 'user' && message.content.some(block => block.text?.includes(`研究${id}限定知识单元`))));
@@ -203,10 +204,7 @@ test('原生参数解析失败能定位JSON错误，修正后只启动一个独�
   expect(children).toHaveLength(1);
   const childRequest = (await harness.requests()).find(row => row.sessionId === children[0]!.sessionId)!;
   expect(childRequest.toolSchemas).toEqual([]);
-  expect(childRequest.messages.flatMap(row => row.content).some(block => {
-    if (block.type !== 'text') return false;
-    try { return JSON.parse(block.text ?? '').preset === 'problem'; } catch { return false; }
-  })).toBe(true);
+  expect(workerPresetOf(childRequest.messages)).toBe('problem');
   expect(toolResultTexts(turns.at(-1)!).join('\n')).toContain('学生理解');
   expect((await classroomOf(harness, session)).tasks).toHaveLength(1);
 }, 300_000);
@@ -227,7 +225,9 @@ test('解题请求实际收到原页图像与独立预算；原文件变更后�
   const child = (await harness.requests()).find(row => row.sessionId === children[0]!.sessionId)!;
   expect(child, '真实子请求不存在').toBeDefined();
   expect((child as AssembledRequest & { maxTokens: number }).maxTokens).toBe(32768);
-  expect(reasoningEffortOf(child)).toBe('high');
+  // Nothing saved: the worker follows the teacher's model and effort.
+  expect(child).toMatchObject({ provider: VAULT_TEST_PROVIDER, model: VAULT_TEST_MODEL });
+  expect(reasoningEffortOf(child)).toBe(null);
   expect(child.toolSchemas).toEqual([]);
   const images = child.messages.flatMap(row => row.content).filter(block => block.type === 'image');
   expect(images).toHaveLength(1);
@@ -239,7 +239,7 @@ test('解题请求实际收到原页图像与独立预算；原文件变更后�
   await configure(harness, session, view.revision, { provider: VAULT_SOLVER_PROVIDER, model: VAULT_SOLVER_MODEL, reasoningEffort: 'high', maxTokens: 49152 });
   await script(harness, { '继续核对另一题。': [{ name: 'ask_worker', arguments: { preset: 'problem', goal: '求1+1。' } }], [VAULT_SOLVER_REPLY_KEY]: '2。' });
   await harness.ask(session, '继续核对另一题。');
-  const next = (await harness.requests()).filter(isSolverRoute).at(-1)!;
+  const next = (await harness.requests()).filter(isWorkerRequest).at(-1)!;
   expect((next as AssembledRequest & { maxTokens: number }).maxTokens).toBe(49152);
 
   await writeFile(pdfPath, Buffer.concat([bytes, Buffer.from('\n% revised fixture\n')]));
@@ -264,20 +264,21 @@ test('教室 RPC 只投影双角色、模型清单与任务状态；解题者工
   expect(view.workers.map(row => row.id)).toEqual(['problem', 'lesson', 'review', 'general', 'exercise']);
   expect(view.workers[0]!.name.length).toBeGreaterThan(0);
   expect(view.workers[0]!.description.length).toBeGreaterThan(0);
-  expect(view.workers[0]!.preferredModel).toBe(VAULT_SOLVER_MODEL);
-  // Unconfigured must still resolve to the model the contract names: the
-  // projection may keep no route or materialize the default one, never a different model.
-  expect(view.workers[0]!.route === null || view.workers[0]!.route.model === VAULT_SOLVER_MODEL, JSON.stringify(view.workers[0]!.route)).toBe(true);
+  // Nothing saved anywhere: the worker follows the teacher, and says so.
+  expect(view.workers[0]).toMatchObject({ route: null, follow: true, scope: 'none' });
   expect(view.workers[0]!.ready, `default worker route is not ready: ${view.workers[0]!.reason ?? ''}`).toBe(true);
+  // The lesson has not sent a request yet, so the teacher's model is not known; the shared defaults are empty.
+  expect(view.teacherRoute).toBe(null);
+  expect(view.defaultsRevision).toBe(0);
   expect(view.tasks).toEqual([]);
   // The value is authority only: no answer, no child id, no internal path.
-  expect(Object.keys(view).sort()).toEqual(['models', 'revision', 'tasks', 'teacher', 'workers']);
+  expect(Object.keys(view).sort()).toEqual(['defaultsRevision', 'models', 'revision', 'tasks', 'teacher', 'teacherRoute', 'workers']);
   expect(unexpectedKeys(view.teacher, ['name', 'description'])).toEqual([]);
-  for (const worker of view.workers) expect(unexpectedKeys(worker, ['id', 'name', 'description', 'preferredModel', 'route', 'ready', 'reason', 'tools', 'persona'])).toEqual([]);
+  for (const worker of view.workers) expect(unexpectedKeys(worker, ['id', 'name', 'description', 'route', 'follow', 'scope', 'ready', 'reason', 'tools', 'persona'])).toEqual([]);
   // 工作员人格的旧缺省是空串：没配置时只用角色职责，不凭空多出一段风格。
   expect(view.workers.every(row => row.persona === '')).toBe(true);
   for (const task of view.tasks) {
-    expect(unexpectedKeys(task, ['id', 'preset', 'name', 'status', 'startedAt', 'finishedAt', 'inspectable'])).toEqual([]);
+    expect(unexpectedKeys(task, ['id', 'preset', 'name', 'status', 'startedAt', 'finishedAt', 'inspectable', 'failureCode'])).toEqual([]);
     expect(task.finishedAt, '未完成的任务不应带完成时间').toBeUndefined();
   }
   // The model list is the Host's own registered routes, not a client-side copy.
@@ -301,8 +302,9 @@ test('教室 RPC 只投影双角色、模型清单与任务状态；解题者工
   // The main teacher reads and searches through native Bash; the native text
   // rows are hidden from it. The child above keeps its own read-only surface.
   expect(teacherTools).toContain('bash');
-  for (const hidden of ['read', 'write', 'edit', 'glob', 'grep']) {
-    expect(teacherTools, `教学会话仍挂着原生文本工具 ${hidden}`).not.toContain(hidden);
+  // Native search stays hidden; read/write/edit remain for code files only (guarded).
+  for (const hidden of ['glob', 'grep']) {
+    expect(teacherTools, `教学会话仍挂着原生检索工具 ${hidden}`).not.toContain(hidden);
   }
   for (const bypass of ['subagent', 'subagent_fork', 'send_message', 'interrupt_agent']) {
     expect(teacherTools, `教学会话仍挂着通用委派工具 ${bypass}`).not.toContain(bypass);
@@ -315,7 +317,7 @@ test('教室 RPC 只投影双角色、模型清单与任务状态；解题者工
   expect(plainTools).not.toContain('ask_worker');
 }, 300_000);
 
-test('解题者是零工具独立 spawn：默认用 gpt-5.6-sol，父私密上下文不进子，结果回父且投影不含解答', async () => {
+test('解题者是零工具独立 spawn：默认跟随老师的模型，父私密上下文不进子，结果回父且投影不含解答', async () => {
   runtime = await startVaultIsolated({ testModel: true });
   harness = await connectVault(runtime);
   const session = await harness.createSession();
@@ -337,14 +339,15 @@ test('解题者是零工具独立 spawn：默认用 gpt-5.6-sol，父私密上�
   const childRequests = (await harness.requests()).filter(request => request.sessionId === children[0]!.sessionId);
   expect(childRequests.length).toBeGreaterThan(0);
   for (const request of childRequests) {
-    // Default resolution picks the exact model the contract prefers, on its own route.
-    expect(request, JSON.stringify(childRequests.map(row => [row.provider, row.model]))).toMatchObject({ provider: VAULT_SOLVER_PROVIDER, model: VAULT_SOLVER_MODEL });
+    // Nothing saved: the worker runs on the teacher's own route.
+    expect(request, JSON.stringify(childRequests.map(row => [row.provider, row.model]))).toMatchObject({ provider: VAULT_TEST_PROVIDER, model: VAULT_TEST_MODEL });
     // The child never sees the parent's turn, its persona, or a tool.
     expect(JSON.stringify(request)).not.toContain(PARENT_ONLY_MARKER);
     expect(effectiveSystemText(request), '解题者子会话继承了教师 persona').not.toContain('你是教学者');
     expect(request.toolSchemas, '解题者子会话拿到了工具').toEqual([]);
   }
-  expect(childRequests.some(request => request.model === VAULT_TEST_MODEL)).toBe(false);
+  // The teacher's model after it spoke is what the classroom now names for the worker.
+  expect((await classroomOf(harness, session)).teacherRoute).toMatchObject({ provider: VAULT_TEST_PROVIDER, model: VAULT_TEST_MODEL });
 
   // The answer comes back to the teacher as this tool's result, on the next assembled request.
   const outcome = (await harness.outcomes(session)).find(row => row.name === 'ask_worker');
@@ -426,6 +429,28 @@ test('解题者路由按教室配置生效；没有匹配模型时明确失败�
   }
 }, 300_000);
 
+test('工作员的模型调用不了时如实报出提供方原因，归为模型不可用并要求不原样重试', async () => {
+  runtime = await startVaultIsolated({ testModel: true });
+  harness = await connectVault(runtime);
+  const session = await harness.createSession();
+  // The worker's provider refuses every request, as an added-but-never-authenticated
+  // provider does (the scripted worker reply is a provider refusal).
+  await script(harness, {
+    '请研究员看这道题。': [{ name: 'ask_worker', arguments: { preset: 'problem', goal: '求 1+1。' } }],
+    [VAULT_SOLVER_REPLY_KEY]: { fail: { message: `Provider is not configured: ${VAULT_SOLVER_PROVIDER}`, code: 'PI_AI_ERROR' } },
+  });
+  await harness.ask(session, '请研究员看这道题。');
+  const outcome = (await harness.outcomes(session)).filter(row => row.name === 'ask_worker').at(-1);
+  expect(outcome?.failed, outcome?.text).toBe(true);
+  expect(outcome?.text).toContain('solver_model_unavailable');
+  expect(outcome?.text).toContain(`Provider is not configured: ${VAULT_SOLVER_PROVIDER}`);
+  expect(outcome?.text).toContain('教室设置');
+  expect(outcome?.text).toContain('不要原样重试');
+  const task = (await classroomOf(harness, session)).tasks.at(-1) as TaskRow & { failureCode?: string };
+  expect(task?.status).toBe('failed');
+  expect(task?.failureCode, 'the classroom shows why the task failed').toBe('solver_model_unavailable');
+}, 300_000);
+
 test('原生中断取消：任务终结、没有成功解答回到教师、迟到结果不再投递', async () => {
   runtime = await startVaultIsolated({ testModel: true });
   harness = await connectVault(runtime);
@@ -441,7 +466,7 @@ test('原生中断取消：任务终结、没有成功解答回到教师、迟�
   }));
   // Cancel a task that really dispatched: poll until the child's own request
   // exists, so cancellation hits a running child instead of the spawn window.
-  await expect.poll(async () => (await harness!.requests()).filter(isSolverRoute).length, { timeout: 60_000 }).toBeGreaterThan(0);
+  await expect.poll(async () => (await harness!.requests()).filter(isWorkerRequest).length, { timeout: 60_000 }).toBeGreaterThan(0);
   const child = (await childSessions(harness, session))[0];
   expect(child, '取消前没有真实子会话：任务从未派发').toBeDefined();
   const task = (await classroomOf(harness, session)).tasks.find(row => row.status !== 'completed');
@@ -507,7 +532,7 @@ test('重启后教室配置与解题者路由冷恢复，新任务仍走配置�
   expect(outcomeJson<SolverOutcome>(outcome!)?.analysis).toContain(ANALYSIS_MARKER);
 }, 300_000);
 
-test('同名模型挂在两个 provider 上时教室不替教师猜，明确配置后仍可工作', async () => {
+test('同名模型挂在两个 provider 上时不替教师猜：默认跟随老师，明确配置后只走保存的 provider', async () => {
   process.env[VAULT_SOLVER_AMBIGUOUS_ENV] = '1';
   try {
     runtime = await startVaultIsolated({ testModel: true });
@@ -516,27 +541,30 @@ test('同名模型挂在两个 provider 上时教室不替教师猜，明确配�
     const view = await classroomOf(harness, session);
     const routes = view.models.filter(row => row.model === VAULT_SOLVER_MODEL).map(row => row.provider).sort();
     expect(routes).toEqual([VAULT_SOLVER_AMBIGUOUS_PROVIDER, VAULT_SOLVER_PROVIDER].sort());
-    expect(view.workers[0]!.ready, '同名多 provider 时默认仍报 ready，等于替教师任选一个').toBe(false);
-    expect((view.workers[0]!.reason ?? '').trim().length).toBeGreaterThan(0);
+    expect(view.workers[0]).toMatchObject({ follow: true, ready: true });
 
-    // Dispatching without an explicit provider refuses instead of picking one.
-    await script(harness, { '先不指定 provider 让解题者算一道。': [{ name: 'ask_worker', arguments: { preset: 'problem', goal: '求 1+2。' } }] });
+    // Nothing saved: neither same-named model is picked; the worker runs on the teacher's route.
+    await script(harness, {
+      '先不指定 provider 让解题者算一道。': [{ name: 'ask_worker', arguments: { preset: 'problem', goal: '求 1+2。' } }],
+      [VAULT_SOLVER_REPLY_KEY]: `${ANALYSIS_MARKER}：三。`,
+    });
     await harness.ask(session, '先不指定 provider 让解题者算一道。');
-    const refused = (await harness.outcomes(session)).filter(row => row.name === 'ask_worker').at(-1);
-    expect(refused?.failed, `同名多 provider 且未配置时 ask_worker 没有明确失败：${refused?.text ?? 'no outcome'}`).toBe(true);
-    expect(await childSessions(harness, session)).toHaveLength(0);
+    const first = (await childSessions(harness, session))[0];
+    expect(first, '跟随老师时没有派发子会话').toBeDefined();
+    for (const request of (await harness.requests()).filter(request => request.sessionId === first!.sessionId)) expect(request).toMatchObject({ provider: VAULT_TEST_PROVIDER, model: VAULT_TEST_MODEL });
 
-    await configure(harness, session, view.revision, { provider: VAULT_SOLVER_PROVIDER, model: VAULT_SOLVER_MODEL });
+    await configure(harness, session, (await classroomOf(harness, session)).revision, { provider: VAULT_SOLVER_PROVIDER, model: VAULT_SOLVER_MODEL });
     const configured = await classroomOf(harness, session);
-    expect(configured.workers[0]!.ready).toBe(true);
+    expect(configured.workers[0]).toMatchObject({ ready: true, follow: false, scope: 'lesson' });
     await script(harness, {
       '明确指定 provider 后再算一道。': [{ name: 'ask_worker', arguments: { preset: 'problem', goal: '求 7+8。' } }],
       [VAULT_SOLVER_REPLY_KEY]: `${ANALYSIS_MARKER}：十五。`,
     });
     await harness.ask(session, '明确指定 provider 后再算一道。');
-    const child = (await childSessions(harness, session))[0];
-    expect(child, '明确配置后没有派发子会话').toBeDefined();
-    const routed = (await harness.requests()).filter(request => request.sessionId === child!.sessionId);
+    const children = await childSessions(harness, session);
+    const second = children.find(row => row.sessionId !== first!.sessionId);
+    expect(second, '明确配置后没有派发子会话').toBeDefined();
+    const routed = (await harness.requests()).filter(request => request.sessionId === second!.sessionId);
     expect(routed.length).toBeGreaterThan(0);
     for (const request of routed) expect(request).toMatchObject({ provider: VAULT_SOLVER_PROVIDER, model: VAULT_SOLVER_MODEL });
   } finally {
@@ -562,7 +590,7 @@ test('取消后同一学生输入不会被自动重跑，新用户消息才重�
   harness.value(await harness.rpc('session/prompt', {
     request: { sessionId: session, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text: sameInput }] },
   }));
-  await expect.poll(async () => (await harness!.requests()).filter(isSolverRoute).length, { timeout: 60_000 }).toBeGreaterThan(0);
+  await expect.poll(async () => (await harness!.requests()).filter(isWorkerRequest).length, { timeout: 60_000 }).toBeGreaterThan(0);
   const task = (await classroomOf(harness, session)).tasks.find(row => row.status !== 'completed');
   expect(task, '取消前没有运行中的任务').toBeDefined();
   await cancel(harness, session, task!.id);
@@ -734,4 +762,31 @@ test('冷重启后已完成任务的 solverTask 绑定仍可查到，且不会�
   // The durable projection still tells the teacher a record exists without
   // disclosing the child session.
   expect(JSON.stringify(await classroomOf(harness, session))).not.toContain(before.childSessionId);
+}, 300_000);
+
+test('后台工作员立即返回任务号；完成后原生任务通知唤醒空闲的老师', async () => {
+  runtime = await startVaultIsolated({ testModel: true });
+  harness = await connectVault(runtime);
+  const session = await harness.createSession();
+  const initial = await classroomOf(harness, session);
+  harness.value(await harness.rpc('notaraVault/configureSolver', { input: { sessionId: session, expectedRevision: initial.revision, preset: 'general', tools: 'none', route: { provider: VAULT_SOLVER_PROVIDER, model: VAULT_SOLVER_MODEL } } }));
+  await script(harness, {
+    '后台整理基底': { calls: [{ name: 'ask_worker', arguments: { preset: 'general', goal: '后台整理基底这一知识单元', materials: [{ title: '原文', text: '基底给出坐标语言。' }], run_in_background: true } }], text: '先继续上课。' },
+    '__worker:general': 'BACKGROUND_ARTIFACT_B3',
+  });
+  await harness.ask(session, '后台整理基底');
+  const outcome = (await harness.outcomes(session)).find(row => row.name === 'ask_worker');
+  expect(outcome?.failed, outcome?.text).toBe(false);
+  const receipt = outcomeJson<{ status?: string; jobId?: string; analysis?: string }>(outcome!)!;
+  // The teacher's turn got a receipt, not the worker's result.
+  expect(receipt.status).toBe('running');
+  expect(receipt.jobId).toMatch(/^subagent-\d+$/);
+  expect(receipt.analysis).toBeUndefined();
+  await expect.poll(async () => (await classroomOf(harness!, session)).tasks[0]?.status, { timeout: 60_000 }).toBe('completed');
+  // tool-jobs announces the settlement in-session and wakes the idle teacher.
+  const woke = async () => (await harness!.requests()).some(row => row.sessionId === session && !isWorkerRequest(row) && row.messages.some(message =>
+    message.source?.kind === 'tool-jobs' && message.content.some(block => block.text?.includes(receipt.jobId!))));
+  await expect.poll(woke, { timeout: 60_000 }).toBe(true);
+  const teacherRequests = (await harness.requests()).filter(row => row.sessionId === session && !isWorkerRequest(row) && !row.purpose);
+  expect(toolNames(teacherRequests[0]!)).toEqual(expect.arrayContaining(['ask_worker', 'job_output', 'job_list', 'job_kill']));
 }, 300_000);

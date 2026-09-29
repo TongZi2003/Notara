@@ -1,8 +1,6 @@
 import { defineConfig } from 'vitest/config';
 
-// Unit lane: pure contract/domain logic, no DSH host boot and no real ports.
-// Node is the default Vitest environment; schema validators, clock and id
-// helpers under packages/* must stay runnable here without a live harness.
+// Launcher and patch contracts; no DSH host boot or real model calls.
 export default defineConfig({
   test: {
     name: 'unit',

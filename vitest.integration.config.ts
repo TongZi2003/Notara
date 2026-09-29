@@ -1,8 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
-// Integration lane: real DSH process/port/filesystem seams only. Live model
-// or provider calls belong in the later vitest.live config; harness fixtures
-// must use an isolated DSH_HOME and an OS-chosen port, never a shared service.
+// Real DSH process/port/filesystem seams with isolated data and an OS-chosen port.
+// Real-model acceptance is recorded separately from scripted-model checks.
 export default defineConfig({
   test: {
     name: 'integration',
@@ -11,7 +10,7 @@ export default defineConfig({
     passWithNoTests: false,
     // These files boot real hosts and databases. Bound startup concurrency so
     // the full suite measures behaviour rather than workstation contention.
-    maxWorkers: 2,
+    maxWorkers: 1,
     testTimeout: 30_000,
     hookTimeout: 30_000,
   },

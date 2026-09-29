@@ -7,7 +7,6 @@ import { attachConversationFileNavigation, conversationVaultTarget, vaultConvers
 function matches(node, selector) {
   if (selector === 'button[title]') return node.tagName === 'BUTTON' && typeof node.title === 'string';
   if (selector === 'code') return node.tagName === 'CODE';
-  if (selector === '[data-produced-files-row]') return node.data['data-produced-files-row'] === true;
   if (selector === '[data-presented-file]') return node.data['data-presented-file'] === true;
   throw new Error(`fake DOM does not implement ${selector}`);
 }
@@ -54,7 +53,8 @@ function pane() {
 }
 
 const mention = title => el('code', {}, [el('button', { title }, [icon()])]);
-const producedChip = title => el('div', { data: { 'data-produced-files-row': true } }, [el('button', { title }, [icon()])]);
+/** DSH 0.2.0's changed-files row: a diff review, not a file link. */
+const changedRow = title => el('div', { data: { 'data-changed-files': true } }, [el('button', { title }, [icon()])]);
 
 test('只有 vault/ 下的相对路径进入资产页，绝对路径与穿越路径留在原生路由', () => {
   assert.equal(vaultConversationAssetPath('vault/卡片/甲.md'), '卡片/甲.md');
@@ -79,14 +79,14 @@ test('只有 vault/ 下的相对路径进入资产页，绝对路径与穿越路
   }
 });
 
-test('只有对话产出链接的两种形状被识别，present 卡片与普通按钮不接管', () => {
+test('只有对话里的文件提及被识别，改动卡、present 卡片与普通按钮不接管', () => {
   const mentioned = mention('vault/卡片/甲.md');
   assert.equal(conversationVaultTarget(mentioned.children[0]), '卡片/甲.md');
   // 点击落在图标上时仍然命中外层按钮。
   assert.equal(conversationVaultTarget(mentioned.children[0].children[0]), '卡片/甲.md');
 
-  const chipped = producedChip('vault/卡片/乙.md');
-  assert.equal(conversationVaultTarget(chipped.children[0]), '卡片/乙.md');
+  // 改动卡的一行打开的是差异查看，不是文件。
+  assert.equal(conversationVaultTarget(changedRow('vault/卡片/乙.md').children[0]), null);
 
   // present 交付卡使用绝对路径，且带"用默认应用打开"的动作语义。
   const presented = el('div', { data: { 'data-presented-file': true } }, [el('button', { title: '/Users/teacher/教培资料/vault/卡片/甲.md' })]);
@@ -97,11 +97,11 @@ test('只有对话产出链接的两种形状被识别，present 卡片与普通
   assert.equal(conversationVaultTarget(el('span')), null);
 });
 
-test('点击产出卡在原生打开器之前停住，并交出 Vault 相对路径', () => {
+test('点击文件提及在原生打开器之前停住，并交出 Vault 相对路径', () => {
   const content = pane();
   const opened = [];
   const detach = attachConversationFileNavigation(content, { open: path => opened.push(path) });
-  const chip = producedChip('vault/卡片/坐标.md');
+  const chip = mention('vault/卡片/坐标.md');
   const event = content.click(chip.children[0].children[0]);
   assert.equal(event.defaultPrevented, true);
   assert.equal(event.propagationStopped, true);
@@ -118,7 +118,7 @@ test('非 Vault 文件与外部形状保持原生路由：不拦截、不转移'
   const opened = [];
   attachConversationFileNavigation(content, { open: path => opened.push(path) });
   for (const target of [
-    producedChip('卡片/甲.md').children[0],
+    changedRow('vault/卡片/甲.md').children[0],
     mention('知识/向量.md').children[0],
     mention('/Users/teacher/教培资料/vault/卡片/甲.md').children[0],
     el('button', { title: 'vault/卡片/甲.md' }),

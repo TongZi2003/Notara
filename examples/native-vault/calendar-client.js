@@ -1,7 +1,7 @@
-import { createVaultClient } from './remote-client.js';
+import { createVaultClient, visibleInterval } from './remote-client.js';
 import { VIEW_IDS } from './views-client.js';
 import { civilDay } from './calendar-data.js';
-import { addReviewDays, REVIEW_OUTCOMES, reviewAssessmentText } from './review-data.js';
+import { addReviewDays, REVIEW_RESULTS, reviewAssessmentText } from './review-data.js';
 
 const CSS = `
 .nv-calendar{container-type:inline-size}.nv-calendar-top{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-bottom:1px solid var(--dsw-alias-border-l1);flex-wrap:wrap}
@@ -23,9 +23,8 @@ function moveMonth(month, offset) {
   return date.toISOString().slice(0, 10);
 }
 const changed = () => window.dispatchEvent(new Event('notara-vault-changed'));
-const blankAssessments = () => [{ ability: '', outcome: 'not_observed' }];
 
-export function createVaultCalendar(React, { STYLE, IconButton }) {
+export function createVaultCalendar(React, { STYLE, IconButton, EmptyState, openLesson: showLesson = (ctx, sessionId) => ctx.uiWorkspace.openSession(sessionId) }) {
   const h = React.createElement, { useState, useMemo, useEffect, useRef } = React;
   const button = (label, onClick, { className, ...extra } = {}) => h('button', { type: 'button', className: ['nv-quiet', className].filter(Boolean).join(' '), onClick, ...extra }, label);
   return function CalendarView(props) {
@@ -36,7 +35,9 @@ export function createVaultCalendar(React, { STYLE, IconButton }) {
     const [filter, setFilter] = useState('due'), [query, setQuery] = useState(''), [tag, setTag] = useState(''), [offset, setOffset] = useState(0);
     const [calendar, setCalendar] = useState(null), [queue, setQueue] = useState(null), [error, setError] = useState(''), [notice, setNotice] = useState('');
     const [selected, setSelected] = useState(''), [detail, setDetail] = useState(null), [detailError, setDetailError] = useState(''), [note, setNote] = useState('');
-    const [assessments, setAssessments] = useState(blankAssessments);
+    // A self-check judges the key step, as a teacher's record does.
+    const [result, setResult] = useState(''), [keyStep, setKeyStep] = useState('');
+    const clearForm = () => { setNote(''); setResult(''); setKeyStep(''); };
     const [busy, setBusy] = useState(false), busyRef = useRef(false), [tick, setTick] = useState(0);
     const [scheduling, setScheduling] = useState(false), [routes, setRoutes] = useState(null), [lessonKey, setLessonKey] = useState('');
     const days = useMemo(() => gridDays(month), [month]);
@@ -44,13 +45,13 @@ export function createVaultCalendar(React, { STYLE, IconButton }) {
     useEffect(() => {
       if(props.viewRequest?.reviewFilter==='due'){
         setMode('review');setFilter('due');setQuery('');setTag('');setOffset(0);
-        setSelected('');setDetail(null);setNote('');setAssessments(blankAssessments());
+        setSelected('');setDetail(null);clearForm();
         props.completeViewRequest();return;
       }
       if (!props.viewRequest?.focus) return;
       const target = props.viewRequest.focus;
       if (/^\d{4}-\d{2}-\d{2}$/.test(target)) { setDate(target); setMonth(monthStart(target)); setMode('calendar'); }
-      else { setSelected(target); setMode('review'); setFilter('all'); setOffset(0); setNote(''); setAssessments(blankAssessments()); }
+      else { setSelected(target); setMode('review'); setFilter('all'); setOffset(0); clearForm(); }
       props.completeViewRequest();
     }, [props.viewRequest]);
     useEffect(() => {
@@ -65,9 +66,9 @@ export function createVaultCalendar(React, { STYLE, IconButton }) {
         } catch { if (live) setError('日历和复习队列暂时读不出来，请刷新后重试。'); }
         finally { pending = false; }
       };
-      void refresh(); const timer = setInterval(refresh, 15000);
+      void refresh(); const timer = visibleInterval(refresh, 15000);
       window.addEventListener('notara-vault-changed', refresh); window.addEventListener('focus', refresh);
-      return () => { live = false; clearInterval(timer); window.removeEventListener('notara-vault-changed', refresh); window.removeEventListener('focus', refresh); };
+      return () => { live = false; timer(); window.removeEventListener('notara-vault-changed', refresh); window.removeEventListener('focus', refresh); };
     }, [vault, props.visible, days, filter, query, tag, offset, tick, timeZone]);
     const selectedRevision = queue?.hits.find(row => row.path === selected)?.revision;
     useEffect(() => {
@@ -76,7 +77,7 @@ export function createVaultCalendar(React, { STYLE, IconButton }) {
       setDetailError('');
       vault.reviewDetail({ path: selected }).then(result => {
         if (!live) return;
-        if (!result?.ok) { setDetail(null); setDetailError('这张卡片的复习属性读不出来，请在资产页检查。'); }
+        if (!result?.ok) { setDetail(null); setDetailError('这张卡片的复习属性读不出来，请在 Vault 里打开它检查。'); }
         else setDetail(result.value);
       }).catch(() => { if (live) { setDetail(null); setDetailError('卡片可能已移动或发生修改，请刷新后重试。'); } });
       return () => { live = false; };
@@ -97,7 +98,7 @@ export function createVaultCalendar(React, { STYLE, IconButton }) {
       } catch { setNotice('没有保存成功，资料可能已被修改。请刷新后检查；当前输入已保留。'); return null; }
       finally { busyRef.current = false; setBusy(false); }
     };
-    const pick = path => { setSelected(path); setDetail(null); setTick(value=>value+1); setNote(''); setAssessments(blankAssessments()); setNotice(''); setMode('review'); };
+    const pick = path => { setSelected(path); setDetail(null); setTick(value=>value+1); clearForm(); setNotice(''); setMode('review'); };
     const openDaily = async () => {
       const result = await mutate(() => vault.dailyNote({ date }), '');
       if (result) props.openView(VIEW_IDS.assets, result.path);
@@ -106,15 +107,15 @@ export function createVaultCalendar(React, { STYLE, IconButton }) {
       try {
         const result = await vault.read({ path });
         if (!result?.ok) throw new Error('read');
-        if (!props.onBring(result.value, undefined, 1, '请围绕这张卡片带我回忆或练习，先读学生理解和最近评估，优先检验尚未观察到的能力。先让我尝试，不要提前展示答案；可以引导，但评估要看关键认知工作由谁完成，不按提示次数扣分。保存时按具体能力记录证据，未知不当失败，复习日期由复习流程计算。')) setNotice('当前输入框暂时不可用，请稍后重试。');
+        if (!props.onBring(result.value, undefined, 1, '请围绕这张卡片带我回忆或练习：先读学生理解和常见错法。先让我尝试，不要提前展示答案；可以引导，评估看关键那一步是不是我独立做出来的，不按提示次数扣分。复习日期由复习流程计算。')) setNotice('当前输入框暂时不可用，请稍后重试。');
       } catch { setNotice('无法读取卡片，请刷新后再试。'); }
     };
-    const assessmentReady = note.trim() && assessments.every(item => item.ability.trim()) && new Set(assessments.map(item => item.ability.trim())).size === assessments.length;
+    const assessmentReady = !!note.trim() && Object.hasOwn(REVIEW_RESULTS, result);
     const assess = async () => {
       if (!detail || detail.path !== selected || !assessmentReady) return;
-      const result = await mutate(() => vault.recordReview({ path: selected, expectedRevision: detail.revision, assessments, note: note.trim(), timeZone }),
-        value => value.scheduleChanged ? '已保存能力评估并更新复习安排。' : '已保存能力评估，原复习安排保持不变。');
-      if (result) { setDetail(null); setNote(''); setAssessments(blankAssessments()); }
+      const saved = await mutate(() => vault.recordReview({ path: selected, expectedRevision: detail.revision, result, ...(keyStep.trim() ? { keyStep: keyStep.trim() } : {}), note: note.trim(), timeZone }),
+        value => value.scheduleChanged ? '已保存评估并更新复习安排。' : '已保存评估，原复习安排保持不变。');
+      if (saved) { setDetail(null); clearForm(); }
     };
     const undo = async () => {
       if (!detail || detail.path !== selected) return;
@@ -124,8 +125,8 @@ export function createVaultCalendar(React, { STYLE, IconButton }) {
     const openEvent = event => {
       if (event.kind === 'due' || event.kind === 'review') { pick(event.path); return; }
       if (event.kind === 'lesson') {
-        if (event.sessionId) props.ctx.sessions.open(event.sessionId);
-        else void mutate(() => vault.openRouteLesson({ path: event.path, nodeId: event.nodeId, expectedRevision: event.revision }), '').then(async result => { if (result) { await props.ctx.sessions.refresh(); props.ctx.sessions.open(result.sessionId); } });
+        if (event.sessionId) showLesson(props.ctx, event.sessionId);
+        else void mutate(() => vault.openRouteLesson({ path: event.path, nodeId: event.nodeId, expectedRevision: event.revision }), '').then(async result => { if (result) { await props.ctx.sessions.refresh(); showLesson(props.ctx, result.sessionId); } });
         return;
       }
       props.openView(VIEW_IDS.assets, event.path + (event.anchor ? `#${event.anchor}` : ''));
@@ -166,26 +167,24 @@ export function createVaultCalendar(React, { STYLE, IconButton }) {
           !calendar?h('p',{className:'nv-calendar-empty'},'正在读取…'):!dayEvents.length?h('div',{className:'nv-calendar-empty'},'这一天还没有安排或记录。'):h('ul',{className:'nv-agenda-list'},dayEvents.map(event=>h('li',{key:event.key,className:'nv-agenda-item'},
             h('div',{className:'nv-agenda-main'},h('div',{className:'nv-agenda-kind'},KIND_LABELS[event.kind]),h('button',{className:'nv-agenda-title',onClick:()=>openEvent(event)},event.title),event.kind==='review'&&h('p',{className:'nv-agenda-note'},reviewAssessmentText(event)),event.note&&h('p',{className:'nv-agenda-note'},event.note)),
             event.kind==='lesson'&&h(IconButton,{icon:'close',label:`取消安排 ${event.title}`,disabled:busy,onClick:()=>mutate(()=>vault.scheduleLesson({path:event.path,nodeId:event.nodeId,date:null,expectedRevision:event.revision}),'已取消日期安排，课程仍保留。')}),
-            event.kind==='log'&&event.sessionId&&h(IconButton,{icon:'chat',label:`回到课堂 ${event.title}`,onClick:()=>props.ctx.sessions.open(event.sessionId)}))))))
+            event.kind==='log'&&event.sessionId&&h(IconButton,{icon:'chat',label:`回到课堂 ${event.title}`,onClick:()=>showLesson(props.ctx, event.sessionId)}))))))
       : h(React.Fragment,null,
           h('div',{className:'nv-review-filters','aria-label':'复习队列分类'},FILTERS.map(([value,label])=>h('button',{key:value,'aria-pressed':filter===value,onClick:()=>{setFilter(value);setOffset(0);}},`${label} ${queue?.counts[value]??'…'}`))),
           h('div',{className:'nv-review-search'},h('input',{'aria-label':'搜索复习卡片',placeholder:'搜索卡片…',style:{...STYLE.templateInput,margin:0},value:query,onChange:event=>{setQuery(event.target.value);setOffset(0);}}),h('select',{'aria-label':'筛选复习标签',style:{...STYLE.templateInput,width:150,margin:0},value:tag,onChange:event=>{setTag(event.target.value);setOffset(0);}},h('option',{value:''},'全部标签'),queue?.tags.map(value=>h('option',{key:value,value},'#'+value)))),
           h('div',{className:'nv-review-layout'},
             h('section',{className:'nv-review-list','aria-label':'复习卡片列表'},
-              !queue?h('p',{className:'nv-calendar-empty'},'正在读取…'):!queue.hits.length?h('div',{className:'nv-calendar-empty'},filter==='due'?'当前没有到期卡片。':'没有符合条件的卡片。'):queue.hits.map(row=>h('button',{key:row.path,className:'nv-review-row','aria-pressed':selected===row.path,onClick:()=>pick(row.path)},h('span',null,row.title,h('small',null,row.tags.map(value=>'#'+value).join(' '))),h('span',null,row.state.learned?row.state.next_review:'待评估',h('small',null,row.state.learned?`第 ${row.state.mastery} 档 · ${row.state.interval} 天`: '尚未开始复习')))),
+              !queue?h('p',{className:'nv-calendar-empty'},'正在读取…'):!queue.hits.length?(filter==='due'&&EmptyState?h(EmptyState,{kind:'review',compact:true}):h('div',{className:'nv-calendar-empty'},filter==='due'?'当前没有到期卡片。':'没有符合条件的卡片。')):queue.hits.map(row=>h('button',{key:row.path,className:'nv-review-row','aria-pressed':selected===row.path,onClick:()=>pick(row.path)},h('span',null,row.title,h('small',null,row.tags.map(value=>'#'+value).join(' '))),h('span',null,row.state.learned?row.state.next_review:'待评估',h('small',null,row.state.learned?`第 ${row.state.mastery} 档 · ${row.state.interval} 天`: '尚未开始复习')))),
               h('div',{className:'nv-review-actions'},offset>0&&button('上一页',()=>setOffset(Math.max(0,offset-50))),queue?.nextOffset!=null&&button('下一页',()=>setOffset(queue.nextOffset)))),
             h('section',{className:'nv-review-detail','aria-label':'卡片复习详情'},
               !selected?h('div',{className:'nv-calendar-empty'},'选择卡片，自己回忆，或带入对话让老师提问。'):detailError?h(React.Fragment,null,h('p',{role:'alert'},detailError),button('打开卡片',()=>props.openView(VIEW_IDS.assets,selected))):!currentDetail?h('p',null,'正在读取卡片…'):h(React.Fragment,null,
                 h('h2',null,currentDetail.title),h('div',{style:STYLE.notice},currentDetail.state.learned?`第 ${currentDetail.state.mastery} 档 · 下次 ${currentDetail.state.next_review}`:'尚未开始间隔复习'),
                 h('div',{className:'nv-review-actions'},button('带入对话复习',()=>bring(selected)),h(IconButton,{icon:'book',label:'打开卡片原文',onClick:()=>props.openView(VIEW_IDS.assets,selected)})),
-                h('div',{'aria-label':'本次能力观察',style:{marginTop:20}},assessments.map((item,index)=>h('div',{key:index,style:{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}},
-                  h('input',{'aria-label':`评估能力 ${index+1}`,placeholder:'本次要检验的能力，如自主选法',maxLength:200,style:{...STYLE.templateInput,flex:'1 1 180px'},value:item.ability,onChange:event=>setAssessments(rows=>rows.map((row,i)=>i===index?{...row,ability:event.target.value}:row))}),
-                  h('select',{'aria-label':`能力表现 ${index+1}`,style:{...STYLE.templateInput,width:'auto'},value:item.outcome,onChange:event=>setAssessments(rows=>rows.map((row,i)=>i===index?{...row,outcome:event.target.value}:row))},Object.entries(REVIEW_OUTCOMES).map(([value,label])=>h('option',{key:value,value},label))),
-                  h(IconButton,{icon:'close',label:`移除评估能力 ${index+1}`,disabled:busy||assessments.length===1,onClick:()=>setAssessments(rows=>rows.filter((_,i)=>i!==index))}))),
-                  assessments.length<8&&button('添加能力',()=>setAssessments(rows=>[...rows,...blankAssessments()]),{disabled:busy})),
-                h('label',{style:{fontSize:12,display:'block',marginTop:16}},'这次回忆或作答的情况',h('textarea',{'aria-label':'评估说明',placeholder:'自己提出了什么？老师提供了什么？哪些能力还没有机会观察？',maxLength:4000,style:{...STYLE.templateInput,marginTop:8},value:note,onChange:event=>setNote(event.target.value)})),
+                h('div',{'aria-label':'本次评估',style:{display:'flex',gap:6,marginTop:20,flexWrap:'wrap'}},
+                  h('select',{'aria-label':'关键一步的结果',style:{...STYLE.templateInput,width:'auto'},value:result,onChange:event=>setResult(event.target.value)},h('option',{value:''},'关键一步做出来了吗'),Object.entries(REVIEW_RESULTS).map(([value,label])=>h('option',{key:value,value},label))),
+                  h('input',{'aria-label':'检验的是哪一步',placeholder:'选填：检验的是哪一步',maxLength:200,style:{...STYLE.templateInput,flex:'1 1 180px'},value:keyStep,onChange:event=>setKeyStep(event.target.value)})),
+                h('label',{style:{fontSize:12,display:'block',marginTop:16}},'这次回忆或作答的情况',h('textarea',{'aria-label':'评估说明',placeholder:'自己是怎样做的？哪里卡住了，看了哪些提示？',maxLength:4000,style:{...STYLE.templateInput,marginTop:8},value:note,onChange:event=>setNote(event.target.value)})),
                 h('div',{className:'nv-review-actions'},button('保存评估',assess,{disabled:busy||!assessmentReady})),
-                h('p',{style:{...STYLE.notice,lineHeight:1.7}},'看关键认知工作由谁完成，不按提示次数扣分。尚未观察不当失败；提前成功不延长间隔。复习档位只用于安排时间。'),
+                h('p',{style:{...STYLE.notice,lineHeight:1.7}},'看关键那一步是不是自己独立做出来的，不按提示次数扣分。这次没考不算失败；提前做出来不延长间隔。复习档位只用于安排时间。'),
                 currentDetail.history.length>0&&h('details',{className:'nv-review-history'},h('summary',null,`评估经历 · ${currentDetail.historyCount} 次${currentDetail.historyCount>20?'（最近20次）':''}`),h('ol',null,[...currentDetail.history].reverse().map(record=>h('li',{key:record.id,'data-reverted':!!record.revertedAt||undefined},h('time',null,`${record.day} · ${record.actor==='self'?'自评':'课堂评估'}${record.revertedAt?' · 已撤销':''}`),h('div',null,reviewAssessmentText(record)),h('div',null,record.note)))),currentDetail.history.some(record=>!record.revertedAt)&&button('撤销最近一次评估',undo,{disabled:busy})))))));
   };
 }

@@ -91,6 +91,11 @@ function recallOf(content) {
   return text || null;
 }
 
+/** The recall passage and tags of one 锦囊, as the projection reads them. */
+export function insightRecall(content) {
+  return recallOf(content);
+}
+
 function tagsOf(document) {
   const raw = document?.frontmatter?.tags;
   if (!Array.isArray(raw)) return [];

@@ -3,7 +3,7 @@ import css from './today-entry.css';
 /** A single native-lesson entry with one rotating, factual learning reminder. */
 export function createTodayEntry(React,{Icon}={}) {
   const h=React.createElement,{useState,useEffect}=React;
-  return function TodayEntry({items=[],loading=false,error='',composerError='',visible=true,composerReady=false,active=true,onOpen,onRetry,onPrepare,children}={}) {
+  return function TodayEntry({items=[],loading=false,error='',composerError='',draftNotice='',visible=true,composerReady=false,active=true,onOpen,onRetry,onPrepare,children}={}) {
     const [selected,setSelected]=useState(null),[hovered,setHovered]=useState(false),[focused,setFocused]=useState(false),[paused,setPaused]=useState(false);
     const [hidden,setHidden]=useState(document.hidden),[reduced,setReduced]=useState(()=>matchMedia('(prefers-reduced-motion: reduce)').matches);
     const [now,setNow]=useState(()=>new Date());
@@ -31,6 +31,8 @@ export function createTodayEntry(React,{Icon}={}) {
         h('h1',null,greeting+'，今天想学点什么？')),
       visible&&!composerReady&&h('div',{className:'nv-home-preparing',role:composerError?'alert':'status'},composerError||'正在准备输入框…',composerError&&h('button',{onClick:onPrepare},'重试')),
       h('div',{key:'native',className:visible?'nv-home-native':'nv-home-pass',style:visible&&!composerReady?{display:'none'}:undefined},children),
+      // A sentence another page wanted in the composer but could not put there.
+      visible&&draftNotice&&h('p',{className:'nv-home-draft-notice',role:'alert'},draftNotice),
       visible&&h('section',{className:'nv-home-agenda','aria-label':'学习待办',onMouseEnter:()=>setHovered(true),onMouseLeave:()=>setHovered(false),
         onFocusCapture:()=>setFocused(true),onBlurCapture:e=>{if(!e.currentTarget.contains(e.relatedTarget))setFocused(false);}},
         h('header',null,h('h2',null,'接下来'),

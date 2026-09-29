@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { civilDay } from './calendar-data.js';
 import { findLearning } from './learning-data.js';
 import { lessonLog, parseLessonSummaries, parseRoute, renderRoute, stableLessonSummaryId, upsertLessonSummary } from './lesson-data.js';
 import { createVaultStore, parseMarkdownDocument, revisionFor } from './vault.js';
@@ -14,6 +15,13 @@ const SESSION_B = 'session-2026-09-21-b';
 const SESSION_C = 'session-2026-09-23-c';
 
 const documentOf = (path, content) => parseMarkdownDocument(path, content, revisionFor(content));
+
+test('the summary heading names the local day of the lesson, not the UTC date of the stamp',()=>{
+  // 18:09Z is already the next morning east of UTC; the heading follows the same zone as reviews.
+  const throughAt='2026-09-26T18:09:06.622Z';
+  const content=upsertLessonSummary('',{sessionId:SESSION_A,body:'实际课堂',startedAt:'2026-09-26T17:35:06.369Z',throughAt,savedAt:'2026-09-26T18:09:57.560Z'});
+  assert.match(content,new RegExp(`^## 课堂小结 · ${civilDay(throughAt)}$`,'m'));
+});
 
 test('date-only log end includes that whole activity day, independently of the save time',()=>{
   const content=upsertLessonSummary('',{sessionId:SESSION_A,body:'实际课堂',startedAt:'2026-09-21T09:00:00.000Z',throughAt:'2026-09-21T10:00:00.000Z',savedAt:'2026-09-22T01:00:00.000Z',routePath:'路线/概率.md',nodeId:'lesson-a'});

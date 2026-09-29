@@ -178,6 +178,23 @@ export async function readPdfPage(bytes, { page = 1, rect, signal } = {}) {
   }
 }
 
+/** Only the number of pages: nothing is rendered and no text is extracted. */
+export async function readPdfPageCount(bytes, { signal } = {}) {
+  assertBytes(bytes, 'pdf_bytes_invalid');
+  throwIfAborted(signal);
+  const loadingTask = getDocument({ data: new Uint8Array(bytes), isEvalSupported: false, verbosity: 0 });
+  try {
+    const pdf = await loadingTask.promise;
+    throwIfAborted(signal);
+    return pdf.numPages;
+  } catch (error) {
+    if (signal?.aborted) throw abortError();
+    throw isAbort(error) ? abortError() : documentError(error);
+  } finally {
+    await loadingTask.destroy().catch(() => {});
+  }
+}
+
 function outputFormat(mime, detected) {
   const formats = { 'image/png': 'png', 'image/jpeg': 'jpeg', 'image/webp': 'webp' };
   if (formats[mime]) return formats[mime];

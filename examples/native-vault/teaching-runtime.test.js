@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp,mkdir,writeFile,readFile,rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { isAbsolute,join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Context } from '@deepseek-ai/cordis';
 import { LocalFileSystem } from '@deepseek-ai/dsh-fs-local';
@@ -18,7 +18,7 @@ async function setup(t) {
   await mkdir(join(root,'vault'),{recursive:true});
   const ctx=new Context();new LocalFileSystem(ctx,{cwd:root,diffBasisMaxBytes:10*1024*1024});
   ctx.reflect.provide('workspaceRegistry',{list:()=>[{id:'runtime-workspace',path:root,title:'测试学习集'}],archiveSession:async()=>{}});
-  const session=Session.create('runtime-session',[],{version:3,id:'runtime-session',createdAt:Date.now(),isSeeded:false,cwd:root,agentPreset:'notara-teacher'});
+  const session=Session.create('runtime-session',[],{version: 4,id:'runtime-session',createdAt:Date.now(),isSeeded:false,cwd:root,agentPreset:'notara-teacher'});
   const agent={session};
   const service=new module.NotaraTeaching(ctx,{root},{resolveAgent:async()=>agent,flush:async()=>{},archive:async()=>{}});
   return {root,ctx,session,agent,service,exec:{agent,signal:new AbortController().signal,callId:'runtime-test'}};
@@ -46,7 +46,7 @@ async function installRuntime(t,{layout='legacy'}={}) {
   const register=ctx.on.bind(ctx);
   ctx.on=(name,handler)=>{handlers.push({name,handler});return register(name,handler);};
   module.installTeachingRuntime(ctx,{root});
-  const session=Session.create('install-session',[],{version:3,id:'install-session',createdAt:Date.now(),isSeeded:false,cwd:root,agentPreset:'notara-teacher'});
+  const session=Session.create('install-session',[],{version: 4,id:'install-session',createdAt:Date.now(),isSeeded:false,cwd:root,agentPreset:'notara-teacher'});
   return {root,ctx,agent:{session},sections,shellEnvs,handlers};
 }
 
@@ -79,6 +79,16 @@ test('教学环境变量、提示构造与每轮上下文共用同一资料根',
   assert.ok(text.includes('教学共同规则'));
   assert.ok(text.includes('$DSH_NOTARA_VAULT_ROOT'));
   assert.ok(!text.includes(unregistered.root));
+});
+
+test('老师的 shell 带上随包 ripgrep：不依赖用户自己装 rg',async t=>{
+  const runtime=await installRuntime(t);
+  const shell=runtime.shellEnvs.find(item=>item.name==='notara-vault-cli');
+  assert.ok(shell.variables.DSH_NOTARA_RG,'the variable is declared for the model');
+  const env=shell.resolve({agent:runtime.agent,callId:'install-call'});
+  assert.ok(isAbsolute(env.DSH_NOTARA_RG),env.DSH_NOTARA_RG);
+  const {execFileSync}=await import('node:child_process');
+  assert.match(execFileSync(env.DSH_NOTARA_RG,['--version'],{encoding:'utf8'}),/^ripgrep \d+/);
 });
 
 test('直接选中的资料目录：环境变量前缀为空，上下文仍指向自己',async t=>{
@@ -177,6 +187,21 @@ test('new student input during preparation keeps the class open and permits a re
   assert.equal(service.requests.has(session.id),false);
 });
 
+test('the teacher asking to archive in its own turn waits for the turn to end, and retries while the session is busy',async t=>{
+  const {service,session,exec}=await setup(t);
+  student(session,'今天到这里');
+  const calls=[];service.nativeArchive=async id=>{calls.push(id);if(calls.length===1)throw new Error('WorkspaceActiveSessionError');};
+  const result=await service.saveSummary(exec,{body:'今天讲完了条件概率。',archive:true});
+  assert.equal(result.archived,false);
+  assert.equal(result.archiveScheduled,true);
+  assert.deepEqual(calls,[]);
+  assert.equal(service.archiveAfterTurn.has(session.id),true);
+  // What the turn/end hook does once the teacher's turn is over.
+  service.archiveAfterTurn.delete(session.id);service.archiveWhenIdle(session.id);
+  await new Promise(resolve=>setTimeout(resolve,400));
+  assert.deepEqual(calls,[session.id,session.id]);
+});
+
 test('clearing a cross-set script binding keeps the existing summary at its original source',async t=>{
   const {root,ctx,service,exec}=await setup(t),other=join(root,'other');
   await mkdir(join(other,'vault/备课'),{recursive:true});
@@ -207,4 +232,95 @@ test('a missing independent summary re-enters the actual summary request instead
   const recovered=await service.saveSummary({...exec,callId:'regenerate'},{body:'重新总结当前课堂。'});
   assert.equal(recovered.path,summary.path);
   assert.equal((await service.lessonLog({})).total,1);
+});
+
+test('每轮的本课背景都带上学习集梗概：没有时提示创建，启用后补上默认科目与学科技能',async t=>{
+  const runtime=await installRuntime(t);
+  let {background}=await assembledContext(runtime);
+  assert.equal(background.learningSet.status,'missing');
+  assert.match(background.learningSet.hint,/技能页/);
+  await mkdir(join(runtime.root,'vault','技能'),{recursive:true});
+  await writeFile(join(runtime.root,'vault','技能','learning-set.md'),'---\ntype: skill\nid: learning-set\ntitle: 学习集梗概\ndescription: 本学习集的梗概。\nstatus: active\nsubjects: [数学]\ncoverage: 高中解析几何\nlevel: 高二\ngoal: 期末 120 分\ndeadline: 2027-01\n---\n# 学习集梗概\n\n以课本为主。\n');
+  ({background}=await assembledContext(runtime));
+  assert.equal(background.learningSet.status,'active');
+  assert.equal(background.learningSet.goal,'期末 120 分');
+  assert.deepEqual(background.learningSet.subjectSkills,['notara-subject-math']);
+  assert.deepEqual(background.subjects,['数学'],'the lesson falls back to the overview subjects');
+  assert.equal(background.subjectsSource,'learning-set');
+});
+
+test('a lesson opened on a route node from inside the lesson is written to the route first, and a half-bound lesson is repaired', async t => {
+  const {root,ctx,session,service,exec}=await setup(t);
+  const {createEditorVaultIO}=await import('./agent-io.js');
+  const {createRouteInVault}=await import('./file-operations.js');
+  const {parseRoute}=await import('./lesson-data.js');
+  const {readTeachingSettings}=await import('./teaching-state.js');
+  const io=createEditorVaultIO(ctx,root);
+  const {path}=await createRouteInVault(io,{title:'路线',lessons:[{title:'第一课'},{title:'第二课'}]});
+  const nodes=async()=>parseRoute(await io.read(path)).nodes;
+  const [first,second]=await nodes();
+  // Someone else writes the same route (the plan page scheduling lesson 2)
+  // while this lesson binds: the lesson must still end up on the node.
+  const bind=service.bindRouteNode.bind(service);let once=true;
+  service.bindRouteNode=async(...args)=>{await bind(...args);if(once){once=false;const doc=await io.read(path);await io.save(path,doc.content.replace('第二课','第二课 '),doc.revision);}};
+  const opened=await service.openRouteLessonHere({path,nodeId:first.id,expectedRevision:(await io.read(path)).revision},exec);
+  assert.equal(opened.bound,true);
+  assert.equal((await nodes()).find(node=>node.id===first.id).sessionId,session.id);
+  assert.equal(readTeachingSettings(session).nodeId,first.id);
+  service.bindRouteNode=bind;
+
+  // A lesson an earlier version bound without writing the route gets its node back.
+  const {bindTeachingLesson}=await import('./teaching-state.js');
+  const other=(await import('@deepseek-ai/dsh-session')).Session.create('half-bound',[],{version: 4,id:'half-bound',createdAt:Date.now(),isSeeded:false,cwd:root,agentPreset:'notara-teacher'});
+  bindTeachingLesson(other,{scriptPath:null,scriptRevision:null,scriptWorkspaceId:null,scriptSnapshot:null,routePath:path,nodeId:second.id,continuation:null,materials:[]});
+  const half={agent:{session:other},signal:new AbortController().signal,callId:'half'};
+  const repaired=await service.openRouteLessonHere({path,nodeId:second.id,expectedRevision:(await io.read(path)).revision},half);
+  assert.equal(repaired.already,true);
+  assert.equal((await nodes()).find(node=>node.id===second.id).sessionId,'half-bound');
+});
+
+test('a summary saved into the bound script does not make the lesson rebind it; a real script edit still does', async t => {
+  const {root,ctx,session,service,exec}=await setup(t);
+  const {runCommand}=await import('./vault-cli.js');
+  const {readTeachingSettings}=await import('./teaching-state.js');
+  const vault=join(root,'vault');
+  await mkdir(join(vault,'备课'),{recursive:true});
+  await writeFile(join(vault,'备课','一.md'),'---\ntype: lesson\ntitle: 一\n---\n# 一\n\n## 阶段一：引入\n\n先想想。\n\n## 阶段二：练习\n\n做题。\n');
+  await service.executeTool('set_teaching_settings',{scriptPath:'备课/一.md'},exec);
+  const fs=ctx.fs;
+  const env=()=>({DSH_NOTARA_WORKSPACE:root,DSH_NOTARA_WORKSPACE_ID:'runtime-workspace',DSH_SESSION_ID:session.id,DSH_NOTARA_CALL_ID:`c${Math.random()}`,
+    DSH_NOTARA_LESSON:module.lessonPinText({path:root,id:'runtime-workspace'},readTeachingSettings(session))});
+  const cli=async(command,args)=>{try{return await runCommand(command,args,{fs,root,env:env()});}catch(error){return {error:error.code??error.message};}};
+  const outline=await cli('lesson-outline',{path:'备课/一.md'});
+  const key=outline.sections[0].key;
+  await service.executeTool('save_lesson_summary',{body:'学了引入。\n\n## 下次从这里继续\n\n练习。'},{...exec,callId:'summary'});
+  const after=await cli('lesson-outline',{path:'备课/一.md'});
+  assert.equal(after.stale,false);
+  const section=await cli('lesson-section',{path:'备课/一.md',section:key,expectedRevision:after.revision});
+  assert.equal(section.error,undefined,JSON.stringify(section));
+  // Changing the script itself is still a change the lesson must see.
+  const text=await readFile(join(vault,'备课','一.md'),'utf8');
+  await writeFile(join(vault,'备课','一.md'),text.replace('先想想。','先画一张图。'));
+  const edited=await cli('lesson-outline',{path:'备课/一.md'});
+  assert.equal(edited.stale,true);
+  assert.equal((await cli('lesson-section',{path:'备课/一.md',section:key,expectedRevision:edited.revision})).error,'lesson_script_rebind_required');
+});
+
+test('one route the planner cannot read is reported by itself while every other route still lists', async t => {
+  const {root,ctx,service}=await setup(t);
+  const {createEditorVaultIO}=await import('./agent-io.js');
+  const {createRouteInVault}=await import('./file-operations.js');
+  const io=createEditorVaultIO(ctx,root);
+  const broken=await createRouteInVault(io,{title:'路线甲',lessons:[{title:'一',brief:'第一课规划'},{title:'二'}]});
+  await createRouteInVault(io,{title:'路线乙',lessons:[{title:'三'}]});
+  // The student hand-edits route 甲 and deletes one of its block markers.
+  const current=await io.read(broken.path);
+  const lines=current.content.split('\n');
+  lines.splice(lines.findIndex(line=>/notara:route[^\n]*end|\/notara:route/.test(line)),1);
+  await io.save(broken.path,lines.join('\n'),current.revision);
+  const listed=await service.routes({});
+  assert.deepEqual(listed.nodes.map(node=>node.title),['三']);
+  const bad=listed.routes.find(route=>route.path===broken.path);
+  assert.ok(bad?.error,JSON.stringify(listed.routes));
+  assert.equal(listed.routes.find(route=>route.title==='路线乙')?.error,undefined);
 });

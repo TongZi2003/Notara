@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { startVaultIsolated } from '../../scripts/dev-isolated.ts';
+import { connectVault } from '../fixtures/vault-http.ts';
 
 test('minimal assets, local graph and native split panes keep file and conversation context', async ({ page }, testInfo) => {
   test.setTimeout(180_000);
@@ -18,7 +20,7 @@ test('minimal assets, local graph and native split panes keep file and conversat
     try { await later.waitFor({ timeout: 8000 }); await later.click(); } catch { /* already acknowledged */ }
     const input = page.locator('[data-composer-input][contenteditable="true"]').last();
     await input.fill('打开资料'); await input.press('Enter');
-    await page.getByRole('button', { name: '资料库', exact: true }).click();
+    await page.getByRole('button', { name: 'Vault', exact: true }).click();
     await page.getByRole('tab', { name: '文件', exact: true }).click();
     await expect(page.getByRole('tab', { name: '阅读器', exact: true })).toHaveCount(0);
     await expect(page.getByText('文件事实源', { exact: true })).toHaveCount(0);
@@ -42,7 +44,7 @@ test('minimal assets, local graph and native split panes keep file and conversat
     await page.getByRole('button', { name: '带入整个文件', exact: true }).click();
     await expect(page.locator('[data-composer-input]')).toContainText('我的摘录');
     expect(await readFile(join(runtime.root, 'workspace/vault/卡片/我的摘录.md'), 'utf8')).toContain('# 我的摘录');
-    await page.getByRole('button', { name: '资料库', exact: true }).click();
+    await page.getByRole('button', { name: 'Vault', exact: true }).click();
     await page.getByRole('tab', { name: '图谱', exact: true }).click();
     await page.getByRole('button', { name: '图谱节点 向量', exact: true }).click();
     const details = page.getByRole('complementary', { name: '节点详情' });
@@ -105,27 +107,43 @@ test('classroom whiteboard renders and edits a controlled parabola interaction',
     await page.goto(runtime.authUrl);
     const later = page.getByRole('button', { name: 'Configure later', exact: true });
     try { await later.waitFor({ timeout: 8000 }); await later.click(); } catch { /* already acknowledged */ }
-    const args = { title: '抛物线的形状', body: '先观察参数变化，再回到板书解释。', kind: 'note', interactive: { provider: 'math', preset: 'parabola', scene: { preset: 'parabola', parameters: { a: 0.8, h: 0, k: 0 }, observation: '' } } };
-    // The native Vault test adapter consumes explicit replies keyed by the
-    // student's message. Keep the tool call in the adapter fixture so this
-    // path exercises the real model -> tool -> Host -> board event chain.
-    const trigger = '请把这条抛物线写入白板';
-    await writeFile(join(runtime.root, 'teacher-replies.json'), `${JSON.stringify({ [trigger]: [{ name: 'write_lesson_board', arguments: args }] }, null, 2)}\n`);
+    // New writes use `figure`; a board written before 0.17.1 still carries its
+    // parabola interaction. Seed exactly such an older board and interaction.
+    const trigger = '我们来看这条抛物线';
+    await writeFile(join(runtime.root, 'teacher-replies.json'), `${JSON.stringify({ [trigger]: '好，白板上有一张互动图。' })}\n`);
     const input = page.locator('[data-composer-input][contenteditable="true"]').last();
     await input.fill(trigger);
     await input.press('Enter');
-    await page.getByRole('button', { name: 'Allow once', exact: true }).click();
-    await page.getByRole('button', { name: '1 tool call', exact: true }).click();
-    await expect(page.getByText('已更新板书', { exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('好，白板上有一张互动图。').first()).toBeVisible({ timeout: 30_000 });
+    const harness = await connectVault(runtime);
+    const sessionId = ((await harness.sessions()) as Array<{ sessionId: string; blank?: boolean }>).find(row => !row.blank)!.sessionId;
+    await harness.close();
+    const owner = createHash('sha256').update(sessionId).digest('hex').slice(0, 32), interactionId = crypto.randomUUID();
+    const scene = JSON.stringify({ type: 'lesson-interaction', session: sessionId, interactionId, provider: 'math', preset: 'parabola', scene: { kind: 'math', preset: 'parabola', viewport: [-5, 5, 5, -5], parameters: { a: 0.8, h: 0, k: 0 }, observation: '' } });
+    const vault = join(runtime.root, 'workspace', 'vault');
+    await mkdir(join(vault, 'lesson-interaction', owner), { recursive: true });
+    await writeFile(join(vault, 'lesson-interaction', owner, `${interactionId}.json`), scene);
+    const ref = { provider: 'math', interactionId, revision: createHash('sha256').update(scene).digest('hex').slice(0, 24), preset: 'parabola' };
+    await mkdir(join(vault, 'lesson-board'), { recursive: true });
+    await writeFile(join(vault, 'lesson-board', `${owner}.md`), `---\ntype: lesson-board\ntitle: 课堂板书\nsession: ${sessionId}\nsourceNotes: {}\n---\n<!-- notara-board ${JSON.stringify({ id: 'legacy-parabola', kind: 'note', x: 60, y: 60, width: 340, interactive: ref })} -->\n## 抛物线的形状\n\n先观察参数变化，再回到板书解释。\n`);
     await page.getByRole('tab', { name: '白板', exact: true }).click();
     await expect(page.locator('[data-interactive-provider="math"]')).toBeVisible();
     await expect(page.locator('[data-interactive-provider="math"]')).toContainText('抛物线的形状');
+    // The block sits under its section title; scroll the canvas like a student would.
+    const viewport = page.getByLabel('课堂板书画布');
+    const box = await viewport.boundingBox();
+    if (box) { await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(0, 260); }
     await page.getByRole('button', { name: '展开互动图 ↗', exact: true }).click();
     await expect(page.locator('.nb-interactive.is-expanded')).toBeVisible();
     const slider = page.locator('.nb-interactive.is-expanded input[type="range"]');
+    let finishSave!: () => void;
+    const saveGate = new Promise<void>(resolve => { finishSave = resolve; });
+    await page.route('**/api/notaraVault/mutateBoardInteraction', async route => { await saveGate; await route.continue(); });
     await slider.fill('1.2');
     await expect(page.locator('.nb-interactive.is-expanded')).toContainText('1.2');
     await page.getByRole('button', { name: '收起', exact: true }).click();
+    await expect(page.locator('.nb-interactive.is-expanded')).toBeVisible();
+    finishSave();
     await expect(page.locator('.nb-interactive.is-expanded')).toHaveCount(0);
     await page.getByRole('button', { name: '带入对话', exact: true }).click();
     await expect(page.locator('[data-composer-input]')).toContainText('y = 1.2');

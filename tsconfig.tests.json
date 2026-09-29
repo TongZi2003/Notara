@@ -1,14 +1,18 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node"],
-    "lib": ["ES2023", "ES2025.Float16", "DOM", "DOM.Iterable"],
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "ES2023",
+      "ES2025.Float16",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "tsBuildInfoFile": ".runtime/tests.tsbuildinfo"
   },
-  "include": ["tests/**/*.ts"],
-  "references": [
-    { "path": "./packages/contracts" },
-    { "path": "./packages/domain" },
-    { "path": "./packages/host" }
+  "include": [
+    "tests/**/*.ts"
   ]
 }

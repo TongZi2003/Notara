@@ -10,7 +10,7 @@ import { startVaultIsolated, type VaultRuntime } from '../../scripts/dev-isolate
  *
  * Migrated to the minimal-split contract (docs/dev-log/2026-09-21-vault-minimal-split.md):
  * the reader is no longer its own tab; it is the assets view's PDF surface,
- * reached through the file rail that starts collapsed behind 展开文件栏. The
+ * reached from the file tree in the Vault section's panel (0.18.0 rail). The
  * reference-card flow saves a highlight first and never splits raw page text.
  */
 const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true });
@@ -46,7 +46,6 @@ test.describe('native vault PDF reader', () => {
     // Enter the pre-registered workspace and open a session so the
     // conversation.view slots exist. The model run will fail without a key, but
     // the session and its views are still created.
-    await page.getByText('Notara Vault').first().click();
     // The composer starts `contenteditable="false"` until a workspace is
     // attached; wait for the editable one instead of racing the mount.
     const composer = page.locator('[data-composer-input][contenteditable="true"], textarea[placeholder]').last();
@@ -59,12 +58,11 @@ test.describe('native vault PDF reader', () => {
 
     // PDF and Markdown share the assets view: there is no reader tab left.
     await expect(tab(page, '阅读器')).toHaveCount(0);
-    await tab(page, '资产').click();
+    await page.getByRole('navigation', { name: '学习导航' }).getByRole('button', { name: 'Vault', exact: true }).click();
+    await page.getByRole('tablist', { name: 'Vault 视图' }).getByRole('tab', { name: '文件', exact: true }).click();
     await page.screenshot({ path: testInfo.outputPath('assets.png') });
 
-    // The file rail is collapsed by default.
-    await expect(page.getByRole('button', { name: '展开文件栏', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: '展开文件栏', exact: true }).click();
+    // The Vault section lists the files in the side panel.
     try {
       await page.getByRole('button', { name: /向量讲义\.pdf/ }).first().waitFor({ state: 'visible', timeout: 20_000 });
     } catch (error) {
@@ -113,10 +111,11 @@ test.describe('native vault PDF reader', () => {
     expect(card).toContain('公式请对照原版阅读。');
     expect(card).not.toContain('此区域没有可提取的文字');
 
-    // 复制嵌入标记 stays a real button on the same asset page.
+    // Copying the embed stays a real action on the same asset page, in 文件操作.
     await page.getByRole('button', { name: /向量讲义\.pdf/ }).first().click();
     await expect(canvas).toBeVisible();
-    await page.getByRole('button', { name: '复制嵌入标记', exact: true }).click();
+    await page.getByRole('button', { name: '文件操作', exact: true }).click();
+    await page.getByRole('menuitem', { name: '复制并带入对话', exact: true }).click();
     await expect(page.getByText(/已复制/).first()).toBeVisible();
 
     await expect(page.getByRole('button', { name: '按页拆成卡片', exact: true })).toHaveCount(0);

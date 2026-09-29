@@ -88,7 +88,7 @@ async function readStored(root, id) {
 test('teaching events round-trip through the real JSONL log beside the native conversation', async t => {
   const { root, ctx } = await jsonlRoot(t);
   const id = 'state-roundtrip';
-  const header = { version: 3, id, createdAt: Date.now(), isSeeded: false };
+  const header = { version: 4, id, createdAt: Date.now(), isSeeded: false };
   const handle = await ctx.sessionPersistence.create(header);
   const session = Session.create(id, [], header);
 
@@ -130,7 +130,7 @@ test('teaching events round-trip through the real JSONL log beside the native co
 test('an unknown event written without the marker still refuses the cold read', async t => {
   const { root, ctx } = await jsonlRoot(t);
   const id = 'state-unmarked';
-  const header = { version: 3, id, createdAt: Date.now(), isSeeded: false };
+  const header = { version: 4, id, createdAt: Date.now(), isSeeded: false };
   const handle = await ctx.sessionPersistence.create(header);
   const session = Session.create(id, [], header);
   session.append('user/message', userMessage, { surfaceOp: 'append' });
@@ -148,7 +148,7 @@ test('an unknown event written without the marker still refuses the cold read', 
 
 test('the seam refuses illegal metadata and foreign event types before writing', async t => {
   const { ctx } = await jsonlRoot(t);
-  const header = { version: 3, id: 'state-guards', createdAt: Date.now(), isSeeded: false };
+  const header = { version: 4, id: 'state-guards', createdAt: Date.now(), isSeeded: false };
   const session = Session.create('state-guards', [], header);
 
   assert.throws(() => state.appendTeachingEvent(session, 'user/message', userMessage), /teaching_event_type_invalid/);

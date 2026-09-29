@@ -4,24 +4,88 @@ import { Session } from '@deepseek-ai/dsh-session';
 import { updateTeachingSettings } from './teaching-state.js';
 const module = await import('./solver-runtime.js').catch(() => ({}));
 
-function setup({ models = ['gpt-5.6-sol'], start } = {}) {
+function setup({ models = ['gpt-5.6-sol'], start, teacher = 'gpt-5.6-sol', cwd } = {}) {
   assert.equal(typeof module.NotaraSolver, 'function');
-  const session = Session.create('solver-parent', [], { version: 3, id: 'solver-parent', createdAt: Date.now(), isSeeded: false, agentPreset: 'notara-teacher' });
+  const session = Session.create('solver-parent', [], { version: 4, id: 'solver-parent', createdAt: Date.now(), isSeeded: false, agentPreset: 'notara-teacher', ...(cwd ? { cwd } : {}) });
+  // The teacher's current request: workers without a saved model follow it.
+  if (teacher) session.append('request/header', { header: { config: { provider: 'test', model: teacher } }, reason: 'initial' });
   const agent = { session };
   const calls = [];
   const ctx = { llm: { listProviders: () => [{ id: 'test', name: 'Test' }], listModels: async () => models.map(id => ({ id, name: id })), resolveModelInfo: async () => ({ reasoning: { efforts: [{ id: 'high', name: 'High' }] } }) }, subagents: { listChildren: async () => [{ id: 'child', kind: 'child', mode: 'one-shot' }], start: async (provider, request) => { calls.push({ provider, request }); return start ? start(request) : { id: 'child', result: Promise.resolve({ stopReason: 'completed', output: [{ type: 'text', text: 'PRIVATE_SOLUTION：先约去公因子。' }] }), dispose: async () => {} }; } } };
   ctx.get = name => ctx[name];
   const teaching = { isTeaching: a => a?.session?.header?.agentPreset === 'notara-teacher', agentFor: async () => agent, flush: async () => {} };
-  return { solver: new module.NotaraSolver(ctx, teaching), ctx, teaching, session, agent, calls, exec: { agent, callId: 'solve-once', signal: new AbortController().signal } };
+  return { solver: new module.NotaraSolver(ctx, teaching, { defaultsPath: null }), ctx, teaching, session, agent, calls, exec: { agent, callId: 'solve-once', signal: new AbortController().signal } };
 }
 
-test('solver requires an available exact model and never falls back to the teacher', async () => {
-  const { solver, calls, exec } = setup({ models: ['teacher-flash'] });
+test('a worker with nothing saved follows the teacher; a saved model no longer offered fails without a substitute', async () => {
+  const { solver, ctx, calls, exec, session } = setup({ models: ['teacher-flash'], teacher: 'teacher-flash' });
   const view = await solver.read({ sessionId: 'solver-parent' });
-  assert.equal(view.workers[0].ready, false);
-  assert.equal(view.workers[0].preferredModel, 'gpt-5.6-sol');
-  await assert.rejects(solver.ask({ preset: 'problem', goal: '求 x² 的导数' }, exec), /solver_model_unavailable/);
-  assert.equal(calls.length, 0);
+  assert.equal(view.workers[0].ready, true);
+  assert.equal(view.workers[0].follow, true);
+  assert.equal(view.workers[0].route, null);
+  assert.deepEqual(view.teacherRoute, { provider: 'test', model: 'teacher-flash', label: 'teacher-flash · Test' });
+  await solver.ask({ preset: 'problem', goal: '求 x² 的导数' }, { ...exec, callId: 'follow' });
+  assert.equal(calls[0].request.agentOptions.model, 'teacher-flash');
+  // A saved choice is kept literally: when it disappears nothing takes its place.
+  await solver.configure({ preset: 'problem', tools: 'none', sessionId: session.id, expectedRevision: 0, route: { provider: 'test', model: 'teacher-flash' } });
+  ctx.llm.listModels = async () => [{ id: 'other', name: 'other' }]; solver.catalog = null;
+  await assert.rejects(solver.ask({ preset: 'problem', goal: '再求一次' }, { ...exec, callId: 'gone' }), /solver_model_unavailable/);
+  assert.equal(calls.length, 1);
+  assert.equal((await solver.read({ sessionId: session.id })).workers[0].ready, false);
+});
+
+test('a route the provider refuses is marked: the next dispatch fails fast until a setting is saved', async () => {
+  let refuse = true;
+  const { solver, calls, exec, session } = setup({ start: () => ({ id: 'child', localAgent: { session: { snapshotEvents: () => [{ type: 'turn/end', data: { reason: { kind: 'error', error: { code: 'PI_AI_ERROR', message: 'Provider is not configured: test' } } } }] } }, result: Promise.resolve(refuse ? { stopReason: 'error', output: [] } : { stopReason: 'completed', output: [{ type: 'text', text: '好了' }] }), dispose: async () => {} }) });
+  await assert.rejects(solver.ask({ preset: 'problem', goal: '第一次' }, { ...exec, callId: 'first' }), /solver_model_unavailable[\s\S]*Provider is not configured/);
+  const marked = (await solver.read({ sessionId: session.id })).workers[0];
+  assert.equal(marked.ready, false);
+  assert.match(marked.reason, /模型调不通：PI_AI_ERROR Provider is not configured: test/);
+  session.append('user/message', { id: 'again', role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '再试一次' }] }, { surfaceOp: 'append' });
+  await assert.rejects(solver.ask({ preset: 'exercise', goal: '同一个模型的另一位' }, { ...exec, callId: 'second' }), /solver_model_unavailable[\s\S]*上次就调用不了/);
+  assert.equal(calls.length, 1, 'the marked route is not called again');
+  // Saving any worker setting clears the marks: the student acted on the settings.
+  refuse = false;
+  await solver.configure({ preset: 'review', tools: 'none', sessionId: session.id, expectedRevision: 0, route: null });
+  assert.equal((await solver.read({ sessionId: session.id })).workers[0].ready, true);
+  await solver.ask({ preset: 'exercise', goal: '现在可以了' }, { ...exec, callId: 'third' });
+  assert.equal(calls.length, 2);
+});
+
+test('shared defaults apply to every lesson, a lesson override wins, and inherit clears one level', async t => {
+  const { mkdtemp, rm, readFile } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const home = await mkdtemp(join(tmpdir(), 'notara-worker-defaults-'));
+  t.after(() => rm(home, { recursive: true, force: true }));
+  const defaultsPath = join(home, 'notara-workers.json');
+  const { ctx, teaching, session, exec, calls } = setup({ models: ['gpt-5.6-sol', 'teacher-flash'], teacher: 'teacher-flash' });
+  const solver = new module.NotaraSolver(ctx, teaching, { defaultsPath });
+  const first = await solver.read({ sessionId: session.id });
+  assert.equal(first.defaultsRevision, 0);
+  const shared = { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'high' };
+  const saved = await solver.configure({ preset: 'problem', tools: 'read', persona: '严谨', sessionId: session.id, scope: 'default', expectedRevision: 0, route: shared });
+  assert.equal(saved.defaultsRevision, 1);
+  assert.equal(saved.revision, 0, 'the lesson itself did not change');
+  assert.deepEqual(saved.workers[0], { ...saved.workers[0], route: shared, scope: 'default', tools: 'read', persona: '严谨', follow: false });
+  assert.match(await readFile(defaultsPath, 'utf8'), /gpt-5\.6-sol/);
+  // Another solver (a new lesson, a restart) reads the same default.
+  const other = await new module.NotaraSolver(ctx, teaching, { defaultsPath }).read({ sessionId: session.id });
+  assert.deepEqual(other.workers[0].route, shared);
+  await assert.rejects(solver.configure({ preset: 'problem', tools: 'none', sessionId: session.id, scope: 'default', expectedRevision: 0, route: null }), /solver_settings_conflict/);
+  // This lesson overrides it, and dispatch uses the override.
+  const own = await solver.configure({ preset: 'problem', tools: 'none', sessionId: session.id, scope: 'lesson', expectedRevision: 0, route: { provider: 'test', model: 'teacher-flash' } });
+  assert.equal(own.workers[0].scope, 'lesson');
+  await solver.ask({ preset: 'problem', goal: '按本课设置' }, { ...exec, callId: 'own' });
+  assert.equal(calls.at(-1).request.agentOptions.model, 'teacher-flash');
+  // Inherit drops the override (the default applies again), then drops the default (follow the teacher).
+  const back = await solver.configure({ preset: 'problem', tools: 'none', sessionId: session.id, scope: 'lesson', inherit: true, expectedRevision: 1, route: null });
+  assert.equal(back.workers[0].scope, 'default');
+  assert.deepEqual(back.workers[0].route, shared);
+  const plain = await solver.configure({ preset: 'problem', tools: 'none', sessionId: session.id, scope: 'default', inherit: true, expectedRevision: 1, route: null });
+  assert.equal(plain.workers[0].scope, 'none');
+  assert.equal(plain.workers[0].follow, true);
+  await assert.rejects(new module.NotaraSolver(ctx, teaching, { defaultsPath: null }).configure({ preset: 'problem', tools: 'none', sessionId: session.id, scope: 'default', expectedRevision: 0, route: null }), /solver_defaults_unavailable/);
 });
 
 test('solver receives only selected text with no tools on its independent model route', async () => {
@@ -45,6 +109,32 @@ test('solver receives only selected text with no tools on its independent model 
   assert.doesNotMatch(JSON.stringify(session.snapshotEvents().filter(e => e.type.startsWith('notara/worker'))), /PRIVATE_SOLUTION/);
   await assert.rejects(solver.ask({ preset: 'problem', goal: '重复' }, exec), /solver_task_already_finished/);
   assert.equal(calls.length, 1);
+});
+
+test('the worker record opens with the task only: no preset id, no absolute path, and the Vault folder for a read worker', async t => {
+  const { mkdtemp, mkdir, writeFile, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const workspace = await mkdtemp(join(tmpdir(), 'notara-worker-task-'));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  await mkdir(join(workspace, 'vault', '卡片'), { recursive: true });
+  await writeFile(join(workspace, 'vault', '卡片', '导数.md'), '# 导数\n');
+  const route = { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'high' };
+  const task = async (tools, cwd, callId) => {
+    const { solver, calls, exec, session } = setup({ cwd });
+    await solver.configure({ preset: 'problem', tools, sessionId: session.id, expectedRevision: 0, route });
+    await solver.ask({ preset: 'problem', goal: '核对卡片里的推导', materials: [{ title: '卡片', text: '卡片/导数.md' }] }, { ...exec, callId });
+    const text = calls[0].request.prompt[0].text;
+    assert.doesNotMatch(text, new RegExp(workspace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'no absolute path');
+    assert.doesNotMatch(text, /"preset"|"workspace"/);
+    return JSON.parse(text);
+  };
+  const read = await task('read', workspace, 'read-worker');
+  assert.equal(read.goal, '核对卡片里的推导');
+  assert.equal(read.capabilities, 'read');
+  assert.equal(read.materialsRoot, 'vault/', 'Vault paths start in vault/ under the worker’s folder');
+  assert.equal((await task('none', workspace, 'plain-worker')).materialsRoot, undefined, 'a worker without tools reads no files');
+  assert.equal((await task('read', join(workspace, 'vault'), 'root-worker')).materialsRoot, undefined, 'the folder is itself the Vault');
 });
 
 test('route configuration validates candidates, rejects stale revisions, and survives recreation', async () => {
@@ -102,13 +192,12 @@ test('native cleanup failure cannot leave a completed receipt beside a rejected 
   assert.equal((await solver.read({ sessionId: session.id })).tasks[0].status, 'failed');
 });
 
-test('solver gets its own generation allowance and strongest supported effort, not the parent cap', async () => {
-  const { solver, ctx, exec, calls } = setup();
-  exec.agent.options = { maxTokens: 512 };
-  ctx.llm.resolveModelInfo = async () => ({ reasoning: { efforts: ['low', 'high', 'xhigh'].map(id => ({ id })) } });
+test('solver gets its own generation allowance, not the parent cap, and follows the teacher\'s effort', async () => {
+  const { solver, exec, calls, session } = setup();
+  session.append('request/header', { header: { config: { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'low', maxTokens: 512 } }, reason: 'initial' });
   await solver.ask({ preset: 'problem', goal: '独立研究一道完整题目' }, exec);
   assert.equal(calls[0].request.agentOptions.maxTokens, 32768);
-  assert.equal(calls[0].request.agentOptions.reasoningEffort, 'xhigh');
+  assert.equal(calls[0].request.agentOptions.reasoningEffort, 'low');
 });
 
 test('explicit solver allowance and effort survive settings and reach the child', async () => {

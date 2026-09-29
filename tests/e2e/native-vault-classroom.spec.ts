@@ -18,9 +18,9 @@ import { connectVault } from '../fixtures/vault-http.ts';
  * Everything asserted here is learner-visible. The scripted replies live in the
  * run's own data root; this is native wiring, never real teaching quality.
  */
-const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true });
+const tab = (page: Page, name: string) => page.getByRole('tablist', { name: '课堂视图' }).getByRole('tab', { name, exact: true });
 const bench = (page: Page) => page.getByRole('region', { name: '教室区域', exact: true });
-const tablist = (page: Page) => page.getByRole('tablist', { name: '左侧分页' });
+const tablist = (page: Page) => page.getByRole('tablist', { name: '课堂视图' });
 /** Marker that exists only inside the solver's后台 answer. */
 const ANSWER_MARKER = 'SOLVER-ANALYSIS-Q7';
 const SOLVER_REQUEST = '让解题者后台算这道题';
@@ -29,10 +29,10 @@ const SOLVER_ROUTE_VALUE = `${VAULT_SOLVER_PROVIDER}\u0000${VAULT_SOLVER_MODEL}`
 
 async function openVault(page: Page, runtime: VaultRuntime): Promise<void> {
   await page.goto(runtime.authUrl);
-  const later = page.getByRole('button', { name: 'Configure later', exact: true });
+  const later = page.getByRole('button', { name: /Configure later|稍后配置/ });
   try { await later.waitFor({ timeout: 8000 }); await later.click(); } catch { /* already acknowledged */ }
-  await page.getByText('Notara Vault', { exact: true }).first().click();
-  await expect(page.locator('[data-composer-input]')).toBeVisible();
+  // The only learning directory is already selected; Home's composer is ready.
+  await expect(page.locator('[data-composer-input]').last()).toBeVisible();
 }
 
 function watch(page: Page, errors: string[]): void {
@@ -51,6 +51,11 @@ test('五种工作预设独立保存配置，列表与像素共用真实出题�
   watch(page, errors);
   try {
     await openVault(page, runtime);
+    // The classroom belongs to a lesson: open one from Home first.
+    await script(runtime, { '__session-title': '教室设置验收', '开始上课。': '好，我们开始。' });
+    await page.locator('[data-composer-input]').fill('开始上课。');
+    await page.locator('[data-composer-input]').press('Enter');
+    await expect(page.getByText('好，我们开始。').first()).toBeVisible({ timeout: 30_000 });
     await tab(page, '教室').click();
     await expect(bench(page)).toBeVisible();
     const pixel = page.frameLocator('iframe[title="教室像素视图"]');
@@ -65,8 +70,14 @@ test('五种工作预设独立保存配置，列表与像素共用真实出题�
     }
     await expect(page.locator('[data-composer-input]')).toHaveCount(1);
     await expect(page.locator('[data-composer-input]')).toBeHidden();
+    // Nothing configured: every worker follows the teacher, and the row names the teacher's model.
+    await expect(bench(page).locator('.nv-members')).toContainText('跟随老师 · Vault 测试模型');
     await bench(page).getByRole('button', { name: '教室设置', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: '教室设置' });
+    await expect(dialog.getByLabel('后台模型', { exact: true })).toHaveValue('');
+    await expect(dialog.getByRole('option', { name: /^跟随老师（现在是 Vault 测试模型/ })).toHaveCount(1);
+    // A save goes to the shared default unless the student picks 只改本课.
+    await expect(dialog.getByRole('button', { name: '所有课堂的默认', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await dialog.getByRole('button', { name: '出题员', exact: true }).click();
     await dialog.getByLabel('后台模型', { exact: true }).selectOption(SOLVER_ROUTE_VALUE);
     await dialog.getByLabel('推理等级', { exact: true }).selectOption('low');
@@ -123,8 +134,9 @@ test('五种工作预设独立保存配置，列表与像素共用真实出题�
       const teacherRequest = (await companion.requests()).find(row => row.provider === VAULT_TEST_PROVIDER && row.purpose === null);
       expect(teacherRequest?.sessionId).toBeTruthy();
       const session = { sessionId: teacherRequest!.sessionId! };
-      const before = companion.value(await companion.rpc<{revision: number}>('notaraVault/classroom', { input: { sessionId: session.sessionId } }));
-      companion.value(await companion.rpc('notaraVault/configureSolver', { input: { sessionId: session.sessionId, expectedRevision: before.revision, preset: 'exercise', tools: 'read', route: { provider: VAULT_SOLVER_PROVIDER, model: VAULT_SOLVER_MODEL, reasoningEffort: 'low', maxTokens: 16384 } } }));
+      const before = companion.value(await companion.rpc<{ defaultsRevision: number }>('notaraVault/classroom', { input: { sessionId: session.sessionId } }));
+      // The dialog saves to the shared default, so the concurrent change lands there too.
+      companion.value(await companion.rpc('notaraVault/configureSolver', { input: { sessionId: session.sessionId, scope: 'default', expectedRevision: before.defaultsRevision, preset: 'exercise', tools: 'read', route: { provider: VAULT_SOLVER_PROVIDER, model: VAULT_SOLVER_MODEL, reasoningEffort: 'low', maxTokens: 16384 } } }));
       await page.evaluate(() => window.dispatchEvent(new Event('focus')));
       await expect(staleDialog.getByRole('button', { name: '载入最新设置', exact: true })).toBeVisible();
       await staleDialog.getByRole('button', { name: '保存', exact: true }).click();
@@ -170,6 +182,9 @@ test('解题默认不内联解答：任务可查看分析并打开原生一次�
     const inspect = bench(page).getByRole('button', { name: '查看分析（含完整解法）', exact: true });
     await expect(inspect).toBeVisible({ timeout: 60_000 });
     await page.screenshot({ path: testInfo.outputPath('solver-running.png') });
+    // 教室 is the one place the workers are listed: the header has no native
+    // subagent menu with its token counts.
+    await expect(page.getByRole('button', { name: /子代理|subagent/i })).toHaveCount(0);
 
     // 查看分析 opens the native one-shot child session; the full solution lives
     // in that record, and the conversation is read-only there.
@@ -181,14 +196,21 @@ test('解题默认不内联解答：任务可查看分析并打开原生一次�
     // A child session is not a classroom: 教学设置 and 教室 belong to the parent.
     await expect(page.getByRole('button', { name: '教学设置', exact: true })).toHaveCount(0);
     await expect(tablist(page).getByRole('tab', { name: '教室', exact: true })).toHaveCount(0);
+    // The record still sits in the lesson's directory: the panel keeps its lessons.
+    await expect(page.locator('.nv-sidebar')).not.toContainText('选择目录后查看课堂');
+    await expect(page.locator('.nv-sidebar').getByText('大肥鱼课堂验收', { exact: true })).toBeVisible();
+    // 保留 lineage: the native crumb stays, and 返回课堂 says plainly how to get back.
+    await expect(page.getByRole('button', { name: '大肥鱼课堂验收', exact: true }).first()).toBeVisible();
+    // The record is named by the worker's role, with no switcher to the other workers.
+    await expect(page.getByRole('navigation', { name: /会话层级|Session hierarchy/ }).getByText('题目研究员', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /子代理|subagent/i })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('child-session.png') });
-
-    // 保留 lineage: the native switcher still gets back to the parent classroom.
-    await page.getByRole('button', { name: '大肥鱼课堂验收', exact: true }).first().click();
-    await expect(tablist(page).getByRole('tab', { name: '教室', exact: true })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole('button', { name: '返回课堂', exact: true }).click();
+    await expect(tablist(page).getByRole('tab', { name: '教室', exact: true })).toHaveAttribute('aria-selected', 'true', { timeout: 30_000 });
+    await expect(bench(page).getByText('题目研究员 · 分析完成', { exact: true })).toBeVisible();
     await expect(page.locator('[data-composer-input]')).toHaveCount(1);
     await tab(page, '对话').click();
-    await page.getByRole('button', { name: /tool call|工具调用/ }).first().click();
+    // The standard transcript shows the worker row directly; nothing is folded.
     await expect(page.locator('[data-tool="ask_worker"]').first()).toBeVisible();
     await expect(page.locator('[data-tool="ask_worker"]').first()).not.toContainText(ANSWER_MARKER);
     await expect(page.locator('body')).not.toContainText(ANSWER_MARKER);
@@ -227,6 +249,40 @@ test('解题默认不内联解答：任务可查看分析并打开原生一次�
     await expect(page.locator('[data-tool="ask_worker"]').first()).toBeVisible();
     await expect(page.locator('[data-tool="ask_worker"]').first()).not.toContainText(ANSWER_MARKER);
     await page.screenshot({ path: testInfo.outputPath('solver-entry.png') });
+
+    // The teacher checking background work reads as that, without tool names or job ids.
+    const jobRequest = '后台的分析都好了吗？';
+    await script(runtime, { [jobRequest]: { calls: [{ name: 'job_list', arguments: {} }, { name: 'job_output', arguments: { job_id: 'subagent-1' } }], text: '后台都查过了。' } });
+    await page.locator('[data-composer-input]').fill(jobRequest);
+    await page.locator('[data-composer-input]').press('Enter');
+    await expect(page.getByText('后台都查过了。').first()).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText('已查看后台任务列表', { exact: true })).toBeVisible();
+    await expect(page.getByText(/^(已查看后台任务|没有读到这个后台任务)$/)).toBeVisible();
+    await expect(page.locator('body')).not.toContainText(/job_list|job_output|subagent-1/);
+    await page.screenshot({ path: testInfo.outputPath('job-rows.png') });
+
+    // The summary, settings and lesson tools read as status too; a lesson that
+    // does not exist is reported as not opened, never by its tool name.
+    const toolsRequest = '今天就到这里，下节课换费曼法。';
+    await script(runtime, { [toolsRequest]: { calls: [
+      { name: 'save_lesson_summary', arguments: { body: '本课讲了条件概率的定义，学生自己列出了样本空间。' } },
+      { name: 'set_teaching_settings', arguments: { teachingRef: 'feynman' } },
+      { name: 'open_learning_lesson', arguments: { path: '路线/不存在.md', nodeId: 'n-1' } },
+    ], text: '已经收好了。' } });
+    await page.locator('[data-composer-input]').fill(toolsRequest);
+    await page.locator('[data-composer-input]').press('Enter');
+    // The summary and settings tools write, so each asks the student first.
+    const closed = page.getByText('已经收好了。').first();
+    for (let round = 0; round < 60 && !(await closed.isVisible()); round++) {
+      const allow = page.getByRole('button', { name: 'Allow once', exact: true });
+      if (await allow.isVisible()) await allow.click(); else await page.waitForTimeout(500);
+    }
+    await expect(closed).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('已保存课堂小结', { exact: true })).toBeVisible();
+    await expect(page.getByText('已更新教学设置', { exact: true })).toBeVisible();
+    await expect(page.getByText('这节课没有打开', { exact: true })).toBeVisible();
+    await expect(page.locator('body')).not.toContainText(/save_lesson_summary|set_teaching_settings|open_learning_lesson/);
+    await page.screenshot({ path: testInfo.outputPath('teacher-tool-rows.png') });
   } finally {
     await writeFile(testInfo.outputPath('console.json'), JSON.stringify(errors));
     await testInfo.attach('host-log', { body: runtime.log(), contentType: 'text/plain' });

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { startVaultIsolated } from '../../scripts/dev-isolated.ts';
 // @ts-expect-error untyped plugin module
@@ -52,6 +52,9 @@ test('the notebook look is chosen in settings, loads its face on demand and swit
     // 设置 → 学习界面 → 外观 · 手帐, live.
     await page.getByRole('button', { name: /^(Settings|设置)$/ }).last().click();
     await page.getByText('学习界面', { exact: true }).first().click();
+    // The student can tell which release this Vault runs.
+    const { version } = JSON.parse(await readFile(join(process.cwd(), 'examples/native-vault/package.json'), 'utf8'));
+    await expect(page.locator('.nv-version')).toHaveText(`当前版本 ${version}`);
     await expect(page.getByRole('radio', { name: /^极简/ })).toBeChecked();
     await page.getByRole('radio', { name: /^手帐/ }).check();
     await expect(page.locator('body')).toHaveAttribute('data-notara-style', 'notebook');
@@ -64,7 +67,7 @@ test('the notebook look is chosen in settings, loads its face on demand and swit
 
     // 侧栏与首页：装订孔、便签、波浪线、手写字体。
     expect(await style(page, '.nv-sidebar', 'font-family')).toMatch(/^"Notara WenKai"/);
-    expect(await style(page, '.nv-sidebar', 'background-image')).toContain('radial-gradient');
+    expect(await style(page, '.nv-rail', 'background-image')).toContain('radial-gradient');
     expect(await style(page, '.nv-new-lesson', 'background-color')).toBe(NOTE);
     expect(await style(page, '.nv-home-welcome h1', 'text-decoration-style')).toBe('wavy');
     expect(await style(page, '.nv-today', 'background-color')).toBe(PAPER);
@@ -86,7 +89,7 @@ test('the notebook look is chosen in settings, loads its face on demand and swit
     await classViews.getByRole('tab', { name: '对话', exact: true }).click();
 
     // 资料库：索引卡、纸上的森林。
-    await page.getByRole('button', { name: '资料库', exact: true }).click();
+    await page.getByRole('button', { name: 'Vault', exact: true }).click();
     await page.getByRole('tab', { name: '卡片', exact: true }).click();
     await expect(page.locator('.nv-card').first()).toBeVisible();
     expect(await style(page, '.nv-card', 'border-top-color')).toBe('rgb(240, 194, 187)');
@@ -105,7 +108,7 @@ test('the notebook look is chosen in settings, loads its face on demand and swit
     // Dark keeps the notebook, with its own paper; the board stays a light sheet.
     await page.emulateMedia({ colorScheme: 'dark' });
     await expect(page.locator('body')).toHaveAttribute('data-ds-dark-theme', /.*/);
-    await page.getByRole('button', { name: '今日', exact: true }).click();
+    await page.getByRole('button', { name: '首页', exact: true }).click();
     await expect.poll(() => style(page, '.nv-today', 'background-color')).toBe('rgb(35, 33, 28)');
     expect(await style(page, '.nv-new-lesson', 'background-color')).toBe('rgb(74, 65, 40)');
     await page.screenshot({ path: testInfo.outputPath('notebook-home-dark.png') });
@@ -115,7 +118,9 @@ test('the notebook look is chosen in settings, loads its face on demand and swit
 
     // 801px stays within the viewport.
     await page.setViewportSize({ width: 801, height: 900 });
-    await page.getByRole('button', { name: '资料库', exact: true }).click();
+    // Narrow: the panel is folded; the first press switches the section, the second opens its panel.
+    await page.getByRole('button', { name: 'Vault', exact: true }).click();
+    await page.getByRole('button', { name: 'Vault', exact: true }).click();
     await page.getByRole('tab', { name: '卡片', exact: true }).click();
     const overflow = await page.evaluate(() => document.scrollingElement!.scrollWidth - document.scrollingElement!.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
@@ -134,7 +139,7 @@ test('the notebook look is chosen in settings, loads its face on demand and swit
     await expect(page.locator('style[data-notara-theme=notebook]')).toHaveCount(0);
     expect(await page.evaluate(() => localStorage.getItem('notara.vault.appearance'))).toBe('minimal');
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: '今日', exact: true }).click();
+    await page.getByRole('button', { name: '首页', exact: true }).click();
     await expect.poll(() => style(page, '.nv-today', 'background-color')).not.toBe(PAPER);
     expect(await style(page, '.nv-new-lesson', 'background-color')).not.toBe(NOTE);
     expect(await style(page, '.nv-sidebar', 'font-family')).not.toContain('Notara WenKai');

@@ -6,7 +6,7 @@ import { lstatSync, readdirSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { parseFrontmatter } from './frontmatter.js';
-import { mediaForPath } from './media.js';
+import { isToolCacheDirectory, mediaForPath } from './media.js';
 import { buildVaultGraph } from './graph.js';
 import { learningStars } from './mastery-data.js';
 
@@ -27,7 +27,8 @@ const LEGACY_ROOT_SCAFFOLDING = new Set(['_templates', 'node_modules']);
 /** Layout directories the teaching rules already reserve for material. */
 const MATERIAL_DIRECTORIES = ['知识', '卡片', '媒体', '备课', '路线', '锦囊', '学情', '日记', 'lesson_log'];
 
-const isMaterialFile = name => name.toLowerCase().endsWith('.md') || mediaForPath(name).kind !== 'file';
+// Only Markdown and media decide the root layout: a README.txt or package.json is not learning material.
+const isMaterialFile = name => name.toLowerCase().endsWith('.md') || !['file', 'code'].includes(mediaForPath(name).kind);
 
 /** True when this directory itself holds Markdown or media files (no recursion). */
 function holdsMaterial(directory) {
@@ -116,6 +117,27 @@ export function safeRelativePath(value) {
   return parts.join('/');
 }
 
+/** How a folder name compares on a case-insensitive file system (APFS, NTFS):
+ * `LESSON-BOARD` and `leſſon-board` land in `lesson-board`. */
+export const pathKey = part => String(part).normalize('NFKC').toLowerCase();
+
+const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+/** A path every segment of which Windows can hold too. Checked when a file is
+ * created, so a Vault stays portable; files that already exist keep working. */
+export function portablePath(value) {
+  const path = safeRelativePath(value);
+  for (const part of path.split('/')) {
+    if (/[<>:"|?*\u0000-\u001f]/.test(part) || /[. ]$/.test(part) || WINDOWS_RESERVED.test(part.split('.')[0])) fail('vault_path_not_portable');
+  }
+  return path;
+}
+
+/** The segments of `target` under `root`, whichever separator the platform
+ * uses (`relative` gives backslashes on Windows). */
+export function pathSegments(root, target, pathApi = { relative }) {
+  return pathApi.relative(root, target).split(/[\\/]/).filter(Boolean);
+}
+
 export function revisionFor(content) {
   return createHash('sha256').update(content, 'utf8').digest('hex').slice(0, 24);
 }
@@ -124,11 +146,35 @@ function revisionForBytes(bytes) {
   return createHash('sha256').update(bytes).digest('hex').slice(0, 24);
 }
 
-export function parseMarkdownDocument(path, content, revision = revisionFor(content)) {
+/** Scan results are shared between callers through the cache: freeze them so a
+ * caller that mutates a document fails loudly instead of corrupting the next scan. */
+export function deepFreeze(value) {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const item of Object.values(value)) deepFreeze(item);
+  }
+  return value;
+}
+
+/** A file's identity and freshness, the same fields the native version token uses. */
+export function fileStatKey(info) {
+  return `${info.dev}:${info.ino}:${info.size}:${info.mtimeNs}:${info.ctimeNs}`;
+}
+
+/** `lenient` reads a page whose header the Vault cannot parse as a page with
+ * no properties and names the problem, so one such file never hides the rest
+ * of the Vault and can still be opened, fixed or deleted. Saving stays strict. */
+export function parseMarkdownDocument(path, content, revision = revisionFor(content), { lenient = false } = {}) {
   const normalizedPath = safeRelativePath(path);
   if (!normalizedPath.toLowerCase().endsWith('.md')) fail('vault_markdown_required');
   if (typeof content !== 'string') fail('vault_content_invalid');
-  const { frontmatter, body } = parseFrontmatter(content);
+  let parsed, frontmatterError;
+  try { parsed = parseFrontmatter(content); }
+  catch (error) {
+    if (!lenient || !(error instanceof Error) || error.message !== 'vault_frontmatter_invalid') throw error;
+    parsed = { frontmatter: {}, body: content }; frontmatterError = error.message;
+  }
+  const { frontmatter, body } = parsed;
   const lines = content.split(/\r?\n/);
   const headings = [];
   for (const line of lines) {
@@ -151,7 +197,7 @@ export function parseMarkdownDocument(path, content, revision = revisionFor(cont
   const type = typeof frontmatter.type === 'string' ? frontmatter.type : null;
   const status = typeof frontmatter.status === 'string' ? frontmatter.status : null;
   const date = typeof frontmatter.date === 'string' || typeof frontmatter.date === 'number' ? String(frontmatter.date) : null;
-  return { path: normalizedPath, revision, content, title, type, status, date, frontmatter, headings, links, tasks };
+  return { path: normalizedPath, revision, content, title, type, status, date, frontmatter, headings, links, tasks, ...(frontmatterError ? { frontmatterError } : {}) };
 }
 
 export function summarizeDocument(document) {
@@ -274,7 +320,7 @@ function inside(root, target) {
 
 async function rejectSymlinkPath(root, target) {
   let cursor = root;
-  const parts = relative(root, target).split('/').filter(Boolean);
+  const parts = pathSegments(root, target);
   for (const [index, part] of parts.entries()) {
     cursor = join(cursor, part);
     try {
@@ -295,8 +341,8 @@ async function rejectSymlinkPath(root, target) {
  * template and is never overwritten.
  */
 export const SUPERSEDED_TEMPLATES = Object.freeze({
-  'lesson.md': Object.freeze(["---\ntemplate: true\nname: 备课页\ntype: lesson\nstatus: draft\ntags: []\n---\n# {{title}}\n\n创建日期：{{date}}\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n**本课备课说明**\n\n- 目标：这节课结束时，学生自己能做到什么。\n- 证据与不确定点：查到的相关画像与锦囊、它们支持的判断，以及还没验证的部分。\n- 策略取舍：本课从哪里切入、为什么这样排，哪一步留给学生自己走。\n- 检查点：希望观察到什么，以及怎么看（独立作答 / 提示后完成 / 尚未检查）。\n- 涉及资料：真实文件、物理页码或区域引用，不复制全文。\n- 世界书互动：需要的时机与教学用途；用不上就删掉这一行。\n\n</details>\n\n## 阶段一：这一步要解决什么\n\n### 题 1\n\n把学生看到的题面、材料或问题写在这里；一次只放当前这一步要动手的内容。\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n- 教学意图：这一步想让学生自己走出什么。\n- 递进提示：从最小提醒到接近答案的提示链，每级都留在学生能自己走的动作上。\n- 完整解答：条件、推导、结论与适用条件。\n- 诊断：答对、卡住、答错分别说明什么，下一步往哪走。\n\n</details>\n\n## 阶段二：\n\n### 题 2\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n- 教学意图：\n- 递进提示：\n- 完整解答：\n- 诊断：\n\n</details>\n"]),
-  'lesson-script.md': Object.freeze(["---\ntemplate: true\nname: 课堂剧本\ntype: lesson\nstatus: draft\ntags: []\n---\n# {{title}}\n\n创建日期：{{date}}\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n**本课备课说明**\n\n- 目标：这节课结束时，学生自己能做到什么。\n- 证据与不确定点：查到的相关画像与锦囊、它们支持的判断，以及还没验证的部分。\n- 策略取舍：本课从哪里切入、为什么这样排，哪一步留给学生自己走。\n- 检查点：希望观察到什么，以及怎么看（独立作答 / 提示后完成 / 尚未检查）。\n- 涉及资料：真实文件、物理页码或区域引用，不复制全文。\n- 世界书互动：需要的时机与教学用途；用不上就删掉这一行。\n\n</details>\n\n## 阶段一：这一步要解决什么\n\n### 题 1\n\n把学生看到的题面、材料或问题写在这里；一次只放当前这一步要动手的内容。\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n- 教学意图：这一步想让学生自己走出什么。\n- 递进提示：从最小提醒到接近答案的提示链，每级都留在学生能自己走的动作上。\n- 完整解答：条件、推导、结论与适用条件。\n- 诊断：答对、卡住、答错分别说明什么，下一步往哪走。\n- 易错与变式：容易漏掉的条件，以及可以检验理解的变式。\n\n</details>\n\n## 阶段二：\n\n### 题 2\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n- 教学意图：\n- 递进提示：\n- 完整解答：\n- 诊断：\n\n</details>\n"]),
+  'lesson.md': Object.freeze(["---\ntemplate: true\nname: 备课页\ntype: lesson\nstatus: draft\ntags: []\n---\n# {{title}}\n\n创建日期：{{date}}\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n**本课备课说明**\n\n- 目标：这节课结束时，学生自己能做到什么。\n- 证据与不确定点：查到的相关画像与锦囊、它们支持的判断，以及还没验证的部分。\n- 策略取舍：本课从哪里切入、为什么这样排，哪一步留给学生自己走。\n- 检查点：希望观察到什么，以及怎么看（独立作答 / 提示后完成 / 尚未检查）。\n- 涉及资料：真实文件、物理页码或区域引用，不复制全文。\n- 世界书互动：需要的时机与教学用途；用不上就删掉这一行。\n\n</details>\n\n## 阶段一：这一步要解决什么\n\n### 题 1\n\n把学生看到的题面、材料或问题写在这里；一次只放当前这一步要动手的内容。\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n- 教学意图：这一步想让学生自己走出什么。\n- 递进提示：从最小提醒到接近答案的提示链，每级都留在学生能自己走的动作上。\n- 完整解答：条件、推导、结论与适用条件。\n- 诊断：答对、卡住、答错分别说明什么，下一步往哪走。\n\n</details>\n\n## 阶段二：\n\n### 题 2\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n- 教学意图：\n- 递进提示：\n- 完整解答：\n- 诊断：\n\n</details>\n", "---\ntemplate: true\nname: 备课页\ntype: lesson\nstatus: draft\ntags: []\n---\n# {{title}}\n\n创建日期：{{date}}\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n**本课备课说明**\n\n- 目标：这节课结束时，学生自己能做到什么。\n- 证据与不确定点：查到的相关画像与锦囊、它们支持的判断，以及还没验证的部分。\n- 策略取舍：本课从哪里切入、为什么这样排，哪一步留给学生自己走。\n- 检查点：希望观察到什么，以及怎么看（独立作答 / 提示后完成 / 尚未检查）。\n- 涉及资料：真实来源和位置；具体任务所需原文在任务处完整保留。\n- 世界书互动：需要的时机与教学用途；用不上就删掉这一行。\n\n</details>\n\n## 阶段一：这一步要解决什么\n\n### 任务 1\n\n写清学生要完成的任务，并完整保留必要题面、语境、数据或代码；一次只安排当前这一步。\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n- 教学意图：这一步想让学生自己走出什么。\n- 递进提示：从最小提醒到接近答案的提示链，每级都留在学生能自己走的动作上。\n- 参考内容与核验：按任务给完整解答、文本分析、实验解释或参考代码与测试；写清依据、适用条件与未核对部分。\n- 诊断：观察哪些实际表现，怎样区分独立完成、提示后完成和仍有困难，下一步往哪走。\n\n</details>\n\n## 阶段二：\n\n### 任务 2\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n- 教学意图：\n- 递进提示：\n- 参考内容与核验：\n- 诊断：\n\n</details>\n"]),
+  'lesson-script.md': Object.freeze(["---\ntemplate: true\nname: 课堂剧本\ntype: lesson\nstatus: draft\ntags: []\n---\n# {{title}}\n\n创建日期：{{date}}\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n**本课备课说明**\n\n- 目标：这节课结束时，学生自己能做到什么。\n- 证据与不确定点：查到的相关画像与锦囊、它们支持的判断，以及还没验证的部分。\n- 策略取舍：本课从哪里切入、为什么这样排，哪一步留给学生自己走。\n- 检查点：希望观察到什么，以及怎么看（独立作答 / 提示后完成 / 尚未检查）。\n- 涉及资料：真实文件、物理页码或区域引用，不复制全文。\n- 世界书互动：需要的时机与教学用途；用不上就删掉这一行。\n\n</details>\n\n## 阶段一：这一步要解决什么\n\n### 题 1\n\n把学生看到的题面、材料或问题写在这里；一次只放当前这一步要动手的内容。\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n- 教学意图：这一步想让学生自己走出什么。\n- 递进提示：从最小提醒到接近答案的提示链，每级都留在学生能自己走的动作上。\n- 完整解答：条件、推导、结论与适用条件。\n- 诊断：答对、卡住、答错分别说明什么，下一步往哪走。\n- 易错与变式：容易漏掉的条件，以及可以检验理解的变式。\n\n</details>\n\n## 阶段二：\n\n### 题 2\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n- 教学意图：\n- 递进提示：\n- 完整解答：\n- 诊断：\n\n</details>\n", "---\ntemplate: true\nname: 课堂剧本\ntype: lesson\nstatus: draft\ntags: []\n---\n# {{title}}\n\n创建日期：{{date}}\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n**本课备课说明**\n\n- 目标：这节课结束时，学生自己能做到什么。\n- 证据与不确定点：查到的相关画像与锦囊、它们支持的判断，以及还没验证的部分。\n- 策略取舍：本课从哪里切入、为什么这样排，哪一步留给学生自己走。\n- 检查点：希望观察到什么，以及怎么看（独立作答 / 提示后完成 / 尚未检查）。\n- 涉及资料：真实来源和位置；具体任务所需原文在任务处完整保留。\n- 世界书互动：需要的时机与教学用途；用不上就删掉这一行。\n\n</details>\n\n## 阶段一：这一步要解决什么\n\n### 任务 1\n\n写清学生要完成的任务，并完整保留必要题面、语境、数据或代码；一次只安排当前这一步。\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n- 教学意图：这一步想让学生自己走出什么。\n- 递进提示：从最小提醒到接近答案的提示链，每级都留在学生能自己走的动作上。\n- 参考内容与核验：按任务给完整解答、文本分析、实验解释或参考代码与测试；写清依据、适用条件与未核对部分。\n- 诊断：观察哪些实际表现，怎样区分独立完成、提示后完成和仍有困难，下一步往哪走。\n- 易错与变式：容易漏掉的条件，以及可以检验理解的变式。\n\n</details>\n\n## 阶段二：\n\n### 任务 2\n\n<details data-notara=\"teacher\">\n<summary>教师参考</summary>\n\n- 教学意图：\n- 递进提示：\n- 参考内容与核验：\n- 诊断：\n\n</details>\n"]),
   'card.md': Object.freeze(["---\ntemplate: true\nname: 知识卡片\ntype: card\nstatus: draft\ntags: []\n---\n# {{title}}\n\n## 结论\n\n## 解释\n\n## 例子\n", "---\ntemplate: true\nname: 知识卡片\ntype: card\nstatus: draft\ntags: []\nlearned: false\nmastery: 0\ninterval: null\nlast_review: null\nnext_review: null\n---\n# {{title}}\n\n## 结论\n\n## 解释\n\n## 例子\n"]),
   'insight.md': Object.freeze(["---\ntemplate: true\nname: 锦囊\ntype: insight\nstatus: draft\ntags: []\n---\n# {{title}}\n\n## 何时想起\n\n- [ ] 什么样的题目结构、思维障碍或教学决策值得想起它\n\n## 方法\n\n## 教法\n\n## 学生经历\n\n## 适用边界\n\n## 关联题目\n"]),
   'topic.md': Object.freeze(["---\ntemplate: true\nname: 教学专题\ntype: topic\nstatus: draft\ntags: []\n---\n# {{title}}\n\n本页是教师归纳的教学专题：把几份原书里同一主题的内容汇到一处。`type: topic` 不是原书的目录，也不是复习卡片；它只引用原书，不会变成原书的一章。\n\n## 这一专题解决什么\n\n## 依据的原书\n\n- 列出真实文件与页段；下面的写法只是格式示例，换成本地真实文件后再写成正式引用：\n\n`![[资料/原书第一章.md#anchor=向量]]`\n\n`![[媒体/原书.pdf#page=12&rect=0.08,0.10,0.84,0.12]]`\n\n## 归纳\n\n## 层级\n\n- 上级专题写在 frontmatter 的 `parent:` 里，例如 `parent: 专题/解析几何.md`；专题之间只挂专题，不挂原书章节。\n\n## 待补\n\n- [ ] 还缺哪一块，下一轮补什么\n"]),
@@ -342,7 +388,8 @@ export function createVaultStore(root, templateRoot) {
       // Hidden entries are not Vault content: the model's own IO has always
       // skipped them, and `vault/.trash` must never come back through the file
       // tree, search, asset listing or graph as if it were a page or asset.
-      if (entry.isSymbolicLink() || entry.name.startsWith('.') || (!includeTemplates && prefix === '' && entry.name === '_templates')) continue;
+      // Tool caches such as __pycache__ are skipped the same way.
+      if (entry.isSymbolicLink() || entry.name.startsWith('.') || (entry.isDirectory() && isToolCacheDirectory(entry.name)) || (!includeTemplates && prefix === '' && entry.name === '_templates')) continue;
       const absolute = join(directory, entry.name), path = prefix ? `${prefix}/${entry.name}` : entry.name;
       if (entry.isDirectory()) result.push(...await walk(absolute, path, includeTemplates));
       else if (entry.isFile()) result.push(path);
@@ -375,7 +422,8 @@ export function createVaultStore(root, templateRoot) {
       let existing = null;
       try { existing = await readFile(destination, 'utf8'); }
       catch (error) { if (!(error instanceof Error) || error.code !== 'ENOENT') throw error; }
-      const content = await readFile(join(bundledRoot, entry.name), 'utf8');
+      // A Windows checkout may carry CRLF; templates are seeded with LF like every page the teacher writes.
+      const content = (await readFile(join(bundledRoot, entry.name), 'utf8')).replace(/\r\n/g, '\n');
       // Seed a missing template; upgrade it only while it is still an untouched
       // built-in this bundle supersedes. A template the student edited stays.
       if (existing !== null && (normalizedTemplate(existing) === normalizedTemplate(content) || !isSupersededTemplate(name, existing))) continue;
@@ -401,11 +449,11 @@ export function createVaultStore(root, templateRoot) {
 
   async function assetSummary(path) {
     const value = safeRelativePath(path);
-    if (value.toLowerCase().endsWith('.md') || value.startsWith('_templates/')) fail('vault_asset_required');
+    if (value.toLowerCase().endsWith('.md') || pathKey(value.split('/')[0]) === '_templates') fail('vault_asset_required');
     try {
       const bytes = await readFile(await target(value));
       const media = mediaForPath(value);
-      return { path: value, title: basename(value), kind: 'asset', assetKind: media.kind, mime: media.mime, extension: media.extension, size: bytes.byteLength, revision: revisionForBytes(bytes) };
+      return { path: value, title: basename(value), kind: 'asset', assetKind: media.kind, mime: media.mime, extension: media.extension, ...(media.language ? { language: media.language } : {}), size: bytes.byteLength, revision: revisionForBytes(bytes) };
     } catch (error) {
       if (error instanceof Error && error.code === 'ENOENT') fail('vault_file_not_found');
       throw error;
@@ -427,7 +475,7 @@ export function createVaultStore(root, templateRoot) {
 
   async function saveAsset(path, dataBase64, mime, expectedRevision) {
     const value = safeRelativePath(path);
-    if (value.toLowerCase().endsWith('.md') || value.startsWith('_templates/')) fail('vault_asset_required');
+    if (value.toLowerCase().endsWith('.md') || pathKey(value.split('/')[0]) === '_templates') fail('vault_asset_required');
     const media = mediaForPath(value), actualMime = mime || media.mime;
     if (media.kind !== 'file' && actualMime !== media.mime) fail('vault_asset_mime_invalid');
     const bytes = decodeAsset(dataBase64), absolute = await target(value, true);
@@ -435,6 +483,7 @@ export function createVaultStore(root, templateRoot) {
     try { current = revisionForBytes(await readFile(absolute)); }
     catch (error) { if (!(error instanceof Error) || error.code !== 'ENOENT') throw error; }
     if (current !== expectedRevision) fail('vault_revision_conflict');
+    if (current === null) portablePath(value);
     const temporary = `${absolute}.notara-asset-${process.pid}-${randomUUID()}`;
     try { await writeFile(temporary, bytes); await rename(temporary, absolute); }
     finally { await unlink(temporary).catch(() => undefined); }
@@ -443,10 +492,10 @@ export function createVaultStore(root, templateRoot) {
 
   async function readDocument(path) {
     const value = safeRelativePath(path);
-    if (!value.toLowerCase().endsWith('.md') || value.startsWith('_templates/')) fail('vault_markdown_required');
+    if (!value.toLowerCase().endsWith('.md') || pathKey(value.split('/')[0]) === '_templates') fail('vault_markdown_required');
     try {
       const content = await readFile(await target(value), 'utf8');
-      const document = parseMarkdownDocument(value, content, revisionFor(content));
+      const document = parseMarkdownDocument(value, content, revisionFor(content), { lenient: true });
       return { ...document, parent: parentPathOf(document) };
     } catch (error) {
       if (error instanceof Error && error.code === 'ENOENT') fail('vault_file_not_found');
@@ -454,21 +503,41 @@ export function createVaultStore(root, templateRoot) {
     }
   }
 
-  async function scan() {
-    const result = [];
-    for (const path of await pagePaths()) result.push(await readDocument(path));
+  // Parsed pages and asset summaries, keyed by each file's identity and
+  // freshness. A scan still stats every file, so outside edits show at once;
+  // only files whose key changed are read, hashed and parsed again.
+  const scanCache = new Map();
+  async function cachedScan(paths, compute, owns) {
+    const result = [], seen = new Set(paths);
+    for (const path of paths) {
+      let info;
+      try { info = await lstat(join(rootPath, path), { bigint: true }); }
+      catch (error) { if (error instanceof Error && error.code === 'ENOENT') continue; throw error; }
+      if (!info.isFile()) continue;
+      const key = fileStatKey(info), hit = scanCache.get(path);
+      if (hit?.key === key) { result.push(hit.value); continue; }
+      let value;
+      try { value = deepFreeze(await compute(path)); }
+      catch (error) { if (error instanceof Error && error.message === 'vault_file_not_found') continue; throw error; }
+      scanCache.set(path, { key, value });
+      result.push(value);
+    }
+    for (const path of scanCache.keys()) if (owns(path) && !seen.has(path)) scanCache.delete(path);
     return result;
+  }
+  const isPagePath = path => path.toLowerCase().endsWith('.md');
+
+  async function scan() {
+    return cachedScan(await pagePaths(), readDocument, isPagePath);
   }
 
   async function scanAssets() {
-    const result = [];
-    for (const path of await assetPaths()) result.push(await assetSummary(path));
-    return result;
+    return cachedScan(await assetPaths(), assetSummary, path => !isPagePath(path));
   }
 
   async function saveDocument(path, content, expectedRevision) {
     const value = safeRelativePath(path);
-    if (!value.toLowerCase().endsWith('.md') || value.startsWith('_templates/')) fail('vault_markdown_required');
+    if (!value.toLowerCase().endsWith('.md') || pathKey(value.split('/')[0]) === '_templates') fail('vault_markdown_required');
     const absolute = await target(value, true);
     let current = null;
     try {
@@ -478,6 +547,7 @@ export function createVaultStore(root, templateRoot) {
       if (!(error instanceof Error) || error.code !== 'ENOENT') throw error;
     }
     if (current !== expectedRevision) fail('vault_revision_conflict');
+    if (current === null) portablePath(value);
     const parsed = parseMarkdownDocument(value, content, revisionFor(content));
     const temporary = `${absolute}.notara-tmp-${process.pid}-${randomUUID()}`;
     try {
@@ -501,7 +571,7 @@ export function createVaultStore(root, templateRoot) {
   function trashable(value) {
     const parts = value.split('/');
     if (parts.some(part => part.startsWith('.')) || parts.includes('node_modules')) fail('vault_path_invalid');
-    if (value === '_templates' || value.startsWith('_templates/')) fail('vault_path_invalid');
+    if (pathKey(value.split('/')[0]) === '_templates') fail('vault_path_invalid');
     return value;
   }
 
@@ -517,7 +587,7 @@ export function createVaultStore(root, templateRoot) {
   function trashMeta(value, bytes, { id, deletedAt }) {
     const base = { version: TRASH_META_VERSION, id, path: value, size: bytes.byteLength, deletedAt };
     if (value.toLowerCase().endsWith('.md')) {
-      const document = parseMarkdownDocument(value, bytes.toString('utf8'));
+      const document = parseMarkdownDocument(value, bytes.toString('utf8'), undefined, { lenient: true });
       return { ...base, title: document.title, kind: 'page', type: document.type, revision: revisionFor(bytes.toString('utf8')) };
     }
     const media = mediaForPath(value);
@@ -676,6 +746,8 @@ export function createVaultStore(root, templateRoot) {
       return { files: entries.filter(document => !value || document.path === value || document.path.startsWith(`${value}/`)), tree: projectTree(entries) };
     },
     read: readDocument,
+    scan,
+    scanAssets,
     readAsset,
     save: saveDocument,
     saveAsset,

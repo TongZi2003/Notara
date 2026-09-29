@@ -1,4 +1,35 @@
+/**
+ * Code the Vault edits as plain text (no toolchain here: running and testing use
+ * the learner's own system). One table drives the file tree, the editor's
+ * language and the teacher's native read/write/edit boundary.
+ */
+export const CODE_LANGUAGES = Object.freeze({
+  python: Object.freeze({ label: 'Python', extensions: ['py', 'pyw'], indent: 4 }),
+  scheme: Object.freeze({ label: 'Scheme', extensions: ['scm', 'ss', 'rkt'], indent: 2 }),
+  sql: Object.freeze({ label: 'SQL', extensions: ['sql'], indent: 2 }),
+  c: Object.freeze({ label: 'C', extensions: ['c', 'h'], indent: 4 }),
+  cpp: Object.freeze({ label: 'C++', extensions: ['cpp', 'cc', 'cxx', 'hpp', 'hh', 'hxx'], indent: 4 }),
+  java: Object.freeze({ label: 'Java', extensions: ['java'], indent: 4 }),
+  javascript: Object.freeze({ label: 'JavaScript', extensions: ['js', 'mjs', 'cjs', 'jsx'], indent: 2 }),
+  typescript: Object.freeze({ label: 'TypeScript', extensions: ['ts', 'tsx', 'mts', 'cts'], indent: 2 }),
+  go: Object.freeze({ label: 'Go', extensions: ['go'], indent: 4 }),
+  rust: Object.freeze({ label: 'Rust', extensions: ['rs'], indent: 4 }),
+  shell: Object.freeze({ label: 'Shell', extensions: ['sh', 'bash', 'zsh'], indent: 2 }),
+  verilog: Object.freeze({ label: 'Verilog', extensions: ['v', 'sv', 'svh'], indent: 2 }),
+  vhdl: Object.freeze({ label: 'VHDL', extensions: ['vhd', 'vhdl'], indent: 2 }),
+  asm: Object.freeze({ label: '汇编', extensions: ['s', 'asm'], indent: 8 }),
+  lua: Object.freeze({ label: 'Lua', extensions: ['lua'], indent: 2 }),
+  ruby: Object.freeze({ label: 'Ruby', extensions: ['rb'], indent: 2 }),
+  yaml: Object.freeze({ label: 'YAML', extensions: ['yaml', 'yml'], indent: 2 }),
+  toml: Object.freeze({ label: 'TOML', extensions: ['toml'], indent: 2 }),
+  json: Object.freeze({ label: 'JSON', extensions: ['json'], indent: 2 }),
+  text: Object.freeze({ label: '纯文本', extensions: ['txt'], indent: 4 }),
+});
+const CODE_TYPES = Object.fromEntries(Object.entries(CODE_LANGUAGES).flatMap(([language, row]) =>
+  row.extensions.map(extension => [extension, Object.freeze({ kind: 'code', mime: 'text/plain', language })])));
+
 const MEDIA_TYPES = Object.freeze({
+  ...CODE_TYPES,
   pdf: { kind: 'pdf', mime: 'application/pdf' },
   png: { kind: 'image', mime: 'image/png' },
   apng: { kind: 'image', mime: 'image/apng' },
@@ -23,6 +54,16 @@ function extensionOf(path) {
   const name = path.split('/').pop() ?? '';
   const index = name.lastIndexOf('.');
   return index > 0 ? name.slice(index + 1).toLowerCase() : '';
+}
+
+/** Directories that running code leaves behind. Like dot directories they are
+ * never Vault content: not in the file tree, search, assets or the graph. */
+const TOOL_CACHE_DIRECTORIES = new Set(['__pycache__', 'node_modules']);
+export const isToolCacheDirectory = name => TOOL_CACHE_DIRECTORIES.has(name);
+
+/** Whether a path names a code file: the only files the teacher's native read/write/edit may touch. */
+export function isCodePath(path) {
+  return typeof path === 'string' && Object.hasOwn(CODE_TYPES, extensionOf(path));
 }
 
 export function mediaForPath(path) {

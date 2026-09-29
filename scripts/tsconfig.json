@@ -5,10 +5,13 @@
     "declaration": true,
     "noEmit": false,
     "emitDeclarationOnly": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "rootDir": "..",
     "outDir": "../.runtime/script-types"
   },
-  "references": [{ "path": "../packages/contracts" }],
-  "include": ["**/*.ts", "../examples/plugin-sources/catalog.ts"]
+  "include": [
+    "**/*.ts"
+  ]
 }

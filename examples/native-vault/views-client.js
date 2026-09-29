@@ -1,7 +1,7 @@
 import { MATERIAL_TYPES, childCardsOf, childMaterialsOf, collapseVaultGraph, filterVaultGraph, tagGroups, taggedCardNodes } from './graph.js';
 import { mediaLocatorSuffix, parseMediaTarget } from './media.js';
 import { CANVAS_CSS, KNOWLEDGE_ROLES, createVaultCanvas } from './canvas-client.js';
-import { createVaultClient } from './remote-client.js';
+import { createVaultClient, visibleInterval } from './remote-client.js';
 import { createFileActions } from './file-actions-client.js';
 import { mathLabelParts, renderMath } from './math-latex.js';
 import { STAR_CSS, constellationLayout, createStarMap } from './star-map-client.js';
@@ -104,9 +104,9 @@ export function createVaultViews(React, { STYLE, IconButton, Menu, Dialog }) {
         finally { pending = false; }
       };
       void refresh();
-      const timer = setInterval(refresh, 10000);
+      const timer = visibleInterval(refresh, 10000);
       window.addEventListener('notara-vault-changed', refresh); window.addEventListener('focus', refresh);
-      return () => { live = false; clearInterval(timer); window.removeEventListener('notara-vault-changed', refresh); window.removeEventListener('focus', refresh); };
+      return () => { live = false; timer(); window.removeEventListener('notara-vault-changed', refresh); window.removeEventListener('focus', refresh); };
     }, [vault, visible]);
     return state;
   }
@@ -128,9 +128,9 @@ export function createVaultViews(React, { STYLE, IconButton, Menu, Dialog }) {
         finally { pending = false; }
       };
       void refresh();
-      const timer = setInterval(refresh, 10000);
+      const timer = visibleInterval(refresh, 10000);
       window.addEventListener('notara-vault-changed', refresh); window.addEventListener('focus', refresh);
-      return () => { live = false; clearInterval(timer); window.removeEventListener('notara-vault-changed', refresh); window.removeEventListener('focus', refresh); };
+      return () => { live = false; timer(); window.removeEventListener('notara-vault-changed', refresh); window.removeEventListener('focus', refresh); };
     }, [vault, visible]);
     return state;
   }
@@ -176,9 +176,9 @@ export function createVaultViews(React, { STYLE, IconButton, Menu, Dialog }) {
         }catch{if(live){setReviews(null);setReviewError('复习状态暂时无法读取。');}}
         finally{pending=false;}
       };
-      void refresh();const timer=setInterval(refresh,15000);
+      void refresh();const timer=visibleInterval(refresh,15000);
       window.addEventListener('notara-vault-changed',refresh);
-      return()=>{live=false;clearInterval(timer);window.removeEventListener('notara-vault-changed',refresh);};
+      return()=>{live=false;timer();window.removeEventListener('notara-vault-changed',refresh);};
     },[vault,props.visible,reviewFilter]);
     const cards = graph.nodes.filter(node => LIBRARY_TYPES.has(node.type)||node.type==='topic');
     const sources = [...new Set(cards.flatMap(node => [...node.sources.map(item => item.path), ...(node.parent ? [node.parent] : [])]))].sort();
@@ -321,7 +321,7 @@ export function createVaultViews(React, { STYLE, IconButton, Menu, Dialog }) {
     return h(Frame,{title:'图谱',tools,status:notice||error||(view==='stars'&&starError)||(loading?'正在读取…':`${progressive?`${visible.nodes.length}/`:''}${filtered.nodes.length} 个文件 · ${visible.edges.length} 条关系`)},
       tagPanel,
       h('div',{ref:root,className:'nv-graph-layout','data-detail':!!node&&detailsOpen,style:{'--nv-pane-width':paneWidth+'px',position:'relative'},onPointerDown:event=>{if(event.button===0&&!event.ctrlKey&&!event.target.closest('[role="menu"]'))setMenu(null);},onKeyDown:event=>{if(event.key==='Escape')setMenu(null);}},
-        !loading&&!error&&!graph.nodes.length?h('div',{style:STYLE.empty},'还没有文件。在资产页导入资料或创建页面。'):
+        !loading&&!error&&!graph.nodes.length?h('div',{style:STYLE.empty},'还没有文件。在 Vault 的「文件」里导入资料或新建页面。'):
           !filtered.nodes.length&&!loading?h('div',{style:STYLE.empty},'没有符合条件的文件。'):
           view==='stars'?h(StarMap,{nodes:starNodes,edges:visible.edges,layout:starLayout,selected,state,fitKey:`${focus}|${centerVersion}|${tags.join(',')}|${showAll}`,nodeName:'图谱节点',label:forest?'知识森林':'知识星图',onSelect:item=>select(item.key),onOpen:item=>open(item.node),onContext:context}):
           h(Board,{nodes:canvasNodes,edges:visible.edges,focus,centerVersion,selected,state,layoutMode:showAll?'force':'auto',onSelect:item=>select(item.key),onOpen:item=>open(item.node),onContext:context}),
@@ -348,7 +348,7 @@ export function createVaultViews(React, { STYLE, IconButton, Menu, Dialog }) {
         menu&&menuNode&&h('div',{className:'nv-menu',role:'menu',style:{left:menu.x,top:menu.y}},
           btn('以此为中心',()=>center(menuNode),{role:'menuitem'}),
           btn(menuNode&&(!LIBRARY_TYPES.has(menuNode.type)||childCardsOf(graph,menuNode.path).length>0)?'带入对话拆分':'带入对话',()=>bring(menuNode),{role:'menuitem'}),
-          btn('在资产页中定位',()=>{setMenu(null);open(menuNode);},{role:'menuitem'}),
+          btn('在「文件」里打开',()=>{setMenu(null);open(menuNode);},{role:'menuitem'}),
           btn('查看原始资产详情',()=>{setMenu(null);props.openView(VIEW_IDS.assets,menuNode.sources[0]?focusFor(menuNode.sources[0].path,menuNode.sources[0].locator):menuNode.parent??menuNode.path);},{role:'menuitem'}),
           btn('移到回收站',()=>{setMenu(null);void fileActions.requestDelete(menuNode.path);},{role:'menuitem'}))),
       fileActions.dialog,
