@@ -1,0 +1,11 @@
+// Alibaba Cloud ESA Pages build for oh-my-student.com. ESA reads this file at
+// the repository root and runs commands there, so they target website/ via
+// npm --prefix. Leave the console 根目录 at the default `/`.
+{
+  "installCommand": "npm ci --no-audit --no-fund --prefix ./website",
+  "buildCommand": "npm run build --prefix ./website",
+  "assets": {
+    "directory": "./website/dist",
+    "notFoundStrategy": "404Page"
+  }
+}

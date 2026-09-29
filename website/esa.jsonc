@@ -1,5 +1,6 @@
-// Alibaba Cloud ESA Pages build for oh-my-student.com. Set the Pages project's
-// root directory to /website so these commands run here.
+// Fallback copy: only used if the ESA console 根目录 is set to /website and
+// esa.jsonc is resolved relative to it. The canonical config is /esa.jsonc at
+// the repository root (commands there run from the repo root via --prefix).
 {
   "installCommand": "npm ci --no-audit --no-fund",
   "buildCommand": "npm run build",
