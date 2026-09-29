@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<!-- @include head -->
+<title>功能 · Notara 拾页</title>
+<meta name="description" content="Notara 拾页的课堂、白板、题卡与 Vault、复习、路线与计划、技能与锦囊、后台工作员，以及它怎样在你的电脑上运行。">
+</head>
+<body data-page="features">
+<!-- @include header -->
+<main id="main">
+  <section class="page-hero">
+    <div class="wrap">
+      <p class="kicker hand">功能</p>
+      <h1>一节课里用得到的，和课后留下来的</h1>
+      <p class="lead">下面按一节课的顺序介绍 Notara 0.21.1 现有的功能。没写到的，就是现在还没有。</p>
+      <ul class="toc">
+        <li><a href="#classroom">课堂</a></li>
+        <li><a href="#board">白板</a></li>
+        <li><a href="#vault">题卡与 Vault</a></li>
+        <li><a href="#review">复习</a></li>
+        <li><a href="#plan">路线与计划</a></li>
+        <li><a href="#skills">技能与锦囊</a></li>
+        <li><a href="#workers">后台工作员</a></li>
+        <li><a href="#runtime">运行方式</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="wrap page-body">
+    <section class="feature-block" id="classroom">
+      <header><h2>课堂</h2><p>一个输入框，三种视图</p></header>
+      <div class="prose">
+        <p>每节课有对话、白板和教室三个视图，共用同一个输入框。切换视图只换你看到的内容，讨论不会中断。</p>
+        <p>空白课堂的“课程选项”里可以选学习目录和教法，课上也能随时调整。教法有四种：</p>
+        <table>
+          <thead><tr><th>教法</th><th>怎么教</th></tr></thead>
+          <tbody>
+            <tr><td>苏格拉底</td><td>用问题引导你自己走每一步，步子大小跟着你变。默认用这一种。</td></tr>
+            <tr><td>费曼法</td><td>先让你用自己的话讲清楚，再一起找出解释里的缺口。</td></tr>
+            <tr><td>讲解—变式</td><td>先讲清例题、打个类比，再请你说出关键一步，用一串变式检验。</td></tr>
+            <tr><td>结构分析</td><td>先看清条件、目标与不变关系，再决定表示和方法。</td></tr>
+          </tbody>
+        </table>
+        <p>教法只定基调。你答得顺，老师会把主导权交给你；你卡住了，它会退回一步，换个特例或更小的问题。</p>
+        <p>默认的老师叫“大肥鱼”，一位爱吃白饭的鲸鱼娘老师。老师的人设写在本课的教学设置里，可以改成你喜欢的样子，改人设不会改变它能做什么。</p>
+        <p>学科关注分数学、物理、化学、计算机、语文和英语，其他自然科学和人文语言学习各有一份通用的。老师按课上的实际内容选用。</p>
+      </div>
+    </section>
+
+    <section class="feature-block" id="board">
+      <header><h2>白板</h2><p>讲台，也是练习纸</p></header>
+      <div class="prose">
+        <p>老师把要点写上白板，按板块排版，新内容不会把已经排好的挤走。你可以拖动、高亮，或者对某一块“追问这块”。白板只有老师真正写过才有内容。</p>
+        <ul>
+          <li><strong>公式</strong>：行内和独立公式都能写，长公式在各项之间折行。</li>
+          <li><strong>关系图</strong>：实线是已经讨论清楚的关系，虚线是推测；可以留一格空白让你补上。</li>
+          <li><strong>作图</strong>：函数、圆锥曲线和几何图形，带滑块和能拖动的点。你可以在图上点一个位置、拖一个点或调一个参数来作答，再附一句“我看到了什么”。</li>
+          <li><strong>逐帧演示</strong>：同一张图按步骤变化。关键的一帧先盖住，你写下预测才揭开，也可以选择直接看。</li>
+          <li><strong>练习</strong>：选择、填空和排序。每题都可以选“不确定”，或者写下自己别的想法。</li>
+        </ul>
+        <p>你在白板上的作答会以你本人的消息发给老师。白板可以导出保存。</p>
+      </div>
+    </section>
+
+    <section class="feature-block" id="vault">
+      <header><h2>题卡与 Vault</h2><p>你的资料库，都是普通文件</p></header>
+      <div class="prose">
+        <p>Vault 是你的学习目录，里面是 Markdown 资料、题卡、讲义、PDF 和图片。可以按文件、卡片或图谱三种方式看，也能搜索标题、正文和路径。</p>
+        <h3>题卡</h3>
+        <p>题卡原则上一题一张，分三段：</p>
+        <ul>
+          <li><strong>内容</strong>：原题正文，可以被检索到。</li>
+          <li><strong>参考理解</strong>：原文参考答案保留作依据，补充解法和疑点分开标明，最后写常见错法。这一段默认折叠。</li>
+          <li><strong>学生理解</strong>：你实际说过、做过的，包括早先的误解、转折、靠了多少提示，以及还没检验过的部分。没有你的真实表达时，这一段留空。</li>
+        </ul>
+        <p>同类题挂在一个共性专题下，原书结构放在源目录里，这两类文件不参与复习排期。</p>
+        <h3>PDF</h3>
+        <p>PDF 可以阅读、标注，也可以圈出一块矩形区域引用到卡片里，页码、区域和原图版本一起保留。原 PDF 改版以后，旧标注不会自动套到新版的位置上。</p>
+        <h3>其他</h3>
+        <ul>
+          <li>删除的文件进回收站，可以恢复。</li>
+          <li>代码文件也能在 Vault 里直接编辑。</li>
+          <li>同一个目录可以用 Obsidian 这类 Markdown 编辑器打开。</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="feature-block" id="review">
+      <header><h2>复习</h2><p>只盯关键的那一步</p></header>
+      <div class="prose">
+        <p>一道题讨论收束时，老师会记一次评估，只记这道题关键的一步和一句说明，结果分三种：</p>
+        <table>
+          <thead><tr><th>结果</th><th>对排期的影响</th></tr></thead>
+          <tbody>
+            <tr><td>做出来</td><td>已经到期的，进下一档；还没到期就做出来，不提前推迟。</td></tr>
+            <tr><td>没做出来</td><td>退一档。</td></tr>
+            <tr><td>这次没考</td><td>不改排期，只留下记录。</td></tr>
+          </tbody>
+        </table>
+        <p>第一次有效记录从第 1 档开始，五档的间隔依次是 1、3、7、16、35 天。你也可以自己记一次自评。</p>
+        <div class="callout">
+          <p>老师讲过，不等于你做出来了。纯讲解、你没有实际作答时，记“这次没考”。复习档位只说明这一步有多熟，不代表你已经掌握了整个知识点。</p>
+        </div>
+        <p>计划页能看到哪些卡片到期了。</p>
+      </div>
+    </section>
+
+    <section class="feature-block" id="plan">
+      <header><h2>路线与计划</h2><p>计划跟着真实情况改</p></header>
+      <div class="prose">
+        <h3>路线</h3>
+        <p>想系统学一块内容时，可以请老师规划一条路线。每节课标明所在阶段，属于主线、补练还是拓展，以及需要哪些先修。</p>
+        <p>学着学着发现安排不合适，老师可以改后面还没上的课；已经上过的课原样保留，每次修改都有记录。先修只是提醒，不会把课锁住。</p>
+        <h3>开课、剧本与小结</h3>
+        <p>从计划页开课，这一节的剧本、前一课的小结和相关材料会带进课堂。剧本是一份 Markdown，公共的阶段写在正文里，给老师看的参考默认折叠。</p>
+        <p>课上完可以保存小结。保存以后，课堂仍然留在列表里，可以接着聊；想收起它，在课堂列表里操作。</p>
+        <h3>日历</h3>
+        <p>计划页的日历里能看到排好的课和到期的复习。</p>
+      </div>
+    </section>
+
+    <section class="feature-block" id="skills">
+      <header><h2>技能与锦囊</h2><p>按需取用</p></header>
+      <div class="prose">
+        <p>输入框的“添加文件或调用指令”菜单里有这些常用技能：</p>
+        <ul>
+          <li>找卡片与资料、书籍拆解与资料整理、讲义整理</li>
+          <li>备课、路线规划、备考</li>
+          <li>学习经历与方法整理、学习复盘与建议</li>
+          <li>头脑风暴、体系梳理、调研、作文批改</li>
+          <li>编写技能</li>
+        </ul>
+        <p>教法、学科关注、板书和教学反思这些折叠在“更多技能”里，搜索能找到全部。</p>
+        <h3>锦囊</h3>
+        <p>一节课里值得留下的方法和思路转变，老师会写成锦囊：什么时候该想起它，要什么条件，怎么做，为什么成立，在哪里会失效，依据是哪次经历。</p>
+        <p>锦囊放在左侧的技能页里。老师提出修订，由你查看、采用或丢弃；采用并启用以后，老师才会在课上参考它。</p>
+        <h3>学习集梗概与画像</h3>
+        <p>每个学习目录可以有一份梗概，写明科目、范围、水平、目标和截止时间，老师每节课都会读到它。老师对你的长期观察记在画像里。</p>
+      </div>
+    </section>
+
+    <section class="feature-block" id="workers">
+      <header><h2>后台工作员</h2><p>老师的帮手</p></header>
+      <div class="prose">
+        <p>老师可以把任务交给后台工作员独立完成，一共五种：</p>
+        <table>
+          <thead><tr><th>工作员</th><th>常做的事</th></tr></thead>
+          <tbody>
+            <tr><td>题目研究员</td><td>把难题独立解一遍，保留完整题面、原解和推导。</td></tr>
+            <tr><td>核验员</td><td>检查拿不准的一步。</td></tr>
+            <tr><td>课时备课员</td><td>按老师给的框架完善一节课的剧本。</td></tr>
+            <tr><td>出题员</td><td>出小测和变式。</td></tr>
+            <tr><td>通用工作员</td><td>研究一个知识单元，或整理证据。</td></tr>
+          </tbody>
+        </table>
+        <p>工作员只能读资料或不用工具，不能写文件，也不能再派别的工作员。每节课同时最多 5 个任务。模型和推理强度可以分别设置，不设时跟随老师。</p>
+        <p>教室视图里能看到它们的状态，失败了会写明原因。另有一个可选的像素教室插件，把工作员画成像素小人。</p>
+      </div>
+    </section>
+
+    <section class="feature-block" id="runtime">
+      <header><h2>运行方式</h2><p>轻量，装在本地</p></header>
+      <div class="prose">
+        <p>Notara 是 DeepSeek Harness（DSH）0.2.0-rc.1 的插件。执行 <code>npm run vault</code> 后，它在你的电脑上启动服务，用浏览器打开。</p>
+        <ul>
+          <li>学习数据默认在用户目录下的 <code>.notara/vault-runtime</code>，端口 <code>57093</code>。关掉终端只是停止服务，资料和课堂都还在。</li>
+          <li>模型服务在设置里自己配置。调用模型时，相关内容会发给你选的服务商。</li>
+          <li>老师写文件默认要你批准，沙箱和审批沿用 DSH 本身的机制。</li>
+          <li>默认界面收起了权限、用量和日志这类调试信息，需要时在“设置 → 学习界面”打开。</li>
+        </ul>
+        <p>安装步骤见<a href="/install/">安装与启动</a>。</p>
+      </div>
+    </section>
+  </div>
+</main>
+<!-- @include footer -->
+</body>
+</html>

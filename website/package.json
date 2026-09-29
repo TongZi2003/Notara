@@ -1,0 +1,17 @@
+{
+  "name": "notara-website",
+  "private": true,
+  "type": "module",
+  "description": "Static website for oh-my-student.com. Standalone so the hosting build does not install the DSH runtime.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "katex": "0.16.47",
+    "vite": "7.3.6"
+  }
+}

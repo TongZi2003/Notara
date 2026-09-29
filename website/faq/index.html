@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<!-- @include head -->
+<title>常见问题 · Notara 拾页</title>
+<meta name="description" content="关于 Notara 拾页的费用、数据与隐私、支持的系统、和直接问 AI 的区别、会不会替你写作业等常见问题。">
+</head>
+<body data-page="faq">
+<!-- @include header -->
+<main id="main">
+  <section class="page-hero">
+    <div class="wrap">
+      <p class="kicker hand">常见问题</p>
+      <h1>先把话说清楚</h1>
+    </div>
+  </section>
+
+  <div class="wrap page-body">
+    <div class="prose faq">
+      <details open>
+        <summary>和直接问 AI 有什么不一样？</summary>
+        <div>
+          <p>直接问，AI 可能会给你一份完整解答。Notara 的老师默认先弄清你卡在哪，关键的一步尽量留给你自己走，再把你怎么想明白的记进题卡。</p>
+          <p>下一次讲课时，老师会翻你以前的卡片、画像和锦囊，从你已经会的地方讲起；复习也按你实际做出来的那一步安排。</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>要花钱吗？</summary>
+        <div>
+          <p>Notara 本身没有套餐。调用模型的费用由你选的模型服务商决定，按它们的价格计算。</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>我的数据存在哪？会上传吗？</summary>
+        <div>
+          <p>课堂、题卡、资料和设置都存在你自己电脑上的学习数据目录里，默认是用户目录下的 <code>.notara/vault-runtime</code>。</p>
+          <p>老师回复需要调用模型，这时对话和相关资料会发给你选的服务商。所以 Notara 不是完全离线的，数据是否离开设备取决于你用的模型服务。</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>能离线用吗？</summary>
+        <div>
+          <p>服务本身在本地运行，可老师的回复靠模型服务，所以需要能连上你配置的服务商。</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>支持哪些模型？</summary>
+        <div>
+          <p>能在 DeepSeek Harness 的模型设置里配置的服务都可以用。老师和各个后台工作员可以分别设置模型，工作员不设时跟随老师。</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>支持 Windows 吗？</summary>
+        <div>
+          <p>macOS 上已经验证过。Windows 的启动和 Git Bash 支持已经做好，但还没有完成实机验收，可能会遇到问题，欢迎反馈。</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>它会替我写作业吗？</summary>
+        <div>
+          <p>默认不会先给答案。老师会先问你的想法，在你卡住的地方给提示，关键一步留给你。</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>能保证提分吗？</summary>
+        <div>
+          <p>不能。模型会出错，老师也会说错，它不保证提分，也不保证你学会。它能做的，是如实记下你哪里做出来了、哪里还没检验过，让你和老师都知道下一步该做什么。</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>它是 Obsidian 插件吗？</summary>
+        <div>
+          <p>不是。Notara 是 DeepSeek Harness 的插件，不从 Obsidian 的插件市场安装。它的资料都是 Markdown 文件，所以你可以用 Obsidian 这类编辑器打开同一个目录。</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>题卡里的记录我能改吗？</summary>
+        <div>
+          <p>能。题卡和资料都是普通的 Markdown 文件，可以在 Vault 里直接编辑，也可以用别的编辑器打开。</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>开源吗？</summary>
+        <div>
+          <p>代码公开在 <a href="https://github.com/TongZi2003/Notara" rel="noopener">GitHub</a> 上，但目前没有附开源许可证。公开可见不等于授予了开源许可。</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>升级会丢数据吗？</summary>
+        <div>
+          <p>升级器会保留课堂、资料和模型配置，失败时撤回改动。不过升级前请一定完整备份学习数据目录，从 0.21.0 以前升级尤其要备份。步骤见<a href="/install/#upgrade">升级和回退</a>。</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>遇到问题去哪反馈？</summary>
+        <div>
+          <p>到 <a href="https://github.com/TongZi2003/Notara/issues" rel="noopener">GitHub Issues</a> 反馈。附日志或截图前，请去掉凭据和私密的课堂内容。</p>
+        </div>
+      </details>
+    </div>
+  </div>
+</main>
+<!-- @include footer -->
+</body>
+</html>

@@ -286,6 +286,13 @@
 - 插件改动后提升 `examples/native-vault/package.json` 的版本，已有运行目录用 `npm run vault:upgrade` 替换快照；不要直接编辑已安装快照来发布改动。
 - 实例启动时加载自己的插件快照，页面加载时取当时的浏览器包：验收插件改动在新启动的实例、新打开的页面上进行，旧进程与旧页面上的现象都不是新版本的证据。
 
+## 官网
+
+- `website/` 是 oh-my-student.com 的静态官网源目录（Vite 多页：首页、`features`、`philosophy`、`install`、`first-lesson`、`faq`）。共用片段在 `website/partials/`，由 `website/vite.config.ts / site()` 在构建时注入，并用 KaTeX 预渲染正文里的 `\( \)`、`\[ \]`。`npm run site:dev`（端口 57180）、`site:build`（输出 `website/dist/`）、`site:preview`（57181）；`tsx website/scripts/check.mts [origin]` 检查各页桌面与手机宽度下的控制台、失败请求、内链和横向溢出。纯官网改动不需要跑教学运行时回归。
+- 手写字体 `website/public/fonts/notara-hand.woff2` 是 `resources/fonts/wenkai.woff2` 按全站用字取的子集，改页面文字后执行 `npm run site:font`（需要 `uvx`）。截图由 `npm run site:capture` 在隔离实例里用测试模型和合成资料生成（先 `npm run build:native-vault`），页面上标注“示例资料 · 实际界面”；不从真实 Vault 截图。
+- 托管在阿里云 ESA Pages（导入 GitHub 仓库，生产分支 `main`，根目录 `/website`）。`website/package.json` 与它的 lockfile 只含 Vite 与 KaTeX，版本与根目录锁定一致，云端构建不装 DSH 运行时；构建配置写在 `website/esa.jsonc`。改动这两处依赖时同步根目录版本。
+- 官网文案只写当前版本已实现的功能。边界（模型调用发往所选服务商、费用由服务商决定、Windows 未实机验收、仓库未附开源许可证）与 README、`docs/install.md` 保持一致；理念页正文由作者提供。
+
 ## 验证口径
 
 - 验证状态只表达证据，不表达信心：`PASS` 是从修改后的状态实际运行通过，注明证据类型与命令；`FAIL` 是实际运行失败，给出最小复现与影响；`BLOCKED` 是凭据或服务缺失导致无法运行；没跑的层级写 `未运行`。

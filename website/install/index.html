@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<!-- @include head -->
+<title>安装与启动 · Notara 拾页</title>
+<meta name="description" content="在 macOS 或 Windows 上安装 Notara 拾页：准备 Node.js 24 与 Git，几行命令启动，配置模型，日常打开、升级与回退。">
+</head>
+<body data-page="install">
+<!-- @include header -->
+<main id="main">
+  <section class="page-hero">
+    <div class="wrap">
+      <p class="kicker hand">安装与启动</p>
+      <h1>装好它，开始第一节课</h1>
+      <p class="lead">适用于 Notara 0.21.1。macOS 上用 Node 24.13.0 验证过；Windows 的启动和 Git Bash 支持已经做好，还没有完成实机验收。</p>
+      <ul class="toc">
+        <li><a href="#prepare">准备</a></li>
+        <li><a href="#install">安装并启动</a></li>
+        <li><a href="#first-run">第一次打开</a></li>
+        <li><a href="#daily">日常打开和停止</a></li>
+        <li><a href="#data">数据放在哪</a></li>
+        <li><a href="#upgrade">升级和回退</a></li>
+        <li><a href="#windows">Windows</a></li>
+        <li><a href="#trouble">遇到问题</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="wrap page-body">
+    <article class="prose">
+      <h2 id="prepare">准备</h2>
+      <ol>
+        <li>安装 <a href="https://nodejs.org/en/download" rel="noopener">Node.js</a> 24 或更新版本，安装包里自带 npm。</li>
+        <li>安装 Git。Windows 请装 <a href="https://gitforwindows.org/" rel="noopener">Git for Windows</a>，之后的命令都在它附带的 <strong>Git Bash</strong> 里执行。</li>
+        <li>准备一个模型账号或 API Key，能在 DSH 的模型设置里配置就行。先配好老师用的模型，后台工作员的模型以后再说。</li>
+      </ol>
+      <p>打开终端，确认这三条命令都有输出：</p>
+<pre class="code"><code>node --version
+npm --version
+git --version</code></pre>
+      <p>第一条应该显示 <code>v24</code> 或更新。刚安装或切换过 Node 的话，先重新打开终端。</p>
+
+      <h2 id="install">安装并启动</h2>
+<pre class="code"><code>git clone https://github.com/TongZi2003/Notara.git Notara-Vault
+cd Notara-Vault
+npm ci --no-audit --no-fund
+npm run vault</code></pre>
+      <p>依赖装好后，启动器会构建插件、创建学习数据目录，再打开浏览器。第一次启动和第一次打开 PDF 时可能要多等一会儿。</p>
+
+      <h2 id="first-run">第一次打开</h2>
+      <ol>
+        <li><strong>配置模型。</strong>首次引导里就可以配，也可以稍后在左下角“设置 → 模型”里添加。按服务商的要求填写，API Key 只填在设置里，不要发进课堂对话。</li>
+        <li><strong>选学习目录。</strong>左侧是“首页、计划、Vault、技能”四个图标。在首页面板里选一个学习目录，启动器已经准备了一个默认的，也可以选你自己的资料目录。</li>
+        <li><strong>写下第一道题。</strong>在输入框里写题目和你自己的尝试，发送。老师回复后可以接着讨论，也可以切到白板。</li>
+        <li><strong>想换教法</strong>，打开空白课堂的“课程选项”，课上也能在教学设置里调整。</li>
+      </ol>
+      <p>第一节课具体怎么上，见<a href="/first-lesson/">第一节课</a>。</p>
+      <div class="callout blue">
+        <p>模型连不上时，先在模型设置里核对服务商、地址、模型名和凭据。连接失败不会清空你的文件和课堂。</p>
+      </div>
+
+      <h2 id="daily">日常打开和停止</h2>
+<pre class="code"><code>cd Notara-Vault
+npm run vault</code></pre>
+      <p>服务运行时保持终端开着，按 <code>Ctrl+C</code> 停止。下次执行同一条命令，已有的资料和课堂都还在。</p>
+      <p>服务还开着，但浏览器关了或者换了浏览器，执行：</p>
+<pre class="code"><code>npm run vault:open</code></pre>
+      <p>登录链接里带着临时认证信息，不要分享给别人。直接打开不带认证的地址可能会看到 401，用上面这条命令重新打开就好。</p>
+
+      <h2 id="data">数据放在哪</h2>
+      <p>学习数据默认在用户目录下的 <code>.notara/vault-runtime</code>，服务端口默认 <code>57093</code>。数据目录和你克隆下来的代码目录是分开的，里面有课堂、资料、模型配置和认证材料。</p>
+      <p>想用别的目录或端口：</p>
+<pre class="code"><code>npm run vault -- --root /你的数据目录 --port 47093
+npm run vault:open -- --root /你的数据目录</code></pre>
+      <p>Windows 的 Git Bash 里可以写成 <code>C:/Users/你的用户名/NotaraData</code>，路径里有空格就加双引号。</p>
+
+      <h2 id="upgrade">升级和回退</h2>
+      <div class="callout pink">
+        <p class="callout-title">升级前一定先备份</p>
+        <p>从 0.21.0 以前的版本升级，第一次打开旧课堂时会把会话迁到新格式，旧版读不了。</p>
+      </div>
+      <ol>
+        <li>在运行服务的终端按 <code>Ctrl+C</code>，确认服务已经停了。</li>
+        <li>把整个 <code>.notara/vault-runtime</code> 复制到别处备份，隐藏文件也要带上，不要只备份 <code>workspace</code>。备份里有凭据，留在自己的电脑上。</li>
+        <li>在代码目录执行：</li>
+      </ol>
+<pre class="code"><code>git pull --ff-only
+npm ci --no-audit --no-fund
+npm run vault:upgrade
+npm run vault</code></pre>
+      <p>用了自定义数据目录的，后两条要加上同样的 <code>-- --root /你的数据目录</code>。</p>
+      <p>升级器会保留课堂、资料和模型配置，旧的插件快照和已经装好的像素教室也会留着；中途失败会撤回这次的安装改动。当前版本号在“设置 → 学习界面”底部能看到。</p>
+      <p>需要回退时，先停掉新版，换回旧代码和它的依赖，再把整份备份恢复到<strong>原来的数据目录位置</strong>。只换回插件快照，退不回已经迁移过的课堂。</p>
+
+      <h2 id="windows">Windows</h2>
+      <ul>
+        <li>所有命令在 Git Bash 里执行。老师执行命令时用的也是 Git Bash。</li>
+        <li>Git Bash 装在特殊位置时，用环境变量 <code>NOTARA_GIT_BASH</code> 指向 <code>bash.exe</code>。</li>
+        <li>Windows 版还没有完成实机验收，遇到问题欢迎到 GitHub 反馈。</li>
+      </ul>
+
+      <h2 id="trouble">遇到问题</h2>
+      <table>
+        <thead><tr><th>现象</th><th>怎么办</th></tr></thead>
+        <tbody>
+          <tr><td>提示需要 Node 24，可 <code>node --version</code> 明明是 24</td><td>电脑上可能有好几套 Node，npm 找到了另一套。装完依赖后用 <code>npm exec --offline -- node --version</code> 核对，让 Node 24 的目录排在 PATH 前面。</td></tr>
+          <tr><td>页面显示 401，或浏览器没打开</td><td>服务开着时执行 <code>npm run vault:open</code>；自定义目录要带上同样的 <code>--root</code>。</td></tr>
+          <tr><td>端口被占用</td><td>先看看是不是已经开着一个。新开实例可以指定别的空闲端口，不要删学习目录。</td></tr>
+          <tr><td>提示必须升级插件</td><td>停掉服务，完整备份，再执行 <code>npm run vault:upgrade</code>。只拉取代码不会替换插件。</td></tr>
+          <tr><td>Windows 找不到 Bash</td><td>装好 Git for Windows 后重新打开 Git Bash；装在特殊位置的，用 <code>NOTARA_GIT_BASH</code> 指定 <code>bash.exe</code>。</td></tr>
+          <tr><td>模型一直不回复</td><td>核对模型配置、余额和网络。需要排查时，在“设置 → 学习界面”打开“显示调试记录”。把报错发给别人前，去掉凭据和私密的课堂内容。</td></tr>
+        </tbody>
+      </table>
+      <p>更完整的说明在 GitHub 仓库的<a href="https://github.com/TongZi2003/Notara/blob/main/docs/install.md" rel="noopener">安装文档</a>里。</p>
+    </article>
+  </div>
+</main>
+<!-- @include footer -->
+</body>
+</html>

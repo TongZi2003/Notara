@@ -1,0 +1,10 @@
+// Alibaba Cloud ESA Pages build for oh-my-student.com. Set the Pages project's
+// root directory to /website so these commands run here.
+{
+  "installCommand": "npm ci --no-audit --no-fund",
+  "buildCommand": "npm run build",
+  "assets": {
+    "directory": "./dist",
+    "notFoundStrategy": "404Page"
+  }
+}

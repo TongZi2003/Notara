@@ -22,7 +22,12 @@
     "test:plugins": "cd examples/native-vault && node --test && cd ../pixel-classroom && node --test",
     "test:unit": "vitest run --config vitest.unit.config.ts",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "site:dev": "vite --config website/vite.config.ts",
+    "site:build": "vite build --config website/vite.config.ts",
+    "site:preview": "vite preview --config website/vite.config.ts",
+    "site:font": "tsx website/scripts/subset-font.ts",
+    "site:capture": "tsx website/scripts/capture.mts"
   },
   "devDependencies": {
     "@codemirror/commands": "6.11.1",

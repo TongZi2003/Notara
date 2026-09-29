@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<!-- @include head -->
+<title>Notara 拾页 · 你的一面镜子</title>
+<meta name="description" content="Notara 拾页是装在自己电脑上的 AI 学习伙伴：替你整理资料，规划路线，记下学习中的点点滴滴，照出你的好与不好，同你的认知一同进步。">
+</head>
+<body data-page="home">
+<!-- @include header -->
+<main id="main">
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="hand">Notara · 拾页</span><span class="chip">AI 学习伙伴</span></p>
+      <h1 class="hero-title">你的一面<span class="scribble">镜子<svg viewBox="0 0 220 40" preserveAspectRatio="none" aria-hidden="true"><path d="M6 28c40-10 96-16 150-12 22 2 40 5 58 10"/><path d="M30 35c50-6 110-8 170-2"/></svg></span></h1>
+      <p class="lead">替你整理资料，规划路线，记下学习中的点点滴滴，照出你的好与不好，同你的认知一同进步</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="/install/">怎么安装</a>
+        <a class="btn btn-ghost" href="/first-lesson/">看看第一节课</a>
+      </div>
+      <ul class="facts">
+        <li>在自己电脑上运行，用浏览器打开</li>
+        <li>模型服务由你自己选</li>
+        <li>题卡、小结和资料都是本地 Markdown 文件</li>
+      </ul>
+    </div>
+
+    <figure class="demo" data-demo aria-label="示例对话：抛物线上的矩形">
+      <div class="demo-bar">
+        <span class="demo-title">抛物线上的矩形</span>
+        <span class="stamp">示例对话</span>
+        <button class="demo-replay" type="button" data-demo-replay hidden>重播</button>
+      </div>
+      <div class="demo-body" data-demo-body>
+        <ol class="demo-list">
+          <li class="msg msg-student" data-step data-wait="4200">
+            <p>矩形 ABCD 有三个顶点在抛物线 \(y=x^2+\tfrac14\) 上，要证它的周长大于 \(3\sqrt3\)。我设了三个点，用 AB ⊥ BC 硬展开，式子乱成一团。先别给答案。</p>
+          </li>
+          <li class="msg msg-teacher" data-step data-typing data-wait="4200">
+            <span class="avatar" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M4 24c0-7 6-12 14-12 7 0 12 4 14 9l4-4c1 3 0 6-2 8 2 2 3 5 2 8l-4-3c-2 3-7 5-14 5-8 0-14-4-14-11z"/><path class="line" d="M8 28c4 3 11 4 17 1M17 10c0-2-1-4-3-5M17 10c0-2 1-4 3-5"/><circle cx="12" cy="21" r="1.7"/></svg></span>
+            <div>
+              <p class="who">大肥鱼</p>
+              <p>抓住直角这个条件，方向是对的。先别急着展开。你在一张卡片里写过抛物线上弦的斜率，还记得吗？</p>
+              <p class="recall"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M6 8h8M6 11h5"/></svg>卡片 · 抛物线的弦</p>
+            </div>
+          </li>
+          <li class="msg msg-student" data-step data-wait="3800">
+            <p>弦的斜率等于两端横坐标之和！那 AB 的斜率是 \(a+b\)，BC 的是 \(b+c\)，垂直就是 \((a+b)(b+c)=-1\)。</p>
+          </li>
+          <li class="board-note" data-step data-wait="5200">
+            <p class="board-label">白板 · 关键一步</p>
+            <p class="board-line">设 \(k=a+b\)，<mark class="hl">边长 = 横坐标差 × \(\sqrt{1+k^2}\)</mark></p>
+            <p class="board-line">\(|AB|=|k-2b|\sqrt{1+k^2}\)</p>
+            <p class="board-line">\(|BC|=\left|\tfrac1k+2b\right|\cdot\dfrac{\sqrt{1+k^2}}{k}\)</p>
+          </li>
+          <li class="msg msg-teacher" data-step data-typing data-wait="3200">
+            <span class="avatar" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M4 24c0-7 6-12 14-12 7 0 12 4 14 9l4-4c1 3 0 6-2 8 2 2 3 5 2 8l-4-3c-2 3-7 5-14 5-8 0-14-4-14-11z"/><path class="line" d="M8 28c4 3 11 4 17 1M17 10c0-2-1-4-3-5M17 10c0-2 1-4 3-5"/><circle cx="12" cy="21" r="1.7"/></svg></span>
+            <div>
+              <p class="who">大肥鱼</p>
+              <p>周长里还剩一个 \(b\)。不妨设 \(k\ge1\)，能把它消掉吗？</p>
+            </div>
+          </li>
+          <li class="msg msg-student" data-step data-wait="4200">
+            <p>三角不等式？\(|k-2b|+\left|\tfrac1k+2b\right|\ge k+\tfrac1k\)，所以 \(|AB|+|BC|\ge\dfrac{(1+k^2)^{3/2}}{k^2}\)。</p>
+          </li>
+          <li class="mirror-card" data-step data-wait="6500">
+            <p class="card-head"><span>题卡 · 抛物线上的矩形</span><span class="tags"><span>数学</span><span>圆锥曲线</span></span></p>
+            <p class="card-section">学生理解</p>
+            <ul>
+              <li>一开始用垂直条件硬展开，式子太乱。</li>
+              <li>想起“弦的斜率等于两端横坐标之和”，式子只剩 \(k\) 和 \(b\)。</li>
+              <li>用三角不等式消去 \(b\)，是在提示“不妨设 \(k\ge1\)”之后做到的。</li>
+            </ul>
+            <p class="card-judgement"><strong>当前判断</strong>　能把周长化成 \(k\) 的函数；求最小值、说明等号取不到，还没有独立检验。</p>
+            <p class="pen-note" aria-hidden="true">哪步靠提示、哪步还没检验，都如实记下</p>
+          </li>
+          <li class="think" data-step data-wait="3000">
+            <p><span class="hand">想一想</span>　题目里的 \(\tfrac14\) 有什么用？</p>
+          </li>
+        </ol>
+        <div class="typing" data-demo-typing hidden aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
+      <figcaption>示例资料，用来演示一节课的流程，不是真实学生的记录。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section why">
+  <div class="wrap narrow">
+    <p class="kicker hand">为什么做它</p>
+    <h2>自己先想一遍，再有人点拨几句</h2>
+    <p>很多知识是在这样的时候接起来的：自己琢磨过的问题，拿去和人讨论，对方一句反问，原来散在各处的东西忽然连成一片。</p>
+    <p>可愿意陪你讨论的人不总是有空，整理错题又是件忙半天也看不到回报的事。Notara 想把这种讨论留在手边。你的问题有人接住，你的想法被认真对待，讨论过的东西也不会散掉。</p>
+    <p><a class="link-arrow" href="/philosophy/">读读我们为什么做这件事</a></p>
+  </div>
+</section>
+
+<section class="section ideas" id="ideas">
+  <div class="wrap">
+    <p class="kicker hand">三件旧道理，换个做法</p>
+    <h2>重复 · 联系 · 延伸</h2>
+    <p class="section-lead">这些都是学习里的老话。Notara 把它们落在每节课留下的记录上。</p>
+    <div class="notes">
+      <article class="note note-yellow">
+        <h3>重复</h3>
+        <p class="note-sub">把看过的，变成认得出来的</p>
+        <p>复习只盯一道题最关键的那一步，结果分三种：做出来、没做出来、这次没考。</p>
+        <p>下一次复习按 1、3、7、16、35 天排。到期做出来才进下一档，没做出来退一档，这次没考不改排期。</p>
+      </article>
+      <article class="note note-blue">
+        <h3>联系</h3>
+        <p class="note-sub">让不同地方学到的东西互相解释</p>
+        <p>题卡一题一张，同类题挂在共性专题下，图谱里能看到资料、卡片和路线怎么连在一起。</p>
+        <p>讲新题之前，老师会先翻你以前的卡片、画像和锦囊，从你已经站稳的地方讲起。</p>
+      </article>
+      <article class="note note-pink">
+        <h3>延伸</h3>
+        <p class="note-sub">把一个答案，变成几个值得想的问题</p>
+        <p>做完一道题，老师会换个条件、给个反例、问问边界。需要练习时，后台的出题员按你的情况出变式。</p>
+        <p>白板上可以直接作答，除了选择、填空和排序，还能在函数图上拖点、调参数。</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section mirror" id="mirror">
+  <div class="wrap split">
+    <div class="split-copy">
+      <p class="kicker hand">镜子照见的</p>
+      <h2>照出你的好，也照出你的不好</h2>
+      <p>讨论完一道题，老师会把它整理成一张题卡，分成<span class="hl">内容、参考理解、学生理解</span>三段。</p>
+      <p>“学生理解”只记你真正说过、做过的：一开始怎么想，在哪里转了弯，哪一步靠提示才走通，哪些还没检验过。老师讲过的，不算你已经会了。</p>
+      <ul class="ticks">
+        <li>以前的误解和后来的修正都留着，最后的正确结论不会盖掉过程。</li>
+        <li>检验过的和没检验过的分开写，下次知道先查哪里。</li>
+        <li>题卡是普通的 Markdown 文件，你随时可以打开、修改。</li>
+      </ul>
+    </div>
+    <figure class="shot tilt-right">
+      <img src="/images/understanding.webp" width="1440" height="930" loading="lazy" alt="Vault 中的一张题卡，学生理解一栏记录了认识的变化和尚未检验的部分">
+      <figcaption>示例资料 · 实际界面</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section lesson" id="lesson">
+  <div class="wrap">
+    <p class="kicker hand">因材施教</p>
+    <h2>从一道题、一段笔记，或一个没想明白的问题开始</h2>
+    <ol class="steps">
+      <li>
+        <h3>写下题目和你的尝试</h3>
+        <p>不用等到完全想对。卡在哪里就说哪里，想法不成形也可以先写出来。</p>
+      </li>
+      <li>
+        <h3>老师一次问一步</h3>
+        <p>它先弄清你卡在哪，再决定给提示还是讲一段。关键的一步尽量留给你自己走。</p>
+      </li>
+      <li>
+        <h3>需要时切到白板</h3>
+        <p>公式和关系图写在板上，函数图像能拖动，过程可以逐帧演示，小练习也能直接在板上作答。</p>
+      </li>
+      <li>
+        <h3>存成题卡，下次接着学</h3>
+        <p>讨论收束时，题目、参考理解和你的理解变化存进题卡。保存小结以后，这节课还能接着聊。</p>
+      </li>
+    </ol>
+    <div class="shots-pair">
+      <figure class="shot tilt-left">
+        <img src="/images/lesson.webp" width="1440" height="930" loading="lazy" alt="课堂对话视图：老师先确认学生卡住的地方，再提示一条旧卡片里的结论">
+        <figcaption>对话 · 示例资料 · 实际界面</figcaption>
+      </figure>
+      <figure class="shot tilt-right">
+        <img src="/images/whiteboard.webp" width="1440" height="930" loading="lazy" alt="课堂白板视图：写着关键一步和两条边长的表达式，旁边是抛物线上矩形的示意图和对话">
+        <figcaption>白板 · 示例资料 · 实际界面</figcaption>
+      </figure>
+    </div>
+    <div class="methods">
+      <p class="methods-title hand">四种教法</p>
+      <ul>
+        <li><strong>苏格拉底</strong>用问题引导你自己走每一步</li>
+        <li><strong>费曼法</strong>先让你用自己的话讲清楚，再一起找缺口</li>
+        <li><strong>讲解—变式</strong>先讲清例题，再用一串变式检验</li>
+        <li><strong>结构分析</strong>先看清条件、目标与不变关系</li>
+      </ul>
+      <p class="methods-note">教法只定基调，老师会看你的理解情况随时换讲法。</p>
+    </div>
+  </div>
+</section>
+
+<section class="section organize" id="organize">
+  <div class="wrap">
+    <p class="kicker hand">替你整理，陪你规划</p>
+    <h2>资料交给它理，路线跟着你改</h2>
+    <div class="grid-4">
+      <article class="card-doodle">
+        <h3>资料</h3>
+        <p>讲义、PDF 和图片都放进 Vault。PDF 上可以圈出一块区域引用到卡片里，页码和原图一起保留。整本书也能拆，老师先和你确认范围，再把知识单元和题目整理成卡片。</p>
+      </article>
+      <article class="card-doodle">
+        <h3>路线</h3>
+        <p>想系统补一块内容，可以请老师规划路线：分阶段，主线、补练、拓展分开，标出先修。学着学着发现不合适，就改后面的课，上过的课原样保留。</p>
+      </article>
+      <article class="card-doodle">
+        <h3>锦囊</h3>
+        <p>一节课里值得留下的方法和思路转变写成锦囊：什么时候想起它，要什么条件，怎么做，为什么成立，在哪里会失效。锦囊放在技能页，用不用由你决定。</p>
+      </article>
+      <article class="card-doodle">
+        <h3>后台工作员</h3>
+        <p>难题可以交给后台的题目研究员独立解一遍，拿不准的一步再请核验员看。备课、出题和整理资料也各有专门的工作员。</p>
+      </article>
+    </div>
+    <p class="more"><a class="link-arrow" href="/features/">看全部功能</a></p>
+  </div>
+</section>
+
+<section class="section what" id="what">
+  <div class="wrap split reverse">
+    <div class="split-copy">
+      <p class="kicker hand">它是什么</p>
+      <h2>一个轻量的插件，装在你自己的电脑上</h2>
+      <p>Notara 是 DeepSeek Harness（DSH）的教学插件。它在你的电脑上运行，用浏览器打开，模型服务由你自己配置。</p>
+      <p>课堂小结、题卡和资料都是普通文件，存在你选的学习目录里，也能用 Obsidian 这类 Markdown 编辑器打开。它本身不是 Obsidian 插件，不从 Obsidian 的插件市场安装。</p>
+    </div>
+    <aside class="note note-green caveats">
+      <h3>说在前面</h3>
+      <ul>
+        <li>调用模型时，相关内容会发给你选的服务商，所以它不是完全离线的。</li>
+        <li>费用由模型服务商决定，Notara 本身没有套餐。</li>
+        <li>模型会出错，老师也会说错。它不保证提分，也不保证你学会；发现错了，直接指出来。</li>
+        <li>macOS 上已经验证过。Windows 的支持已经做好，还没有完成实机验收。</li>
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<section class="section start" id="start">
+  <div class="wrap narrow">
+    <p class="kicker hand">开始</p>
+    <h2>几行命令，开始第一节课</h2>
+    <p>准备好 Node.js 24 或更新版本和 Git，再备一个可用的模型账号或 API Key。</p>
+<pre class="code"><code>git clone https://github.com/TongZi2003/Notara.git Notara-Vault
+cd Notara-Vault
+npm ci --no-audit --no-fund
+npm run vault</code></pre>
+    <p>浏览器会自动打开。配好模型，选一个学习目录，就可以写下第一道题。</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="/install/">完整安装步骤</a>
+      <a class="btn btn-ghost" href="/first-lesson/">第一节课怎么上</a>
+    </div>
+  </div>
+</section>
+
+</main>
+<!-- @include footer -->
+</body>
+</html>
