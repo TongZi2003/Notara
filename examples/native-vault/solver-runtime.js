@@ -1,7 +1,7 @@
 import { pluginEventType } from './plugin-events.js';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
-import { appendTeachingEvent } from './teaching-state.js';
+import { appendTeachingEvent, readTeachingSettings } from './teaching-state.js';
 import { teachingResource, teachingManifest } from './teaching-catalog.js';
 import { WORKER_PRESETS, WORKER_TOOLS, workerPreset } from './worker-catalog.js';
 import { readWorkerDefaults, workerDefaultsPath, writeWorkerDefault } from './worker-defaults.js';
@@ -191,7 +191,11 @@ export class NotaraSolver {
   async read({ sessionId }) {
     const agent = await this.parent(sessionId), state = solverState(agent.session), models = await this.models(), defaults = await this.defaults(), teacher = teacherRoute(agent);
     return { revision: state.revision, defaultsRevision: this.defaultsPath ? defaults.revision : null,
-      teacher: { name: '大肥鱼', description: '爱吃白饭的鲸鱼娘女仆，陪你理清思路、一步步学会。' },
+      // A persona written in 教学设置 replaces the default character, so the card
+      // stops naming it; the free text is not mined for a name.
+      teacher: personaText(readTeachingSettings(agent.session).persona)
+        ? { name: '本课老师', description: '按这节课教学设置里写的人格上课。' }
+        : { name: '大肥鱼', description: '爱吃白饭的鲸鱼娘女仆，陪你理清思路、一步步学会。' },
       // The teacher's model is only known once the lesson has sent a request.
       teacherRoute: teacher ? { ...teacher, label: models.find(row => row.provider === teacher.provider && row.model === teacher.model)?.label ?? teacher.model } : null,
       workers: WORKER_PRESETS.map(preset => {

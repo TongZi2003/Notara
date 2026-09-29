@@ -68,7 +68,8 @@ export class NotaraTeaching extends Service {
   constructor(ctx,{root=process.cwd()}={},internals={}) {
     super(ctx,'notaraTeaching');this.root=resolve(root);this.internals=internals;this.prepared=new WeakMap();this.requests=new Map();this.routeLocks=new Map();this.summaryLocks=new Map();this.operations=new Map();
     this.nativeArchive=internals.archive??(ctx.get('workspaceRegistry')?.archiveSession.bind(ctx.workspaceRegistry));
-    this.archiveAfterTurn=new Set();
+    // Session id → the summary cutoff its deferred archive was scheduled against.
+    this.archiveAfterTurn=new Map();
     this.review=createReviewRuntime(this);
     this.lessonBoard=createBoardRuntime(this);
     this.pomodoroTimer=createPomodoroRuntime(this,internals.pomodoro);
@@ -164,15 +165,20 @@ export class NotaraTeaching extends Service {
     if(teachingCutoff(session).cutoff!==result.cutoff||pendingInputs(session)) return {...result,archived:false,archivePending:true,reason:'课堂有新的输入，小结已保存，本次尚未归档。'};
     // DSH 0.2.0 refuses to archive a session while its turn runs. The teacher's
     // own summary call is inside that turn, so the archive waits for turn/end.
-    if(afterTurn&&this.nativeArchive){this.archiveAfterTurn.add(session.id);return {...result,archived:false,archiveScheduled:true,reason:'小结已保存，这一轮结束后收起课堂。'};}
+    if(afterTurn&&this.nativeArchive){this.archiveAfterTurn.set(session.id,result.cutoff);return {...result,archived:false,archiveScheduled:true,reason:'小结已保存，这一轮结束后收起课堂。'};}
     try {
       if(!this.nativeArchive) fail('lesson_archive_unavailable');
       await this.nativeArchive(session.id);return {...result,archived:true};
     }catch{return {...result,archived:false,archivePending:true,reason:'小结已保存，归档未完成，可以重试。'};}
   }
-  /** Archive once the turn that asked for it has let go of the session. */
-  archiveWhenIdle(sessionId,attempt=0) {
-    setTimeout(()=>{Promise.resolve(this.nativeArchive(sessionId)).catch(()=>{if(attempt<40)this.archiveWhenIdle(sessionId,attempt+1);});},attempt?250:0);
+  /** Archive once the turn that asked for it has let go of the session. Each attempt
+   * first holds the same rule as archiveSaved: a student message after the summary,
+   * or input still queued, keeps the lesson open instead of archiving it later. */
+  archiveWhenIdle(session,cutoff,attempt=0) {
+    setTimeout(()=>{
+      if(teachingCutoff(session).cutoff!==cutoff||pendingInputs(session))return;
+      Promise.resolve(this.nativeArchive(session.id)).catch(()=>{if(attempt<40)this.archiveWhenIdle(session,cutoff,attempt+1);});
+    },attempt?250:0);
   }
   async writeSummary(exec,args) {
     if(typeof args.body!=='string'||!args.body.trim()) fail('lesson_summary_body_required');
@@ -463,7 +469,7 @@ export function installTeachingRuntime(ctx,config={}) {
     const background={learningGoal:settings.learningGoal,temporaryInstructions:settings.temporaryInstructions,subjects,subjectsSource:lessonSubjects?'lesson':learningSet?.status==='active'?'learning-set':'none',learningSet,materialsRoot:materialsRoot?{env:'DSH_NOTARA_VAULT_ROOT',path:materialsRoot.path,legacyPrefix:materialsRoot.prefix}:null,course,script:settings.scriptPath?{...memory.script,path:settings.scriptPath,readPath,workspaceId:settings.scriptWorkspaceId,boundRevision:settings.scriptRevision,bodyRead:false}:null,previousLesson:settings.continuation,materials:settings.materials};
     return {...result,contexts:[...result.contexts,{name:'notara:learning-context',text:memory.text},{name:'notara:lesson-background',text:JSON.stringify(background)}]};
   });
-  ctx.on('session/event',(session,event)=>{if(event.type==='turn/end'){service.requests.delete(session.id);if(service.archiveAfterTurn.delete(session.id))service.archiveWhenIdle(session.id);for(const key of service.operations.keys())if(key.startsWith(session.id+':'))service.operations.delete(key);}});
+  ctx.on('session/event',(session,event)=>{if(event.type==='turn/end'){service.requests.delete(session.id);const cutoff=service.archiveAfterTurn.get(session.id);if(service.archiveAfterTurn.delete(session.id))service.archiveWhenIdle(session,cutoff);for(const key of service.operations.keys())if(key.startsWith(session.id+':'))service.operations.delete(key);}});
   const registry=ctx.get('workspaceRegistry');
   if(registry&&service.nativeArchive){
     const original=registry.archiveSession;

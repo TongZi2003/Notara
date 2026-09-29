@@ -4,6 +4,7 @@ import './patch-skill-menu.ts';
 import { build } from 'esbuild';
 import { readFile, writeFile, cp, rm } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { outputNamed } from './package-bin.ts';
 
 const KATEX_STYLES = resolve('node_modules/katex/dist/katex.min.css');
 const LATEX_STYLES_PLACEHOLDER = '__NOTARA_VAULT_LATEX_CSS__';
@@ -55,9 +56,9 @@ const result = await build({
 });
 
 const outputs = result.outputFiles ?? [];
-const script = outputs.find(file => file.path.endsWith('.js'));
-if (!script) throw new Error('native-vault client build produced no JavaScript');
-const unbundled = outputs.filter(file => !file.path.endsWith('.js')).map(file => file.path);
+const script = outputNamed(outputs, 'client.js');
+if (!script) throw new Error('native-vault client build produced no client.js');
+const unbundled = outputs.filter(file => file !== script).map(file => file.path);
 if (unbundled.length) throw new Error(`native-vault client build emitted an unshipped artifact: ${unbundled.join(', ')}`);
 if (!script.text.includes(LATEX_STYLES_PLACEHOLDER)) throw new Error(`native-vault client build lost the LaTeX styles placeholder ${LATEX_STYLES_PLACEHOLDER}`);
 const output = script.text

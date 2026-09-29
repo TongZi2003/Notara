@@ -185,7 +185,9 @@ export class NotaraVaultRemote extends TypertRemoteService {
       const reviewMessages={vault_reference_stale:'资料已被修改，请刷新后再试。',review_result_invalid:'请选择这次关键一步的结果。',review_key_step_invalid:'“检验的是哪一步”最多写 200 字。',review_history_invalid:'这张卡片的评估历史有格式问题，请在 Vault 里打开它检查后再记录。',review_conflict:'这条评估已存在且内容不同，请重新读取后处理。',review_state_invalid:'复习属性不完整或互相冲突，请在 Vault 里打开这张卡片检查。',review_date_invalid:'请填写有效日期。',review_note_required:'请先写下这次回忆或作答的情况。',review_state_mismatch:'评估后资料已被调整，请刷新并检查复习属性。',review_undo_unavailable:'没有可以撤销的评估。',calendar_daily_ambiguous:'这一天有多份日记，请从日历列表选择。',calendar_scan_incomplete:'资料还没读取完整，请刷新后再创建日记。'};
       const pomodoroMessages={pomodoro_input_invalid:'番茄钟时长不在可选范围内，请重新选择。',skill_revision_conflict:'这份技能刚被改过，请刷新后再确认。',skill_not_found:'找不到这份技能，请刷新列表。',skill_exists:'这个学习集已经有同名技能，不能再继承一份。',skill_scope_unavailable:'当前运行环境没有学科层技能目录。',skill_revision_not_found:'这份修订已经处理过了，请刷新列表。',skill_inherit_same_set:'请选择另一个学习集作为来源。',overview_incomplete:'梗概还有待填写的必填项（科目、学什么、学段或水平、目标与期限），补全后再启用。',overview_exists:'这个学习集已经有梗概了。',overview_field_missing:'梗概缺少必填项，请在资料库里补上。'};
       const boardMessages={board_answer_stale:'这道题刚被老师改过，请看一眼新题目再作答。',board_answer_invalid:'作答还不完整，请检查后再交。',board_answer_reason_required:'这道题要写一句理由再交。',board_answer_empty:'至少填一个空再交。',board_component_missing:'这道题已经不在白板上了，请刷新。',board_answer_missing:'找不到这次作答，请刷新白板。',board_component_locked:'老师写的题目和图里不能加高亮，请选择旁边的文字。',board_unpin_unavailable:'这一块来自旧白板，不能放回排版。',board_block_missing:'这一块已经不在白板上了，请刷新。'};
-      throw new Error(messages[error.message]??solverMessages[error.message]??reviewMessages[error.message]??boardMessages[error.message]??pomodoroMessages[error.message.split(':')[0]]??'操作未完成，请检查内容后重试。',{cause:error});
+      // Some Host errors carry a model-facing explanation after `code:`; the page reads the code's own sentence.
+      const code=String(error?.message??'').split(':')[0];
+      throw new Error(messages[code]??solverMessages[code]??reviewMessages[code]??boardMessages[code]??pomodoroMessages[code]??'操作未完成，请检查内容后重试。',{cause:error});
     }
   }
 

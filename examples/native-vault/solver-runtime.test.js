@@ -303,3 +303,15 @@ test('每位工作员的人格独立保存与回读，空白只用任务角色�
   await assert.rejects(solver.configure({ preset: 'problem', tools: 'none', persona: '鱼'.repeat(4001), sessionId: session.id, expectedRevision: 5, route }), /solver_input_invalid: persona/);
   assert.equal((await solver.read({ sessionId: session.id })).workers.find(row => row.id === 'problem').persona, '说话简短，偶尔用比喻。');
 });
+
+test('教室里的老师卡片跟着本课人格：默认是大肥鱼，写了自定义人格就不再挂默认形象的名字', async () => {
+  const { solver, session } = setup();
+  assert.equal((await solver.read({ sessionId: session.id })).teacher.name, '大肥鱼');
+  updateTeachingSettings(session, { persona: '你是一位严谨的数学系助教，说话简洁。' }, 0);
+  const custom = (await solver.read({ sessionId: session.id })).teacher;
+  assert.equal(custom.name, '本课老师');
+  assert.doesNotMatch(custom.description, /大肥鱼|鲸鱼/);
+  // 空白人格恢复默认形象。
+  updateTeachingSettings(session, { persona: '   ' }, 1);
+  assert.equal((await solver.read({ sessionId: session.id })).teacher.name, '大肥鱼');
+});

@@ -197,9 +197,23 @@ test('the teacher asking to archive in its own turn waits for the turn to end, a
   assert.deepEqual(calls,[]);
   assert.equal(service.archiveAfterTurn.has(session.id),true);
   // What the turn/end hook does once the teacher's turn is over.
-  service.archiveAfterTurn.delete(session.id);service.archiveWhenIdle(session.id);
+  const cutoff=service.archiveAfterTurn.get(session.id);service.archiveAfterTurn.delete(session.id);service.archiveWhenIdle(session,cutoff);
   await new Promise(resolve=>setTimeout(resolve,400));
   assert.deepEqual(calls,[session.id,session.id]);
+});
+
+test('a deferred archive leaves the lesson open when the student writes again before it lands',async t=>{
+  const {service,session,exec}=await setup(t);
+  student(session,'今天到这里');
+  const calls=[];service.nativeArchive=async id=>{calls.push(id);throw new Error('WorkspaceActiveSessionError');};
+  const result=await service.saveSummary(exec,{body:'今天讲完了条件概率。',archive:true});
+  assert.equal(result.archiveScheduled,true);
+  const cutoff=service.archiveAfterTurn.get(session.id);service.archiveAfterTurn.delete(session.id);service.archiveWhenIdle(session,cutoff);
+  // The first attempt meets a busy session; before the retry the student keeps talking.
+  await new Promise(resolve=>setTimeout(resolve,50));
+  student(session,'等等，我还想再问一道题');
+  await new Promise(resolve=>setTimeout(resolve,400));
+  assert.deepEqual(calls,[session.id]);
 });
 
 test('clearing a cross-set script binding keeps the existing summary at its original source',async t=>{

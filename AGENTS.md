@@ -78,7 +78,7 @@
   - 测试引用无类型的插件 JS 时写 `// @ts-expect-error` 注明原因；`scripts` 工程引用的插件 JS 用同名 `.d.ts` 声明（`lazy-assets.d.ts`、`worker-catalog.d.ts`）。
   - 空白课堂的欢迎说明显示当前会话的标题（计划页开出的课即节点名），没有标题才写“新的一课”（`lesson-entry-client.js`）。资料库的“文件”视图可见时总跟外部改动同步列表，不要求有文件打开着。给学生的位置说明不再用“资产页”。
 
-- Native Vault 0.19.10 起老师的 `job_output`、`job_list`、`job_kill` 工具行由 `client-source.ts / JOB_ROWS` 接管，只写状态，不显示工具名、参数与后台任务编号（`docs/dev-log/2026-09-28-job-rows-0.19.10.md`）。
+- Native Vault 0.19.10 起老师的 `job_output`、`job_list`、`job_kill` 工具行只写状态（0.20.2 起名单在 `tool-rows-client.js / STATUS_ROWS`），不显示工具名、参数与后台任务编号（`docs/dev-log/2026-09-28-job-rows-0.19.10.md`）。
 
 - Native Vault 0.19.9 起学生能看到的几处不再露出内部信息（`docs/dev-log/2026-09-28-student-visible-0.19.9.md`）。
   - 工作员的第一条消息学生在记录里也看得到，只写任务（`solver-runtime.js / workerTask`：`goal`、`focus`、`materials`、`capabilities`）；角色在它的系统提示里，不写预设 id 与工作区绝对路径。只读工作员在资料根是 `vault/` 时多一个 `materialsRoot`。测试模型按系统提示里的角色标题认工作员（`scripts/fixtures/vault-test-model.ts / workerPresetOf`）。

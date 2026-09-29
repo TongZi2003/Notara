@@ -222,3 +222,13 @@ test('the Vault remote never reads or writes inside dot folders or node_modules'
   }
   assert.equal(await readFile(join(world.math, 'vault', '.git', 'config'), 'utf8'), '[core]\n');
 });
+
+test('Remote errors read the sentence of their code, even when the Host appended a model-facing explanation', async () => {
+  const { NotaraVaultRemote } = await import('./index.js');
+  const failing = message => ({ ctx: { get: () => ({ classroom: async () => { throw new Error(message); } }) } });
+  const call = message => NotaraVaultRemote.prototype.teachingCall.call(failing(message), 'classroom', {});
+  await assert.rejects(call('solver_model_unavailable: 尚未启动题目研究员。不要原样重试。'), { message: '这个模型现在不在可用的模型里，请重新选择。' });
+  await assert.rejects(call('review_conflict'), { message: '这条评估已存在且内容不同，请重新读取后处理。' });
+  await assert.rejects(call('pomodoro_input_invalid: focus 需为 5 到 90 的整数'), { message: '番茄钟时长不在可选范围内，请重新选择。' });
+  await assert.rejects(call('something_unmapped: detail'), { message: '操作未完成，请检查内容后重试。' });
+});
