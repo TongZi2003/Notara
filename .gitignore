@@ -38,11 +38,14 @@ coverage/
 /docs/runtime/*
 !/docs/runtime/plugins.md
 !/docs/runtime/upstream-lock.json
+!/docs/runtime/update-contract.json
 !/docs/runtime/vault-launcher.md
 !/docs/runtime/windows-native-vault.md
 !/docs/releases/
 /docs/releases/*
 !/docs/releases/native-vault-0.21.1.md
+!/docs/releases/native-vault-0.22.0.md
+!/docs/releases/native-vault-0.22.1.md
 
 # Retired workbench-only build/test configurations (kept locally).
 /tsconfig.math-plugin.json

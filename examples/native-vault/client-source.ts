@@ -33,6 +33,7 @@ import { STATUS_ROWS, statusRowText } from './tool-rows-client.js';
 import { currentSessionId } from './session-current.js';
 import { createLessonBoard } from './board-client.js';
 import { createBoardStream } from './board-stream.js';
+import { createUpdateUI } from './update-client.js';
 
 const VAULT_REFERENCE = 'notara-vault';
 const PAGE_REFERENCE_LIMIT = 12000;
@@ -46,6 +47,7 @@ window.__ModuleLoader__.load({
     const { Icon, IconButton, Menu, Dialog } = createVaultUI(React);
     const navigation = createVaultNavigation();
     const appearance = createAppearance();
+    const updates = createUpdateUI(React);
     /** Stands in for the native lineage control: a worker's crumb is its plain
      * name, and a lesson's crumb needs nothing beside its title. */
     // A worker's record reads its role's name: the spawn label, which DSH 0.2.0
@@ -611,7 +613,7 @@ window.__ModuleLoader__.load({
 
     const { CodeEditor } = createCodeEditor(React);
     const { SkillsPanel, SkillsView } = createSkillsPage(React, { navigation, EmptyState, IconButton });
-    const { Sidebar } = createVaultRail(React, { navigation, Icon, IconButton, Menu, Dialog, STYLE, SkillsPanel });
+    const { Sidebar } = createVaultRail(React, { navigation, Icon, IconButton, Menu, Dialog, STYLE, SkillsPanel, UpdateNotice: updates.UpdateNotice });
     const App = createVaultAssets(React, { STYLE, EmptyState, CodeMirrorMarkdown, CodeEditor, PdfReader, AssetPreview, insertVaultReference, IconButton, Menu, Dialog, ensureSession: ctx => ensureTeachingSession(ctx), openLessonBoard: (ctx, sessionId) => navigation.openLesson(ctx, sessionId, 'board') });
     const { GraphView, CardsView } = createVaultViews(React, { STYLE, IconButton, Menu, Dialog });
     // 路线资料是一份真实页面: 请老师规划或调整走的是既有的输入框引用入口（和
@@ -649,6 +651,7 @@ window.__ModuleLoader__.load({
             // The rail is 56px; the panel gets the rest of a 360px sidebar by default.
             scope.layout.setSidebarDefaultWidth?.(360);
             installStudentProjection(scope, React, navigation, appearance);
+            updates.install(scope);
             scope.effect(() => scope.slots.inject('conversation.hero.intro', () => scope.slots.register({
               name: 'conversation.hero.intro',
             }, props => React.createElement(LessonEntry, { ...props, sessions: scope.sessions.list, ctx: scope }))));

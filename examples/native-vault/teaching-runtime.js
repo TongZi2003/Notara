@@ -61,8 +61,6 @@ function stableSessionId(workspace,route,node) {
 const SUMMARY_BODY='保留实际进度、探索经历、得到的帮助和下次从哪里继续（小结正文包含 `## 下次从这里继续`）。保留有证据的理解演变：早先不完备或错误的理解、促成变化的问题或提示、后来实际表现及未解决处；引用相关卡片，不只留下最终正确答案，不补编缺失过程。同时简要反思本次教学判断和引导是否与学生实际表现一致；有依据的改进并入本小结，未验证的保留为下次观察点，无新发现不强凑。';
 /** 「总结本课」是学生可见的收课请求：只说明保存小结并保留会话，不写工具名或参数。 */
 const SUMMARY_REQUEST=`请总结这次课堂，保存本课小结，保留原会话在列表里以便继续。${SUMMARY_BODY}`;
-/** 原生会话菜单的归档入口：明确要求收起会话；小结先落盘，归档失败仍可原地重试。 */
-const ARCHIVE_SUMMARY_REQUEST=`请总结并归档这次课堂：保存小结后把会话从列表收起。${SUMMARY_BODY}`;
 
 export class NotaraTeaching extends Service {
   constructor(ctx,{root=process.cwd()}={},internals={}) {
@@ -340,32 +338,22 @@ export class NotaraTeaching extends Service {
     });
     this.routeLocks.set(key,work);try{return await work;}finally{if(this.routeLocks.get(key)===work)this.routeLocks.delete(key);}
   }
-  /** 原生会话菜单的归档入口：只有它替学生明确要求收起会话。 */
-  async archiveFromNativeEntry(sessionId) {
-    return await this.requestSummary({sessionId,archive:true});
-  }
-  async requestSummary({sessionId,archive=false}) {
+  async requestSummary({sessionId}) {
     const agent=await this.agentFor(sessionId);
     if(this.requests.has(sessionId)) return {queued:true};
-    // A saved summary is reused while the class has not moved on. Only the
-    // explicit native archive request hides the session; the lesson-level
-    // summary keeps the class open, so a repeat only reports what is saved.
+    // A saved summary is reused while the class has not moved on. This
+    // lesson-level action keeps the session open; native archival is separate.
     const prior=summaryRecords(agent.session).at(-1)?.data;
     if(prior&&prior.cutoff===teachingCutoff(agent.session).cutoff&&!pendingInputs(agent.session)) {
       const io=createAgentVaultIO(this.ctx,{agent,signal:new AbortController().signal},{scope:prior.workspaceId??'current'});
       let doc=null,hit=null;
       try{doc=await io.read(prior.path);hit=parseLessonSummaries(doc).find(row=>row.sessionId===sessionId);}catch{}
       if(hit){
-        const saved={...prior,revision:doc.revision,saved:true,archived:false,replayed:true};
-        if(!archive) return saved;
-        // A failed archive retries only the already verified save.
-        const result=await this.archiveSaved(agent.session,saved);
-        if(!result.archived) fail('lesson_archive_failed');
-        return result;
+        return {...prior,revision:doc.revision,saved:true,archived:false,replayed:true};
       }
     }
     const requestId=randomUUID();this.requests.set(sessionId,requestId);
-    try{await this.ctx.sessionController.prompt({sessionId,requestId,mode:'queue',content:[{type:'text',text:archive?ARCHIVE_SUMMARY_REQUEST:SUMMARY_REQUEST}]},new AbortController().signal);}
+    try{await this.ctx.sessionController.prompt({sessionId,requestId,mode:'queue',content:[{type:'text',text:SUMMARY_REQUEST}]},new AbortController().signal);}
     catch(error){this.requests.delete(sessionId);throw error;}
     return {queued:true};
   }
@@ -470,13 +458,8 @@ export function installTeachingRuntime(ctx,config={}) {
     return {...result,contexts:[...result.contexts,{name:'notara:learning-context',text:memory.text},{name:'notara:lesson-background',text:JSON.stringify(background)}]};
   });
   ctx.on('session/event',(session,event)=>{if(event.type==='turn/end'){service.requests.delete(session.id);const cutoff=service.archiveAfterTurn.get(session.id);if(service.archiveAfterTurn.delete(session.id))service.archiveWhenIdle(session,cutoff);for(const key of service.operations.keys())if(key.startsWith(session.id+':'))service.operations.delete(key);}});
-  const registry=ctx.get('workspaceRegistry');
-  if(registry&&service.nativeArchive){
-    const original=registry.archiveSession;
-    // DSH 0.2.0 archiveSession(sessionId, {stopActivity}): other sessions keep the native options.
-    const wrapped=async(sessionId,options)=>{const snapshot=await ctx.sessionController.inspect(sessionId);if(snapshot.meta.agentPreset===TEACHING_PRESET){await service.archiveFromNativeEntry(sessionId);return;}return original.call(registry,sessionId,options);};
-    registry.archiveSession=wrapped;
-    ctx.effect(()=>()=>{if(registry.archiveSession===wrapped)registry.archiveSession=original;});
-  }
+  // Native archival must resolve only after the registry persists it, and must
+  // retain its running-work confirmation and stopActivity option. Summaries use
+  // the separate lesson action or the teacher's explicit save-and-archive tool.
   return service;
 }

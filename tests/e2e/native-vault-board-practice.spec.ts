@@ -18,7 +18,8 @@ test('the student answers on the board and the teacher receives it as the studen
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   const client = await connectVault(runtime);
   try {
-    client.approvals.auto('allowed-once');
+    // Unexpected approvals fail the lesson instead of being silently accepted.
+    client.approvals.auto('rejected');
     const section = '第1题 中点弦的斜率';
     const choiceMessage = '〔白板｜第1题 中点弦的斜率｜这条弦的斜率是正还是负？〕我选：B 负。理由：M 在第一象限，弦往下倾斜';
     await client.script({
@@ -38,13 +39,10 @@ test('the student answers on the board and the teacher receives it as the studen
     try { await later.waitFor({ timeout: 8000 }); await later.click(); } catch { /* already acknowledged */ }
     const input = page.locator('[data-composer-input][contenteditable="true"]').last();
     await input.fill('开始上课'); await input.press('Enter');
-    // Each board write asks once unless the harness already answered it.
     const reply = page.getByText('白板上有三道小题，先判断方向。').first();
-    for (let round = 0; round < 40 && !(await reply.isVisible()); round++) {
-      const allow = page.getByRole('button', { name: 'Allow once', exact: true });
-      if (await allow.isVisible()) await allow.click(); else await page.waitForTimeout(500);
-    }
     await expect(reply).toBeVisible({ timeout: 30_000 });
+    expect(client.approvals.seen).toHaveLength(0);
+    await expect(page.getByText('保存所示学习资料或课堂绑定。', { exact: true })).toHaveCount(0);
     const session = ((await client.sessions()) as Array<{ sessionId: string; blank?: boolean }>).find(row => !row.blank)?.sessionId;
     expect(session).toBeTruthy();
     await page.getByRole('tablist', { name: '课堂视图' }).getByRole('tab', { name: '白板', exact: true }).click();

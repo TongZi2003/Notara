@@ -32,6 +32,10 @@ npm run vault
 
 ## 升级
 
+从 0.22.0 起，通过 `npm run vault` 启动后会自动检查 GitHub 的正式发布版本，在后台下载并准备更新。首页出现提示后，等课堂与后台任务结束，点击“重启并更新”；也可以在“设置 → 更新”手动检查。更新后保留原课堂、资料与设置，并刷新页面继续学习。涉及 DSH 或数据格式变化的版本会提示先备份、手动升级。
+
+旧用户需要先按下面的步骤升级一次，才能获得这个入口。自动更新安装的代码存放在 `~/.notara/releases/`，以后仍可从原代码目录执行 `npm run vault`，启动器会使用已更新的代码。手动执行 `vault:upgrade` 会重新采用当前代码目录。
+
 先停止服务，并**完整备份学习数据目录**。从 0.21.0 以前升级时，DSH 会将打开过的课堂迁到旧版无法读取的新格式。
 
 ```sh
@@ -55,4 +59,4 @@ npm run test:integration -- --maxWorkers=1
 npm run test:e2e:vault
 ```
 
-测试使用独立端口、临时数据目录和合成资料。仓库保留 Native Vault、像素教室和启动器的相关测试；设计草稿、研究材料、真实验收记录和测试产物不进入发布文件。依赖版本见[上游锁定记录](docs/runtime/upstream-lock.json)，本次变更见[0.21.1 发布说明](docs/releases/native-vault-0.21.1.md)。Windows 实机验收尚未完成。
+测试使用独立端口、临时数据目录和合成资料。仓库保留 Native Vault、像素教室和启动器的相关测试；设计草稿、研究材料、真实验收记录和测试产物不进入发布文件。依赖版本见[上游锁定记录](docs/runtime/upstream-lock.json)，本次变更见[0.22.1 发布说明](docs/releases/native-vault-0.22.1.md)。Windows 实机验收尚未完成。

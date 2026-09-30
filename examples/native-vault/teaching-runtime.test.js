@@ -153,9 +153,9 @@ test('old save retries never overwrite a newer summary, and archive retry only a
   assert.equal(repeat.saved,true);
   assert.equal(repeat.archived,false);
   assert.equal(archived,0);
-  // 原生归档入口才收起会话；归档失败保留小结并允许原地重试。
-  await assert.rejects(service.archiveFromNativeEntry(session.id),/lesson_archive_failed/);
-  assert.equal((await service.archiveFromNativeEntry(session.id)).archived,true);
+  // 老师明确请求保存并归档时，归档失败保留小结并允许重试。
+  assert.equal((await service.archiveSaved(session,repeat)).archivePending,true);
+  assert.equal((await service.archiveSaved(session,repeat)).archived,true);
   assert.equal(archived,2);
   assert.equal((await service.lessonLog({})).total,1);
 });

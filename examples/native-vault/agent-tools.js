@@ -52,13 +52,13 @@ export function installAgentTools(ctx,service) {
     const decision=await next();
     if(decision.kind==='deny'||!service.isTeaching(exec.agent))return decision;
     if(exec.agent?.session?.header?.origin==='subagent')return WORKER_TOOLS.read.includes(exec.name)?decision:{kind:'deny',reason:'后台任务只允许配置范围内的读取，正式资料由老师写回。'};
-    // Ask for classroom lifecycle writes by default, while native full access
-    // remains authoritative. Never replace a native deny/ask with allow.
+    // Normal classroom writes use the session's existing write permission.
+    // Read-only or unknown policy still asks; native deny/ask stays authoritative.
     // Bash keeps its native sandbox decision; do not guess effects from command text.
     if(VAULT_WRITE_TOOLS.has(exec.name)) {
       const session=exec.agent?.session;
       const mode=session?ctx.get?.('sandboxPolicy')?.resolve({session})?.mode:undefined;
-      if(mode!=='danger-full-access')return decision.kind==='ask'?decision:{kind:'ask',reason:'保存所示学习资料或课堂绑定。'};
+      if(mode!=='workspace-write'&&mode!=='danger-full-access')return decision.kind==='ask'?decision:{kind:'ask',reason:'保存所示学习资料或课堂绑定。'};
     }
     return decision;
   });

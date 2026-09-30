@@ -1,12 +1,13 @@
 {
   "name": "@notara/vault-native",
-  "version": "0.21.2",
+  "version": "0.22.1",
   "type": "module",
   "main": "index.js",
   "files": [
     "index.js",
     "client.js",
     "font-route.js",
+    "update-runtime.js",
     "fonts",
     "lazy",
     "lazy-assets.js",

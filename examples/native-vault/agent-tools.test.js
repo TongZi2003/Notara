@@ -5,7 +5,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt';
 import ToolRuntime from '@deepseek-ai/dsh-tools';
 const module=await import('./agent-tools.js').catch(()=>({}));
 
-test('teaching tools register native validated schemas and require approval for writes',async()=>{
+test('teaching tools register native validated schemas and require approval when policy is unknown',async()=>{
   assert.equal(typeof module.installAgentTools,'function');
   const ctx=new Context();
   new SystemPrompt(ctx,{includeHarnessIdentity:true,includeRuntimeContext:true});
@@ -81,25 +81,57 @@ test('the retired tools take their native prompt guidance with them for the teac
   assert.ok((await sectionsFor({origin:'subagent',agentPreset:'notara-teacher'})).includes('tool:grep'));
 });
 
-test('native full access overrides teaching write approval without weakening native denials',async()=>{
+for(const mode of ['workspace-write','danger-full-access'])test(`${mode} permits classroom writes while preserving native asks, denials and worker limits`,async()=>{
   const ctx=new Context();
   new SystemPrompt(ctx,{includeHarnessIdentity:true,includeRuntimeContext:true});
   new ToolRuntime(ctx,{mode:'native'});
   const get=ctx.get.bind(ctx);
-  ctx.get=(name,...args)=>name==='sandboxPolicy'?{resolve:()=>({mode:'danger-full-access'})}:get(name,...args);
+  ctx.get=(name,...args)=>name==='sandboxPolicy'?{resolve:()=>({mode})}:get(name,...args);
   let called=0;
   module.installAgentTools(ctx,{isTeaching:()=>true,executeTool:async()=>{called++;return {saved:true};}});
-  const exec={name:'save_lesson_summary',callId:'full-access',arguments:{body:'保留课堂事实'},agent:{session:{header:{origin:'user'}}},signal:new AbortController().signal};
-  const allowed=await ctx.tools.execute(exec);
-  assert.notEqual(allowed.isError,true);
-  assert.equal(called,1);
+  const exec={name:'save_lesson_summary',callId:'classroom-write',arguments:{body:'保留课堂事实'},agent:{session:{header:{origin:'user'}}},signal:new AbortController().signal};
+  const writes=[
+    ['write_lesson_board',{title:'第一步',body:'先自己试一试。'}],
+    ['write_lesson_board',{title:'第一步',body:'再看一个例子。'}],
+    ['save_lesson_summary',{body:'保留课堂事实'}],
+    ['open_learning_lesson',{path:'路线/学习.md',nodeId:'lesson-1'}],
+  ];
+  for(const [name,args] of writes) {
+    const allowed=await ctx.tools.execute({...exec,name,arguments:args,callId:`write-${called}`});
+    assert.notEqual(allowed.isError,true,name);
+  }
+  assert.equal(called,4);
   const child=await ctx.tools.execute({...exec,callId:'full-access-child',agent:{session:{header:{origin:'subagent'}}}});
   assert.equal(child.isError,true);
-  assert.equal(called,1);
+  assert.equal(called,4);
+  const unask=ctx.on('tools/pre-execute',()=>({kind:'ask',reason:'native confirmation'}));
+  const asked=await ctx.tools.execute({...exec,callId:'native-ask'});
+  assert.equal(asked.isError,true,'a native ask cannot execute without approval');
+  assert.equal(called,4);
+  unask();
   ctx.on('tools/pre-execute',()=>({kind:'deny',reason:'native boundary'}));
   const denied=await ctx.tools.execute({...exec,callId:'native-denial'});
   assert.equal(denied.isError,true);
-  assert.equal(called,1);
+  assert.equal(called,4);
+});
+
+test('read-only classroom writes still require approval before executing',async()=>{
+  const ctx=new Context();
+  new SystemPrompt(ctx,{includeHarnessIdentity:true,includeRuntimeContext:true});
+  new ToolRuntime(ctx,{mode:'native'});
+  const get=ctx.get.bind(ctx);
+  ctx.get=(name,...args)=>name==='sandboxPolicy'?{resolve:()=>({mode:'read-only'})}:get(name,...args);
+  let called=0;
+  module.installAgentTools(ctx,{isTeaching:()=>true,executeTool:async()=>{called++;return {};}});
+  for(const [name,args] of [
+    ['write_lesson_board',{title:'第一步',body:'先自己试一试。'}],
+    ['save_lesson_summary',{body:'保留课堂事实'}],
+    ['open_learning_lesson',{path:'路线/学习.md',nodeId:'lesson-1'}],
+  ]) {
+    const result=await ctx.tools.execute({name,arguments:args,callId:`readonly-${name}`,agent:{session:{header:{origin:'user'}}},signal:new AbortController().signal});
+    assert.equal(result.isError,true,name);
+  }
+  assert.equal(called,0);
 });
 
 test('teacher Bash never overrides a native denial, including full access mode',async()=>{

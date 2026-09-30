@@ -14,7 +14,7 @@ import type { VaultRuntime } from '../../scripts/dev-isolated.ts';
 
 /** One scripted reply, mirroring scripts/fixtures/vault-test-model.ts. */
 export interface ScriptedCall { name: string; arguments?: unknown }
-export type ScriptedReply = string | ScriptedCall | ScriptedCall[] | { text?: string; calls?: ScriptedCall[] };
+export type ScriptedReply = string | ScriptedCall | ScriptedCall[] | { text?: string; calls?: ScriptedCall[]; pauseMs?: number };
 
 /** One `approval/request` waterfall frame, as the Host projects it to a client. */
 export interface ApprovalPrompt { toolName: string; callId?: string; reason?: string }

@@ -33,8 +33,9 @@ test('显示调试记录 brings the native trajectory into the lesson conversati
     await expect(chatOnly).toBeVisible();
     const permission = page.getByRole('button', { name: /Access mode, current:|访问模式|权限模式/ });
     await expect(permission).toHaveCount(0);
-    await expect(page.locator('[data-composer-stats]')).toBeHidden();
-    await expect(page.locator('[data-turn-usage]')).toBeHidden();
+    // The native compact mode shows a brief statistic, independently of debugging.
+    await expect(page.locator('[data-composer-stats]')).toBeVisible();
+    await expect(page.locator('[data-turn-usage]')).toHaveCount(0);
     const checkCommands = async (debug: boolean) => {
       await page.getByRole('button', { name: /^(Add files or run commands|添加文件或调用指令)$/ }).click();
       const menu = page.locator('[data-trigger-menu]');
@@ -72,7 +73,7 @@ test('显示调试记录 brings the native trajectory into the lesson conversati
     await expect(toolbar).toHaveCount(0);
     await expect(chatOnly).toBeVisible();
     await expect(permission).toHaveCount(0);
-    await expect(page.locator('[data-composer-stats]')).toBeHidden();
+    await expect(page.locator('[data-composer-stats]')).toBeVisible();
     await checkCommands(false);
     await expect(page.locator('[data-composer-input]')).toHaveCount(1);
     expect(errors.filter(text => !/favicon|net::/i.test(text))).toEqual([]);

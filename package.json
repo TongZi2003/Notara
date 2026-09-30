@@ -17,6 +17,7 @@
     "vault": "tsx scripts/vault.ts",
     "vault:open": "tsx scripts/vault.ts --open",
     "vault:upgrade": "tsx scripts/vault-upgrade.ts",
+    "release:bundle": "tsx scripts/build-vault-release.ts",
     "test:e2e": "playwright test",
     "test:e2e:vault": "playwright test native-vault-",
     "test:plugins": "cd examples/native-vault && node --test && cd ../pixel-classroom && node --test",

@@ -8,6 +8,7 @@ import { VAULT_REMOTE_METHODS } from './remote-client.js';
 import { USER_SKILL_DIRECTORY, announceUserSkills } from './user-skills.js';
 import { createPdfAnnotationStore } from './pdf-annotations.js';
 import { installFontRoute } from './font-route.js';
+import { installUpdateBridge } from './update-runtime.js';
 
 const REMOTE_METHOD_DESCRIPTOR = '@deepseek-ai/dsh-typert-protocol/remote-methods';
 const MAX_CONTENT_LENGTH = 2_000_000;
@@ -138,6 +139,9 @@ export class NotaraVaultRemote extends TypertRemoteService {
   }
 
   async teachingSettings(input) {return this.teachingCall('settings',exactInput(input,['sessionId']));}
+  async updateStatus(input) { exactInput(input, [], ['sessionId']); return this.ctx.notaraUpdates.status(); }
+  async checkUpdate(input) { exactInput(input, [], ['sessionId']); return this.ctx.notaraUpdates.check(); }
+  async applyUpdate(input) { exactInput(input, [], ['sessionId']); return this.ctx.notaraUpdates.apply(); }
   async board(input) {return this.teachingCall('board',exactInput(input,['sessionId']));}
   async mutateBoard(input) {return this.teachingCall('mutateBoard',exactInput(input,['sessionId','expectedRevision','patch'],['blockId','sourcePath']));}
   async answerBoard(input) {
@@ -309,6 +313,7 @@ Object.defineProperty(NotaraVaultRemote.prototype, REMOTE_METHOD_DESCRIPTOR, {
 });
 
 export function apply(ctx) {
+  installUpdateBridge(ctx);
   ctx.plugin(NotaraVaultRemote);
   installFontRoute(ctx);
   // A Cordis plugin body must not return the service instance as a disposable.

@@ -35,6 +35,14 @@ npm run vault:open -- --root /path/to/runtime
 
 ## 版本更新
 
+0.22.0 起 `vault.ts` 作为启动管理进程，子进程运行 `vault-process.ts` 并持有原来的数据目录锁。Host 经鉴权的私有 loopback 服务访问更新状态；浏览器只调用 `notaraVault.updateStatus/checkUpdate/applyUpdate`，拿不到服务地址、令牌或本机安装路径。课堂与后台任务进行中拒绝重启，更新受理后由原生 `agent/pre-step` 暂停新模型步骤。
+
+管理的启动代码与插件快照必须是同一版本；手动 `git pull` 后若二者不同，需要先 `vault:upgrade`，不让新启动器给旧快照报新版，也保留正确的失败恢复版本。
+
+自动更新读取 `TongZi2003/Notara` 的 GitHub 正式 release，要求 `notara-update.json` 和对应版本 ZIP、SHA-256、DSH/Cordis 版本以及 `docs/runtime/update-contract.json` 中的数据格式标识一致。后台准备成功后才能点击更新。旧服务正常停止后，复用 `vault:upgrade` 换快照，启动新服务成功后才原子登记代码入口；失败重装并启动原代码。启动入口保存在 `notara-release.json`，新代码与本机依赖保存在 `~/.notara/releases/`。不同运行时或数据格式走手动备份升级，不自动迁移。
+
+发布包由 `npm run release:bundle` 生成。推送与插件版本一致的正式标签（例如 `v0.22.0`）会触发 `.github/workflows/release.yml`，检查通过并生成发布包后才创建 GitHub release。只推送普通代码提交不会把它交付给用户；旧用户需先手动升级一次获得检查入口。
+
 `npm run vault` 在首次创建运行目录时复制一份插件快照；后续启动会保留这份快照与课堂数据。**拉取新代码、重新构建和重新开一个课堂，都不会替换已有运行目录里的插件。** 启动时如果数据目录的版本和代码目录不同，启动器会提示升级。
 
 升级已有运行目录：先停止服务，在代码目录执行

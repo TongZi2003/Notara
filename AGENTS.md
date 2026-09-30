@@ -27,7 +27,7 @@
 - Native Vault 0.14.4 的课堂规则要求主教师在一道题讨论收束、转入下一题前记录一次本轮评估。复用本题题卡，缺卡时按模板与真实题面建卡；有认知变化先补正文“学生理解”，再取最新revision记录评估。纯讲解无学生表现时关键一步记 `unchecked`（0.20.0 前为 not_observed），不凭听过启动复习。收束由教师按语义判断，不是逐消息自动hook；正文与评估是分别核对回执的两次写入，评估和排期本身仍在同文件一次CAS完成。
 - Native Vault 0.14.5 的 `material-search` 通过查询意图展开、原生检索与正文语义判断找卡片，可交只读 `general` 独立整理；不是向量索引。`teaching-reflection` 反思教学判断，将必要更新分流至小结、画像、主题要点技能或路线，内置 Skill 先给修订建议，不就地改快照；0.16.23 起老师可用学生已启用的学习集层与学科层技能（见 0.16.23 条）。`learning-review` 综合近期进展、兴趣与目标给下一步方向，按已知授权目录跨集取证，不宣称全局发现或统一复习。找卡片/学习复盘直接展示，教学反思折叠到更多技能；三者按需加载，归档反思并入已有小结。
 - Native Vault 0.9.0 的单文件删除走 Vault `.trash` 回收站，可恢复但不覆盖同名文件；所有点目录不进入资产、搜索和图谱投影。PDF 图层与矩形批注保存在 `.notara/pdf-annotations/`，绑定 PDF revision；区域引用卡片保留原版图像、页码、矩形和可选标注引用，不把逐页文字层直接拆成卡片。原 PDF 改版后不得把旧标注自动当作新版位置。
-- Native Vault 教师保留 `set_teaching_settings`、`open_learning_lesson`、`save_lesson_summary`、`ask_worker`、`write_lesson_board` 五个专用模型工具；主教师普通文件读写和搜索统一用 DSH 原生 Bash，确定性复习/排课/PDF 辅助走 `vault-cli.js`。CLI 与 UI 共用 IO 和文件计算；Host 通过原生 `shellEnv` 注入 `DSH_NOTARA_*`，不得让模型填写执行身份。0.14.8 起主教师不暴露或接受 `glob/grep`，Markdown 读写不用原生 `read/write/edit`；0.16.23 起原生 `read/write/edit` 只对代码文件开放（`media.js / isCodePath`，guard 按 `file_path` 扩展名判断，拒绝时统一提示 bash 与 write-batch）；课堂写工具默认请求批准，原生 `danger-full-access` 覆盖这层额外要求；原生 deny/ask 和工作员工具范围限制仍保留。Bash 完全沿用原生沙箱与审批决定，不做命令字符串“只读”猜测，也不额外统一审批。每次 Bash 的 `description` 按 Skill 用 `[notara:<intent>] 中文说明` 标记用途，0.8.2 在原生工具 slot 中将用途显示为小字折叠行，点击展开命令与输出，普通返回不另显示状态；未标记的调用沿用原生展示。标记不是权限或执行成功依据。
+- Native Vault 教师保留 `set_teaching_settings`、`open_learning_lesson`、`save_lesson_summary`、`ask_worker`、`write_lesson_board` 五个专用模型工具；主教师普通文件读写和搜索统一用 DSH 原生 Bash，确定性复习/排课/PDF 辅助走 `vault-cli.js`。CLI 与 UI 共用 IO 和文件计算；Host 通过原生 `shellEnv` 注入 `DSH_NOTARA_*`，不得让模型填写执行身份。0.14.8 起主教师不暴露或接受 `glob/grep`，Markdown 读写不用原生 `read/write/edit`；0.16.23 起原生 `read/write/edit` 只对代码文件开放（`media.js / isCodePath`，guard 按 `file_path` 扩展名判断，拒绝时统一提示 bash 与 write-batch）；0.21.3 起课堂写工具（板书、小结、课程绑定）在原生 `workspace-write` 或 `danger-full-access` 模式下不追加审批；`read-only` 或无法解析权限时仍请求本次批准；原生 deny/ask 和工作员工具范围限制仍保留。Bash 完全沿用原生沙箱与审批决定，不做命令字符串“只读”猜测，也不额外统一审批。每次 Bash 的 `description` 按 Skill 用 `[notara:<intent>] 中文说明` 标记用途，0.8.2 在原生工具 slot 中将用途显示为小字折叠行，点击展开命令与输出，普通返回不另显示状态；未标记的调用沿用原生展示。标记不是权限或执行成功依据。
 
 - Native Vault 0.14.7 的评估要求当前实际困难证据；缺少步骤展示不等于失败，已纠正的历史错误不冒充当前困难。常驻规则、按需 Skill 与 CLI help 同步约束；有真实认知变化先保存题卡正文，再按最新 revision 记评估，分别核对回执。教学小结保存即为教学归档，默认保留原生会话继续交流；只有用户明确从会话列表收起时才调用原生归档。
 
@@ -37,7 +37,11 @@
 
 ## 工作约定
 
-- Native Vault 0.21.1 使用学生友好默认界面：权限快捷选择、性能用量和反馈/日志导出菜单默认收起；`ui-settings.enabled=false`，`ui-chat.performanceUsage=compact`。显示默认值由 `scripts/vault-profile.ts` 写入可修改的 Web profile，不写进会锁住界面修改的 home overlay。沙箱与审批策略不变，设置中的原生权限入口保留。显示调试记录联动原生 Coding Tools，保存失败回退；`scripts/patch-student-ui.ts` 是锁定包摘要校验的菜单过滤与用量标记接缝。原生差异查看保留，行内 Vault 文件链接仍进入资料面板。
+- Native Vault 0.22.1 的性能与用量独立于“显示调试记录”，只按原生 `ui-chat.performanceUsage` 的精简/详细选择展示。课堂面板标题的“管理课堂”打开原生 `sidebar.workspaces`，保留归档、运行中停止确认、撤销及已归档列表恢复；经已有 `renderSidebarSlot` 调用，不重复声明原生子槽。插件不再包装 `workspaceRegistry.archiveSession`，菜单与快捷键归档不发起模型回合；“总结本课”仍保存小结并保留会话，老师明确保存并归档时仍在回合结束后归档并保护新学生输入。
+
+- Native Vault 0.22.0 起启动器自动发现 GitHub 正式 release、后台校验并准备更新，首页与“设置 → 更新”提供入口。课堂或后台任务运行时拒绝重启；不同 DSH/Cordis 或 `docs/runtime/update-contract.json` 数据格式标识走手动备份升级。发布包由 `release:bundle` 的代码白名单生成，正式版本标签经 `.github/workflows/release.yml` 检查后发布；改动持久数据兼容性时必须提升数据格式标识。成功更新登记 `notara-release.json`，原代码目录启动会转入管理的代码缓存；显式 `vault:upgrade` 重新采用当前代码目录。不要直接覆盖运行快照或删除正在使用的 `~/.notara/releases/` 缓存。
+
+- Native Vault 0.21.1 使用学生友好默认界面：权限快捷选择和反馈/日志导出菜单默认收起，性能用量默认精简；`ui-settings.enabled=false`，`ui-chat.performanceUsage=compact`。显示默认值由 `scripts/vault-profile.ts` 写入可修改的 Web profile，不写进会锁住界面修改的 home overlay。沙箱与审批策略不变，设置中的原生权限入口保留。显示调试记录联动原生 Coding Tools，保存失败回退；`scripts/patch-student-ui.ts` 是锁定包摘要校验的菜单过滤与用量标记接缝。原生差异查看保留，行内 Vault 文件链接仍进入资料面板。
 - 0.21.1 升级从两处已安装的模块链接识别快照，支持旧版的 `vault-plugin-<版本>` 布局；切换链接、保留像素教室，同版本换代码目录也会刷新依赖。升级失败恢复快照、链接、配置与旧设置。跨 DSH 0.2.0 前仍须整份备份。公开文档以 README、`docs/install.md`、`docs/first-lesson.md` 和运行说明为入口；设计、研究、验收原始记录和旧工作台测试配置仅在本地开发分支保留，不进入新增发布历史。
 
 - Native Vault 0.21.0 起 DSH 锁定 0.2.0-rc.1，旧工作台退役（`docs/dev-log/2026-09-29-dsh-0.2.0-0.21.0.md`）。

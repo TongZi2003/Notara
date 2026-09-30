@@ -25,7 +25,7 @@
  */
 import { afterEach, expect, test } from 'vitest';
 import { createHash } from 'node:crypto';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { startVaultIsolated, type VaultRuntime } from '../../scripts/dev-isolated.ts';
 import { connectVault, effectiveSystemText, outcomeJson, skillNames, toolNames, toolResultTexts, type ScriptedCall, type VaultHarness } from '../fixtures/vault-http.ts';
@@ -376,13 +376,47 @@ test('主教师写入走 CLI write-batch：create 拒绝覆盖、edit 唯一匹�
   expect(second.approvals).toBe(readOnly.approvals);
 }, 300_000);
 
-test('课堂写工具的拒绝保持真实：专用小结工具被拒绝时不落盘、不留成功文案', async () => {
+test('正常课堂连续板书、小结和课程绑定沿用工作区写权限，不重复审批', async () => {
   runtime = await startVaultIsolated({ testModel: true });
+  harness = await connectVault(runtime);
+  harness.approvals.auto('rejected');
+  const sessionId = await harness.createSession();
+  const route = harness.value(await harness.rpc<{ path: string }>('notaraVault/createRoute', { input: { sessionId, title: '审批回归', lessons: [{ title: '第一课' }] } }));
+  const routes = harness.value(await harness.rpc<RoutesView>('notaraVault/routes', { input: { sessionId } }));
+  const node = routes.nodes.find(item => item.routePath === route.path)!;
+  expect(node).toBeDefined();
+  const calls: ScriptedCall[] = [
+    { name: 'open_learning_lesson', arguments: { path: route.path, nodeId: node.id } },
+    { name: 'write_lesson_board', arguments: { title: '关键一步', body: '先自己试一试。' } },
+    { name: 'write_lesson_board', arguments: { title: '关键一步', body: '再看一个例子。' } },
+    { name: 'save_lesson_summary', arguments: { body: '## 本课进度\n\n这是一节合成测试课。\n\n## 下次从这里继续\n\n继续检验关键一步。' } },
+  ];
+  for (const [index, call] of calls.entries()) {
+    const prompt = `课堂操作 ${index + 1}`;
+    await harness.ask(sessionId, prompt, { [prompt]: [call] });
+    const outcome = (await harness.outcomes(sessionId)).filter(row => row.name === call.name).at(-1)!;
+    expect(outcome.failed, outcome.text).toBe(false);
+    if (call.name === 'save_lesson_summary') {
+      const saved = outcomeJson<SavedSummary>(outcome)!;
+      expect(saved.saved).toBe(true);
+      expect(await harness.readVaultFile(saved.path!)).toContain('继续检验关键一步');
+    }
+  }
+  expect(harness.approvals.seen).toHaveLength(0);
+}, 120_000);
+
+test('只读课堂小结仍逐次审批：拒绝不落盘，允许一次不改变后续权限', async () => {
+  runtime = await startVaultIsolated({ testModel: true });
+  const patchPath = join(runtime.root, 'home/cordis.patch.yml');
+  const patch = JSON.parse(await readFile(patchPath, 'utf8')) as unknown[];
+  patch.push({ id: 'sandbox-policy', config: { mode: 'read-only' } });
+  await writeFile(patchPath, JSON.stringify(patch));
+  await runtime.restart();
   harness = await connectVault(runtime);
   const sessionId = await harness.createSession();
   const before = await harness.vaultFiles('lesson_log/');
 
-  // 专用写工具仍走原生批准；用户拒绝之后必须如实失败，而不是留下“已保存”的假象。
+  // 只读模式没有常驻写权限，拒绝本次小结必须真实失败。
   harness.approvals.answer('rejected');
   const ask = '这节课先到这里，做个课堂小结。';
   await harness.ask(sessionId, ask, { [ask]: [{ name: 'save_lesson_summary', arguments: { body: '## 本课进度\n\n从基底讲到坐标表示。\n\n## 下次从这里继续\n\n做一道基底与坐标互相表示的例题。\n' } }] });
@@ -393,6 +427,18 @@ test('课堂写工具的拒绝保持真实：专用小结工具被拒绝时不�
   expect(outcomeJson(outcome!)).toBeUndefined();
   expect(await harness.vaultFiles('lesson_log/')).toEqual(before);
   expect((await harness.vaultFiles()).some(file => file.includes('基底讲到坐标表示'))).toBe(false);
+  harness.approvals.answer('allowed-once');
+  const retry = '允许保存本次小结。';
+  await harness.ask(sessionId, retry, { [retry]: [{ name: 'save_lesson_summary', arguments: { body: '## 本课进度\n\n已获本次批准。\n\n## 下次从这里继续\n\n继续检验关键一步。' } }] });
+  const saved = outcomeJson<SavedSummary>((await harness.outcomes(sessionId)).filter(row => row.name === 'save_lesson_summary').at(-1)!)!;
+  expect(saved.saved).toBe(true);
+  const content = await harness.readVaultFile(saved.path!);
+  harness.approvals.answer('rejected');
+  const again = '再次更新小结。';
+  await harness.ask(sessionId, again, { [again]: [{ name: 'save_lesson_summary', arguments: { body: '## 下次从这里继续\n\n这次未获批准。' } }] });
+  expect(harness.approvals.seen.filter(prompt => prompt.toolName === 'save_lesson_summary')).toHaveLength(3);
+  expect((await harness.outcomes(sessionId)).filter(row => row.name === 'save_lesson_summary').at(-1)?.failed).toBe(true);
+  expect(await harness.readVaultFile(saved.path!)).toBe(content);
 }, 120_000);
 
 test('路线开课复用同一会话、交错时绑定真实前课，小结落点与原生归档可核对', async () => {
