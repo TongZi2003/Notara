@@ -37,6 +37,8 @@
 
 ## 工作约定
 
+- 发布校验在干净检出后先构建 Native Vault 与像素教室，再运行依赖生成资源的插件测试。发布失败后可用 `release.yml` 的手动入口指定既有正式标签，或推送 `codex/release-v<版本>` 恢复分支；流程重新检出并完整校验该标签的代码，不移动版本标签、不覆盖已经公开的 Release。
+
 - Native Vault 0.22.1 的性能与用量独立于“显示调试记录”，只按原生 `ui-chat.performanceUsage` 的精简/详细选择展示。课堂面板标题的“管理课堂”打开原生 `sidebar.workspaces`，保留归档、运行中停止确认、撤销及已归档列表恢复；经已有 `renderSidebarSlot` 调用，不重复声明原生子槽。插件不再包装 `workspaceRegistry.archiveSession`，菜单与快捷键归档不发起模型回合；“总结本课”仍保存小结并保留会话，老师明确保存并归档时仍在回合结束后归档并保护新学生输入。
 
 - Native Vault 0.22.0 起启动器自动发现 GitHub 正式 release、后台校验并准备更新，首页与“设置 → 更新”提供入口。课堂或后台任务运行时拒绝重启；不同 DSH/Cordis 或 `docs/runtime/update-contract.json` 数据格式标识走手动备份升级。发布包由 `release:bundle` 的代码白名单生成，正式版本标签经 `.github/workflows/release.yml` 检查后发布；改动持久数据兼容性时必须提升数据格式标识。成功更新登记 `notara-release.json`，原代码目录启动会转入管理的代码缓存；显式 `vault:upgrade` 重新采用当前代码目录。不要直接覆盖运行快照或删除正在使用的 `~/.notara/releases/` 缓存。

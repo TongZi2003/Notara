@@ -2,6 +2,13 @@ name: Publish Notara release
 on:
   push:
     tags: ['v*']
+    branches: ['codex/release-v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to verify and publish
+        required: true
+        type: string
 permissions:
   contents: write
 concurrency:
@@ -11,25 +18,46 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve release tag
+        id: release
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          tag="${INPUT_TAG:-${GITHUB_REF_NAME#codex/release-}}"
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - run: npm run build:native-vault && npm run build:pixel-classroom
       - run: npm run typecheck && npm run typecheck:tests && npm run test:unit && npm run test:plugins
       - run: npm run test:integration
       - run: npm exec -- playwright install --with-deps chromium
       - run: npm run test:e2e:vault
-      - run: npm run release:bundle
+      - name: Build the verified release
+        env:
+          NOTARA_RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          node --import tsx --input-type=module <<'JS'
+          import { buildRelease } from './scripts/build-vault-release.ts';
+          const result = await buildRelease('.runtime/release');
+          if (process.env.NOTARA_RELEASE_TAG !== `v${result.version}`) throw new Error('Release tag must match the plugin version');
+          console.log(`Release bundle: ${result.archive}`);
+          JS
       - name: Publish the completed release
         env:
           GH_TOKEN: ${{ github.token }}
+          NOTARA_RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            test "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)" = true
+          if gh release view "$NOTARA_RELEASE_TAG" >/dev/null 2>&1; then
+            test "$(gh release view "$NOTARA_RELEASE_TAG" --json isDraft --jq .isDraft)" = true
           else
-            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --generate-notes --notes-file "docs/releases/native-vault-${GITHUB_REF_NAME#v}.md" --title "Notara $GITHUB_REF_NAME"
+            gh release create "$NOTARA_RELEASE_TAG" --draft --verify-tag --generate-notes --notes-file "docs/releases/native-vault-${NOTARA_RELEASE_TAG#v}.md" --title "Notara $NOTARA_RELEASE_TAG"
           fi
-          gh release upload "$GITHUB_REF_NAME" .runtime/release/notara-*.zip .runtime/release/notara-update.json --clobber
-          gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+          gh release upload "$NOTARA_RELEASE_TAG" .runtime/release/notara-*.zip .runtime/release/notara-update.json --clobber
+          gh release edit "$NOTARA_RELEASE_TAG" --draft=false --latest
