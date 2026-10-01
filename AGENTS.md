@@ -298,6 +298,7 @@
 - 手写字体 `website/public/fonts/notara-hand.woff2` 是 `resources/fonts/wenkai.woff2` 按全站用字取的子集，改页面文字后执行 `npm run site:font`（需要 `uvx`）。截图由 `npm run site:capture` 在隔离实例里用测试模型和合成资料生成（先 `npm run build:native-vault`），页面上标注“示例资料 · 实际界面”；不从真实 Vault 截图。
 - 托管在阿里云 ESA Pages（导入 GitHub 仓库，生产分支 `main`，控制台根目录保持默认 `/`）。ESA 在仓库根目录读取 `/esa.jsonc` 并在根目录执行命令，命令经 `npm --prefix website` 指向子项目；`website/esa.jsonc` 仅是根目录被设为 `/website` 时的兜底副本。`website/package.json` 与它的 lockfile 只含 Vite 与 KaTeX，版本与根目录锁定一致，云端构建不装 DSH 运行时。改动这两处依赖时同步根目录版本。
 - 官网文案只写当前版本已实现的功能。边界（模型调用发往所选服务商、费用由服务商决定、Windows 未实机验收、仓库未附开源许可证）与 README、`docs/install.md` 保持一致；理念页正文由作者提供。
+- 官网首页与安装页通过 `website/partials/editions.html` 并列展示独立桌面版与 DSH 插件版。桌面版尚无公开安装包时只提供预览说明，不生成下载地址；既有截图、命令与数据目录明确标为插件版。桌面版发布后同步更新版本入口、安装说明与 FAQ。
 
 ## 验证口径
 

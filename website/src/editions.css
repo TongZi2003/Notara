@@ -1,0 +1,24 @@
+/* Edition choices share the site's paper, ink and handwritten type. */
+.editions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; margin: 32px 0 12px; text-align: left; }
+.edition { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; padding: clamp(22px, 3vw, 36px); border: 1.5px solid var(--ink); border-radius: 12px 16px 14px 10px; background: var(--paper); box-shadow: 4px 5px 0 rgba(43, 50, 69, .13); }
+.edition-desktop { background: var(--note-blue); }
+.edition-plugin { background: var(--note-yellow); }
+.edition-label { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; color: var(--ink-2); }
+.edition-label .hand { font-size: 1.15rem; }
+.edition h3 { font-size: clamp(1.75rem, 2.5vw, 2.1rem); }
+.edition > p:not(.edition-label):not(.edition-note) { max-width: 31em; }
+.edition ul { margin: 6px 0 26px; padding-left: 1.25em; }
+.edition li + li { margin-top: 6px; }
+.edition .btn { margin-top: auto; }
+.edition .edition-note { margin: 16px 0 0; color: var(--ink-2); font-size: .88rem; }
+.edition-heading { scroll-margin-top: 100px; }
+.edition-status { margin: 20px 0 32px; padding-left: 18px; border-left: 3px solid var(--hl-blue); }
+.edition-status p:last-child { margin-bottom: 0; }
+.edition-divider { margin-top: 72px; padding-top: 32px; border-top: 1.5px dashed rgba(43, 50, 69, .25); }
+.edition-toc { margin-top: 24px; }
+.edition-scope { color: var(--ink-2); font-size: .95rem; }
+@media (max-width: 680px) {
+  .editions { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .edition { padding: 24px; }
+  .edition-divider { margin-top: 48px; }
+}

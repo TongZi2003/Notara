@@ -16,11 +16,11 @@
       <h1 class="hero-title">你的一面<span class="scribble">镜子<svg viewBox="0 0 220 40" preserveAspectRatio="none" aria-hidden="true"><path d="M6 28c40-10 96-16 150-12 22 2 40 5 58 10"/><path d="M30 35c50-6 110-8 170-2"/></svg></span></h1>
       <p class="lead">替你整理资料，规划路线，记下学习中的点点滴滴，照出你的好与不好，同你的认知一同进步</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="/install/">怎么安装</a>
+        <a class="btn btn-primary" href="/install/">选择你的版本</a>
         <a class="btn btn-ghost" href="/first-lesson/">看看第一节课</a>
       </div>
       <ul class="facts">
-        <li>在自己电脑上运行，用浏览器打开</li>
+        <li>DSH 插件版 · 桌面预览版</li>
         <li>模型服务由你自己选</li>
         <li>题卡、小结和资料都是本地 Markdown 文件</li>
       </ul>
@@ -219,8 +219,8 @@
   <div class="wrap split reverse">
     <div class="split-copy">
       <p class="kicker hand">它是什么</p>
-      <h2>一个轻量的插件，装在你自己的电脑上</h2>
-      <p>Notara 是 DeepSeek Harness（DSH）的教学插件。它在你的电脑上运行，用浏览器打开，模型服务由你自己配置。</p>
+      <h2>一个学习空间，两种打开方式</h2>
+      <p>Notara 从 DeepSeek Harness（DSH）的教学插件开始，现在也有了独立桌面版。插件版在本机运行、用浏览器打开；桌面版拥有自己的应用窗口，正在准备公开预览。</p>
       <p>课堂小结、题卡和资料都是普通文件，存在你选的学习目录里，也能用 Obsidian 这类 Markdown 编辑器打开。它本身不是 Obsidian 插件，不从 Obsidian 的插件市场安装。</p>
     </div>
     <aside class="note note-green caveats">
@@ -229,26 +229,19 @@
         <li>调用模型时，相关内容会发给你选的服务商，所以它不是完全离线的。</li>
         <li>费用由模型服务商决定，Notara 本身没有套餐。</li>
         <li>模型会出错，老师也会说错。它不保证提分，也不保证你学会；发现错了，直接指出来。</li>
-        <li>macOS 上已经验证过。Windows 的支持已经做好，还没有完成实机验收。</li>
+        <li>两个版本的安装方式和发布进度不同，详见<a href="/install/">版本选择与安装说明</a>。</li>
       </ul>
     </aside>
   </div>
 </section>
 
 <section class="section start" id="start">
-  <div class="wrap narrow">
+  <div class="wrap">
     <p class="kicker hand">开始</p>
-    <h2>几行命令，开始第一节课</h2>
-    <p>准备好 Node.js 24 或更新版本和 Git，再备一个可用的模型账号或 API Key。</p>
-<pre class="code"><code>git clone https://github.com/TongZi2003/Notara.git Notara-Vault
-cd Notara-Vault
-npm ci --no-audit --no-fund
-npm run vault</code></pre>
-    <p>浏览器会自动打开。配好模型，选一个学习目录，就可以写下第一道题。</p>
-    <div class="cta-row">
-      <a class="btn btn-primary" href="/install/">完整安装步骤</a>
-      <a class="btn btn-ghost" href="/first-lesson/">第一节课怎么上</a>
-    </div>
+    <h2>选一种方式，把学习留在手边</h2>
+    <p>继续用熟悉的 DSH，或了解正在准备发布的独立桌面版。</p>
+    <!-- @include editions -->
+    <p class="more"><a class="link-arrow" href="/first-lesson/">第一节课怎么上</a></p>
   </div>
 </section>
 

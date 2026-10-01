@@ -18,6 +18,15 @@
   <div class="wrap page-body">
     <div class="prose faq">
       <details open>
+        <summary>桌面版和 DSH 插件版怎么选？</summary>
+        <div>
+          <p>想在独立应用里上课，可以关注 Notara 桌面版；它不需要先安装 DSH，目前处于预览阶段，公开安装包还在准备。</p>
+          <p>现在就想使用，或习惯 DSH 的模型配置和浏览器课堂，可以安装插件版。两个版本分别维护，插件版会继续保留。入口在<a href="/install/">版本选择页</a>。</p>
+          <p>两版的课堂记录不能自动互相迁移。尝试旧资料时先复制学习目录，保留原版数据。</p>
+        </div>
+      </details>
+
+      <details open>
         <summary>和直接问 AI 有什么不一样？</summary>
         <div>
           <p>直接问，AI 可能会给你一份完整解答。Notara 的老师默认先弄清你卡在哪，关键的一步尽量留给你自己走，再把你怎么想明白的记进题卡。</p>
@@ -35,7 +44,7 @@
       <details>
         <summary>我的数据存在哪？会上传吗？</summary>
         <div>
-          <p>课堂、题卡、资料和设置都存在你自己电脑上的学习数据目录里，默认是用户目录下的 <code>.notara/vault-runtime</code>。</p>
+          <p>两个版本都把资料留在自己的电脑上。桌面版的资料放在你选择的学习集文件夹，应用设置与课堂记录由桌面版单独保存；DSH 插件版的默认学习数据目录是用户目录下的 <code>.notara/vault-runtime</code>。</p>
           <p>老师回复需要调用模型，这时对话和相关资料会发给你选的服务商。所以 Notara 不是完全离线的，数据是否离开设备取决于你用的模型服务。</p>
         </div>
       </details>
@@ -50,14 +59,16 @@
       <details>
         <summary>支持哪些模型？</summary>
         <div>
-          <p>能在 DeepSeek Harness 的模型设置里配置的服务都可以用。老师和各个后台工作员可以分别设置模型，工作员不设时跟随老师。</p>
+          <p>桌面版在“设置 → 模型来源”按服务商配置，可以填写 API Key，也可以使用服务商支持的订阅登录；模型与推理强度以所选服务商和模型的能力为准。</p>
+          <p>DSH 插件版沿用 DeepSeek Harness 的模型设置。两个版本都能为老师和后台工作员分别设置模型，工作员也可以跟随老师。</p>
         </div>
       </details>
 
       <details>
         <summary>支持 Windows 吗？</summary>
         <div>
-          <p>macOS 上已经验证过。Windows 的启动和 Git Bash 支持已经做好，但还没有完成实机验收，可能会遇到问题，欢迎反馈。</p>
+          <p>桌面版的 Windows 安装包仍在适配与验证中，尚未公开发布。macOS Apple 芯片的桌面安装包也正在准备，请以<a href="/install/#desktop">桌面版发布状态</a>为准。</p>
+          <p>DSH 插件版已接入 Windows 启动与 Git Bash 支持，但仍待完整实机验收；macOS 的插件版可以按安装说明使用。</p>
         </div>
       </details>
 
@@ -78,7 +89,7 @@
       <details>
         <summary>它是 Obsidian 插件吗？</summary>
         <div>
-          <p>不是。Notara 是 DeepSeek Harness 的插件，不从 Obsidian 的插件市场安装。它的资料都是 Markdown 文件，所以你可以用 Obsidian 这类编辑器打开同一个目录。</p>
+          <p>不是。Notara 提供独立桌面版和 DeepSeek Harness 插件版，都不从 Obsidian 的插件市场安装。它的题卡与笔记是 Markdown 文件，可以用 Obsidian 这类编辑器打开。</p>
         </div>
       </details>
 
@@ -92,14 +103,15 @@
       <details>
         <summary>开源吗？</summary>
         <div>
-          <p>代码公开在 <a href="https://github.com/TongZi2003/Notara" rel="noopener">GitHub</a> 上，但目前没有附开源许可证。公开可见不等于授予了开源许可。</p>
+          <p>DSH 插件版代码公开在 <a href="https://github.com/TongZi2003/Notara" rel="noopener">GitHub</a> 上，但目前没有附开源许可证。公开可见不等于授予了开源许可。桌面版的公开发布信息会单独列在版本选择页。</p>
         </div>
       </details>
 
       <details>
         <summary>升级会丢数据吗？</summary>
         <div>
-          <p>升级器会保留课堂、资料和模型配置，失败时撤回改动。不过升级前请一定完整备份学习数据目录，从 0.21.0 以前升级尤其要备份。步骤见<a href="/install/#upgrade">升级和回退</a>。</p>
+          <p>DSH 插件版升级器会保留课堂、资料和模型配置，失败时撤回改动。不过升级前请一定完整备份学习数据目录，从 0.21.0 以前升级尤其要备份。步骤见<a href="/install/#upgrade">插件版升级和回退</a>。</p>
+          <p>桌面版会随公开安装包提供自己的更新说明，不使用插件版的升级命令。</p>
         </div>
       </details>
 
