@@ -36,7 +36,8 @@ test('upgrading a versioned installation switches both module links and keeps th
     for (const prefix of ['workspace', 'home/profiles/web']) {
       expect(await realpath(join(root, prefix, 'node_modules/@notara/vault-native'))).toBe(await realpath(join(root, 'vault-plugin')));
     }
-    expect(await readFile(join(root, 'home/cordis.patch.yml'), 'utf8')).toContain(pixel);
+    const patch = JSON.parse(await readFile(join(root, 'home/cordis.patch.yml'), 'utf8')) as { insert?: { id: string; name: string }[] }[];
+    expect(patch.flatMap(entry => entry.insert ?? [])).toContainEqual({ id: 'notara-pixel-classroom', name: pixel });
     // Reinstalling from another checkout also refreshes dependencies at the same version.
     await rm(join(root, 'vault-plugin/node_modules'));
     await mkdir(join(root, 'retired-dependencies'));

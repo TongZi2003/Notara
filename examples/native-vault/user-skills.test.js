@@ -215,16 +215,22 @@ test('a skill folder, skill file or recycle bin that is a link is refused instea
   const outside = join(base, 'outside');
   await mkdir(outside, { recursive: true });
   await mkdir(join(base, 'vault'), { recursive: true });
-  await symlink(outside, set, 'dir');
+  await symlink(outside, set, process.platform === 'win32' ? 'junction' : 'dir');
   await assert.rejects(saveUserSkill(set, { content: skill() }), /skill_path_invalid/);
   assert.deepEqual(await readdir(outside), [], 'nothing was written through the linked folder');
   assert.equal((await readUserSkills(set, 'set')).every(row => row.error === 'skill_path_invalid'), true);
+});
 
+test('a linked skill file is refused instead of read outside the Vault', async t => {
+  const { set, base } = await roots(t);
+  const { symlink } = await import('node:fs/promises');
+  const outside = join(base, 'outside');
+  await mkdir(outside, { recursive: true });
   // A real folder whose skill file links elsewhere lists that file as invalid.
-  await rm(set);
   await mkdir(set, { recursive: true });
   await writeFile(join(outside, 'secret.md'), skill({ id: 'linked' }));
-  await symlink(join(outside, 'secret.md'), join(set, 'linked.md'));
+  try { await symlink(join(outside, 'secret.md'), join(set, 'linked.md')); }
+  catch (error) { if (process.platform === 'win32' && error.code === 'EPERM') { t.skip('Windows file symlink privilege is unavailable; directory junction escape is tested separately'); return; } throw error; }
   const [row] = await readUserSkills(set, 'set');
   assert.equal(row.error, 'skill_path_invalid');
 });

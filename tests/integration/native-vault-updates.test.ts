@@ -12,17 +12,29 @@ test('the real Host reaches its launcher without exposing the private bridge to 
   const root = await mkdtemp(join(tmpdir(), 'notara-update-host-'));
   const seed = await startVaultPersistent(root, { testModel: true, port: 0 });
   await seed.stop();
-  const runtime = await superviseVault(root, resolve('.'), undefined, { discover: async () => null, prepare: async () => { throw new Error('no release'); } });
+  let checks = 0;
+  const operations = { discover: async () => { checks++; return null; }, prepare: async () => { throw new Error('no release'); } };
+  let runtime = await superviseVault(root, resolve('.'), undefined, operations);
   const client = await connectVault({ ...runtime, root, log: () => '', restart: async () => {} });
   try {
-    const status = client.value(await client.rpc<{ phase: string; currentVersion: string }>('notaraVault/updateStatus', { input: {} }));
+    await expect.poll(() => runtime.controller.status().phase).toBe('current');
+    const status = client.value(await client.rpc<{ phase: string; currentVersion: string; launchId: string }>('notaraVault/updateStatus', { input: {} }));
     expect(status.phase).toBe('current');
     expect(status.currentVersion).toBe(JSON.parse(await readFile('examples/native-vault/package.json', 'utf8')).version);
     expect(JSON.stringify(status)).not.toMatch(/NOTARA_UPDATE|Bearer|127\.0\.0\.1|token/i);
+    expect(checks).toBe(1);
+    // Reading from several clients never causes another release check.
+    await Promise.all(Array.from({ length: 5 }, () => client.rpc('notaraVault/updateStatus', { input: {} })));
+    expect(checks).toBe(1);
     const result = await client.rpc('notaraVault/applyUpdate', { input: {} });
     expect(result.ok).toBe(false);
     await writeFile(join(root, 'workspace/vault/保留.md'), '# 仍在\n');
     expect(await readFile(join(root, 'workspace/vault/保留.md'), 'utf8')).toContain('仍在');
+    await client.close(); await runtime.stop();
+    runtime = await superviseVault(root, resolve('.'), undefined, operations);
+    await expect.poll(() => runtime.controller.status().phase).toBe('current');
+    expect(checks).toBe(2);
+    expect(runtime.controller.status().launchId).not.toBe(status.launchId);
   } finally { await client.close(); await runtime.stop(); await rm(root, { recursive: true, force: true }); }
 }, 120_000);
 

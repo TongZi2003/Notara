@@ -54,7 +54,7 @@ test('the rail switches sections, folds for the board and narrow screens, and co
       if (await allow.isVisible()) await allow.click(); else await page.waitForTimeout(500);
     }
     await expect(reply).toBeVisible({ timeout: 30_000 });
-    const lessonRow = panel(page).getByRole('region', { name: '今天' }).getByRole('button', { name: /导航栏验收/ });
+    const lessonRow = panel(page).getByRole('region', { name: '今天' }).getByRole('button', { name: /^导航栏验收/ });
     await expect(lessonRow).toHaveAttribute('aria-current', 'page', { timeout: 15_000 });
     await rail(page).getByRole('button', { name: '首页', exact: true }).click();
     await expect(page.getByRole('heading', { name: /今天想学点什么/ })).toBeVisible({ timeout: 30_000 });
@@ -63,12 +63,12 @@ test('the rail switches sections, folds for the board and narrow screens, and co
     // Panel search: lessons by title.
     await panel(page).getByRole('button', { name: '搜索', exact: true }).click();
     await panel(page).getByLabel('搜索课堂').fill('导航栏');
-    await expect(panel(page).getByRole('button', { name: /导航栏验收/ })).toBeVisible();
+    await expect(panel(page).getByRole('button', { name: /^导航栏验收/ })).toBeVisible();
     await panel(page).getByLabel('搜索课堂').fill('没有这节课的名字');
     await expect(panel(page).getByText('没有找到这节课')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(panel(page).getByLabel('搜索课堂')).toHaveCount(0);
-    await expect(panel(page).getByRole('button', { name: /导航栏验收/ })).toBeVisible();
+    await expect(panel(page).getByRole('button', { name: /^导航栏验收/ })).toBeVisible();
 
     // 计划: 日历 first; 定时任务 is a placeholder with nothing to press.
     await rail(page).getByRole('button', { name: '计划', exact: true }).click();
@@ -151,7 +151,7 @@ test('the rail switches sections, folds for the board and narrow screens, and co
 
     // The board folds the panel; back on 对话 it returns.
     await rail(page).getByRole('button', { name: '首页', exact: true }).click();
-    await panel(page).getByRole('button', { name: /导航栏验收/ }).click();
+    await panel(page).getByRole('button', { name: /^导航栏验收/ }).click();
     await lessonTab(page, '白板').click();
     await expect(panel(page)).toHaveCount(0);
     await lessonTab(page, '对话').click();
@@ -190,7 +190,7 @@ test('the rail switches sections, folds for the board and narrow screens, and co
     // A lesson, a file and the file menu chosen in the panel fold it as well.
     await rail(page).getByRole('button', { name: '首页', exact: true }).click();
     await rail(page).getByRole('button', { name: '首页', exact: true }).click();
-    await panel(page).getByRole('button', { name: /导航栏验收/ }).click();
+    await panel(page).getByRole('button', { name: /^导航栏验收/ }).click();
     await expect(panel(page)).toHaveCount(0);
     await rail(page).getByRole('button', { name: 'Vault', exact: true }).click();
     await rail(page).getByRole('button', { name: 'Vault', exact: true }).click();
@@ -220,7 +220,7 @@ test('the rail switches sections, folds for the board and narrow screens, and co
     await rail(page).getByRole('button', { name: '首页', exact: true }).click();
     await expect(page.getByRole('heading', { name: /今天想学点什么/ })).toBeVisible({ timeout: 30_000 });
     await expect(panel(page).getByRole('heading', { name: '课堂' })).toBeVisible();
-    await expect(panel(page).getByRole('button', { name: /导航栏验收/ })).toBeVisible();
+    await expect(panel(page).getByRole('button', { name: /^导航栏验收/ })).toBeVisible();
     await rail(page).getByRole('button', { name: '计划', exact: true }).click();
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.waitForTimeout(500);

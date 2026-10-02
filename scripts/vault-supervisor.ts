@@ -6,6 +6,7 @@ import { pluginVersions } from './vault-launcher-state.ts';
 import { codeContract, discoverRelease, prepareRelease, runPackageScript, UpdateController } from './vault-updates.ts';
 import type { Release } from './vault-updates.ts';
 import { startUpdateServer } from './vault-update-server.ts';
+import { createRemoteAccessService, type RemoteAccessDependencies, type RemoteAccessService } from './remote-access-service.ts';
 
 const pointerPath = (root: string): string => join(root, 'notara-release.json');
 export async function managedCode(root: string): Promise<string | undefined> {
@@ -21,12 +22,13 @@ export async function managedCode(root: string): Promise<string | undefined> {
 export async function clearManagedCode(root: string): Promise<void> { await rm(pointerPath(root), { force: true }); }
 
 interface Worker { authUrl: string; stop(): Promise<void> }
-export async function superviseVault(root: string, code: string, port?: number, updates?: { discover(): Promise<Release | null>; prepare(release: Release): Promise<string> }): Promise<{ authUrl: string; controller: UpdateController; stop(): Promise<void> }> {
+export async function superviseVault(root: string, code: string, port?: number, updates?: { discover(): Promise<Release | null>; prepare(release: Release): Promise<string> }, remoteAccess?: RemoteAccessDependencies): Promise<{ authUrl: string; controller: UpdateController; remoteAccess: RemoteAccessService; stop(): Promise<void> }> {
   let active: Worker | undefined;
   let activeCode = code;
   let activePort = port;
   let stopped = false;
   const contract = await codeContract(code);
+  const remote = createRemoteAccessService(root, () => active?.authUrl, remoteAccess);
   const installed = await pluginVersions(root, code);
   // A mutable checkout after git pull is not the old code needed for rollback.
   // Start the supervisor only after the explicit local snapshot upgrade.
@@ -34,7 +36,16 @@ export async function superviseVault(root: string, code: string, port?: number, 
   const controller: UpdateController = new UpdateController(contract.version, code, {
     discover: async signal => { if (updates) return updates.discover(); const current = await codeContract(activeCode); return discoverRelease(controller.status().currentVersion, current.runtime, fetch, signal); },
     prepare: (release, signal) => updates ? updates.prepare(release) : prepareRelease(release, fetch, undefined, signal),
-    stop: async () => { await active?.stop(); active = undefined; },
+    stop: async () => {
+      const errors: unknown[] = [];
+      try { await remote.close(); } catch (error) { errors.push(error); }
+      const worker = active;
+      if (worker) {
+        try { await worker.stop(); if (active === worker) active = undefined; }
+        catch (error) { errors.push(error); }
+      }
+      if (errors.length) throw new AggregateError(errors, 'Could not cleanly stop the managed Vault runtime.');
+    },
     upgrade: next => runPackageScript(next, 'vault-upgrade.ts', ['--root', root, '--keep-source']),
     start: async next => { active = await launch(next); },
     commit: async (next, release) => {
@@ -43,11 +54,12 @@ export async function superviseVault(root: string, code: string, port?: number, 
       await rename(pending, path); activeCode = next;
     },
   });
-  const bridge = await startUpdateServer(controller);
+  const bridge = await startUpdateServer(controller, remote);
   async function launch(source: string): Promise<Worker> {
     if (stopped) throw new Error('启动器已停止。');
     const child = spawn(process.execPath, ['--import', pathToFileURL(join(source, 'node_modules/tsx/dist/loader.mjs')).href, join(source, 'scripts/vault-process.ts'), root, String(activePort ?? NaN)], {
-      cwd: source, env: { ...process.env, NOTARA_UPDATE_URL: bridge.url, NOTARA_UPDATE_TOKEN: bridge.token }, stdio: ['ignore', 'inherit', 'inherit', 'ipc'], windowsHide: true,
+      cwd: source, env: { ...process.env, NOTARA_UPDATE_URL: bridge.url, NOTARA_UPDATE_TOKEN: bridge.token,
+        NOTARA_REMOTE_SETTINGS_URL: bridge.url, NOTARA_REMOTE_SETTINGS_TOKEN: bridge.token }, stdio: ['ignore', 'inherit', 'inherit', 'ipc'], windowsHide: true,
     });
     let exited = false;
     const exit = new Promise<void>(done => { child.once('exit', () => { exited = true; done(); }); child.once('error', () => { exited = true; done(); }); });
@@ -71,8 +83,21 @@ export async function superviseVault(root: string, code: string, port?: number, 
     } catch (error) { await stop(); throw error; }
   }
   try { active = await launch(code); }
-  catch (error) { await bridge.close(); throw error; }
+  catch (error) { try { await remote.close(); } finally { await bridge.close(); } throw error; }
   void controller.check();
   const interval = setInterval(() => { void controller.check(); }, 30 * 60_000); interval.unref();
-  return { authUrl: active.authUrl, controller, async stop() { clearInterval(interval); await controller.close(); stopped = true; await active?.stop(); await bridge.close(); } };
+  return { authUrl: active.authUrl, controller, remoteAccess: remote, async stop() {
+    clearInterval(interval);
+    const errors: unknown[] = [];
+    try { await controller.close(); } catch (error) { errors.push(error); }
+    stopped = true;
+    try { await remote.close(); } catch (error) { errors.push(error); }
+    const worker = active;
+    if (worker) {
+      try { await worker.stop(); if (active === worker) active = undefined; }
+      catch (error) { errors.push(error); }
+    }
+    try { await bridge.close(); } catch (error) { errors.push(error); }
+    if (errors.length) throw new AggregateError(errors, 'Could not cleanly stop the Notara Vault supervisor.');
+  } };
 }

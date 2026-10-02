@@ -198,7 +198,7 @@ test('教学设置进入真实装配请求，同课切教法改变下一次请�
   expect(plainTurn!.messages.some(message => message.source?.kind === 'user' && message.content.some(block => block.text === '给我讲讲什么是向量。'))).toBe(true);
   expect(skillNames(plainTurn!).filter(name => name.startsWith('notara-'))).toEqual([]);
   // 普通编码预设不变：原生文本工具照旧挂载，只是没有课堂工具与教学技能。
-  expect(toolNames(plainTurn!)).toEqual(expect.arrayContaining(['read', 'write', 'edit', 'glob', 'grep', 'bash', 'skill']));
+  expect(toolNames(plainTurn!)).toEqual(expect.arrayContaining(['read', 'write', 'edit', 'glob', 'grep', process.platform === 'win32' ? 'pwsh' : 'bash', 'skill']));
   for (const name of [...NOTARA_TOOL_NAMES, ...RETIRED_TOOL_NAMES]) expect(toolNames(plainTurn!)).not.toContain(name);
 }, 300_000);
 

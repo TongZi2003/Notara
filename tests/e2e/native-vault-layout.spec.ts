@@ -15,7 +15,7 @@ const detailsPane = (page: Page) => page.getByRole('complementary', { name: '节
 
 test('keeps narrow vault views, the folded panel and the 新建页面 dialog inside the native viewport', async ({ page }, testInfo) => {
   test.setTimeout(180_000);
-  const runtime = await startVaultIsolated();
+  const runtime = await startVaultIsolated({ testModel: true });
   try {
     await page.setViewportSize({ width: 600, height: 900 });
     await page.goto(runtime.authUrl);

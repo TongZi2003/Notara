@@ -1,12 +1,35 @@
 # 安装和使用 Notara
 
-适用版本：Notara 0.21.1 / DSH 0.2.0-rc.1。macOS 使用 Node 24.13.0 验证；Windows 的启动与 Git Bash 支持已实现，尚无完整实机验收。
+适用版本：Notara 0.23.1 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows 尚未完成全流程验收，新功能的自动化验证范围和已知限制见[发布说明](releases/native-vault-0.23.1.md)。
+
+## Windows 压缩包快捷安装
+
+1. 从 [GitHub Releases](https://github.com/TongZi2003/Notara/releases/latest) 下载 `notara-版本号.zip`（不要选择自动生成的 Source code 包）。
+2. 完整解压到可写的文件夹，例如 `D:\学习工具`；程序位于解压出的 `D:\学习工具\notara`，之后保持该位置。
+3. 双击 **安装 Notara.cmd**。脚本检测 Node.js 24+、npm、Git for Windows 的 Bash，已有可用依赖直接使用，缺少的通过 WinGet 安装；Windows 请求权限时由你确认。
+4. 等待检查官方最新正式版、安装 npm 依赖并构建。成功后自动创建桌面「启动 Notara」「关闭 Notara」，双击启动即可。安装本身不启动服务，ngrok 仍是设置里的可选功能。
+
+WinGet 由 Windows 的 App Installer 提供；若缺失，按脚本给出的官方链接安装 App Installer，或按下方原有步骤手动安装 Node.js 和 Git，再运行脚本。Windows 自动安装命令使用固定包 ID 和官方 WinGet 源，参数参见 [Microsoft WinGet 安装文档](https://learn.microsoft.com/en-us/windows/package-manager/winget/install)。不会修改系统执行策略。
+
+安装器只取官方非预览 Release，并校验压缩包 SHA-256、文件清单和版本；包内版本更高时保留包内版本，不降级。程序与依赖先在临时目录准备，构建通过才替换当前解压目录。检查更新或下载失败会明确报错，不会假报最新版；重试前修复网络即可。临时构建需要额外磁盘空间，安装期间不要启动同一目录的 Notara。
+
+若只想安装包内版本，在该目录打开 PowerShell，运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows-install.ps1 -SkipLatest
+```
+
+这只跳过 GitHub 检查，npm 依赖仍需能下载或已缓存。`-NoShortcuts` 跳过桌面入口，`-CheckOnly` 仅检测，`-NoUI` 不显示结果弹窗，失败仍返回非零退出码。
+
+源码仓库、已修改的程序文件以及程序子目录中的额外文件会被拒绝覆盖，请使用下方源码方式或重新解压到新目录。安装失败通常可修复原因后重试；若断电留下 `.notara-install-journal.json`，请保留它及所指向的 `backup`，在新的空目录重新解压安装，避免覆盖恢复材料。现有学习数据与插件快照不由快捷安装器迁移；已有用户更新后仍按本页的备份与 `vault:upgrade` 步骤升级快照。
 
 ## 准备环境
 
 - 安装 [Node.js](https://nodejs.org/en/download) **24 或更新版本**，安装包包含 npm。
 - 安装 Git；Windows 使用 [Git for Windows](https://gitforwindows.org/)，之后打开 Git Bash。
 - 准备一个在 DSH 模型设置中可配置的模型账号或 API Key。先配置主教师即可，工作员模型可以以后再设。
+
+也可以使用自己的 ChatGPT 订阅：首次引导选择“稍后配置”，随后到“设置 → ChatGPT 账号”登录并授权使用订阅额度。模型与额度由账号决定，步骤见[ChatGPT 账号接入](runtime/chatgpt-account.md)。
 
 打开终端，核对三条命令都有输出：
 
@@ -38,6 +61,20 @@ npm run vault
 
 ## 日常打开和停止
 
+Windows 安装依赖后，双击项目目录中的 **创建桌面快捷方式.cmd**，桌面会出现「启动 Notara」和「关闭 Notara」。也可直接双击项目目录中的 **启动 Notara.cmd** / **关闭 Notara.cmd**。
+
+若刚才已用 `npm run vault` 启动，先在那个终端按 `Ctrl+C` 停止，再改用启动快捷方式。
+
+- 启动：后台运行 Notara 并打开当前登录入口；重复启动会复用已运行的实例。
+- 关闭：等待该后台实例正常停止，保留课堂和资料；已经停止时可重复点击。浏览器标签页不自动关闭。
+- 无需保持终端窗口；关闭浏览器不会停止后台服务。ngrok 不会随启动快捷方式自动开启。
+- 若服务原本通过下方命令在其他终端启动，关闭快捷方式会提示回原终端按 `Ctrl+C`，不会强制结束其他进程。
+- 移动项目目录后，删除原位置对应的两个旧快捷方式，在新目录重新创建。脚本拒绝覆盖其他安装目录的同名快捷方式。
+
+源码方式首次使用需安装 Node.js、Git for Windows，并执行一次 `npm ci --no-audit --no-fund`；Release 用户可以用上方快捷安装自动完成。缺少环境或依赖时启动入口显示错误，不会自动开启远控。仅 PowerShell 本次启动使用进程级脚本执行参数。
+
+命令行方式仍然可用：
+
 ```sh
 cd Notara-Vault
 npm run vault
@@ -50,6 +87,8 @@ npm run vault:open
 ```
 
 登录链接带有临时认证信息，不要分享。直接访问不带认证的地址可能提示 401，此时使用上面的命令即可。
+
+ngrok 远控是可选功能：正常启动后，在 **设置 → 远控设置** 保存域名和访问凭据，再手动启用。无需远控时不用安装或配置 ngrok。具体设置、后台启动与停止脚本见[远控服务](runtime/remote-access.md)。
 
 默认数据目录是用户目录下的 `.notara/vault-runtime`，默认端口 `57093`。它与克隆的代码目录分开，里面包含课堂、资料、模型配置和认证材料。
 
@@ -66,7 +105,7 @@ Windows Git Bash 可写成 `C:/Users/你的用户名/NotaraData`，含空格的�
 
 ### 界面更新（0.22.0 起）
 
-启动器每次启动及每 30 分钟检查一次 GitHub 正式发布。发现兼容版本后，在独立代码目录下载、校验 SHA-256 并安装本机依赖，期间可以继续上课。首页会显示准备状态；“设置 → 更新”可以手动检查。
+启动器每次启动及每 30 分钟检查一次 GitHub 正式发布。发现兼容版本后，在独立代码目录下载、校验 SHA-256 并安装本机依赖，期间可以继续上课。右上角会出现与当前主题一致的更新提示，可关闭且不抢输入焦点，切页或折叠侧栏不会隐藏。关闭后同一次启动、同一版本不重复提醒，刷新页面也保留关闭状态；下次完整启动或发现另一个新版本可再次提醒。已经是最新版时不弹提示；检查失败会提供重试入口。“设置 → 更新”始终可以手动检查与更新。
 
 新版准备好后，等课堂与后台任务结束，点击“重启并更新”。服务会在原端口恢复，页面刷新后继续同一课堂。新版安装或启动失败会尝试恢复原版本。下载失败不会停止正在运行的课堂，稍后可以重新检查。不同 DSH、Cordis 或持久数据格式的版本要求备份后手动升级。
 

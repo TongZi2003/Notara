@@ -19,7 +19,7 @@ const createCard = (page: Page) => page.getByRole('button', { name: '创建区�
 
 test.describe('native vault PDF reader', () => {
   let runtime: VaultRuntime;
-  test.beforeAll(async () => { runtime = await startVaultIsolated(); });
+  test.beforeAll(async () => { runtime = await startVaultIsolated({ testModel: true }); });
   test.afterAll(async () => { await runtime?.stop(); });
 
   test('opens a PDF in the assets view, selects a region, and extracts a Markdown card', async ({ page }, testInfo) => {
@@ -44,8 +44,8 @@ test.describe('native vault PDF reader', () => {
     await expect(page.locator('div[role="presentation"] [aria-hidden="true"]')).toHaveCount(0, { timeout: 5_000 }).catch(() => {});
 
     // Enter the pre-registered workspace and open a session so the
-    // conversation.view slots exist. The model run will fail without a key, but
-    // the session and its views are still created.
+    // conversation.view slots exist. The isolated synthetic model completes
+    // the turn without using a provider credential.
     // The composer starts `contenteditable="false"` until a workspace is
     // attached; wait for the editable one instead of racing the mount.
     const composer = page.locator('[data-composer-input][contenteditable="true"], textarea[placeholder]').last();

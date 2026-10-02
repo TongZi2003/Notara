@@ -9,6 +9,9 @@ import { USER_SKILL_DIRECTORY, announceUserSkills } from './user-skills.js';
 import { createPdfAnnotationStore } from './pdf-annotations.js';
 import { installFontRoute } from './font-route.js';
 import { installUpdateBridge } from './update-runtime.js';
+import { installChatgpt } from './chatgpt-runtime.js';
+import { installSessionDeletion } from './session-deletion-runtime.js';
+import { installRemoteSettings } from './remote-settings-runtime.js';
 
 const REMOTE_METHOD_DESCRIPTOR = '@deepseek-ai/dsh-typert-protocol/remote-methods';
 const MAX_CONTENT_LENGTH = 2_000_000;
@@ -316,6 +319,9 @@ export function apply(ctx) {
   installUpdateBridge(ctx);
   ctx.plugin(NotaraVaultRemote);
   installFontRoute(ctx);
+  installChatgpt(ctx);
+  installSessionDeletion(ctx);
+  installRemoteSettings(ctx);
   // A Cordis plugin body must not return the service instance as a disposable.
   ctx.inject(['tools','systemPrompt','fs','sessions','sessionController','skills','workspaceRegistry','llm','subagents'],scope=>{installTeachingRuntime(scope);});
 }

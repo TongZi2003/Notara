@@ -135,7 +135,7 @@ export class NotaraTeaching extends Service {
           return rel&&!rel.startsWith('..')&&!isAbsolute(rel);
         });
         if(!workspace)fail('vault_scope_unavailable');
-        path=relative(resolveVaultRoot(workspace.path),path);
+        path=relative(resolveVaultRoot(workspace.path),path).replaceAll('\\','/');
       }else if(path.startsWith('vault/'))path=path.slice(6);
       script=await createAgentVaultIO(this.ctx,exec,{scope:workspace.id}).read(safeRelativePath(path));
       if(script.type!=='lesson')fail('lesson_script_required');

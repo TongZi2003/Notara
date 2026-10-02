@@ -6,6 +6,7 @@ import { EMPTY_STATES } from './empty-state-client.js';
 import { routeRailSummary } from './routes-client.js';
 import { createFileTree } from './file-tree-client.js';
 import { currentSessionId, mainViewSettled } from './session-current.js';
+import { createSessionDeletionUI } from './session-deletion-client.js';
 
 /** Below this width the native sidebar folds itself and an opened panel covers the content. */
 const NARROW = 1024;
@@ -16,14 +17,30 @@ const VAULT_EVENTS = ['notara-vault-changed', 'notara-vault-files-changed'];
  * native sidebar is exactly the rail's width when folded, so folding leaves the
  * rail. Panels talk to the main area only through `navigation`.
  */
-export function createVaultRail(React, { navigation, Icon, IconButton, Menu, Dialog, STYLE, SkillsPanel = null, UpdateNotice = null, sections = RAIL_SECTIONS }) {
+export function createVaultRail(React, { navigation, Icon, IconButton, Menu, Dialog, STYLE, SkillsPanel = null, sections = RAIL_SECTIONS }) {
   const h = React.createElement, { useState, useEffect, useRef, useMemo, useSyncExternalStore } = React;
   const useNav = () => useSyncExternalStore(navigation.subscribe, navigation.getSnapshot);
   const useSessions = ctx => useSyncExternalStore(fn => ctx.sessions.list.subscribe(fn), () => ctx.sessions.list.getSnapshot());
   const useSpaces = ctx => useSyncExternalStore(fn => ctx.workspaces.list.subscribe(fn), () => ctx.workspaces.list.getSnapshot());
   const Tree = createFileTree(React, { STYLE });
+  const { DeleteSessionDialog } = createSessionDeletionUI(React, { Dialog, IconButton });
   const { usePanelSearch, SearchButton, SearchInput } = createPanelSearch(React, { IconButton });
   const fmtDay = new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' });
+
+  function waitForMainSessionChange(ctx, sessionId, timeoutMs = 12_000) {
+    const list = ctx.sessions.list;
+    return new Promise(resolve => {
+      let stop = () => {};
+      const finish = value => { clearTimeout(timer); stop(); resolve(value); };
+      const check = () => {
+        const snapshot = list.getSnapshot();
+        if (mainViewSettled(snapshot) && currentSessionId(snapshot) !== sessionId) finish(true);
+      };
+      const timer = setTimeout(() => finish(false), timeoutMs);
+      stop = list.subscribe(check);
+      check();
+    });
+  }
 
   // The directory dialog outlives the Home panel (it opens from the main area
   // too, even with the panel folded); the panel's button reads the same state.
@@ -97,8 +114,25 @@ export function createVaultRail(React, { navigation, Icon, IconButton, Menu, Dia
     const directory = selectedVaultDirectory(spaces, sessions, nav.directoryId, nav);
     const search = usePanelSearch(), lessons = directoryLessons(directory, spaces, sessions);
     const groups = lessonGroups(filterByTitle(lessons, search.query, row => row.title || '未命名课堂'), new Date());
+    const [deleteTarget, setDeleteTarget] = useState(null), [deleteNotice, setDeleteNotice] = useState('');
     const open = row => { navigation.show('lesson'); ctx.uiWorkspace.openSession(row.id); dismiss(); };
     const start = () => { if (!directory) { navigation.requestDirectoryPicker(); return; } navigation.show('lesson'); ctx.uiWorkspace.startSession(directory.workspaceId); dismiss(); };
+    const requestDelete = async row => {
+      setDeleteNotice('');
+      if (currentSessionId(sessions) === row.id) {
+        // The main conversation pane stays mounted while hidden. Prepare Home's
+        // native blank Session and wait until its mainView retain replaces this
+        // Session before asking the Host to inspect observation references.
+        navigation.show('home');
+        await navigation.prepareHome(ctx);
+        if (!await waitForMainSessionChange(ctx, row.id)) {
+          setDeleteNotice('首页输入框还没有切换好，请稍后再试删除。');
+          return;
+        }
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }
+      setDeleteTarget(row);
+    };
     return h(React.Fragment, null,
       h('div', { className: 'nv-panel-head' }, h('h2', null, '课堂'), h(SearchButton, { search }),
         h(IconButton, { icon: 'more', label: '管理课堂', 'aria-haspopup': 'dialog', 'aria-expanded': manage, onClick: () => setManage(true) })),
@@ -107,15 +141,35 @@ export function createVaultRail(React, { navigation, Icon, IconButton, Menu, Dia
         h('button', { type: 'button', className: 'nv-directory-button', 'aria-label': directory ? '选择目录，当前：' + directory.title : '选择学习目录', 'aria-haspopup': 'dialog', 'aria-expanded': state.open, disabled: state.switching || spaces.phase !== 'ready', title: directory?.path || '选择学习目录', onClick: () => navigation.requestDirectoryPicker() },
           h(Icon, { name: 'folder' }), h('span', null, state.switching ? '正在打开…' : directory?.title || '选择学习目录'), h('span', { className: 'nv-directory-chevron', 'aria-hidden': true }, '⌄'))),
       h('button', { type: 'button', className: 'nv-new-lesson', 'aria-label': '新的一课', disabled: state.switching, onClick: start }, h(Icon, { name: 'plus' }), '新的一课'),
-      UpdateNotice && h(UpdateNotice),
-      h('div', { className: 'nv-panel-scroll' }, groups.length
-        ? groups.map(group => h('section', { key: group.key, className: 'nv-panel-group', 'aria-label': group.label }, h('h3', null, group.label),
-          group.rows.map(row => h('button', { key: row.id, type: 'button', className: 'nv-session-row', 'aria-current': nav.section === 'lesson' && currentSessionId(sessions) === row.id ? 'page' : undefined, title: row.title || '未命名课堂', onClick: () => open(row) },
-            h('i', { className: 'nv-session-dot', 'data-running': !!row.running }), h('span', null, row.title || '未命名课堂'), h('time', null, row.running ? '进行中' : fmtDay.format(new Date(row.updatedAt)))))))
-        : h('p', { className: 'nv-panel-note' }, search.query.trim() && lessons.length ? '没有找到这节课' : directory ? EMPTY_STATES.homeNoLessons.text : mainViewSettled(sessions) ? '选择目录后查看课堂' : '正在读取…')),
+      deleteNotice && h('p', { role: 'status', className: 'nv-delete-status' }, deleteNotice),
+      h('div', { className: 'nv-panel-scroll' },
+        groups.length
+          ? groups.map(group => h('section', { key: group.key, className: 'nv-panel-group', 'aria-label': group.label },
+            h('h3', null, group.label),
+            group.rows.map(row => h('div', { key: row.id, className: 'nv-session-row-wrap' },
+              h('button', {
+                type: 'button', className: 'nv-session-row',
+                'aria-current': nav.section === 'lesson' && currentSessionId(sessions) === row.id ? 'page' : undefined,
+                title: row.title || '未命名课堂', onClick: () => open(row),
+              },
+              h('i', { className: 'nv-session-dot', 'data-running': !!row.running }),
+              h('span', null, row.title || '未命名课堂'),
+              h('time', null, row.running ? '进行中' : fmtDay.format(new Date(row.updatedAt)))),
+              h(IconButton, {
+                icon: 'trash', label: `删除课堂：${row.title || '未命名课堂'}`,
+                className: 'nv-icon nv-session-delete', disabled: !!row.running,
+                onClick: event => { event.stopPropagation(); void requestDelete(row); },
+              }),
+            )),
+          ))
+          : h('p', { className: 'nv-panel-note' }, search.query.trim() && lessons.length ? '没有找到这节课' : directory ? EMPTY_STATES.homeNoLessons.text : mainViewSettled(sessions) ? '选择目录后查看课堂' : '正在读取…')),
       manage && h(Dialog, { title: '管理课堂', onClose: () => setManage(false) },
         h('p', { className: 'nv-panel-note' }, '在课堂旁归档；在列表选项中显示已归档课堂后，可以取消归档。'),
-        h('div', { className: 'nv-session-manager' }, renderSidebarSlot('sidebar.workspaces', { wide: true }))));
+        h('div', { className: 'nv-session-manager' }, renderSidebarSlot('sidebar.workspaces', { wide: true }))),
+      deleteTarget && h(DeleteSessionDialog, { ctx, session: deleteTarget, onClose: () => setDeleteTarget(null), onDeleted: result => {
+        setDeleteTarget(null);
+        if (result?.cleanupPending) setDeleteNotice('课堂记录已移除，少量磁盘清理会在下次启动时重试。');
+      } }));
   }
 
   function ViewTabs({ label, views, current, onPick }) {

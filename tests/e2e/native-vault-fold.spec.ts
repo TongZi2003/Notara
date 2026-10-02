@@ -11,7 +11,7 @@ import { startVaultIsolated } from '../../scripts/dev-isolated.ts';
  */
 test('teacher material folds by default in the reading surfaces and still opens on demand', async ({ page }, testInfo) => {
   test.setTimeout(240_000);
-  const runtime = await startVaultIsolated();
+  const runtime = await startVaultIsolated({ testModel: true });
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });

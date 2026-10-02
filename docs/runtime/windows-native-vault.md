@@ -1,6 +1,12 @@
 # Windows：安装 Native Vault
 
-本说明用于在 Windows 上安装 Native Vault。Windows 尚未完成本项目的实机验收，以下为按实际启动代码整理的安装路径。
+本说明用于在 Windows 上安装 Native Vault。Windows 的启动、浏览器和部分工具已有隔离验证；完整真实课堂流程尚未验收，Git Bash/MSYS 与锁定 DSH 沙箱存在已知兼容性问题。
+
+## 压缩包快捷安装
+
+下载官方 Release 的 `notara-版本号.zip`，完整解压后双击 `安装 Notara.cmd`，程序安装在该脚本所在目录。缺少 Node.js 24+、npm 或 Git Bash 时自动通过 WinGet 安装，随后检查最新正式版、安装项目依赖、构建并创建启动/关闭桌面快捷方式。系统权限提示由用户确认。ngrok 不随安装启用。
+
+详细参数、网络失败处理与目录保护见[快捷安装说明](../install.md#windows-压缩包快捷安装)。以下 Git Bash 源码安装流程继续保留。
 
 ## 1. 准备环境
 
@@ -29,6 +35,16 @@ npm run vault
 启动器会打开默认浏览器，首次进入配置自己的教师模型。看到左侧“首页、计划、Vault、技能”四个图标，就是 Native Vault。
 
 Git Bash 窗口需要保持打开；关闭它会停止本地服务。以后在 `Notara-Vault` 目录再次运行 `npm run vault` 即可继续。
+
+### 桌面一键启动与关闭
+
+完成依赖安装后，双击项目目录里的 `创建桌面快捷方式.cmd`，在当前用户桌面生成 `启动 Notara.lnk` 和 `关闭 Notara.lnk`。也可以直接双击项目中的 `启动 Notara.cmd` / `关闭 Notara.cmd`。
+
+启动入口使用后台控制器，服务就绪后打开当前认证入口；退出启动窗口或关闭浏览器都不会停止服务。关闭入口等待控制器及它管理的本地服务停止，保留全部学习数据；默认不开启 ngrok。重复启动复用实例，重复停止安全。若服务由另一个终端启动，关闭入口提示使用原终端的 `Ctrl+C`，不会按进程名批量结束 Node。
+
+快捷方式绑定创建时的代码和数据目录；项目搬到另一个位置后，删除这两个旧快捷方式，再在新位置重新创建。脚本支持中文、空格路径；不需要管理员权限，也不修改系统执行策略。创建脚本使用 Windows 已有的 PowerShell 和快捷方式接口。
+
+高级用法：在 PowerShell 中使用 `scripts/windows-launcher.ps1 -Action Shortcuts -RuntimeRoot "D:\Notara Data" -ControllerConfig "D:\Notara Private\control.json" -Port 47093` 创建绑定自定义目录的两个快捷方式。`-ShortcutDirectory` 可以指定其他输出文件夹；`-NoUI` 适合自动化运行，启动时的 `-NoBrowser` 只跳过打开浏览器。
 
 老师处理资料用的 Bash 由 Git for Windows 的 `bash.exe` 执行，并受 Windows 原生沙箱约束。启动器每次启动时按这个顺序找它：
 
@@ -60,4 +76,4 @@ npm run vault:open
 - 提示 Node 版本不足：重新打开终端，再核对 `node --version`，确保不是仍在使用旧安装。
 - `EPERM` 或链接创建失败：本版 Vault 目录链接已统一使用 Windows junction，避免依赖创建目录符号链接的管理员权限。若仍失败，保留错误与失败路径用于定位，不通过删除学习数据重试。
 
-当前验证覆盖 macOS 的构建、隔离启动和持久化，以及 Windows junction 参数的代码核对；没有将其写成 Windows 实机通过。反馈问题时附报错和版本即可，不需要提供 API Key、登录 token 或整个数据目录。
+验证范围与已知限制见对应版本的发布说明及安装说明；隔离启动验证不等于完整真实课堂验收。反馈问题时附报错和版本即可，不需要提供 API Key、登录 token 或整个数据目录。

@@ -5,7 +5,7 @@ import { renderBoardMarkdown,renderBoardInline,highlightBoardText,HIGHLIGHTS,exp
 import { getBoardStream,subscribeBoardStream } from './board-stream.js';
 import { createMathInteractive } from './interactive-math-client.js';
 import { readComponent,splitBoardBody } from './board-components.js';
-import { layoutBoard,readingOrder,isPinned } from './board-layout.js';
+import { BOARD_RESIZE_LIMITS,layoutBoard,readingOrder,isPinned } from './board-layout.js';
 import { createBoardAnswers } from './board-answer-client.js';
 import { createBoardVisuals, snapshotFigures } from './board-visual-client.js';
 import { createBoardFrames } from './board-frames-client.js';
@@ -17,6 +17,8 @@ const unwrap=result=>{if(!result?.ok)throw new Error(result?.error?.message??'�
 const colorNames={blue:'蓝色',green:'绿色',orange:'橙色',pink:'粉色'};
 /** Below this board width the canvas becomes one readable column. */
 const READING_WIDTH=600;
+const BLOCK_WIDTH={min:BOARD_RESIZE_LIMITS.minWidth,max:BOARD_RESIZE_LIMITS.maxWidth},BLOCK_HEIGHT={min:BOARD_RESIZE_LIMITS.minHeight,max:BOARD_RESIZE_LIMITS.maxHeight};
+const bounded=(value,range)=>Math.max(range.min,Math.min(range.max,Math.round(value)));
 
 // One rendered HTML per Markdown text: a poll or a drag never re-renders prose.
 const markdownCache=new Map();
@@ -28,8 +30,8 @@ function cachedMarkdown(text,assetUrls){
   return html;
 }
 const answersKey=block=>(block.answers??[]).map(entry=>entry.id).join(',');
-const sameBlock=(a,b)=>a===b||(a&&b&&a.id===b.id&&a.title===b.title&&a.body===b.body&&a.kind===b.kind&&a.size===b.size&&a.stream===b.stream&&a.missing===b.missing&&answersKey(a)===answersKey(b)&&a.interactive?.revision===b.interactive?.revision&&JSON.stringify(a.interactiveScene)===JSON.stringify(b.interactiveScene)&&a.interactiveState===b.interactiveState&&isPinned(a)===isPinned(b)&&(a.usedBy??[]).join()===(b.usedBy??[]).join());
-const samePosition=(a,b)=>a===b||(a&&b&&a.x===b.x&&a.y===b.y&&a.width===b.width);
+const sameBlock=(a,b)=>a===b||(a&&b&&a.id===b.id&&a.title===b.title&&a.body===b.body&&a.kind===b.kind&&a.size===b.size&&a.width===b.width&&a.height===b.height&&a.stream===b.stream&&a.missing===b.missing&&answersKey(a)===answersKey(b)&&a.interactive?.revision===b.interactive?.revision&&JSON.stringify(a.interactiveScene)===JSON.stringify(b.interactiveScene)&&a.interactiveState===b.interactiveState&&isPinned(a)===isPinned(b)&&(a.usedBy??[]).join()===(b.usedBy??[]).join());
+const samePosition=(a,b)=>a===b||(a&&b&&a.x===b.x&&a.y===b.y&&a.width===b.width&&a.height===b.height);
 
 /** The draft block the teacher is writing right now, merged into the saved board. */
 function withStream(board,stream){
@@ -70,7 +72,7 @@ export function createLessonBoard(React) {
         :h(ComponentSlot,{key:'c'+segment.index,segment,block,sessionId,actions})),
       open&&h('div',{className:'nb-q-pending'},open.type==='figure'||open.type==='flow'||open.type==='frames'?'正在画图…':'正在出题…'));
   }
-  const Block=React.memo(function Block({block,position,source,sessionId,assetUrls,actions,measure,reading}) {
+  const Block=React.memo(function Block({block,position,source,sessionId,assetUrls,actions,measure,reading,cameraScale}) {
     const ref=useCallback(element=>measure?.(block.id,element),[block.id,measure]);
     const stream=block.stream;
     const inner=h(BlockBody,{block,sessionId,assetUrls,actions,source});
@@ -78,16 +80,31 @@ export function createLessonBoard(React) {
       ? h(MathInteractive,{scene:block.interactiveScene,onChange:patch=>actions.interaction(block,patch),onExpand:()=>actions.expand(block),onDiscuss:actions.discuss})
       : block.interactiveState==='unavailable'?h('div',{className:'nb-interactive-unavailable'},'互动图暂时不可用，板书文字仍然保留。'):null;
     const folded=block.kind&&!['note','question'].includes(block.kind);
-    return h('article',{ref,className:'nb-block','data-block-id':block.id??block.path,'data-kind':block.kind,'data-stream':stream?'true':undefined,'data-pinned':!source&&isPinned(block)?'true':undefined,style:reading||!position?undefined:{left:position.x,top:position.y,width:position.width}},
+    const fixedHeight=!reading&&Number.isFinite(position?.height);
+    const resizeHandle=!reading&&!stream&&position&&h('button',{type:'button',className:'nb-resize-handle','aria-label':`调整大小 ${block.title}，使用方向键微调`,'title':'拖动以调整宽度和高度',style:{transform:`scale(${Math.max(.8,Math.min(3,1/(cameraScale??1)))})`},onPointerDown:event=>actions.resize(event,block,position,source),onKeyDown:event=>actions.resizeKey(event,block,position,source)},'◢');
+    return h('article',{ref,className:'nb-block','data-block-id':block.id??block.path,'data-kind':block.kind,'data-stream':stream?'true':undefined,'data-pinned':!source&&isPinned(block)?'true':undefined,'data-fixed-height':fixedHeight?'true':undefined,onWheel:event=>{
+      if(event.ctrlKey||event.metaKey)return;
+      let element=event.target instanceof Element?event.target:null;
+      const card=element?.closest('.nb-block');if(!card)return;
+      const deltaX=event.shiftKey?(event.deltaY||event.deltaX):event.deltaX,deltaY=event.shiftKey?0:event.deltaY;
+      while(element&&element!==card){
+        const style=getComputedStyle(element),maxX=element.scrollWidth-element.clientWidth,maxY=element.scrollHeight-element.clientHeight;
+        const scrollX=['auto','scroll'].includes(style.overflowX)&&maxX>1&&((deltaX<0&&element.scrollLeft>0)||(deltaX>0&&element.scrollLeft<maxX-1));
+        const scrollY=['auto','scroll'].includes(style.overflowY)&&maxY>1&&((deltaY<0&&element.scrollTop>0)||(deltaY>0&&element.scrollTop<maxY-1));
+        if(scrollX||scrollY){event.stopPropagation();return;}
+        element=element.parentElement;
+      }
+    },style:reading||!position?undefined:{left:position.x,top:position.y,width:position.width,...(fixedHeight?{height:position.height}:{})}},
       h('div',{className:'nb-block-tools'},
         !reading&&h('button',{className:'nb-grip','aria-label':'移动 '+block.title,onPointerDown:event=>actions.drag(event,block,source,position)},'⠿ 拖动'),
         !source&&!stream&&h('button',{onClick:()=>actions.ask(block)},'追问这块'),
         !source&&!reading&&isPinned(block)&&block.section&&h('button',{onClick:()=>actions.unpin(block)},'放回排版'),
         source&&block.missing?h('span',null,'资料已移动或不可用'):null),
       stream&&h('div',{className:'nb-live-label'},stream==='streaming'?'正在板书…':'等待保存…'),
-      folded?h('details',null,h('summary',null,h('span',{dangerouslySetInnerHTML:{__html:renderBoardInline(block.title)}})),inner,interactive):h(React.Fragment,null,h('h2',null,block.kind==='question'&&h('span',{className:'nb-kind-tag'},'题目'),h('span',{dangerouslySetInnerHTML:{__html:renderBoardInline(block.title)}})),inner,interactive),
-      source&&h('div',{className:'nb-source-actions'},h('button',{disabled:block.missing,onClick:()=>actions.source(block.path)},'打开资料'),...block.usedBy.map((id,index)=>h('button',{key:id,onClick:()=>actions.back(id)},block.usedBy.length===1?'回到板书':'引用位置 '+(index+1)))));
-  },(previous,next)=>sameBlock(previous.block,next.block)&&samePosition(previous.position,next.position)&&previous.source===next.source&&previous.assetUrls===next.assetUrls&&previous.reading===next.reading&&previous.sessionId===next.sessionId);
+      h('div',{className:'nb-card-content'},folded?h('details',null,h('summary',null,h('span',{dangerouslySetInnerHTML:{__html:renderBoardInline(block.title)}})),inner,interactive):h(React.Fragment,null,h('h2',null,block.kind==='question'&&h('span',{className:'nb-kind-tag'},'题目'),h('span',{dangerouslySetInnerHTML:{__html:renderBoardInline(block.title)}})),inner,interactive),
+        source&&h('div',{className:'nb-source-actions'},h('button',{disabled:block.missing,onClick:()=>actions.source(block.path)},'打开资料'),...block.usedBy.map((id,index)=>h('button',{key:id,onClick:()=>actions.back(id)},block.usedBy.length===1?'回到板书':'引用位置 '+(index+1))))),
+      resizeHandle);
+  },(previous,next)=>sameBlock(previous.block,next.block)&&samePosition(previous.position,next.position)&&previous.source===next.source&&previous.assetUrls===next.assetUrls&&previous.reading===next.reading&&previous.sessionId===next.sessionId&&previous.cameraScale===next.cameraScale);
 
   return function Board({ctx,sessionId,visible,openView,onDiscuss}) {
     const client=useMemo(()=>createVaultClient(ctx,sessionId),[ctx,sessionId]);
@@ -120,7 +137,7 @@ export function createLessonBoard(React) {
     const layout=useMemo(()=>layoutBoard(merged.sections,merged.blocks,heights),[merged,heights]);
     const sectionTitle=id=>merged.sections.find(section=>section.id===id)?.title;
     const blocks=face==='board'?merged.blocks:board.sources;
-    const positionOf=block=>{if(face!=='board')return drag?.path===block.path?{x:drag.x,y:drag.y,width:block.width}:{x:block.x,y:block.y,width:block.width};const base=layout.positions.get(block.id);return drag?.id===block.id&&base?{...base,x:drag.x,y:drag.y}:base;};
+    const positionOf=block=>{if(face!=='board'){const position={x:block.x,y:block.y,width:block.width,...(Number.isFinite(block.height)?{height:block.height}:{})};return drag?.path===block.path?{...position,x:drag.x??position.x,y:drag.y??position.y,width:drag.width??position.width,height:drag.height??position.height}:position;}const base=layout.positions.get(block.id);if(!base)return base;const position=Number.isFinite(block.height)?{...base,height:block.height}:base;return drag?.id===block.id?{...position,x:drag.x??position.x,y:drag.y??position.y,width:drag.width??position.width,height:drag.height??position.height}:position;};
     // Follow the teacher: move when the writing enters another section, and
     // within a section only when the block being written is off screen.
     useEffect(()=>{
@@ -142,11 +159,13 @@ export function createLessonBoard(React) {
     // Land on the latest block: the width of its section fits, and the block itself is in view.
     const land=()=>{const found=latest(),box=viewport.current?.getBoundingClientRect();if(!found?.frame||!box)return false;const {frame:frameOf,position,block}=found,z=Math.min(1,Math.max(.45,(box.width-48)/frameOf.width)),bottom=position.y+(heights.get(block.id)??260);const top=(bottom-frameOf.y)*z>box.height-120?Math.min(position.y,bottom-(box.height-120)/z):frameOf.y;focusedSection.current=block.section;moveCamera({x:24-frameOf.x*z,y:30-top*z,z},'board');return true;};
     // 全览 never goes below half size: a wider board shows the latest section at the right edge, earlier ones to its left.
-    const fit=()=>{setFollow(false);const items=face==='board'?[...layout.frames,...merged.blocks.filter(isPinned).map(block=>({...layout.positions.get(block.id),height:heights.get(block.id)??200}))]:blocks.map(block=>({x:block.x,y:block.y,width:block.width,height:260}));if(!items.length){moveCamera({x:0,y:0,z:1});return;}const left=Math.min(...items.map(item=>item.x)),top=Math.min(...items.map(item=>item.y)),right=Math.max(...items.map(item=>item.x+item.width)),bottom=Math.max(...items.map(item=>item.y+(item.height??260)));const box=viewport.current.getBoundingClientRect(),z=Math.min(1,(box.width-60)/(right-left),(box.height-110)/(bottom-top));if(face==='board'&&z<.5){const anchor=latest()?.frame??{x:left,width:0},x=Math.min(24-left*.5,Math.max(24-anchor.x*.5,box.width-24-(anchor.x+anchor.width)*.5));moveCamera({z:.5,x,y:30-top*.5});return;}fitRect({x:left,y:top,width:right-left,height:bottom-top});};
+    const fit=()=>{setFollow(false);const items=face==='board'?[...layout.frames,...merged.blocks.filter(isPinned).map(block=>({...layout.positions.get(block.id),height:block.height??heights.get(block.id)??200}))]:blocks.map(block=>({x:block.x,y:block.y,width:block.width,height:block.height??260}));if(!items.length){moveCamera({x:0,y:0,z:1});return;}const left=Math.min(...items.map(item=>item.x)),top=Math.min(...items.map(item=>item.y)),right=Math.max(...items.map(item=>item.x+item.width)),bottom=Math.max(...items.map(item=>item.y+(item.height??260)));const box=viewport.current.getBoundingClientRect(),z=Math.min(1,(box.width-60)/(right-left),(box.height-110)/(bottom-top));if(face==='board'&&z<.5){const anchor=latest()?.frame??{x:left,width:0},x=Math.min(24-left*.5,Math.max(24-anchor.x*.5,box.width-24-(anchor.x+anchor.width)*.5));moveCamera({z:.5,x,y:30-top*.5});return;}fitRect({x:left,y:top,width:right-left,height:bottom-top});};
     const currentSection=()=>layout.frames.find(item=>item.id===focusedSection.current)??layout.frames.at(-1);
     const actions=useRef({});
     Object.assign(actions.current,{
       drag:(event,block,source,position)=>{if(saving.current||block.stream||!position)return;event.preventDefault();event.stopPropagation();setFollow(false);selection.current=null;gesture.current={type:'block',block,source,startX:event.clientX,startY:event.clientY,x:position.x,y:position.y};viewport.current.setPointerCapture(event.pointerId);},
+      resize:(event,block,position,source)=>{if(saving.current||block.stream||!position)return;event.preventDefault();event.stopPropagation();setFollow(false);selection.current=null;const element=event.currentTarget.closest('.nb-block');gesture.current={type:'resize',block,source,startX:event.clientX,startY:event.clientY,x:position.x,y:position.y,width:position.width,height:position.height??element?.offsetHeight??BLOCK_HEIGHT.min};viewport.current.setPointerCapture(event.pointerId);},
+      resizeKey:(event,block,position,source)=>{if(!position)return;const step=event.shiftKey?40:12,element=event.currentTarget.closest('.nb-block'),height=position.height??element?.offsetHeight??BLOCK_HEIGHT.min;let width=bounded(position.width,BLOCK_WIDTH),nextHeight=height;if(event.key==='ArrowRight')width=bounded(width+step,BLOCK_WIDTH);else if(event.key==='ArrowLeft')width=bounded(width-step,BLOCK_WIDTH);else if(event.key==='ArrowDown')nextHeight=bounded(height+step,BLOCK_HEIGHT);else if(event.key==='ArrowUp')nextHeight=bounded(height-step,BLOCK_HEIGHT);else return;event.preventDefault();save(block,{x:position.x,y:position.y,width,height:nextHeight},source);},
       select:(event,block,source)=>{const selected=window.getSelection();if(!selected||selected.isCollapsed||!event.currentTarget.contains(selected.anchorNode)||!event.currentTarget.contains(selected.focusNode))return;selection.current={block,source,text:selected.toString()};},
       source:path=>openView(VIEW_IDS.assets,path),
       back:id=>{const position=layout.positions.get(id);if(position){setFace('board');setFollow(false);focus(position,'board');}},
@@ -159,14 +178,14 @@ export function createLessonBoard(React) {
       submit:async(block,component,value)=>{const result=unwrap(await client.answerBoard({blockId:block.id,component:component.index,fingerprint:component.fingerprint,value}));const {delivery,...next}=result;if(mounted.current)accept(next);return delivery;},
       resend:async(block,answerId)=>unwrap(await client.resendBoardAnswer({blockId:block.id,answerId})).delivery,
     });
-    const stableActions=useMemo(()=>Object.fromEntries(['drag','select','source','back','interaction','expand','discuss','prefix','ask','unpin','submit','resend'].map(name=>[name,(...args)=>actions.current[name](...args)])),[]);
-    const pointerMove=event=>{const g=gesture.current;if(!g)return;const dx=event.clientX-g.startX,dy=event.clientY-g.startY;if(g.type==='pan')moveCamera({x:g.x+dx,y:g.y+dy});else{g.patch={x:Math.round(g.x+dx/cam.z),y:Math.round(g.y+dy/cam.z)};setDrag(g.source?{path:g.block.path,...g.patch}:{id:g.block.id,...g.patch});}};
-    const endGesture=event=>{const g=gesture.current;gesture.current=null;if(viewport.current?.hasPointerCapture(event.pointerId))viewport.current.releasePointerCapture(event.pointerId);if(g?.type==='block'){if(g.patch)save(g.block,g.patch,g.source);else setDrag(null);}};
+    const stableActions=useMemo(()=>Object.fromEntries(['drag','resize','resizeKey','select','source','back','interaction','expand','discuss','prefix','ask','unpin','submit','resend'].map(name=>[name,(...args)=>actions.current[name](...args)])),[]);
+    const pointerMove=event=>{const g=gesture.current;if(!g)return;const dx=event.clientX-g.startX,dy=event.clientY-g.startY;if(g.type==='pan')moveCamera({x:g.x+dx,y:g.y+dy});else if(g.type==='resize'){g.patch={x:g.x,y:g.y,width:bounded(g.width+dx/cam.z,BLOCK_WIDTH),height:bounded(g.height+dy/cam.z,BLOCK_HEIGHT)};setDrag(g.source?{path:g.block.path,...g.patch}:{id:g.block.id,...g.patch});}else{g.patch={x:Math.round(g.x+dx/cam.z),y:Math.round(g.y+dy/cam.z)};setDrag(g.source?{path:g.block.path,...g.patch}:{id:g.block.id,...g.patch});}};
+    const endGesture=event=>{const g=gesture.current;gesture.current=null;if(viewport.current?.hasPointerCapture(event.pointerId))viewport.current.releasePointerCapture(event.pointerId);if(g?.type==='block'||g?.type==='resize'){if(g.patch)save(g.block,g.patch,g.source);else setDrag(null);}};
     const highlight=color=>{const selected=selection.current;if(!selected){setNotice('先选中板书或资料说明中的文字，再选择颜色。');return;}try{const body=highlightBoardText(selected.block.body,selected.text,color);save(selected.block,{body},selected.source);selection.current={...selected,block:{...selected.block,body}};}catch(error){setNotice(error.message);}};
     function download(type){const output=exportBoard(board,{...include,assetUrls,figureSvgs:snapshotFigures(),mathCss:mathStyleText()});const url=URL.createObjectURL(new Blob([type==='md'?output.markdown:output.html],{type:type==='md'?'text/markdown;charset=utf-8':'text/html;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='课堂笔记.'+type;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setExporting(false);}
     const sourceMap=new Map(board.sources.map(s=>[s.path,s]));
     const writing=stream&&['streaming','pending'].includes(stream.status);
-    const blockProps=block=>({key:block.id??block.path,block,sessionId,assetUrls,actions:stableActions,source:face==='sources',measure:face==='board'&&!reading?measure:undefined,reading:face==='board'&&reading});
+    const blockProps=block=>({key:block.id??block.path,block,sessionId,assetUrls,actions:stableActions,source:face==='sources',measure:face==='board'&&!reading?measure:undefined,reading:face==='board'&&reading,cameraScale:cam.z});
     const canvas=h('div',{className:'nb-viewport',ref:viewport,'aria-label':face==='board'?'课堂板书画布':'本课资料关系画布',onPointerDown:event=>{if(event.target.closest('.nb-block,.nb-toolbar,.nb-outline'))return;setFollow(false);gesture.current={type:'pan',startX:event.clientX,startY:event.clientY,x:cam.x,y:cam.y};event.currentTarget.setPointerCapture(event.pointerId);},onPointerMove:pointerMove,onPointerUp:endGesture,onPointerCancel:endGesture,onWheel:event=>{if(event.ctrlKey||event.metaKey){zoom(event.deltaY>0?-.05:.05);}else{setFollow(false);moveCamera({x:cam.x-event.deltaX,y:cam.y-event.deltaY});}}},
       h('div',{className:'nb-world',style:{transform:`translate(${cam.x}px,${cam.y}px) scale(${cam.z})`}},
         face==='sources'&&h('svg',{className:'nb-edges'},board.edges.map((edge,index)=>{const a=sourceMap.get(edge.from),b=sourceMap.get(edge.to);if(!a||!b)return null;const x=a.x+a.width,y=a.y+80;return h('g',{key:index},h('path',{d:`M ${x} ${y} C ${x+50} ${y},${b.x-50} ${b.y+80},${b.x} ${b.y+80}`}),h('text',{x:(x+b.x)/2,y:(y+b.y+80)/2-8},edge.label));})),

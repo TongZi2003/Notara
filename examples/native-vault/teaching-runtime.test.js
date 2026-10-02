@@ -64,8 +64,8 @@ test('教学环境变量、提示构造与每轮上下文共用同一资料根',
   const runtime=await installRuntime(t);
   const shell=runtime.shellEnvs.find(item=>item.name==='notara-vault-cli');
   const env=shell.resolve({agent:runtime.agent,callId:'install-call'});
-  assert.equal(env.DSH_NOTARA_WORKSPACE,runtime.root);
-  assert.equal(env.DSH_NOTARA_VAULT_ROOT,join(runtime.root,'vault'));
+  assert.equal(env.DSH_NOTARA_WORKSPACE,runtime.root.replaceAll('\\','/'));
+  assert.equal(env.DSH_NOTARA_VAULT_ROOT,join(runtime.root,'vault').replaceAll('\\','/'));
   assert.equal(env.DSH_NOTARA_VAULT_PREFIX,'vault/');
 
   const {background}=await assembledContext(runtime);
@@ -94,7 +94,7 @@ test('老师的 shell 带上随包 ripgrep：不依赖用户自己装 rg',async 
 test('直接选中的资料目录：环境变量前缀为空，上下文仍指向自己',async t=>{
   const runtime=await installRuntime(t,{layout:'direct'});
   const env=runtime.shellEnvs.find(item=>item.name==='notara-vault-cli').resolve({agent:runtime.agent,callId:'install-call'});
-  assert.equal(env.DSH_NOTARA_VAULT_ROOT,runtime.root);
+  assert.equal(env.DSH_NOTARA_VAULT_ROOT,runtime.root.replaceAll('\\','/'));
   assert.equal(env.DSH_NOTARA_VAULT_PREFIX,'');
   const {background}=await assembledContext(runtime);
   assert.deepEqual(background.materialsRoot,{env:'DSH_NOTARA_VAULT_ROOT',path:runtime.root,legacyPrefix:''});

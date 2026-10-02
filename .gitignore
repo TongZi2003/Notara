@@ -1,5 +1,9 @@
 # Isolated runtime, credentials, test output, machine-local state.
 .runtime/
+.notara-install-*/
+.notara-install.lock
+.notara-install-journal.json
+notara-files.json
 node_modules/
 *.tsbuildinfo
 
@@ -19,6 +23,7 @@ coverage/
 .env.*
 **/auth.json
 **/credentials.json
+**/notara-chatgpt/
 
 # Session scratch (debug scripts, stray logs); evidence logs under docs/ stay tracked
 /zz-*.mts
@@ -41,11 +46,14 @@ coverage/
 !/docs/runtime/update-contract.json
 !/docs/runtime/vault-launcher.md
 !/docs/runtime/windows-native-vault.md
+!/docs/runtime/chatgpt-account.md
+!/docs/runtime/remote-access.md
 !/docs/releases/
 /docs/releases/*
 !/docs/releases/native-vault-0.21.1.md
 !/docs/releases/native-vault-0.22.0.md
 !/docs/releases/native-vault-0.22.1.md
+!/docs/releases/native-vault-0.23.1.md
 
 # Retired workbench-only build/test configurations (kept locally).
 /tsconfig.math-plugin.json

@@ -74,14 +74,28 @@ test('structured JSON IO uses the same workspace boundary and CAS revision', asy
   assert.equal(await readFile(join(root, 'vault/lesson-interaction/demo.json'), 'utf8'), '{"type":"lesson-interaction"}');
 });
 
-test('paths and symlinks cannot escape the selected Vault',async t=>{
+test('relative paths and directory links cannot escape the selected Vault',async t=>{
+  const {root,ctx,exec}=await setup(t);
+  const outside=await mkdtemp(join(tmpdir(),'notara-agent-io-outside-'));
+  t.after(()=>rm(outside,{recursive:true,force:true}));
+  await writeFile(join(outside,'secret.md'),'secret');
+  await symlink(outside,join(root,'vault/linked-directory'),process.platform==='win32'?'junction':'dir');
+  const io=module.createAgentVaultIO(ctx,exec,{writeApproved:true});
+  await assert.rejects(io.read('../private.md'),/path_invalid/);
+  await assert.rejects(io.read('linked-directory/secret.md'),/path_invalid/);
+  await assert.rejects(io.save('linked-directory/secret.md','bad',null),/path_invalid/);
+  assert.equal(await readFile(join(outside,'secret.md'),'utf8'),'secret');
+});
+
+test('file symlinks cannot escape the selected Vault',async t=>{
   const {root,ctx,exec}=await setup(t);
   const outside=await mkdtemp(join(tmpdir(),'notara-agent-io-outside-'));
   t.after(()=>rm(outside,{recursive:true,force:true}));
   // 工作区根的资料在资料根之外；两种符号链接都必须被拒绝，而不是跟随读取。
   await writeFile(join(root,'private.md'),'private');
   await writeFile(join(outside,'secret.md'),'secret');
-  await symlink(join(root,'private.md'),join(root,'vault/link.md'));
+  try { await symlink(join(root,'private.md'),join(root,'vault/link.md')); }
+  catch(error) { if(process.platform==='win32'&&error.code==='EPERM'){t.skip('Windows file symlink privilege is unavailable; directory junction escape is tested separately');return;}throw error; }
   await symlink(join(outside,'secret.md'),join(root,'vault/escape.md'));
   const io=module.createAgentVaultIO(ctx,exec,{writeApproved:true});
   assert.equal(io.rootPath,join(root,'vault'));
@@ -111,7 +125,7 @@ test('repeated scans reuse unchanged pages, still record each observation and se
   const first=await io.scan(),second=await io.scan();
   const pick=scan=>scan.documents.find(doc=>doc.path==='a.md');
   assert.equal(pick(second),pick(first),'an unchanged page is served from the cache');
-  assert.equal(observed.filter(target=>String(target?.targetKey??target).endsWith('/a.md')).length,2,'the cached page is still recorded as observed');
+  assert.equal(observed.filter(target=>String(target?.targetKey??target).replaceAll('\\','/').endsWith('/a.md')).length,2,'the cached page is still recorded as observed');
   await writeFile(join(root,'vault/a.md'),'# A\n\nALPHA');
   const third=await io.scan();
   assert.match(pick(third).content,/ALPHA/);

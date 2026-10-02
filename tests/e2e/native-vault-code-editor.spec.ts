@@ -45,7 +45,9 @@ test('a Python file opens in the library editor, indents, completes, saves and f
     const completion = page.locator('.cm-tooltip-autocomplete');
     await expect(completion).toBeVisible();
     await expect(completion.getByText('value', { exact: true })).toBeVisible();
-    await page.keyboard.press('Enter');
+    // CodeMirror deliberately ignores completion keys for 75 ms after showing
+    // suggestions. Choose the visible option so this test never races that guard.
+    await completion.getByText('value', { exact: true }).click();
     await page.keyboard.type(' * 2');
     await expect(editor.getByRole('status')).toHaveText('有未保存的修改');
     await page.screenshot({ path: testInfo.outputPath('code-editor.png') });

@@ -34,6 +34,9 @@ import { currentSessionId } from './session-current.js';
 import { createLessonBoard } from './board-client.js';
 import { createBoardStream } from './board-stream.js';
 import { createUpdateUI } from './update-client.js';
+import { chatgptRemoteDescriptors, installChatgptSettings } from './chatgpt-client.js';
+import { sessionDeletionRemoteDescriptors } from './session-deletion-client.js';
+import { remoteSettingsDescriptors, installRemoteAccessSettings } from './remote-settings-client.js';
 
 const VAULT_REFERENCE = 'notara-vault';
 const PAGE_REFERENCE_LIMIT = 12000;
@@ -74,7 +77,7 @@ window.__ModuleLoader__.load({
     const REMOTE_METHODS = VAULT_REMOTE_METHODS;
     const REMOTE_CONTRIBUTION = {
       package: '@notara/vault-native',
-      descriptors: REMOTE_METHODS.map(method => ({
+      descriptors: [...chatgptRemoteDescriptors(), ...sessionDeletionRemoteDescriptors(strictJsonSchema), ...remoteSettingsDescriptors(), ...REMOTE_METHODS.map(method => ({
         id: `@notara/vault-native#notaraVault/${method}`,
         service: 'notaraVault',
         namespace: 'notaraVault',
@@ -82,7 +85,7 @@ window.__ModuleLoader__.load({
         invocation: { kind: 'direct' },
         parameters: [{ name: 'input', wire: 'input', source: 'json', codec: { mode: 'strict', typeSymbol: '@notara/vault-native#JsonObject', create: () => strictJsonSchema } }],
         result: { mode: 'strict', typeSymbol: '@notara/vault-native#JsonValue', create: () => strictJsonSchema },
-      })),
+      }))],
     };
 
     const STYLE = {
@@ -613,7 +616,7 @@ window.__ModuleLoader__.load({
 
     const { CodeEditor } = createCodeEditor(React);
     const { SkillsPanel, SkillsView } = createSkillsPage(React, { navigation, EmptyState, IconButton });
-    const { Sidebar } = createVaultRail(React, { navigation, Icon, IconButton, Menu, Dialog, STYLE, SkillsPanel, UpdateNotice: updates.UpdateNotice });
+    const { Sidebar } = createVaultRail(React, { navigation, Icon, IconButton, Menu, Dialog, STYLE, SkillsPanel });
     const App = createVaultAssets(React, { STYLE, EmptyState, CodeMirrorMarkdown, CodeEditor, PdfReader, AssetPreview, insertVaultReference, IconButton, Menu, Dialog, ensureSession: ctx => ensureTeachingSession(ctx), openLessonBoard: (ctx, sessionId) => navigation.openLesson(ctx, sessionId, 'board') });
     const { GraphView, CardsView } = createVaultViews(React, { STYLE, IconButton, Menu, Dialog });
     // 路线资料是一份真实页面: 请老师规划或调整走的是既有的输入框引用入口（和
@@ -641,10 +644,12 @@ window.__ModuleLoader__.load({
     return {
       inject: ['remote'],
       async apply(ctx) {
+        await installChatgptSettings(ctx, React);
+        installRemoteAccessSettings(ctx, React);
         const unmount = await ctx.remote.$mount(REMOTE_CONTRIBUTION);
         ctx.effect(() => unmount, 'notara-vault-native: remote');
         ctx.plugin({
-          inject: ['slots', 'remote.notaraVault', 'inputTriggers', 'conversation', 'sessions', 'theme', 'layout', 'uiWorkspace', 'workspaces', 'configForms'],
+          inject: ['slots', 'remote.notaraVault', 'remote.notaraSession', 'inputTriggers', 'conversation', 'sessions', 'theme', 'layout', 'uiWorkspace', 'workspaces', 'configForms'],
           apply(scope) {
             console.info('notara-vault-native: apply');
             installModernTheme(scope, appearance);

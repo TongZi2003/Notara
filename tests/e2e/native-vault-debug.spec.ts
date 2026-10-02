@@ -78,6 +78,8 @@ test('显示调试记录 brings the native trajectory into the lesson conversati
     await expect(page.locator('[data-composer-input]')).toHaveCount(1);
     expect(errors.filter(text => !/favicon|net::/i.test(text))).toEqual([]);
   } finally {
+    await testInfo.attach('host-log', { body: runtime.log().slice(-40_000), contentType: 'text/plain' });
+    await testInfo.attach('console-errors', { body: JSON.stringify(errors, null, 2), contentType: 'application/json' });
     await testInfo.attach('page-state', { body: await page.locator('body').ariaSnapshot(), contentType: 'text/plain' });
     await page.screenshot({ path: testInfo.outputPath('student-defaults.png') });
     await client.close();

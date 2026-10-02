@@ -72,6 +72,11 @@ test('pinned blocks keep their position; sections run left to right after an old
   assert.deepEqual(readingOrder([section('s1'), section('s2')], blocks).map(group => [group.title, group.blocks.map(item => item.id)]), [[null, ['old']], ['s1', ['a', 'pinned']], ['s2', ['b']]]);
 });
 
+test('a resized card keeps its chosen width and height while pinned', () => {
+  const resized = block('resized', 's', { x: 240, y: 180, width: 520, height: 360 });
+  assert.deepEqual(at(layoutBoard([section('s')], [resized]), 'resized'), { x: 240, y: 180, width: 520, height: 360, pinned: true });
+});
+
 test('an earlier section keeps the columns it had when the next began; later blocks go down inside them', () => {
   const sections = [section('s1'), section('s2')];
   const heights = new Map([['a', 200], ['b', 200], ['c', 150], ['late', 120], ['wide', 80]]);

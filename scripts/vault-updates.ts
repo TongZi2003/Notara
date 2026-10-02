@@ -1,16 +1,15 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { spawn } from 'node:child_process';
-import { unzipSync } from 'fflate';
 import { packageBin } from './package-bin.ts';
 
 export const REPOSITORY = 'TongZi2003/Notara';
 export const MANIFEST_NAME = 'notara-update.json';
 export interface RuntimeContract { dsh: string; cordis: string; dataVersion: number }
 export interface Release { version: string; url: string; archiveUrl: string; sha256: string; runtime: RuntimeContract; compatible: boolean }
-export interface UpdateStatus { phase: 'current' | 'checking' | 'downloading' | 'ready' | 'restarting' | 'error' | 'manual'; currentVersion: string; latestVersion?: string; releaseUrl?: string; message: string }
+export interface UpdateStatus { phase: 'current' | 'checking' | 'downloading' | 'ready' | 'restarting' | 'error' | 'manual'; currentVersion: string; latestVersion?: string; releaseUrl?: string; message: string; launchId?: string }
 function updateFailure(error: unknown): string {
   const code = (error as NodeJS.ErrnoException | null)?.code;
   if (code === 'ENOSPC') return '磁盘空间不足，未安装更新。';
@@ -23,8 +22,9 @@ const object = (value: unknown): Record<string, unknown> => {
   return value as Record<string, unknown>;
 };
 const stable = (version: string): number[] => {
-  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('更新版本格式不正确。');
-  return version.split('.').map(Number);
+  const parts = version.split('.').map(Number);
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version) || parts.some(part => !Number.isSafeInteger(part))) throw new Error('更新版本格式不正确。');
+  return parts;
 };
 export function compareVersions(a: string, b: string): number {
   const left = stable(a), right = stable(b);
@@ -58,7 +58,7 @@ export function parseRelease(raw: unknown, manifestValue: unknown, current: stri
   return { version, url, archiveUrl: assetUrl(String(manifest.archive)), sha256: manifest.sha256, runtime: nextRuntime, compatible: sameRuntime(runtime, nextRuntime) };
 }
 
-async function download(url: string, limit: number, fetcher: typeof fetch, signal?: AbortSignal): Promise<Uint8Array> {
+export async function download(url: string, limit: number, fetcher: typeof fetch, signal?: AbortSignal): Promise<Uint8Array> {
   const response = await fetcher(url, { headers: { 'user-agent': 'Notara-Updater', accept: 'application/vnd.github+json' }, signal: AbortSignal.any([AbortSignal.timeout(120_000), ...(signal ? [signal] : [])]) });
   if (!response.ok) { await response.body?.cancel(); throw new Error(response.status === 403 || response.status === 429 ? '更新服务暂时限流，请稍后检查。' : '暂时无法获取更新，请稍后重试。'); }
   if (!response.body) throw new Error('更新下载没有内容。');
@@ -93,8 +93,9 @@ export async function discoverRelease(current: string, runtime: RuntimeContract,
 }
 
 /** No archive entry can create a link, escape the empty staging directory, or overwrite dependencies. */
-export async function extractRelease(bytes: Uint8Array, hash: string, destination: string): Promise<void> {
+export async function extractRelease(bytes: Uint8Array, hash: string, destination: string, decoder?: typeof import('fflate').unzipSync): Promise<void> {
   if (createHash('sha256').update(bytes).digest('hex') !== hash) throw new Error('更新包校验失败，请重新下载。');
+  const unzipSync = decoder ?? (await import('fflate')).unzipSync;
   let total = 0, count = 0;
   const names = new Set<string>();
   const files = unzipSync(bytes, { filter: file => {
@@ -164,6 +165,7 @@ interface UpdateOperations {
   stop(): Promise<void>; upgrade(code: string): Promise<void>; start(code: string): Promise<void>; commit(code: string, release: Release): Promise<void>;
 }
 export class UpdateController {
+  private readonly launchId = randomUUID();
   private state: UpdateStatus;
   private offered: Release | undefined;
   private prepared: string | undefined;
@@ -176,7 +178,8 @@ export class UpdateController {
     this.code = code; this.operations = operations;
     this.state = { phase: 'current', currentVersion: version, message: '尚未检查更新。' };
   }
-  status(): UpdateStatus { return { ...this.state }; }
+  // A public, non-credential identifier scopes dismissed notices to this launch.
+  status(): UpdateStatus { return { ...this.state, launchId: this.launchId }; }
   check(): Promise<void> {
     if (this.cancellation.signal.aborted) return Promise.resolve();
     if (this.applying) return this.applying;
@@ -211,9 +214,12 @@ export class UpdateController {
     await Promise.allSettled([this.checking, this.applying]);
   }
   private async switchTo(nextCode: string, release: Release): Promise<void> {
-    let stopped = false;
+    let stopAttempted = false;
     try {
-      await this.operations.stop(); stopped = true;
+      // A failed stop may already have terminated the worker. Recovery must
+      // also run after partial shutdown, never merely claim the old Host survived.
+      stopAttempted = true;
+      await this.operations.stop();
       await this.operations.upgrade(nextCode);
       await this.operations.start(nextCode);
       await this.operations.commit(nextCode, release);
@@ -221,7 +227,7 @@ export class UpdateController {
       this.state = { phase: 'current', currentVersion: release.version, message: '已更新，可以继续学习。' };
     } catch {
       try {
-        if (stopped) { await this.operations.stop(); await this.operations.upgrade(this.code); await this.operations.start(this.code); }
+        if (stopAttempted) { await this.operations.stop(); await this.operations.upgrade(this.code); await this.operations.start(this.code); }
         this.state = { ...this.state, phase: 'error', message: '更新未完成，已恢复原版本；可以继续学习，稍后重试。' };
       } catch { this.state = { ...this.state, phase: 'error', message: '更新未完成，原版本也未能启动。请在终端查看错误并按安装说明恢复。' }; }
     }

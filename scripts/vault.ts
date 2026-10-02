@@ -1,9 +1,9 @@
-import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { liveVaultUrl, pluginVersions, validateVaultPort } from './vault-launcher-state.ts';
 import { managedCode, superviseVault } from './vault-supervisor.ts';
+import { openVaultBrowser } from './open-vault-browser.ts';
 
 const args = process.argv.slice(2);
 let root = join(homedir(), '.notara', 'vault-runtime'), port: number | undefined, noOpen = false, openOnly = false;
@@ -16,11 +16,7 @@ for (let i = 0; i < args.length; i++) {
   else throw new Error(`未知参数：${argument}`);
 }
 function openBrowser(url: string): void {
-  const [command, values] = process.platform === 'darwin' ? ['open', [url]]
-    : process.platform === 'win32' ? ['rundll32', ['url.dll,FileProtocolHandler', url]] : ['xdg-open', [url]];
-  const opener = spawn(command!, values as string[], { detached: true, stdio: 'ignore' });
-  opener.on('error', () => console.error('无法打开默认浏览器；当前登录入口保存在数据目录的 launcher.json。'));
-  opener.unref();
+  void openVaultBrowser(url).catch(error => console.error(error.message));
 }
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const managed = await managedCode(root);

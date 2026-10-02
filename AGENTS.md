@@ -37,6 +37,14 @@
 
 ## 工作约定
 
+- Native Vault 0.23.1 的 Windows Release 快捷安装入口为 `安装 Notara.cmd` / `scripts/windows-install.ps1`，由 Node 原生执行 `scripts/install-vault.ts`（启动时不能依赖已有 node_modules）。发布包带 `notara-files.json` 源文件哈希清单；源码仓库或修改过的包拒绝覆盖。依赖与新版代码在解压目录的临时子目录构建后切换，原数据与快照不迁移；源码/npm 安装继续保留。测试使用临时包与注入操作，不执行真实 winget 安装或写真实桌面。
+- Native Vault 0.23.1 的 ChatGPT 订阅接入在 `chatgpt-auth.js / chatgpt-provider.js / chatgpt-runtime.js`。使用 OpenAI 官方动态注册、PKCE 和 loopback callback；令牌只写 `DSH_HOME/notara-chatgpt`，禁止进入浏览器、日志、Vault 或发布包。每账号独立路由，模型从授权目录读取，Responses 必须等 `response.completed` 才完成。无真实账号时只能记录协议模拟与浏览器登录入口测试，不能宣称真实订阅推理通过。
+- 0.23.1 白板卡片的可选 `height` 与 `width` 随布局持久化；resize 使用指针捕获并按相机缩放换算，恢复默认同时清除位置和手动尺寸，全览也采用资料卡手动高度。公式保持原 KaTeX 渲染，只在卡内局部滚动。课堂永久删除经独立 `notaraSession` Remote 和输入标题确认，删除前证明整棵关联会话树空闲；删除保护覆盖原生会话修改入口，等待已开始的修改后重新核对确认，不能只拦新 prompt。仅处理原生 JSONL 会话目录，保留学习资料与共享附件。
+- 0.23.1 远控入口在 `scripts/remote-vault.ts`，私有配置和控制状态放在代码目录外的专用目录。修改权限前校验路径及真实目标，拒绝代码目录及其祖先、盘根和用户主目录，避免 Windows 继承 ACL 波及代码与依赖、触发客户端热重载。测试必须显式使用临时配置、临时数据根与独立端口；不得调用真实用户的 ngrok 凭据或启动公网隧道代替隔离测试。真实公网连通需要另行记录。
+- 0.23.1 设置里的「远控设置」经 `notaraRemote` 和启动器私有桥管理 ngrok；默认关闭，保存配置不启动，完整重启不自动恢复，关闭远控保留本地课堂。浏览器只接收脱敏状态，密码与令牌不回显或进入浏览器持久存储。桥只监听 loopback 并验证 Bearer，设置操作与 CLI 使用同一运行目录互斥锁。压力测试入口为 `test:stress` / `test:stress:browser`，仅使用合成数据与隔离实例，报告写入 `.runtime/`。
+- 0.23.1 更新提示挂在原生 `shell.overlay`，全局右上角、可关闭、不抢焦点，沿用主题 token。启动检查仍由 supervisor 每次启动发起一次（另保留每30分钟与手动检查），浏览器轮询只读状态。公开 `launchId` 只区分启动周期，不是凭据；关闭记忆按 launchId/版本在本浏览器跨页同步，新启动或新版本重新提醒。更新停止阶段部分成功抛错也必须实际尝试恢复旧 Host，不能直接宣称已恢复。
+- 0.23.1 Windows 双击与桌面快捷方式入口由根目录三个 `.cmd`、`scripts/windows-launcher.ps1` 和 `desktop-vault.ts` 提供，共用 `remote-vault.ts` 的 local-start/stop。PowerShell 文件保留 UTF-8 BOM，兼容 Windows PowerShell 5.1 中文；参数直接传给 node/npm-cli，不通过拼接 cmd。默认本地后台启动后打开当前登录入口，冷启动等待最多120秒，明确失败立即返回。关闭只处理控制器拥有的实例，不能将外部实例仍运行说成已关闭；必须等待末次 stopping 状态写入完成后再删除控制状态，避免异步写入重建死记录。创建桌面快捷方式的测试必须传临时 ShortcutDirectory/RuntimeRoot/ControllerConfig，不能写真实桌面或默认用户数据目录。
+
 - 发布校验在干净检出后先构建 Native Vault 与像素教室，再运行依赖生成资源的插件测试。发布失败后可用 `release.yml` 的手动入口指定既有正式标签，或推送 `codex/release-v<版本>` 恢复分支；流程重新检出并完整校验该标签的代码，不移动版本标签、不覆盖已经公开的 Release。
 
 - Native Vault 0.22.1 的性能与用量独立于“显示调试记录”，只按原生 `ui-chat.performanceUsage` 的精简/详细选择展示。课堂面板标题的“管理课堂”打开原生 `sidebar.workspaces`，保留归档、运行中停止确认、撤销及已归档列表恢复；经已有 `renderSidebarSlot` 调用，不重复声明原生子槽。插件不再包装 `workspaceRegistry.archiveSession`，菜单与快捷键归档不发起模型回合；“总结本课”仍保存小结并保留会话，老师明确保存并归档时仍在回合结束后归档并保护新学生输入。

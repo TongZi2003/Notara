@@ -7,7 +7,7 @@ import { connectVault } from '../fixtures/vault-http.ts';
 
 test('minimal assets, local graph and native split panes keep file and conversation context', async ({ page }, testInfo) => {
   test.setTimeout(180_000);
-  const runtime = await startVaultIsolated();
+  const runtime = await startVaultIsolated({ testModel: true });
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });

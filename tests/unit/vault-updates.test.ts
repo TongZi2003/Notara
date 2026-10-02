@@ -21,6 +21,35 @@ test('only a newer stable version with a matching release manifest is offered', 
   expect(() => parseRelease(release, { ...manifest, version: '0.21.6' }, '0.21.4', runtime)).toThrow();
   expect(() => parseRelease({ ...release, assets: [asset('notara-update.json'), { ...asset(manifest.archive), browser_download_url: 'https://example.com/evil.zip' }] }, manifest, '0.21.4', runtime)).toThrow();
   expect(parseRelease(release, { ...manifest, runtime: { ...runtime, dataVersion: 5 } }, '0.21.4', runtime)?.compatible).toBe(false);
+  expect(() => compareVersions('01.2.3', '1.2.3')).toThrow(/格式/);
+  expect(() => compareVersions('9007199254740993.0.0', '1.0.0')).toThrow(/格式/);
+});
+
+test('partial stop failures restore the old Host and repeated recovery failure is reported honestly', async () => {
+  for (const recoveryFails of [false, true]) {
+    const calls: string[] = []; let stopped = 0;
+    const controller = new UpdateController('0.21.4', '/old', {
+      discover: async () => parseRelease(release, manifest, '0.21.4', runtime), prepare: async () => '/new',
+      stop: async () => { calls.push('stop'); stopped++; if (stopped === 1 || recoveryFails) throw new Error('worker already stopped; remote cleanup failed'); },
+      upgrade: async code => { calls.push(`upgrade:${code}`); }, start: async code => { calls.push(`start:${code}`); }, commit: async () => { calls.push('commit'); },
+    });
+    await controller.check(); await controller.apply();
+    expect(controller.status()).toMatchObject({ phase: 'error', currentVersion: '0.21.4' });
+    expect(calls).toEqual(recoveryFails ? ['stop', 'stop'] : ['stop', 'stop', 'upgrade:/old', 'start:/old']);
+    expect(controller.status().message).toContain(recoveryFails ? '原版本也未能启动' : '已恢复原版本');
+    await controller.close();
+  }
+});
+
+test('the public launch identity stays stable through checks and changes with a fresh launcher', async () => {
+  const operations = { discover: async () => null, prepare: async () => '/unused', stop: async () => {}, upgrade: async () => {}, start: async () => {}, commit: async () => {} };
+  const first = new UpdateController('0.21.4', '/old', operations), second = new UpdateController('0.21.4', '/old', operations);
+  const launchId = first.status().launchId;
+  expect(launchId).toMatch(/^[a-f0-9-]{36}$/);
+  await first.check();
+  expect(first.status().launchId).toBe(launchId);
+  expect(second.status().launchId).not.toBe(launchId);
+  await Promise.all([first.close(), second.close()]);
 });
 
 test('a checksum or escaping archive cannot change the staged installation', async () => {

@@ -62,7 +62,7 @@ const skySum = (page: Page) => page.locator('.nv-star-canvas').first().evaluate(
 
 test('the star map lights from real evidence, aggregates every leaf and follows new records', async ({ page }, testInfo) => {
   test.setTimeout(240_000);
-  const runtime = await startVaultIsolated();
+  const runtime = await startVaultIsolated({ testModel: true });
   const vault = join(runtime.root, 'workspace/vault');
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));

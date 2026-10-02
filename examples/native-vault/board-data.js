@@ -1,7 +1,7 @@
 import { parseFrontmatter, serializeFrontmatter } from './frontmatter.js';
 import { validateInteractiveRef } from './interactive-data.js';
 import { BOARD_COMPONENTS, answersFor, boardAnswerSummary, boardComponents, validateBoardComponents, validateStoredAnswers } from './board-components.js';
-import { BOARD_SIZES } from './board-layout.js';
+import { BOARD_RESIZE_LIMITS,BOARD_SIZES } from './board-layout.js';
 
 /** Host-bound lesson boards live here; only write_lesson_board writes them. */
 export const BOARD_DIRECTORY='lesson-board';
@@ -11,14 +11,14 @@ const marker = /^<!-- notara-board (\{[^\n]*\}) -->\r?\n/gm;
 const validObject = value => value && typeof value === 'object' && !Array.isArray(value);
 const idPattern = /^[a-zA-Z0-9-]{1,80}$/;
 const sectionPattern = /^s-[a-f0-9]{8}$/;
-const META_KEYS = ['id','kind','section','size','place','x','y','width','interactive','answers'];
+const META_KEYS = ['id','kind','section','size','place','x','y','width','height','interactive','answers'];
 const singleLine = (value,max) => typeof value==='string'&&value.trim()&&value.length<=max&&!/[\r\n]/.test(value);
 export function validateBoardBody(body) {
   if(typeof body !== 'string'||body.length>50000||/<!--\s*\/?notara-board\b/.test(body))fail('board_content_invalid');
   return body;
 }
 export function validateLayout(patch) {
-  for(const key of ['x','y','width']) if(patch[key]!==undefined&&(!Number.isFinite(patch[key])||Math.abs(patch[key])>50000||(key==='width'&&(patch[key]<180||patch[key]>1600))))fail('board_layout_invalid');
+  for(const key of ['x','y','width','height']) if(patch[key]!==undefined&&(!Number.isFinite(patch[key])||Math.abs(patch[key])>50000||(key==='width'&&(patch[key]<180||patch[key]>BOARD_RESIZE_LIMITS.maxWidth))||(key==='height'&&(patch[key]<BOARD_RESIZE_LIMITS.minHeight||patch[key]>BOARD_RESIZE_LIMITS.maxHeight))))fail('board_layout_invalid');
   return patch;
 }
 function validateSections(value) {
@@ -58,7 +58,7 @@ export function parseBoard(content,sessionId) {
     const text=body.slice(match.index+match[0].length,matches[i+1]?.index??body.length).trim();
     const heading=text.match(/^## ([^\n]+)\n?([\s\S]*)$/);
     if(!heading)fail('board_format_invalid');
-    blocks.push({id:meta.id,kind:meta.kind,...(meta.section?{section:meta.section}:{}),size:meta.size??'narrow',...(place?{place}:{}),...(meta.x!==undefined?{x:meta.x,y:meta.y}:{}),...(meta.width!==undefined?{width:meta.width}:{}),title:heading[1].trim(),body:validateBoardBody(heading[2].trim()),...(interactive?{interactive}: {}),...(answers?.length?{answers}:{})});
+    blocks.push({id:meta.id,kind:meta.kind,...(meta.section?{section:meta.section}:{}),size:meta.size??'narrow',...(place?{place}:{}),...(meta.x!==undefined?{x:meta.x,y:meta.y}:{}),...(meta.width!==undefined?{width:meta.width}:{}),...(meta.height!==undefined?{height:meta.height}:{}),title:heading[1].trim(),body:validateBoardBody(heading[2].trim()),...(interactive?{interactive}: {}),...(answers?.length?{answers}:{})});
   }
   const sourceNotes=frontmatter.sourceNotes??{};
   if(!validObject(sourceNotes))fail('board_format_invalid');
@@ -67,7 +67,7 @@ export function parseBoard(content,sessionId) {
 }
 export function renderBoard(board) {
   const header=serializeFrontmatter({type:'lesson-board',title:'课堂板书',session:board.sessionId,...(board.sections?.length?{sections:board.sections}:{}),sourceNotes:board.sourceNotes});
-  return header+'\n'+board.blocks.map(({id,kind,section,size,place,x,y,width,title,body,interactive,answers})=>`<!-- notara-board ${JSON.stringify({id,kind,...(section?{section}:{}),...(size&&size!=='narrow'?{size}:{}),...(place?{place}:{}),...(Number.isFinite(x)&&Number.isFinite(y)?{x,y}:{}),...(width!==undefined?{width}:{}),...(interactive?{interactive}: {}),...(answers?.length?{answers}:{})})} -->\n## ${title}\n\n${body}\n`).join('\n');
+  return header+'\n'+board.blocks.map(({id,kind,section,size,place,x,y,width,height,title,body,interactive,answers})=>`<!-- notara-board ${JSON.stringify({id,kind,...(section?{section}:{}),...(size&&size!=='narrow'?{size}:{}),...(place?{place}:{}),...(Number.isFinite(x)&&Number.isFinite(y)?{x,y}:{}),...(width!==undefined?{width}:{}),...(height!==undefined?{height}:{}),...(interactive?{interactive}: {}),...(answers?.length?{answers}:{})})} -->\n## ${title}\n\n${body}\n`).join('\n');
 }
 /**
  * The teacher's write: the same title replaces that block's body (its answers,
@@ -130,7 +130,7 @@ export function projectBoard(board,revision,files=[]) {
   for(const block of board.blocks)for(const ref of boardReferences(block.body)) {
     const path=resolve(ref.path);let source=sources.get(path);
     if(!source){const file=known.get(path),index=sources.size,note=Object.hasOwn(board.sourceNotes,path)?board.sourceNotes[path]:{};
-      source={path,title:file?.title??ref.label??path.split('/').pop(),body:note.body??'本课引用的资料',usedBy:[],x:note.x??60+(index%3)*400,y:note.y??60+Math.floor(index/3)*300,width:note.width??340,missing:!file};sources.set(path,source);}
+      source={path,title:file?.title??ref.label??path.split('/').pop(),body:note.body??'本课引用的资料',usedBy:[],x:note.x??60+(index%3)*400,y:note.y??60+Math.floor(index/3)*300,width:note.width??340,...(Number.isFinite(note.height)?{height:note.height}:{}),missing:!file};sources.set(path,source);}
     if(!source.usedBy.includes(block.id))source.usedBy.push(block.id);
   }
   const edges=[];

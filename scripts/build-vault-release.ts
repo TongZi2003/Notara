@@ -20,10 +20,13 @@ export async function buildRelease(output: string, source = project): Promise<{ 
     } else if (info.isFile()) files[`notara/${relative}`] = new Uint8Array(await readFile(path));
   };
   // Deliberate allowlist: no checkout history, private data, website or research evidence.
-  for (const path of ['package.json', 'package-lock.json', 'tsconfig.json', 'tsconfig.base.json', 'README.md', 'scripts', 'examples/native-vault', 'examples/pixel-classroom', 'resources', 'docs/install.md', 'docs/first-lesson.md',
-    'docs/runtime/plugins.md', 'docs/runtime/vault-launcher.md', 'docs/runtime/windows-native-vault.md', 'docs/runtime/upstream-lock.json', 'docs/runtime/update-contract.json']) await add(path);
+  for (const path of ['package.json', 'package-lock.json', 'tsconfig.json', 'tsconfig.base.json', 'README.md', '安装 Notara.cmd', '启动 Notara.cmd', '关闭 Notara.cmd', '创建桌面快捷方式.cmd', 'scripts', 'examples/native-vault', 'examples/pixel-classroom', 'resources', 'docs/install.md', 'docs/first-lesson.md',
+    'docs/runtime/plugins.md', 'docs/runtime/vault-launcher.md', 'docs/runtime/windows-native-vault.md', 'docs/runtime/upstream-lock.json', 'docs/runtime/update-contract.json',
+    'docs/runtime/chatgpt-account.md', 'docs/runtime/remote-access.md']) await add(path);
   const notes = `docs/releases/native-vault-${contract.version}.md`;
   if (await lstat(join(source, notes)).then(() => true, (error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return false; throw error; })) await add(notes);
+  const inventory = Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name.slice('notara/'.length), createHash('sha256').update(bytes).digest('hex')]));
+  files['notara/notara-files.json'] = new TextEncoder().encode(JSON.stringify({ format: 1, version: contract.version, files: inventory }, null, 2) + '\n');
   const bytes = zipSync(files, { level: 6 });
   const archive = `notara-${contract.version}.zip`;
   await mkdir(output, { recursive: true });

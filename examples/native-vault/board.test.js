@@ -16,8 +16,10 @@ import { renderBoardMarkdown,exportBoard,highlightBoardText } from './board-rend
 
 test('Markdown is the only body; revisions preserve stable identities and manual positions',()=>{
   const board=parseBoard(null,'lesson');upsertBoard(board,{title:'推导',body:'第一行'},'block-one');
-  board.blocks[0].x=817;board.blocks[0].y=90;upsertBoard(board,{title:'推导',body:'修正后的解释'},'unused');
-  const text=renderBoard(board),restored=parseBoard(text,'lesson');assert.deepEqual(restored,board);assert.equal(restored.blocks[0].id,'block-one');assert.equal(restored.blocks[0].x,817);assert.equal(text.match(/修正后的解释/g).length,1);
+  board.blocks[0].x=817;board.blocks[0].y=90;board.blocks[0].width=520;board.blocks[0].height=360;upsertBoard(board,{title:'推导',body:'修正后的解释'},'unused');
+  const text=renderBoard(board),restored=parseBoard(text,'lesson');assert.deepEqual(restored,board);assert.equal(restored.blocks[0].id,'block-one');assert.equal(restored.blocks[0].x,817);assert.equal(restored.blocks[0].width,520);assert.equal(restored.blocks[0].height,360);assert.equal(text.match(/修正后的解释/g).length,1);
+  assert.throws(()=>parseBoard(text.replace('"height":360','"height":99'),'lesson'),/board_layout_invalid/);
+  assert.throws(()=>parseBoard(text.replace('"width":520','"width":1601'),'lesson'),/board_layout_invalid/);
   assert.throws(()=>parseBoard(text,'other'),/binding/);assert.throws(()=>parseBoard(text+'\n<!-- notara-board broken -->','lesson'),/content/);
   assert.throws(()=>upsertBoard(board,{title:'另一个区域',body:'x',placement:{relativeTo:'不存在',position:'below'}},'new'),/anchor/);
 });
@@ -76,9 +78,13 @@ test('real native IO: scope, CAS, persisted layout/highlights, restart and forei
   assert.deepEqual((await service.board({sessionId:'a'})).blocks,[]);
   await service.executeTool('write_lesson_board',{title:'核心',body:'观察与证据'},exec);
   const first=await service.board({sessionId:'a'});assert.equal(first.blocks.length,1);assert.equal((await service.board({sessionId:'b'})).blocks.length,0);
-  const moved=await service.mutateBoard({sessionId:'a',expectedRevision:first.revision,blockId:first.blocks[0].id,patch:{x:591,y:120,body:'观察与<mark data-color="blue">证据</mark>'}});
+  const moved=await service.mutateBoard({sessionId:'a',expectedRevision:first.revision,blockId:first.blocks[0].id,patch:{x:591,y:120,width:520,height:360,body:'观察与<mark data-color="blue">证据</mark>'}});
+  assert.deepEqual({width:moved.blocks[0].width,height:moved.blocks[0].height},{width:520,height:360});
+  await assert.rejects(service.mutateBoard({sessionId:'a',expectedRevision:moved.revision,blockId:first.blocks[0].id,patch:{width:220}}),/board_layout_invalid/);
   await assert.rejects(service.mutateBoard({sessionId:'a',expectedRevision:first.revision,blockId:first.blocks[0].id,patch:{x:0}}),/revision_conflict/);
-  const restored=await service.board({sessionId:'a'});assert.deepEqual(restored,moved);assert.equal(restored.blocks[0].x,591);
+  const restored=await service.mutateBoard({sessionId:'a',expectedRevision:moved.revision,blockId:first.blocks[0].id,patch:{pinned:false}});
+  assert.equal(restored.blocks[0].x,undefined);assert.equal(restored.blocks[0].y,undefined);assert.equal(restored.blocks[0].width,undefined);assert.equal(restored.blocks[0].height,undefined);assert.match(restored.blocks[0].body,/证据/);
+  assert.deepEqual(await service.board({sessionId:'a'}),restored);
   assert.match(await readFile(join(rows[0].path,'vault',boardPath('a')),'utf8'),/data-color="blue"/);
   service.prepared.set(exec.agent,{boardRevision:first.revision});await assert.rejects(service.executeTool('write_lesson_board',{title:'核心',body:'不能覆盖'},exec),/revision_conflict/);
   const io=createAgentVaultIO(ctx,exec,{writeApproved:true});await io.save(boardPath('a'),renderBoard(parseBoard(null,'someone-else')),restored.revision);await assert.rejects(service.board({sessionId:'a'}),/binding/);

@@ -1,8 +1,7 @@
 /**
  * The teacher's Bash through Notara's Git Bash executor (git-bash-executor.js),
- * the one Windows uses. Here it runs with /bin/bash under the native sandbox
- * of this machine, so the path the teacher's commands take is the Windows one
- * minus the programs: the executor replaces the native shell, writes each
+ * the one Windows uses. Windows discovers Git Bash; other platforms use
+ * /bin/bash under the native sandbox. The executor replaces the native shell, writes each
  * command to a private script, adds its environment, keeps the Vault commands
  * working, stays confined to the workspace, and cleans its scripts up.
  */
@@ -25,9 +24,9 @@ const scripts = join(tmpdir(), 'notara-git-bash');
 const leftovers = async (): Promise<string[]> => (await readdir(scripts).catch(() => [])).filter(name => name.endsWith('.sh'));
 
 test('the teacher’s Bash runs through the Git Bash executor: scripts, environment, Vault commands and the sandbox', async () => {
-  runtime = await startVaultIsolated({ testModel: true, gitBash: '/bin/bash' });
+  runtime = await startVaultIsolated({ testModel: true, ...(process.platform === 'win32' ? {} : { gitBash: '/bin/bash' }) });
   const patch = JSON.stringify(JSON.parse(await readFile(join(runtime.root, 'home/cordis.patch.yml'), 'utf8')));
-  expect(patch).toContain('"id":"bash-sandbox","disabled":true');
+  expect(patch).toContain(`"id":"${process.platform === 'win32' ? 'pwsh' : 'bash'}-sandbox","disabled":true`);
   expect(patch).toContain('"@notara/vault-native/git-bash-executor"');
   harness = await connectVault(runtime);
   const sessionId = await harness.createSession();

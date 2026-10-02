@@ -16,6 +16,7 @@
  * ones already placed; a block that grows only pushes down what is under it.
  */
 export const BOARD_SIZES = Object.freeze(['narrow', 'wide', 'full']);
+export const BOARD_RESIZE_LIMITS = Object.freeze({ minWidth: 230, maxWidth: 1600, minHeight: 100, maxHeight: 4000 });
 export const LAYOUT = Object.freeze({ track: 340, gutter: 36, gap: 28, columns: 3, columnHeight: 900, sectionGap: 72, titleHeight: 64, origin: 60, estimate: 180 });
 
 const spanOf = size => size === 'full' ? 3 : size === 'wide' ? 2 : 1;
@@ -27,7 +28,7 @@ export const isPinned = block => Number.isFinite(block.x) && Number.isFinite(blo
  * @param sections ordered `{id,title}` list
  * @param blocks blocks in writing order: `{id, section, size, x?, y?, width?, place?}`
  * @param heights measured height per block id (missing ones use an estimate)
- * @returns `{positions: Map(id → {x,y,width}), frames: [{id,title,x,y,width,height,columns,titleWidth}]}`
+ * @returns `{positions: Map(id → {x,y,width,height?}), frames: [{id,title,x,y,width,height,columns,titleWidth}]}`
  */
 export function layoutBoard(sections, blocks, heights = new Map(), layout = LAYOUT) {
   const positions = new Map(), frames = [];
@@ -39,7 +40,7 @@ export function layoutBoard(sections, blocks, heights = new Map(), layout = LAYO
   for (const block of blocks) {
     if (!isPinned(block)) continue;
     const width = Number.isFinite(block.width) ? block.width : sizeWidth(block.size, layout);
-    positions.set(block.id, { x: block.x, y: block.y, width, pinned: true });
+    positions.set(block.id, { x: block.x, y: block.y, width, ...(Number.isFinite(block.height)?{height:block.height}:{}), pinned: true });
     if (!known.has(block.section)) legacyRight = Math.max(legacyRight, block.x + width);
   }
   let left = Number.isFinite(legacyRight) ? legacyRight + layout.sectionGap : layout.origin;

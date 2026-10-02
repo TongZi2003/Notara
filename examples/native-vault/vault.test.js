@@ -122,7 +122,7 @@ test('the legacy vault wins until material is already visible in the selected di
     await writeFile(join(outside, 'a.md'), '# 外部\n');
     const linked = join(base, 'linked');
     await mkdir(linked, { recursive: true });
-    await symlink(outside, join(linked, 'vault'));
+    await symlink(outside, join(linked, 'vault'), process.platform === 'win32' ? 'junction' : 'dir');
     assert.equal(resolveVaultRoot(linked), linked);
   } finally {
     await rm(base, { recursive: true, force: true });
@@ -198,7 +198,9 @@ test('a new file needs a name every system can hold; files that already exist ke
     const store = createVaultStore(root);
     await assert.rejects(() => store.save('题目:斜率.md', '# x\n', null), /vault_path_not_portable/);
     await assert.rejects(() => stat(join(root, '题目:斜率.md')), /ENOENT/);
-    // A name written before, by another tool on a system that allows it, still reads and saves.
+    // NTFS treats ':' as an alternate stream, not a portable legacy filename.
+    // On systems that allow it, a pre-existing name must still read and save.
+    if (process.platform === 'win32') return;
     await writeFile(join(root, 'old:name.md'), '# 旧\n');
     const old = await store.read('old:name.md');
     await store.save('old:name.md', '# 旧\n\n改过\n', old.revision);

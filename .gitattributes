@@ -1,3 +1,5 @@
 # Check out text with LF on every platform: templates, prompts and patch digests
 # assume LF, and Git for Windows would otherwise convert them to CRLF.
 * text=auto eol=lf
+# Windows Explorer launchers keep native batch line endings.
+*.cmd text eol=crlf

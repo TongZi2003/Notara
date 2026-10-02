@@ -1,4 +1,5 @@
 import { createHash,randomUUID } from 'node:crypto';
+import { BOARD_RESIZE_LIMITS } from './board-layout.js';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import { createAgentVaultIO } from './agent-io.js';
 import { BOARD_DIRECTORY,parseBoard,renderBoard,upsertBoard,projectBoard,validateBoardBody,validateLayout } from './board-data.js';
@@ -39,14 +40,16 @@ export function createBoardRuntime(service){
     async mutate({sessionId,expectedRevision,blockId,sourcePath,patch}){
       const io=await editor(sessionId),state=await readBoardDocument(io,sessionId);
       if(expectedRevision!==state.revision)fail('vault_revision_conflict');
-      if(!patch||typeof patch!=='object'||Array.isArray(patch)||Object.keys(patch).some(key=>!['x','y','width','body','pinned'].includes(key))||Boolean(blockId)===Boolean(sourcePath))fail('board_content_invalid');
-      if(patch.pinned!==undefined&&(patch.pinned!==false||!blockId||'x' in patch||'y' in patch))fail('board_content_invalid');
+      if(!patch||typeof patch!=='object'||Array.isArray(patch)||Object.keys(patch).some(key=>!['x','y','width','height','body','pinned'].includes(key))||Boolean(blockId)===Boolean(sourcePath))fail('board_content_invalid');
+      if(patch.pinned!==undefined&&(patch.pinned!==false||!blockId||Object.keys(patch).some(key=>key!=='pinned')))fail('board_content_invalid');
+      if(blockId&&patch.width!==undefined&&patch.width<BOARD_RESIZE_LIMITS.minWidth)fail('board_layout_invalid');
+      if(sourcePath&&patch.width!==undefined&&patch.width<BOARD_RESIZE_LIMITS.minWidth)fail('board_layout_invalid');
       validateLayout(patch);if(patch.body!==undefined)validateBoardBody(patch.body);
       if(blockId){
         const block=state.board.blocks.find(block=>block.id===blockId);if(!block)fail('board_block_missing');
         // A student's highlight edits prose only; the questions and figures stay the teacher's.
         if(patch.body!==undefined&&componentShape(patch.body)!==componentShape(block.body))fail('board_component_locked');
-        if(patch.pinned===false){if(!block.section)fail('board_unpin_unavailable');delete block.x;delete block.y;}
+        if(patch.pinned===false){if(!block.section)fail('board_unpin_unavailable');delete block.x;delete block.y;delete block.width;delete block.height;}
         const {pinned,...layout}=patch;Object.assign(block,layout);
         if((block.x===undefined)!==(block.y===undefined))fail('board_layout_invalid');
       }
