@@ -117,6 +117,8 @@ test('永久删除要求双重确认，级联移除关联会话并在重启后�
     // The next process has fresh query and persistence caches; deleted logs do not return.
     await client.close();
     client = undefined;
+    // Detach the old document before intentionally taking its server offline.
+    await page.goto('about:blank');
     await runtime.restart();
     client = await connectVault(runtime);
     const afterRestart = await client.sessions();
@@ -132,10 +134,15 @@ test('永久删除要求双重确认，级联移除关联会话并在重启后�
     await expect(sessionRow(page, ROOT_TITLE)).toHaveCount(0);
     await expect(sessionRow(page, CHILD_TITLE)).toHaveCount(0);
   } finally {
-    await testInfo.attach('browser-errors', { body: JSON.stringify(errors), contentType: 'application/json' });
-    await testInfo.attach('runtime-log', { body: runtime.log(), contentType: 'text/plain' });
-    await client?.close();
-    await runtime.stop();
+    // The native client can still be registering inspection providers after Home
+    // appears. Close its document before stopping the server used by those RPCs.
+    try { await page.close(); }
+    finally {
+      await testInfo.attach('browser-errors', { body: JSON.stringify(errors), contentType: 'application/json' });
+      await testInfo.attach('runtime-log', { body: runtime.log(), contentType: 'text/plain' });
+      try { await client?.close(); }
+      finally { await runtime.stop(); }
+    }
   }
   expect(errors.filter(message => !/favicon|net::|MISSING_CREDENTIAL|API key/i.test(message))).toEqual([]);
 });
