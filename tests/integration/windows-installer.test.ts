@@ -9,7 +9,7 @@ const execFileAsync = promisify(execFile);
 const windowsOnly = process.platform === 'win32';
 const projectRoot = resolve('.');
 const installerScript = join(projectRoot, 'scripts', 'windows-install.ps1');
-const installerCommand = join(projectRoot, '安装 Notara.cmd');
+const installerCommand = join(projectRoot, 'install-notara.cmd');
 const fixtureScript = join(projectRoot, 'tests', 'fixtures', 'windows-installer-qa.ps1');
 
 interface MockCaseResult {

@@ -285,12 +285,12 @@ function Invoke-NotaraInstall {
         $shortcutArguments += '-NoUI'
         & $powerShellExe @shortcutArguments
         $shortcutExitCode = $LASTEXITCODE
-        if ($shortcutExitCode -ne 0) { throw "Notara 已安装，但创建桌面快捷方式失败（退出码 $shortcutExitCode）。仍可双击解压目录中的「启动 Notara.cmd」和「关闭 Notara.cmd」。" }
+        if ($shortcutExitCode -ne 0) { throw "Notara 已安装，但创建桌面快捷方式失败（退出码 $shortcutExitCode）。仍可双击解压目录中的「start-notara.cmd」和「stop-notara.cmd」。" }
     }
 
     Show-InstallProgress 100 '安装完成'
-    $success = "Notara 安装完成。以后双击解压目录中的「启动 Notara.cmd」启动，双击「关闭 Notara.cmd」停止。"
-    if ($NoShortcuts) { $success += "`n桌面快捷方式未创建；可随时双击「创建桌面快捷方式.cmd」。" }
+    $success = "Notara 安装完成。以后双击解压目录中的「start-notara.cmd」启动，双击「stop-notara.cmd」停止。"
+    if ($NoShortcuts) { $success += "`n桌面快捷方式未创建；可随时双击「create-notara-shortcuts.cmd」。" }
     Show-InstallerMessage $success
 }
 

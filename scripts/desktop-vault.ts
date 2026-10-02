@@ -33,7 +33,7 @@ try {
   if (action === 'start') {
     if (!url) throw new Error('Notara 尚未就绪，请稍后重试启动。');
     if (!noOpen) await openVaultBrowser(url);
-    console.log('Notara 已在后台运行；关闭浏览器不会停止服务。使用“关闭 Notara”正常退出。');
+    console.log('Notara 已在后台运行；关闭浏览器不会停止服务。使用“Stop Notara”正常退出。');
   } else {
     if (url) throw new Error('Notara 是从其他终端启动的，此快捷方式没有关闭它。请回到原启动终端按 Ctrl+C。');
     console.log('Notara 已关闭，课堂和资料已保留。');

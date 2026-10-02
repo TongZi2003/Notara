@@ -12,7 +12,7 @@ afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {
 test('release inventory includes all Windows executable, source and license assets, excluding the cache lock and unrelated versions', async () => {
   const root = await mkdtemp(join(tmpdir(), 'notara-release-posix-')); roots.push(root);
   const text = async (path: string, content = 'fixture'): Promise<void> => { await mkdir(dirname(join(root, path)), { recursive: true }); await writeFile(join(root, path), content); };
-  for (const path of ['package-lock.json', 'tsconfig.json', 'tsconfig.base.json', 'README.md', 'LICENSE', '安装 Notara.cmd', '启动 Notara.cmd', '关闭 Notara.cmd', '创建桌面快捷方式.cmd',
+  for (const path of ['package-lock.json', 'tsconfig.json', 'tsconfig.base.json', 'README.md', 'LICENSE', 'install-notara.cmd', 'start-notara.cmd', 'stop-notara.cmd', 'create-notara-shortcuts.cmd',
     'scripts/entry.ts', 'examples/pixel-classroom/package.json', 'resources/font.txt', 'resources/icons/notara.ico', 'docs/install.md', 'docs/first-lesson.md', 'docs/runtime/plugins.md',
     'docs/runtime/vault-launcher.md', 'docs/runtime/windows-native-vault.md', 'docs/runtime/upstream-lock.json', 'docs/runtime/chatgpt-account.md', 'docs/runtime/remote-access.md']) await text(path);
   await text('package.json', JSON.stringify({ devDependencies: { '@deepseek-ai/dsh': '0.2.0-rc.1', '@deepseek-ai/cordis': '4.0.4' } }));

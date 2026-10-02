@@ -39,9 +39,10 @@
 
 - Windows x64 免安装包由 `scripts/build-portable-release.ts` 在 Windows 构建，携带独立 Node/npm、已安装依赖和标准发布代码，不含用户运行目录。`notara-portable.json` 校验预构建资源后才跳过启动构建；启动器优先使用包内 runtime，并为更新器提供对应 npm。程序移动或旧数据升级仍须显式 `vault:upgrade`，不得绕过快照版本保护。普通安装器只适用于标准 Release ZIP，便携包不带其安装入口。
 - `codex/release-v*` 分支推送只校验该提交及其实际便携包，不要求预建版本标签、不发布资产；标签推送或手动指定已有标签才进入正式发布。`.runtime` 下的 artifact 仅按 ZIP/校验文件白名单开启隐藏文件上传。
+- 0.23.6 起 Windows 根目录入口使用 `install-notara.cmd`、`start-notara.cmd`、`stop-notara.cmd`、`create-notara-shortcuts.cmd`，桌面入口为 `Start Notara` / `Stop Notara`。ZIP 通过 fflate 流式写入 UTF-8 文件名，不能使用依赖 Windows 活动代码页的 tar 写 ZIP；真实包验收用 Windows PowerShell 调用 .NET `ZipFile.ExtractToDirectory`。
 - 白板自动排版按已固定卡片的实际宽高避让，并将其占用宽度计入所在板块；用户手动固定的位置不由自动排版改写。控制器的 ready 状态只在私有状态文件成功发布后对启动调用可见；Windows 文件占用只允许有界重试原子替换，不删除目标文件来腾位置。
 
-- Native Vault 0.23.1 的 Windows Release 快捷安装入口为 `安装 Notara.cmd` / `scripts/windows-install.ps1`，由 Node 原生执行 `scripts/install-vault.ts`（启动时不能依赖已有 node_modules）。发布包带 `notara-files.json` 源文件哈希清单；源码仓库或修改过的包拒绝覆盖。依赖与新版代码在解压目录的临时子目录构建后切换，原数据与快照不迁移；源码/npm 安装继续保留。测试使用临时包与注入操作，不执行真实 winget 安装或写真实桌面。
+- Windows Release 快捷安装入口为 `install-notara.cmd` / `scripts/windows-install.ps1`，由 Node 原生执行 `scripts/install-vault.ts`（启动时不能依赖已有 node_modules）。发布包带 `notara-files.json` 源文件哈希清单；源码仓库或修改过的包拒绝覆盖。依赖与新版代码在解压目录的临时子目录构建后切换，原数据与快照不迁移；源码/npm 安装继续保留。测试使用临时包与注入操作，不执行真实 winget 安装或写真实桌面。
 - Native Vault 0.23.1 的 ChatGPT 订阅接入在 `chatgpt-auth.js / chatgpt-provider.js / chatgpt-runtime.js`。使用 OpenAI 官方动态注册、PKCE 和 loopback callback；令牌只写 `DSH_HOME/notara-chatgpt`，禁止进入浏览器、日志、Vault 或发布包。每账号独立路由，模型从授权目录读取，Responses 必须等 `response.completed` 才完成。无真实账号时只能记录协议模拟与浏览器登录入口测试，不能宣称真实订阅推理通过。
 - 0.23.1 白板卡片的可选 `height` 与 `width` 随布局持久化；resize 使用指针捕获并按相机缩放换算，恢复默认同时清除位置和手动尺寸，全览也采用资料卡手动高度。公式保持原 KaTeX 渲染，只在卡内局部滚动。课堂永久删除经独立 `notaraSession` Remote 和输入标题确认，删除前证明整棵关联会话树空闲；删除保护覆盖原生会话修改入口，等待已开始的修改后重新核对确认，不能只拦新 prompt。仅处理原生 JSONL 会话目录，保留学习资料与共享附件。
 - 0.23.1 远控入口在 `scripts/remote-vault.ts`，私有配置和控制状态放在代码目录外的专用目录。修改权限前校验路径及真实目标，拒绝代码目录及其祖先、盘根和用户主目录，避免 Windows 继承 ACL 波及代码与依赖、触发客户端热重载。测试必须显式使用临时配置、临时数据根与独立端口；不得调用真实用户的 ngrok 凭据或启动公网隧道代替隔离测试。真实公网连通需要另行记录。

@@ -184,7 +184,7 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
     else if (args[i] === '--npm-entry' && args[i + 1]) npmEntry = resolve(args[++i]!);
     else throw new Error(`未知安装参数：${args[i]}`);
   }
-  if (!npmEntry) throw new Error('未找到 npm，请通过「安装 Notara.cmd」启动。');
+  if (!npmEntry) throw new Error('未找到 npm，请通过「install-notara.cmd」启动。');
   try { await installVault(resolve(dirname(fileURLToPath(import.meta.url)), '..'), { npmEntry, skipLatest }); }
   catch (error) { console.error(`Notara 安装未完成：${error instanceof Error ? error.message : String(error)}`); process.exitCode = 1; }
 }

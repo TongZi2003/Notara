@@ -16,14 +16,25 @@ Notara 底层基于 **DeepSeek Harness**。保存的解题卡片、学生理解�
 
 ## 🚀 安装与启动
 
+Windows 入口文件统一使用英文名，方便在不同语言的系统上使用喵：
+
+| 文件 | 用途 |
+| --- | --- |
+| `install-notara.cmd` | 安装普通压缩包；免安装包不需要、也不包含此入口 |
+| `start-notara.cmd` | 启动 Notara 并打开浏览器 |
+| `stop-notara.cmd` | 正常关闭后台服务，保留学习数据 |
+| `create-notara-shortcuts.cmd` | 创建桌面 `Start Notara` 与 `Stop Notara` 快捷方式 |
+
+旧版中文名称的桌面快捷方式不会自动删除；换到新版目录后，可手动移除指向旧版的入口，再使用新版图标。
+
 ### Windows x64 免安装版（推荐）
 
 如果希望省去安装环境与本地构建的等待，可以直接抱走 [notara-portable-0.23.6-win-x64.zip](https://github.com/TongZi2003/Notara/releases/download/v0.23.6/notara-portable-0.23.6-win-x64.zip)。面向 **Windows 10 1903+ / Windows 11 x64** 系统喵。
 
 1. 下载并完整解压到一个普通可写文件夹中（千万不要直接在压缩包里点运行，耳朵会吓耷拉的！）。
-2. 双击「启动 Notara.cmd」。不需要预先安装 Node.js、npm 或 Git，也不用敲任何安装脚本。
+2. 双击「start-notara.cmd」。不需要预先安装 Node.js、npm 或 Git，也不用敲任何安装脚本。
 3. 浏览器打开后，配好模型账号并选定学习目录。若使用 ChatGPT 订阅或手机远控，按需补充设置即可。
-4. 想休息时，双击「关闭 Notara.cmd」正常停止。需要桌面入口时，双击「创建桌面快捷方式.cmd」，就能生成「启动 Notara」和「关闭 Notara」两个图标啦。
+4. 想休息时，双击「stop-notara.cmd」正常停止。需要桌面入口时，双击「create-notara-shortcuts.cmd」，就能生成「Start Notara」和「Stop Notara」两个图标啦。
 
 免安装包打包了运行时、依赖库、构建成品与教师命令工具，下载体积会稍大一些。首次启动需要初始化本地数据小窝，启动快慢取决于机器性能，耐心等它伸个懒腰就好。程序文件与学习数据分开存放，默认运行数据保存在当前用户的 `~/.notara/vault-runtime`，正常停止服务会保留数据；重要资料仍建议定期备份。
 
@@ -37,7 +48,7 @@ Notara 底层基于 **DeepSeek Harness**。保存的解题卡片、学生理解�
 
 ### Windows 快捷安装
 
-从 [0.23.6 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.23.6) 下载 [notara-0.23.6.zip](https://github.com/TongZi2003/Notara/releases/download/v0.23.6/notara-0.23.6.zip)。完整解压到可写目录，双击运行里面的 **安装 Notara.cmd**。桌面入口带有暖黄色的便笺 N 图标。
+从 [0.23.6 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.23.6) 下载 [notara-0.23.6.zip](https://github.com/TongZi2003/Notara/releases/download/v0.23.6/notara-0.23.6.zip)。完整解压到可写目录，双击运行里面的 **install-notara.cmd**。桌面入口带有暖黄色的便笺 N 图标。
 
 安装器会自动检查 **Node.js 24+、npm 和 Git Bash**。若缺少组件，将通过 Windows **WinGet** 自动补全（系统弹出权限确认时轻点允许即可）。随后安装器会检查最新正式版，展示带有阶段百分比的进度条，完成依赖拉取与构建，并在解压出的 `notara` 目录准备好环境。百分比表示安装阶段，不代表下载进度或剩余时间。
 
@@ -61,13 +72,13 @@ Windows 原生环境要求 **Windows 10 1903+ / Windows 11 与 x64 Node**。教�
 
 ### 日常启动与关闭
 
-Windows 用户在完成依赖准备后，日常使用根目录的 **启动 Notara.cmd** 与 **关闭 Notara.cmd** 即可。双击 **创建桌面快捷方式.cmd** 会自动生成带图标的桌面入口，已验证中文、emoji、阿拉伯文及含空格、`&` 的路径。
+Windows 用户在完成依赖准备后，日常使用根目录的 **start-notara.cmd** 与 **stop-notara.cmd** 即可。双击 **create-notara-shortcuts.cmd** 会自动生成带图标的桌面入口，已验证中文、emoji、阿拉伯文及含空格、`&` 的路径。
 
-启动入口会在后台运行服务并开启登录页；浏览器关闭不会中断服务。收工时请使用「关闭 Notara」让该入口管理的实例平稳停止。若通过 `npm run vault` 在终端启动，请回原终端按 `Ctrl+C` 停止。
+启动入口会在后台运行服务并开启登录页；浏览器关闭不会中断服务。收工时请使用「Stop Notara」让该入口管理的实例平稳停止。若通过 `npm run vault` 在终端启动，请回原终端按 `Ctrl+C` 停止。
 
 默认学习数据存放在 **`~/.notara/vault-runtime`**（Windows 通常位于 `C:\Users\你的用户名\.notara\vault-runtime`），默认端口为 **`57093`**。默认程序目录与数据目录分开保存，运行所需依赖仍会关联程序目录；自选的外部学习目录可以位于其他位置。
 
-服务已在后台运行、需要重新调出页面时，可以再次双击「启动 Notara.cmd」。已安装系统 Node/npm 的用户也可以在程序目录执行：
+服务已在后台运行、需要重新调出页面时，可以再次双击「start-notara.cmd」。已安装系统 Node/npm 的用户也可以在程序目录执行：
 
 ```sh
 npm run vault:open
@@ -154,7 +165,7 @@ npm run vault:upgrade
 npm run vault
 ```
 
-普通压缩包或免安装版需要手动更新时，把新版完整解压到新的可写目录，保留原程序和数据备份。先移除指向旧程序目录的「启动 Notara」「关闭 Notara」桌面快捷方式，以免创建新版入口时发生同名冲突。普通包运行「安装 Notara.cmd」，再在新程序目录的 Git Bash 中执行 `npm run vault:upgrade`；免安装版直接使用前文的包内 Node 快照升级命令。两种方式都要指定原来的数据目录（使用默认目录时无需额外参数），升级完成后再启动，并按需创建新的桌面入口。
+普通压缩包或免安装版需要手动更新时，把新版完整解压到新的可写目录，保留原程序和数据备份。先移除指向旧程序目录的「Start Notara」「Stop Notara」桌面快捷方式，以免创建新版入口时发生同名冲突。普通包运行「install-notara.cmd」，再在新程序目录的 Git Bash 中执行 `npm run vault:upgrade`；免安装版直接使用前文的包内 Node 快照升级命令。两种方式都要指定原来的数据目录（使用默认目录时无需额外参数），升级完成后再启动，并按需创建新的桌面入口。
 
 从 **0.21.0 以前的版本升级后**，首次打开旧课会迁移会话格式。如果要回退到旧版，需要停止新版、恢复旧代码及对应依赖，并将升级前的完整备份恢复到原数据目录位置；仅换回插件快照不够。详情参考[安装说明中的升级与回退](docs/install.md#升级和回退)。
 

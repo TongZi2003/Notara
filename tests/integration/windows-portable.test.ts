@@ -1,6 +1,6 @@
 import { execFile, spawn } from 'node:child_process';
 import { closeSync, openSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -19,9 +19,14 @@ test.skipIf(process.platform !== 'win32' || !archive)('portable ZIP starts with 
   const execute = promisify(execFile);
   let run: ((action: string) => Promise<{ code: number; output: string }>) | undefined;
   try {
-    // Give CreateProcessW the Unicode working directory; Windows tar's -C
-    // argument is decoded through the active code page on some releases.
-    await execute(join(systemRoot, 'System32/tar.exe'), ['-xf', resolve(archive!)], { cwd: directory, windowsHide: true, maxBuffer: 1_000_000 });
+    // Exercise Windows' standard ZIP reader, not the same library that writes
+    // the package. Environment values keep Unicode paths out of shell source.
+    const extract = "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory($env:NOTARA_QA_ARCHIVE, $env:NOTARA_QA_OUTPUT)";
+    await execute(ps, ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(extract, 'utf16le').toString('base64')], {
+      env: { ...process.env, NOTARA_QA_ARCHIVE: resolve(archive!), NOTARA_QA_OUTPUT: directory },
+      cwd: directory, windowsHide: true, timeout: 150_000, maxBuffer: 1_000_000,
+    });
+    expect(await readdir(project), 'Windows extraction must include all English launchers').toEqual(expect.arrayContaining(['start-notara.cmd', 'stop-notara.cmd', 'create-notara-shortcuts.cmd']));
     await mkdir(profile);
     const guard = join(directory, 'network-guard.mjs');
     await writeFile(guard, `const original=globalThis.fetch;globalThis.fetch=async(input,init)=>{const url=new URL(typeof input==='string'||input instanceof URL?input:input.url);if(['localhost','127.0.0.1','::1'].includes(url.hostname))return original(input,init);if(url.hostname==='api.github.com')return new Response(null,{status:404});throw Error('Portable QA blocked external network');};`);
@@ -76,7 +81,7 @@ test.skipIf(process.platform !== 'win32' || !archive)('portable ZIP starts with 
     expect((await readVaultState(runtimeRoot))?.testModel).toBe(true);
     await expect(stat(join(project, 'LICENSE'))).resolves.toBeDefined();
     await expect(stat(join(project, 'runtime/LICENSE'))).resolves.toBeDefined();
-    await expect(stat(join(project, '安装 Notara.cmd'))).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(stat(join(project, 'install-notara.cmd'))).rejects.toMatchObject({ code: 'ENOENT' });
   } finally {
     if (run && await liveVaultUrl(runtimeRoot).catch(() => undefined)) await run('Stop');
     expect(await liveVaultUrl(runtimeRoot).catch(() => undefined)).toBeUndefined();

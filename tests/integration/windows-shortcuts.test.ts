@@ -337,8 +337,8 @@ test.skipIf(!windowsOnly)('Windows PowerShell 5 creates COM-readable shortcuts a
     const shortcutPort = await randomPort();
     const generated = await runLauncher('Shortcuts', sandbox, { port: shortcutPort });
     expect(generated.code, `${generated.stdout}\n${generated.stderr}`).toBe(0);
-    const startPath = join(sandbox.shortcutDirectory, '启动 Notara.lnk');
-    const stopPath = join(sandbox.shortcutDirectory, '关闭 Notara.lnk');
+    const startPath = join(sandbox.shortcutDirectory, 'Start Notara.lnk');
+    const stopPath = join(sandbox.shortcutDirectory, 'Stop Notara.lnk');
     expect((await stat(startPath)).isFile()).toBe(true);
     expect((await stat(stopPath)).isFile()).toBe(true);
 
@@ -372,12 +372,12 @@ test.skipIf(!windowsOnly)('Windows PowerShell 5 creates COM-readable shortcuts a
 
     const foreignDirectory = join(sandbox.directory, '其他安装 & 不覆盖');
     await mkdir(foreignDirectory, { recursive: true });
-    const foreignStart = join(foreignDirectory, '启动 Notara.lnk');
+    const foreignStart = join(foreignDirectory, 'Start Notara.lnk');
     await createForeignShortcut(foreignStart, foreignDirectory, sandbox.env);
     const refused = await runLauncher('Shortcuts', sandbox, { shortcutDirectory: foreignDirectory });
     expect(refused.code).not.toBe(0);
     expect(await stat(foreignStart)).toBeDefined();
-    await expect(stat(join(foreignDirectory, '关闭 Notara.lnk'))).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(stat(join(foreignDirectory, 'Stop Notara.lnk'))).rejects.toMatchObject({ code: 'ENOENT' });
   } finally {
     await rm(sandbox.directory, { recursive: true, force: true });
   }

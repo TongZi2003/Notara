@@ -4,9 +4,9 @@
 
 ## Windows x64 免安装版
 
-下载 Release 中的 `notara-portable-版本号-win-x64.zip`，完整解压后双击「启动 Notara.cmd」。包内包含 Node.js、npm、Windows 依赖与构建产物，无需先安装系统 Node.js、Git 或运行安装脚本。运行要求仍为 Windows 10 1903+ / Windows 11 x64；首次启动需要初始化数据目录，模型账号和可选的 ngrok 仍需自行配置。
+下载 Release 中的 `notara-portable-版本号-win-x64.zip`，完整解压后双击「start-notara.cmd」。包内包含 Node.js、npm、Windows 依赖与构建产物，无需先安装系统 Node.js、Git 或运行安装脚本。运行要求仍为 Windows 10 1903+ / Windows 11 x64；首次启动需要初始化数据目录，模型账号和可选的 ngrok 仍需自行配置。
 
-用「关闭 Notara.cmd」停止；需要桌面入口时运行「创建桌面快捷方式.cmd」。便携包的程序体积较大，课堂与资料仍保存在用户的 `.notara/vault-runtime`，并不写入程序包。
+用「stop-notara.cmd」停止；需要桌面入口时运行「create-notara-shortcuts.cmd」。便携包的程序体积较大，课堂与资料仍保存在用户的 `.notara/vault-runtime`，并不写入程序包。
 
 已有旧版本数据、移动或重新命名程序目录时，先停止服务并保留数据备份，在新程序目录的 PowerShell 中执行：
 
@@ -20,8 +20,8 @@
 
 1. 从 [GitHub Releases](https://github.com/TongZi2003/Notara/releases/latest) 下载 `notara-版本号.zip`（不要选择自动生成的 Source code 包）。
 2. 完整解压到可写的文件夹，例如 `D:\学习工具`；程序位于解压出的 `D:\学习工具\notara`，之后保持该位置。
-3. 双击 **安装 Notara.cmd**。脚本检测 Node.js 24+、npm、Git for Windows 的 Bash，已有可用依赖直接使用，缺少的通过 WinGet 安装；Windows 请求权限时由你确认。
-4. 等待检查官方最新正式版、安装 npm 依赖并构建。进度条显示阶段完成百分比；安装依赖期间等待 npm 完成，不把等待时间当成下载百分比。成功后自动创建桌面「启动 Notara」「关闭 Notara」，双击启动即可。安装本身不启动服务，ngrok 仍是设置里的可选功能。
+3. 双击 **install-notara.cmd**。脚本检测 Node.js 24+、npm、Git for Windows 的 Bash，已有可用依赖直接使用，缺少的通过 WinGet 安装；Windows 请求权限时由你确认。
+4. 等待检查官方最新正式版、安装 npm 依赖并构建。进度条显示阶段完成百分比；安装依赖期间等待 npm 完成，不把等待时间当成下载百分比。成功后自动创建桌面「Start Notara」「Stop Notara」，双击启动即可。安装本身不启动服务，ngrok 仍是设置里的可选功能。
 
 WinGet 由 Windows 的 App Installer 提供；若缺失，按脚本给出的官方链接安装 App Installer，或按下方原有步骤手动安装 Node.js 和 Git，再运行脚本。Windows 自动安装命令使用固定包 ID 和官方 WinGet 源，参数参见 [Microsoft WinGet 安装文档](https://learn.microsoft.com/en-us/windows/package-manager/winget/install)。不会修改系统执行策略。
 
@@ -75,7 +75,7 @@ npm run vault
 
 ## 日常打开和停止
 
-Windows 安装依赖后，双击项目目录中的 **创建桌面快捷方式.cmd**，桌面会出现带黄色便笺 N 图标的「启动 Notara」和「关闭 Notara」。也可直接双击项目目录中的 **启动 Notara.cmd** / **关闭 Notara.cmd**。快捷方式创建与读取支持中文、emoji 和阿拉伯文路径，无需更改系统语言设置。图标随发布包提供，并由文件清单校验。
+Windows 安装依赖后，双击项目目录中的 **create-notara-shortcuts.cmd**，桌面会出现带黄色便笺 N 图标的「Start Notara」和「Stop Notara」。也可直接双击项目目录中的 **start-notara.cmd** / **stop-notara.cmd**。快捷方式创建与读取支持中文、emoji 和阿拉伯文路径，无需更改系统语言设置。图标随发布包提供，并由文件清单校验。
 
 若刚才已用 `npm run vault` 启动，先在那个终端按 `Ctrl+C` 停止，再改用启动快捷方式。
 

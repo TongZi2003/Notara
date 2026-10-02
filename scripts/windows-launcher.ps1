@@ -40,7 +40,7 @@ function New-DesktopShortcuts {
     . (Join-Path $PSScriptRoot 'windows-shortcuts.ps1')
     $powershellPath = Join-Path ([Environment]::GetFolderPath('System')) 'WindowsPowerShell\v1.0\powershell.exe'
     $iconPath = Join-Path $projectRoot 'resources\icons\notara.ico'
-    $entries = @(@{ Name = '启动 Notara'; Action = 'Start' }, @{ Name = '关闭 Notara'; Action = 'Stop' })
+    $entries = @(@{ Name = 'Start Notara'; Action = 'Start' }, @{ Name = 'Stop Notara'; Action = 'Stop' })
     # Validate both existing names before changing either shortcut.
     foreach ($entry in $entries) {
         $path = Join-Path $destination ($entry.Name + '.lnk')
@@ -66,7 +66,7 @@ function New-DesktopShortcuts {
         }
         Write-NotaraShortcut @shortcut
     }
-    Show-Result "已创建「启动 Notara」和「关闭 Notara」两个桌面快捷方式。`n移动或重新解压项目后，请在新目录重新创建快捷方式。"
+    Show-Result "已创建「Start Notara」和「Stop Notara」两个桌面快捷方式。`n移动或重新解压项目后，请在新目录重新创建快捷方式。"
 }
 
 try {
@@ -94,7 +94,7 @@ try {
             $nodePath = $candidate.Source; $npmEntry = $candidateNpm; break
         }
     }
-    if (-not $nodePath) { throw '需要 Node.js 24 或更新版本及 npm。请运行「安装 Notara.cmd」或修复 Node.js 安装。' }
+    if (-not $nodePath) { throw '需要 Node.js 24 或更新版本及 npm。请运行「install-notara.cmd」或修复 Node.js 安装。' }
     if (-not (Test-Path -LiteralPath (Join-Path $projectRoot 'node_modules\tsx\package.json'))) {
         throw '依赖尚未安装。请在项目目录的 Git Bash 执行 npm ci --no-audit --no-fund，完成后再双击启动。'
     }

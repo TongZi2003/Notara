@@ -4,7 +4,7 @@
 
 ## 压缩包快捷安装
 
-下载官方 Release 的 `notara-版本号.zip`，完整解压后双击 `安装 Notara.cmd`，程序安装在该脚本所在目录。缺少 Node.js 24+、npm 或 Git Bash 时自动通过 WinGet 安装，随后检查最新正式版、安装项目依赖、构建并创建启动/关闭桌面快捷方式。系统权限提示由用户确认。ngrok 不随安装启用。
+下载官方 Release 的 `notara-版本号.zip`，完整解压后双击 `install-notara.cmd`，程序安装在该脚本所在目录。缺少 Node.js 24+、npm 或 Git Bash 时自动通过 WinGet 安装，随后检查最新正式版、安装项目依赖、构建并创建启动/关闭桌面快捷方式。系统权限提示由用户确认。ngrok 不随安装启用。
 
 详细参数、网络失败处理与目录保护见[快捷安装说明](../install.md#windows-压缩包快捷安装)。以下 Git Bash 源码安装流程继续保留。
 
@@ -38,7 +38,7 @@ Git Bash 窗口需要保持打开；关闭它会停止本地服务。以后在 `
 
 ### 桌面一键启动与关闭
 
-完成依赖安装后，双击项目目录里的 `创建桌面快捷方式.cmd`，在当前用户桌面生成 `启动 Notara.lnk` 和 `关闭 Notara.lnk`。也可以直接双击项目中的 `启动 Notara.cmd` / `关闭 Notara.cmd`。
+完成依赖安装后，双击项目目录里的 `create-notara-shortcuts.cmd`，在当前用户桌面生成 `Start Notara.lnk` 和 `Stop Notara.lnk`。也可以直接双击项目中的 `start-notara.cmd` / `stop-notara.cmd`。
 
 启动入口使用后台控制器，服务就绪后打开当前认证入口；退出启动窗口或关闭浏览器都不会停止服务。关闭入口等待控制器及它管理的本地服务停止，保留全部学习数据；默认不开启 ngrok。重复启动复用实例，重复停止安全。若服务由另一个终端启动，关闭入口提示使用原终端的 `Ctrl+C`，不会按进程名批量结束 Node。
 
