@@ -4,7 +4,7 @@
 
 Notara 是基于 **DeepSeek Harness** 的学习工具。题目、理解的变化和课堂小结保存在本机的 Markdown 文件里。下次回来，可以沿着计划、Vault 和技能页继续学。
 
-当前版本 **0.23.2**，依赖 **DSH 0.2.0-rc.1**。本版修复 Windows 教师命令执行与资料写入，并修复空白课堂的草稿恢复和 ChatGPT 登录端口问题。详情见 [0.23.2 发布说明](docs/releases/native-vault-0.23.2.md)。
+当前开发版本 **0.23.3**，依赖 **DSH 0.2.0-rc.1**。本版承接尚未正式发布的 Windows 教师命令、资料写入、空白课堂草稿与 ChatGPT 登录修复，并补上管理员启动环境中的管道权限修复。云端发布验证仍在进行，详情见 [0.23.3 发布说明](docs/releases/native-vault-0.23.3.md)。
 
 ## 可以怎样学
 
@@ -18,7 +18,7 @@ Notara 是基于 **DeepSeek Harness** 的学习工具。题目、理解的变化
 
 ### Windows 快捷安装
 
-从 [0.23.2 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.23.2) 下载 [notara-0.23.2.zip](https://github.com/TongZi2003/Notara/releases/download/v0.23.2/notara-0.23.2.zip)。完整解压到可写的程序目录，再双击其中的 **安装 Notara.cmd**。
+0.23.3 通过云端检查并正式发布后，请从 [Notara 发布页](https://github.com/TongZi2003/Notara/releases) 下载 **notara-0.23.3.zip**。完整解压到可写的程序目录，再双击其中的 **安装 Notara.cmd**。目前安装包仍待发布，请以发布页实际提供的版本为准喵。
 
 安装器检查 **Node.js 24+、npm 和 Git Bash**。缺少时通过 Windows **WinGet** 安装，系统权限提示由你确认。随后检查最新正式版、安装依赖、构建，并创建桌面「启动 Notara」「关闭 Notara」。程序保存在解压出的 `notara` 文件夹中；安装完成后，双击启动入口即可喵。
 
@@ -42,7 +42,7 @@ npm run vault
 
 Windows 需要 **Windows 10 1903+ / Windows 11 和 x64 Node**。教师处理资料使用固定版本的原生 BusyBox ash，并继续受 DSH 沙箱约束；普通会话使用原生 PowerShell。Git Bash 仍可用来安装和启动项目。
 
-源码首次启动会下载并校验教师 shell，缓存齐全后可离线复用。0.23.2 Release ZIP 已附带可执行文件、完整对应源码、GPLv2 许可证与来源说明。教师 shell 支持 POSIX ash 语法；依赖 Bash 数组或 GNU 扩展的脚本需要调整。教师 CLI 写入要求本地、支持 Windows ACL 的学习目录；UNC/SMB 共享及工作区内部重解析路径会拒绝。详情见 [Windows 说明](docs/runtime/windows-native-vault.md)。
+源码首次启动会下载并校验教师 shell，缓存齐全后可离线复用。0.23.3 Release ZIP 将附带可执行文件、完整对应源码、GPLv2 许可证与来源说明。教师 shell 支持 POSIX ash 语法；依赖 Bash 数组或 GNU 扩展的脚本需要调整。教师 CLI 写入要求本地、支持 Windows ACL 的学习目录；UNC/SMB 共享及工作区内部重解析路径会拒绝。详情见 [Windows 说明](docs/runtime/windows-native-vault.md)。
 
 ### 日常启动与关闭
 
@@ -131,11 +131,13 @@ npm run site:build
 npm run release:bundle
 ```
 
-0.23.2 的 Windows 实机验证中，全量集成测试 **70/70** 通过，最终重点回归 **13/13** 通过，原先失败的四项沙箱与 CLI 用例均已通过。插件测试 **567** 项通过、**2** 项因本机文件符号链接权限跳过；脚本单元测试 **65** 项通过，两组类型检查通过。
+前一候选 0.23.2 的本地 Windows 验证中，全量集成测试 **70/70** 通过，重点回归 **13/13** 通过。插件测试 **567** 项通过、**2** 项因本机文件符号链接权限跳过；脚本单元测试 **65** 项通过，两组类型检查通过。这些结果记录本地基线，不替代 0.23.3 的云端验收。
 
 首轮全量浏览器回归为 **41/42**。草稿恢复问题修复后，相关教学、双空白课堂、目录切换、导航与重载测试 **5/5** 通过，ChatGPT 登录入口另有 **1/1** 通过。服务端压力测试覆盖 **12** 个并发课堂与 **262** 个请求；浏览器压力测试覆盖 **4** 页、**32** 轮、**627** 个响应，控制台和页面异常为 **0**。
 
-测试使用隔离端口、临时数据目录、合成资料与测试模型。压力报告写入本机 `.runtime/`。这些结果覆盖本轮自动化场景，真实 ChatGPT 订阅推理、ngrok 公网连通与真实教学质量尚未验收。详细范围见 [0.23.2 发布说明](docs/releases/native-vault-0.23.2.md)，依赖版本见[上游锁定记录](docs/runtime/upstream-lock.json)。
+随后云端 Windows 原生回归出现 **10 项通过、5 项失败**，暴露管理员账户默认 DACL 在受限 token 下无法创建管道的问题。0.23.3 针对新 token 的默认 DACL 补入用户 ACE，保留临时能力 SID 与原沙箱边界；修复后的云端测试和全新安装验证均待完成。
+
+测试使用隔离端口、临时数据目录、合成资料与测试模型。压力报告写入本机 `.runtime/`。真实 ChatGPT 订阅推理、ngrok 公网连通与真实教学质量尚未验收。详细范围与待验项目见 [0.23.3 发布说明](docs/releases/native-vault-0.23.3.md)，依赖版本见[上游锁定记录](docs/runtime/upstream-lock.json)。
 
 发布包由文件白名单构建，包含运行文件及第三方依赖的必要源码和许可证；设计草稿、研究材料、私密验收记录、测试产物与认证数据不进入发布包。
 

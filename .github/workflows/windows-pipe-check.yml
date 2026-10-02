@@ -1,4 +1,4 @@
-name: Diagnose Windows sandbox pipes
+name: Verify Windows sandbox pipes
 on:
   push:
     branches: ['codex/windows-ci-pipe']
@@ -8,7 +8,7 @@ permissions:
 jobs:
   diagnostics:
     runs-on: windows-2025
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -25,3 +25,9 @@ jobs:
       - name: Record token categories and native pipe results
         shell: pwsh
         run: node tests/fixtures/windows-pipe-diagnostics.mjs vendor/windows-posix/FRP-6075-g169694ebd/busybox-w64u-FRP-6075-g169694ebd.exe
+      - run: npm run build:native-vault && npm run build:pixel-classroom
+      - run: npm run typecheck && npm run typecheck:tests
+      - run: npm run test:unit -- --testTimeout=30000
+      - run: npm run test:plugins
+      - name: Verify the real Windows sandbox and CLI
+        run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/native-vault-git-bash.test.ts tests/integration/native-vault-memory.test.ts tests/integration/native-vault-teaching.test.ts tests/integration/native-vault-windows-shell.test.ts tests/integration/native-vault-windows-cli.test.ts tests/integration/native-vault-windows-pipe.test.ts

@@ -8,6 +8,7 @@ import './patch-input-source-filter.ts';
 import './patch-skill-menu.ts';
 import './patch-tool-args.ts';
 import './patch-session-extension.ts';
+import './patch-windows-token-dacl.ts';
 import './patch-student-ui.ts';
 import { stripConversationSeams, applyConversationSeams } from './patch-conversation-views.ts';
 

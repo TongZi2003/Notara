@@ -1,4 +1,4 @@
-// Ignored diagnostic. Does not change tokens, default DACLs, or sandbox policy.
+// Read-only diagnostic. Does not change tokens, default DACLs, or sandbox policy.
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';

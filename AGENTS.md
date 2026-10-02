@@ -121,6 +121,8 @@
   - 空白课堂也可能持有教学设置和未保存草稿；重载恢复须等待原生 workspace/session 登记就绪并保持同一 session，不能将草稿复制到另一课堂。点击“新的一课”时，当前目录的既有空白课堂可以继续使用。
   - ChatGPT loopback 登录端口由系统分配后仍须排除 Fetch 标准禁用端口；关闭被拒的监听器后有界重试，取消与超时释放监听器，不放宽浏览器端口限制。
 
+- Windows 原生沙箱的默认对象 DACL 兼容修复在 `scripts/windows-token-dacl-patch.ts` / `patch-windows-token-dacl.ts`：只向 `TokenDefaultDacl` 合并当前 `TokenUser` 与原每调用 temp/workspace SID，保留原 ACL 项与拒绝项，不增加 logon SID。Low 完整性、禁用组、限制 SID 列表、权限及父目录 DACL 均沿用原生边界；原始/已补丁产物使用严格 SHA-256 校验，未知或部分修改的产物拒绝启动安装补丁。管理员默认 DACL 的回归仅在独立临时子进程内构造，不修改测试父进程、DSH Host 或用户令牌。
+
 - Native Vault 0.19.5 起已有运行目录用 `npm run vault:upgrade` 升级（`docs/dev-log/2026-09-28-vault-upgrade-0.19.5.md`）。
   - `dev-native-vault.ts / upgradeVaultPersistent`：服务运行时或拿不到数据目录锁时拒绝；旧快照改名为 `vault-plugin-<旧版本>` 保留；新快照与 `home/cordis.patch.yml` 由播种时同一对函数生成（`installPluginSnapshot`、`vaultPatch`），依赖链接到执行升级的代码目录；失败时恢复旧快照；课堂、资料、设置与凭据不动。
   - 启动时版本不一致就提示升级（`vault-launcher-state.ts / pluginVersions`）；“设置 → 学习界面”显示构建注入的 `__NOTARA_VERSION__`。
