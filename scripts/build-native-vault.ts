@@ -5,6 +5,7 @@ import { build } from 'esbuild';
 import { readFile, writeFile, cp, rm } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { outputNamed } from './package-bin.ts';
+import { ACADEMY_FILES } from '../examples/native-vault/academy.js';
 
 const KATEX_STYLES = resolve('node_modules/katex/dist/katex.min.css');
 const LATEX_STYLES_PLACEHOLDER = '__NOTARA_VAULT_LATEX_CSS__';
@@ -88,4 +89,13 @@ await cp(resolve('node_modules/jsxgraph/LICENSE.MIT'), resolve('examples/native-
 // This directory is generated. Retired prompts must not survive a rebuild.
 await rm(resolve('examples/native-vault/teaching'), { recursive: true, force: true });
 await cp(resolve('resources/vault-teaching'),resolve('examples/native-vault/teaching'),{recursive:true});
+// Character art stays outside client.js and the runtime only receives its allowlist.
+const academyRoot = resolve('examples/native-vault/academy');
+if (dirname(academyRoot) !== resolve('examples/native-vault')) throw new Error('invalid academy output');
+await rm(academyRoot, { recursive: true, force: true });
+for (const name of Object.keys(ACADEMY_FILES)) {
+  const source = name === 'catalog.json' ? resolve('examples/native-vault/academy-data.json')
+    : resolve(name.startsWith('notara.') ? 'resources/icons' : 'resources/academy/web', name);
+  await cp(source, resolve(academyRoot, name));
+}
 console.log(`native-vault client: ${Buffer.byteLength(output)} bytes`);

@@ -1,6 +1,7 @@
 .nv-home{box-sizing:border-box;width:min(100%,756px);min-height:100%;margin:0 auto;padding:clamp(32px,8vh,64px) 32px 32px;color:var(--dsw-alias-label-primary);font:14px/1.6 var(--dsw-font-family,system-ui)}
 .nv-home-welcome{margin:0 3px 25px;text-align:center}.nv-home-welcome time{display:block;font-size:12px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}.nv-home-welcome h1{font-size:clamp(20px,3.7cqw,26px);font-weight:550;line-height:1.45;letter-spacing:-.01em;margin:9px 0 0;text-wrap:balance}
 .nv-home-pass{height:100%;min-height:0;min-width:0}
+.nv-home-gallery{display:inline-block;margin-top:10px;font-size:12px;color:var(--dsw-alias-label-secondary);text-underline-offset:3px}
 .nv-home-native{min-width:0;--dsh-composer-side-clearance:0px;--dsh-composer-card-max-width:100%}
 .nv-home-native .nv-lesson-entry,.nv-home-native [data-slot="conversation.session"]{display:none}
 .nv-home .nv-home-native :is(.wSkVaW_root,.wSkVaW_body,.wSkVaW_scrollBody){height:auto;min-height:0;flex:none;overflow:visible}

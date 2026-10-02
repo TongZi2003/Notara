@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>书院画廊 · Notara</title>
+  <link rel="icon" href="notara.svg?v=20261003" type="image/svg+xml">
+  <link rel="stylesheet" href="gallery.css?v=20261003">
+  <script src="gallery.js?v=20261003" defer></script>
+</head>
+<body>
+  <header class="topbar"><a href="/" class="wordmark"><img src="notara.svg?v=20261003" alt="" width="36" height="36">Notara <span>书院画廊</span></a><a href="/">返回 Notara ↗</a></header>
+  <main>
+    <section class="intro">
+      <p class="eyebrow">NOTARA ACADEMY · CHARACTER GALLERY</p>
+      <h1>书页之间，与你相遇。</h1>
+      <p>九位老师，九段故事。这里收着她们的角色立绘与文字设定。</p>
+      <p class="note">当前为独立的角色展示页。</p>
+    </section>
+    <p id="loading" role="status">正在展开画册…</p>
+    <section id="gallery" hidden>
+      <nav id="roster" aria-label="选择角色"></nav>
+      <article id="profile" aria-label="角色档案">
+        <div class="section-heading"><div><p id="subject" class="eyebrow"></p><h2 id="name"></h2><p id="metadata"></p></div><span class="page-number" id="page-number"></span></div>
+        <a id="art-link" target="_blank" rel="noopener" aria-label="打开角色原画"><img id="art" width="1536" height="1024" alt=""></a>
+        <p class="caption">完整原画 · 点图可在新页面放大查看</p>
+        <div id="story" class="story"></div>
+      </article>
+      <section class="background"><p class="eyebrow">OUR STORY</p><h2>河畔的一间书院</h2><div id="background"></div></section>
+    </section>
+  </main>
+  <footer>Notara 书院 · 角色为原创虚构人物，文字设定以本页档案为准。</footer>
+</body>
+</html>

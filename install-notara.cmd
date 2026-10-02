@@ -1,5 +1,7 @@
 @echo off
 setlocal DisableDelayedExpansion
+title Notara Setup
+mode con cols=112 lines=40 >nul 2>&1
 "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\windows-install.ps1" %*
 set "installResult=%ERRORLEVEL%"
 if not "%installResult%"=="0" (

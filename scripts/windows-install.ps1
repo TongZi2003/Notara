@@ -3,7 +3,8 @@ param(
     [switch]$NoUI,
     [switch]$NoShortcuts,
     [switch]$SkipLatest,
-    [switch]$CheckOnly
+    [switch]$CheckOnly,
+    [switch]$PlainProgress
 )
 
 $ErrorActionPreference = 'Stop'
@@ -14,14 +15,62 @@ $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $markerPath = Join-Path $projectRoot 'notara-files.json'
 $installerPath = Join-Path $PSScriptRoot 'install-vault.ts'
 $launcherPath = Join-Path $PSScriptRoot 'windows-launcher.ps1'
+$script:InstallDisplay = $null
+$script:InstallPercent = 0
+$script:InstallLog = $null
+$script:InstallLogPath = $null
+$script:NativeInvocationError = $null
+$displayPath = Join-Path $PSScriptRoot 'installer-character-progress.ps1'
+if (Test-Path -LiteralPath $displayPath -PathType Leaf) {
+    try {
+        . $displayPath
+        $script:InstallDisplay = New-NotaraInstallDisplay -Plain:($PlainProgress -or $CheckOnly)
+    } catch { $script:InstallDisplay = $null }
+}
+
+function Write-InstallLog([string]$Line) {
+    if ($script:InstallLog) {
+        try { $script:InstallLog.WriteLine($Line) } catch {
+            try { $script:InstallLog.Dispose() } catch { }
+            $script:InstallLog = $null
+        }
+    }
+}
 
 function Show-InstallProgress([int]$Percent, [string]$Stage) {
+    $script:InstallPercent = [Math]::Max($script:InstallPercent, $Percent)
+    Write-InstallLog "$Percent% $Stage"
+    if ($script:InstallDisplay) {
+        Show-NotaraInstallCharacterProgress -Display $script:InstallDisplay -Percent $script:InstallPercent -Stage $Stage -Animate
+        return
+    }
     $filled = [int][Math]::Floor($Percent / 5)
     Write-Host ('[' + ('#' * $filled) + ('-' * (20 - $filled)) + "] $Percent% $Stage")
 }
 
+function Write-InstallOutput($Value, [switch]$AllowProgress) {
+    if ($Value -is [Management.Automation.ErrorRecord] -and $Value.FullyQualifiedErrorId -notlike 'NativeCommandError*') {
+        # Command-not-found/access failures must not reuse a previous process's
+        # successful exit code when PS 5.1 is temporarily in Continue mode.
+        $script:NativeInvocationError = [string]$Value
+    }
+    $line = ([string]$Value -replace '\x1b\[[0-?]*[ -/]*[@-~]', '').TrimEnd("`r")
+    Write-InstallLog $line
+    # Only the Node installer emits phase checkpoints. WinGet/npm output must
+    # never declare the outer installer complete before shortcuts are ready.
+    if ($AllowProgress -and $line -match '^\[[#-]{20}\] (\d{1,2})% (.+)$') {
+        $percent = [int]$Matches[1]
+        $stage = $Matches[2]
+        if ($percent -ge 20 -and $percent -le 95) {
+            Show-InstallProgress $percent $stage
+            return
+        }
+    }
+    if (-not $script:InstallDisplay -or -not $script:InstallDisplay.Interactive) { Write-Host $line -ForegroundColor Cyan }
+}
+
 function Show-InstallerMessage([string]$Message, [bool]$Failed = $false) {
-    Write-Host $Message
+    if (-not $script:InstallDisplay -or -not $script:InstallDisplay.Interactive -or $Failed) { Write-Host $Message -ForegroundColor Cyan }
     if (-not $NoUI) {
         Add-Type -AssemblyName System.Windows.Forms
         $icon = if ($Failed) { [Windows.Forms.MessageBoxIcon]::Error } else { [Windows.Forms.MessageBoxIcon]::Information }
@@ -197,10 +246,18 @@ function Get-WinGetPath {
 }
 
 function Install-WinGetPackage([string]$WinGetPath, [string]$PackageId, [string]$DisplayName) {
-    Write-Host "正在通过 WinGet 安装 $DisplayName。安装器可能会请求 UAC 确认。"
+    Write-InstallOutput "正在通过 WinGet 安装 $DisplayName。安装器可能会请求 UAC 确认。"
     $arguments = @('install', '--id', $PackageId, '--exact', '--source', 'winget', '--accept-source-agreements', '--accept-package-agreements', '--silent', '--disable-interactivity')
-    & $WinGetPath @arguments
-    $installExitCode = $LASTEXITCODE
+    $savedPreference = $ErrorActionPreference
+    $script:NativeInvocationError = $null
+    try {
+        # PS 5.1 represents redirected native stderr as ErrorRecord objects.
+        # Warnings are not process failure; the actual exit code decides that.
+        $ErrorActionPreference = 'Continue'
+        & $WinGetPath @arguments 2>&1 | ForEach-Object { Write-InstallOutput $_ }
+        $installExitCode = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $savedPreference }
+    if ($script:NativeInvocationError) { throw $script:NativeInvocationError }
     if ($installExitCode -ne 0) {
         throw "WinGet 安装 $DisplayName 失败或被取消（退出码 $installExitCode）。请确认安装器/UAC 提示后重试。"
     }
@@ -216,6 +273,16 @@ function Invoke-NotaraInstall {
     }
     if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
         throw "发布包缺少 scripts\install-vault.ts，请重新下载 Notara Release ZIP。"
+    }
+
+    if (-not $CheckOnly) {
+        try {
+            $logRoot = Join-Path $projectRoot '.runtime\install-logs'
+            [void][IO.Directory]::CreateDirectory($logRoot)
+            $script:InstallLogPath = Join-Path $logRoot ((Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToString('N') + '.log')
+            $script:InstallLog = New-Object IO.StreamWriter($script:InstallLogPath, $false, (New-Object Text.UTF8Encoding($false)))
+            $script:InstallLog.AutoFlush = $true
+        } catch { $script:InstallLogPath = $null }
     }
 
     Show-InstallProgress 5 '检查 Node.js、npm 和 Git Bash'
@@ -258,7 +325,7 @@ function Invoke-NotaraInstall {
         }
     }
 
-    Write-Host "已检测到 Node.js $($state.Node.Version)、npm $($state.Node.NpmVersion) 和 Git Bash。"
+    Write-InstallOutput "已检测到 Node.js $($state.Node.Version)、npm $($state.Node.NpmVersion) 和 Git Bash。"
     Push-Location -LiteralPath $projectRoot
     $previousPath = $env:Path
     $previousNpmExecPath = $env:npm_execpath
@@ -268,8 +335,14 @@ function Invoke-NotaraInstall {
         $env:npm_execpath = $state.Node.NpmEntry
         $arguments = @($installerPath, '--npm-entry', $state.Node.NpmEntry)
         if ($SkipLatest) { $arguments += '--skip-latest' }
-        & $state.Node.Path @arguments
-        $installExitCode = $LASTEXITCODE
+        $savedPreference = $ErrorActionPreference
+        $script:NativeInvocationError = $null
+        try {
+            $ErrorActionPreference = 'Continue'
+            & $state.Node.Path @arguments 2>&1 | ForEach-Object { Write-InstallOutput $_ -AllowProgress }
+            $installExitCode = $LASTEXITCODE
+        } finally { $ErrorActionPreference = $savedPreference }
+        if ($script:NativeInvocationError) { throw $script:NativeInvocationError }
         if ($installExitCode -ne 0) { throw "Notara 安装失败（退出码 $installExitCode）。请保留上方错误信息后重试。" }
     } finally {
         $env:Path = $previousPath
@@ -283,8 +356,14 @@ function Invoke-NotaraInstall {
         $powerShellExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
         $shortcutArguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $launcherPath, '-Action', 'Shortcuts')
         $shortcutArguments += '-NoUI'
-        & $powerShellExe @shortcutArguments
-        $shortcutExitCode = $LASTEXITCODE
+        $savedPreference = $ErrorActionPreference
+        $script:NativeInvocationError = $null
+        try {
+            $ErrorActionPreference = 'Continue'
+            & $powerShellExe @shortcutArguments 2>&1 | ForEach-Object { Write-InstallOutput $_ }
+            $shortcutExitCode = $LASTEXITCODE
+        } finally { $ErrorActionPreference = $savedPreference }
+        if ($script:NativeInvocationError) { throw $script:NativeInvocationError }
         if ($shortcutExitCode -ne 0) { throw "Notara 已安装，但创建桌面快捷方式失败（退出码 $shortcutExitCode）。仍可双击解压目录中的「start-notara.cmd」和「stop-notara.cmd」。" }
     }
 
@@ -299,9 +378,19 @@ try {
     exit 0
 } catch {
     $message = "安装未完成：`n$($_.Exception.Message)"
+    Write-InstallLog $message
+    if ($script:InstallDisplay) {
+        Show-NotaraInstallCharacterProgress -Display $script:InstallDisplay -Percent ([Math]::Min(99, $script:InstallPercent)) -Stage '请查看下方错误后重试' -Failed
+        if ($script:InstallDisplay.Interactive -and $script:InstallLogPath) {
+            try { Get-Content -LiteralPath $script:InstallLogPath -Encoding UTF8 -Tail 20 | ForEach-Object { Write-Host $_ -ForegroundColor Cyan } } catch { }
+        }
+    }
+    if ($script:InstallLogPath) { $message += "`n完整安装日志：$script:InstallLogPath" }
     [Console]::Error.WriteLine($message)
     if (-not $NoUI) {
         try { Show-InstallerMessage $message $true } catch { }
     }
     exit 1
+} finally {
+    if ($script:InstallLog) { $script:InstallLog.Dispose() }
 }

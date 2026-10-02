@@ -1,6 +1,6 @@
 # 安装和使用 Notara
 
-适用源码版本：Notara 0.23.6 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。免安装包、启动状态与白板排版变更见[本版说明](releases/native-vault-0.23.6.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
+适用源码版本：Notara 0.23.7 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。画廊、图标与安装改进见[本版说明](releases/native-vault-0.23.7.md)，免安装包与白板排版见[0.23.6 说明](releases/native-vault-0.23.6.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
 
 ## Windows x64 免安装版
 
@@ -21,7 +21,7 @@
 1. 从 [GitHub Releases](https://github.com/TongZi2003/Notara/releases/latest) 下载 `notara-版本号.zip`（不要选择自动生成的 Source code 包）。
 2. 完整解压到可写的文件夹，例如 `D:\学习工具`；程序位于解压出的 `D:\学习工具\notara`，之后保持该位置。
 3. 双击 **install-notara.cmd**。脚本检测 Node.js 24+、npm、Git for Windows 的 Bash，已有可用依赖直接使用，缺少的通过 WinGet 安装；Windows 请求权限时由你确认。
-4. 等待检查官方最新正式版、安装 npm 依赖并构建。进度条显示阶段完成百分比；安装依赖期间等待 npm 完成，不把等待时间当成下载百分比。成功后自动创建桌面「Start Notara」「Stop Notara」，双击启动即可。安装本身不启动服务，ngrok 仍是设置里的可选功能。
+4. 等待检查官方最新正式版、安装 npm 依赖并构建。百分比表示已到达的安装阶段，不代表下载字节数或剩余时间。成功后自动创建桌面「Start Notara」「Stop Notara」，双击启动即可。安装本身不启动服务，ngrok 仍是设置里的可选功能。
 
 WinGet 由 Windows 的 App Installer 提供；若缺失，按脚本给出的官方链接安装 App Installer，或按下方原有步骤手动安装 Node.js 和 Git，再运行脚本。Windows 自动安装命令使用固定包 ID 和官方 WinGet 源，参数参见 [Microsoft WinGet 安装文档](https://learn.microsoft.com/en-us/windows/package-manager/winget/install)。不会修改系统执行策略。
 
@@ -33,7 +33,7 @@ WinGet 由 Windows 的 App Installer 提供；若缺失，按脚本给出的官�
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows-install.ps1 -SkipLatest
 ```
 
-这只跳过 GitHub 检查，npm 依赖仍需能下载或已缓存。`-NoShortcuts` 跳过桌面入口，`-CheckOnly` 仅检测，`-NoUI` 不显示结果弹窗，失败仍返回非零退出码。
+这只跳过 GitHub 检查，npm 依赖仍需能下载或已缓存。`-NoShortcuts` 跳过桌面入口，`-CheckOnly` 仅检测，`-NoUI` 不显示结果弹窗，`-PlainProgress` 使用纯文字进度。窗口太小或输出重定向时自动使用文字显示。安装日志保存在程序目录的 `.runtime/install-logs`；失败时显示错误及日志路径，返回非零退出码，不显示成功或 100%。
 
 源码仓库、已修改的程序文件以及程序子目录中的额外文件会被拒绝覆盖，请使用下方源码方式或重新解压到新目录。安装失败通常可修复原因后重试；若断电留下 `.notara-install-journal.json`，请保留它及所指向的 `backup`，在新的空目录重新解压安装，避免覆盖恢复材料。现有学习数据与插件快照不由快捷安装器迁移；已有用户更新后仍按本页的备份与 `vault:upgrade` 步骤升级快照。
 

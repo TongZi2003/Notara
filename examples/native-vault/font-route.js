@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { LAZY_FILES, LAZY_PATH } from './lazy-assets.js';
+import { ACADEMY_FILES, ACADEMY_PATH } from './academy.js';
 
 /**
  * Files the client fetches only when a feature needs them, each on its own Host
@@ -16,6 +17,7 @@ export const NOTEBOOK_FONT_URL = `${FONT_PATH}/wenkai.woff2`;
 const FONT_ROOT = fileURLToPath(new URL('./fonts/', import.meta.url));
 
 const LAZY_ROOT = fileURLToPath(new URL('./lazy/', import.meta.url));
+const ACADEMY_ROOT = fileURLToPath(new URL('./academy/', import.meta.url));
 
 function createStaticHandler(prefix, files, root) {
   return async (req, res) => {
@@ -40,6 +42,10 @@ export function createLazyHandler(root = LAZY_ROOT) {
   return createStaticHandler(LAZY_PATH, LAZY_FILES, root);
 }
 
+export function createAcademyHandler(root = ACADEMY_ROOT) {
+  return createStaticHandler(ACADEMY_PATH, ACADEMY_FILES, root);
+}
+
 /** The routes wait for the web carrier only; other carriers load the plugin without them. */
 export function installFontRoute(ctx) {
   ctx.plugin({
@@ -47,6 +53,7 @@ export function installFontRoute(ctx) {
     apply(scope) {
       scope.effect(() => scope.webServer.register({ kind: 'prefix', path: FONT_PATH, handler: createFontHandler() }));
       scope.effect(() => scope.webServer.register({ kind: 'prefix', path: LAZY_PATH, handler: createLazyHandler() }));
+      scope.effect(() => scope.webServer.register({ kind: 'prefix', path: ACADEMY_PATH, handler: createAcademyHandler() }));
     },
   });
 }

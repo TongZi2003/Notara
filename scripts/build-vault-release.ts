@@ -14,6 +14,8 @@ export async function buildRelease(output: string, source = project, internals: 
   const windowsPosix = await (internals.windowsPosix ?? ensureWindowsPosixBundle)(source);
   const files: Record<string, Uint8Array> = {};
   const add = async (relative: string): Promise<void> => {
+    // Local visual demos are not installer entry points in a release.
+    if (relative === 'scripts/preview-install-progress.ps1') return;
     const path = join(source, relative), info = await lstat(path);
     if (info.isSymbolicLink()) throw new Error(`发布文件不能是软链：${relative}`);
     if (info.isDirectory()) {

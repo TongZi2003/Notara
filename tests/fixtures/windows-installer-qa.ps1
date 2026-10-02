@@ -33,8 +33,16 @@ $mockGitBashPath = Join-Path $qaRoot 'mock git\bin\bash.exe'
 $powerShellExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 
 New-Item -ItemType Directory -Force -Path $scriptsRoot, $reportsRoot, $actualScriptsRoot | Out-Null
+foreach ($target in @($fixtureRoot, $actualCheckRoot)) {
+    $artRoot = Join-Path $target 'resources\installer'
+    [void][IO.Directory]::CreateDirectory($artRoot)
+    [IO.File]::Copy((Join-Path $repoRoot 'scripts\installer-character-progress.ps1'), (Join-Path $target 'scripts\installer-character-progress.ps1'))
+    [IO.File]::Copy((Join-Path $repoRoot 'resources\installer\mascot-outline.json'), (Join-Path $artRoot 'mascot-outline.json'))
+}
 [IO.File]::WriteAllText((Join-Path $fixtureRoot 'notara-files.json'), '{}')
 [IO.File]::WriteAllText((Join-Path $scriptsRoot 'install-vault.ts'), '// CheckOnly/installer sentinel; mock harness must never execute it.')
+$nativeProbePath = Join-Path $qaRoot 'native-output.cjs'
+[IO.File]::WriteAllText($nativeProbePath, 'console.log("[#######-------------] 35% synthetic npm phase"); console.error("synthetic native warning"); process.exit(Number(process.argv[2]));')
 
 $productSource = [IO.File]::ReadAllText($sourcePath, [Text.Encoding]::UTF8).Replace("`r`n", "`n")
 $source = $productSource
@@ -108,11 +116,24 @@ function Invoke-MockInstaller([string]$Path, [string[]]$Arguments) {
     $script:MockInstallerPath = $Path
     $script:MockInstallerArgs = @($Arguments)
     $script:MockNpmExecPath = $env:npm_execpath
+    if ($script:MockCase -in @('native-warning', 'native-failure')) {
+        # Real harmless child exercises PS5.1 native stderr merging and exit
+        # code propagation. This cannot install packages or touch user data.
+        $code = if ($script:MockCase -eq 'native-failure') { 7 } else { 0 }
+        & $env:NOTARA_INSTALLER_REAL_NODE $env:NOTARA_INSTALLER_NATIVE_PROBE $code
+        $global:LASTEXITCODE = $LASTEXITCODE
+        return
+    }
+    if ($script:MockCase -eq 'missing-executable') {
+        & (Join-Path $env:NOTARA_INSTALLER_MOCK_NODE 'missing.exe')
+        return
+    }
     $global:LASTEXITCODE = 0
 }
 
 function Invoke-MockShortcuts([string]$Path, [string[]]$Arguments) {
     $script:MockShortcutCalls++
+    if ($script:MockCase -eq 'shortcut-failure') { $global:LASTEXITCODE = 11; return }
     $global:LASTEXITCODE = 0
 }
 
@@ -220,6 +241,10 @@ $cases = @(
     @{ Name = 'checkonly-valid'; Args = @('-NoUI', '-CheckOnly'); Exit = 0; Lookups = 0; PackageIds = @(); Installer = 0; Shortcuts = 0 },
     @{ Name = 'checkonly-missing'; Args = @('-NoUI', '-CheckOnly'); Exit = 1; Lookups = 0; PackageIds = @(); Installer = 0; Shortcuts = 0 },
     @{ Name = 'no-shortcuts-success'; Args = @('-NoUI', '-NoShortcuts'); Exit = 0; Lookups = 0; PackageIds = @(); Installer = 1; Shortcuts = 0 }
+    @{ Name = 'native-warning'; Args = @('-NoUI', '-NoShortcuts'); Exit = 0; Lookups = 0; PackageIds = @(); Installer = 1; Shortcuts = 0 }
+    @{ Name = 'native-failure'; Args = @('-NoUI', '-NoShortcuts'); Exit = 1; Lookups = 0; PackageIds = @(); Installer = 1; Shortcuts = 0 }
+    @{ Name = 'missing-executable'; Args = @('-NoUI', '-NoShortcuts'); Exit = 1; Lookups = 0; PackageIds = @(); Installer = 1; Shortcuts = 0 }
+    @{ Name = 'shortcut-failure'; Args = @('-NoUI'); Exit = 1; Lookups = 0; PackageIds = @(); Installer = 1; Shortcuts = 1 }
 )
 
 $results = New-Object 'System.Collections.Generic.List[object]'
@@ -233,13 +258,22 @@ foreach ($case in $cases) {
         NOTARA_INSTALLER_MOCK_NPM = $mockNpmEntry
         NOTARA_INSTALLER_MOCK_GIT = $mockGitPath
         NOTARA_INSTALLER_MOCK_BASH = $mockGitBashPath
+        NOTARA_INSTALLER_REAL_NODE = $NodeExecutable
+        NOTARA_INSTALLER_NATIVE_PROBE = $nativeProbePath
     }
     $child = Invoke-QAChild $fixtureScript $case.Args $childEnvironment
     $processExitCode = $child.ExitCode
     $output = $child.Output
     if ($output -notmatch '\[[#-]{20}\] \d+%') { throw "$($case.Name): installer progress bar is missing." }
     if ($case.Exit -ne 0 -and $output -match '\] 100%') { throw "$($case.Name): failed installation reported 100%." }
-    if ($case.Exit -eq 0 -and $case.Installer -gt 0 -and $output -notmatch '\] 100%') { throw "$($case.Name): completed installation did not finish its progress bar." }
+    if ($case.Exit -eq 0 -and $case.Installer -gt 0 -and $output -notmatch '\] 100%') { throw "$($case.Name): completed installation did not finish its progress bar.`n$output" }
+    if ($case.Name -in @('native-warning', 'native-failure')) {
+        if ($output -notmatch '\] 35%' -or $output -notmatch 'synthetic native warning') { throw 'Native phase or stderr was swallowed.' }
+        $logs = @(Get-ChildItem -LiteralPath (Join-Path $fixtureRoot '.runtime\install-logs') -Filter '*.log' | Sort-Object LastWriteTimeUtc -Descending)
+        $nativeLog = [IO.File]::ReadAllText($logs[0].FullName, [Text.Encoding]::UTF8)
+        if ($nativeLog -notmatch 'synthetic native warning') { throw 'Native stderr missing from install log.' }
+        if ($case.Name -eq 'native-failure' -and $output -notmatch '退出码 7') { throw 'Native failure exit code was not preserved.' }
+    }
 
     $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
     Assert-Equal $processExitCode $case.Exit "$($case.Name) process exit"

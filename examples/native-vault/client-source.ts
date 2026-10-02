@@ -28,6 +28,7 @@ import { createVaultRail } from './rail-client.js';
 import { createEmptyState, EMPTY_STATES } from './empty-state-client.js';
 import { skillRowText } from './skill-display-client.js';
 import { createTodayEntry } from './today-entry-client.js';
+import { installBrandIcon } from './brand-client.js';
 import { createLessonEntry } from './lesson-entry-client.js';
 import { STATUS_ROWS, statusRowText } from './tool-rows-client.js';
 import { currentSessionId } from './session-current.js';
@@ -653,6 +654,7 @@ window.__ModuleLoader__.load({
           apply(scope) {
             console.info('notara-vault-native: apply');
             installModernTheme(scope, appearance);
+            installBrandIcon(scope);
             // The rail is 56px; the panel gets the rest of a 360px sidebar by default.
             scope.layout.setSidebarDefaultWidth?.(360);
             installStudentProjection(scope, React, navigation, appearance);

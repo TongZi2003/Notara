@@ -22,14 +22,19 @@ test('release inventory includes all Windows executable, source and license asse
   for (const path of files) await text(path, `asset ${path}`);
   await text('vendor/windows-posix/FRP-test/.provision.lock', 'private lock');
   await text('vendor/windows-posix/old/unreviewed.exe', 'excluded');
+  await text('scripts/installer-character-progress.ps1');
+  await text('resources/installer/mascot-outline.json');
+  await text('scripts/preview-install-progress.ps1');
+  await text('preview-install-progress.cmd');
   const result = await buildRelease(join(root, 'output'), root, { windowsPosix: async source => {
     expect(source).toBe(root); return { executable: join(root, files[0]!), files };
   } });
   const entries = unzipSync(await readFile(result.archive));
   const inventory = JSON.parse(new TextDecoder().decode(entries['notara/notara-files.json']!)) as { files: Record<string, string> };
-  for (const path of [...files, 'resources/icons/notara.ico', 'LICENSE']) {
+  for (const path of [...files, 'resources/icons/notara.ico', 'LICENSE', 'scripts/installer-character-progress.ps1', 'resources/installer/mascot-outline.json']) {
     expect(entries[`notara/${path}`]).toBeDefined();
     expect(inventory.files[path]).toBe(createHash('sha256').update(entries[`notara/${path}`]!).digest('hex'));
   }
   expect(Object.keys(entries).filter(name => name.includes('/vendor/'))).toHaveLength(4);
+  expect(Object.keys(entries).some(name => name.includes('preview-install-progress'))).toBe(false);
 });

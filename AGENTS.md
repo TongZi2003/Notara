@@ -4,6 +4,8 @@
 
 ## 当前事实源
 
+- Native Vault 0.23.7 新增独立角色画廊：首页「书院画廊」在新标签页打开 `/notara/vault/academy/gallery.html`。`resources/academy` 保留提供的素材；画廊只展示九张完整角色设定图与文档；`academy-data.json` 仅作展示，`font-route.js` 白名单服务页面、脚本和图片。此批角色不接入教学人格、课堂头像或像素角色。应用 favicon 与新建桌面快捷方式改用书页 N 图标；不改变既有默认教学人格。
+
 - DSH 依赖版本以 `package-lock.json` 和 `docs/runtime/upstream-lock.json` 为准，所有 `@deepseek-ai/dsh-*` 必须保持同一 `0.2.0-rc.1` 系列，`@deepseek-ai/cordis` 为 `4.0.4`。
 - Node 下限为 `>=24.0.0`；本机验证使用 Node `v24.13.0`。
 - Native Vault 0.15.0 使用现代白灰主题与全局导航（0.18.0 起为图标列「首页 / 计划 / Vault / 技能」，见 0.18.0 与 0.18.1 条）；课堂沿用原生 session 与唯一输入框，切页只切换视图可见性。今日开课以当前课堂所属的已登记 workspace 为目标，未选定时只接受唯一 workspace，不向当前旧课堂直接发送。系统上下文与轨迹默认隐藏，可在设置的「学习界面」显式开启调试。路线的课程列表和图谱共用同一文件投影；双面白板接线以本文 0.16.6 规则为准。

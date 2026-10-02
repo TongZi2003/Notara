@@ -32,6 +32,11 @@ coverage/
 /examples/native-vault/teaching/
 /examples/native-vault/fonts/
 /examples/native-vault/lazy/
+/examples/native-vault/academy/
+
+# Local visual rehearsal entry points are not release content.
+/preview-install-progress.cmd
+/scripts/preview-install-progress.ps1
 
 # Local brainstorming mockups
 .superpowers/
@@ -60,6 +65,7 @@ coverage/
 !/docs/releases/native-vault-0.23.4.md
 !/docs/releases/native-vault-0.23.5.md
 !/docs/releases/native-vault-0.23.6.md
+!/docs/releases/native-vault-0.23.7.md
 
 # Retired workbench-only build/test configurations (kept locally).
 /tsconfig.math-plugin.json

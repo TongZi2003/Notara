@@ -72,10 +72,10 @@ test.skipIf(!windowsOnly)('Windows installer bootstrap fail-closes side effects 
     const result = JSON.parse(await readFile(join(directory, 'results.json'), 'utf8')) as InstallerQaResult;
     const byName = new Map(result.MockCases.map(row => [row.Case, row]));
 
-    expect(result.MockCases).toHaveLength(8);
+    expect(result.MockCases).toHaveLength(12);
     expect([...byName.keys()].sort()).toEqual([
-      'checkonly-missing', 'checkonly-valid', 'missing-git', 'missing-node',
-      'no-shortcuts-success', 'no-update', 'no-winget', 'winget-failure',
+      'checkonly-missing', 'checkonly-valid', 'missing-executable', 'missing-git', 'missing-node',
+      'native-failure', 'native-warning', 'no-shortcuts-success', 'no-update', 'no-winget', 'shortcut-failure', 'winget-failure',
     ]);
     expect(byName.get('missing-node')).toMatchObject({ ExitCode: 0, WingetLookups: 1, PackageIds: ['OpenJS.NodeJS.LTS'], InstallerCalls: 1, ShortcutCalls: 0 });
     expect(byName.get('missing-git')).toMatchObject({ ExitCode: 0, WingetLookups: 1, PackageIds: ['Git.Git'], InstallerCalls: 1, ShortcutCalls: 0 });
@@ -85,6 +85,10 @@ test.skipIf(!windowsOnly)('Windows installer bootstrap fail-closes side effects 
     expect(byName.get('checkonly-valid')).toMatchObject({ ExitCode: 0, WingetLookups: 0, PackageIds: [], InstallerCalls: 0, ShortcutCalls: 0 });
     expect(byName.get('checkonly-missing')).toMatchObject({ ExitCode: 1, WingetLookups: 0, PackageIds: [], InstallerCalls: 0, ShortcutCalls: 0 });
     expect(byName.get('no-shortcuts-success')).toMatchObject({ ExitCode: 0, WingetLookups: 0, PackageIds: [], InstallerCalls: 1, ShortcutCalls: 0 });
+    expect(byName.get('native-warning')).toMatchObject({ ExitCode: 0, InstallerCalls: 1 });
+    expect(byName.get('native-failure')).toMatchObject({ ExitCode: 1, InstallerCalls: 1 });
+    expect(byName.get('missing-executable')).toMatchObject({ ExitCode: 1, InstallerCalls: 1 });
+    expect(byName.get('shortcut-failure')).toMatchObject({ ExitCode: 1, InstallerCalls: 1, ShortcutCalls: 1 });
     expect(result.ActualNodeCheck).toMatchObject({ ExitCode: 0, DetectedUsableNode: true });
     expect(result.ActualNodeCheck.Output).toMatch(/Node\.js \d+\.\d+\.\d+ 和 npm \d+\.\d+\.\d+：可用/);
     expect(stdout).toContain('actual-node-checkonly');

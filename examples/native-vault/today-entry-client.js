@@ -1,4 +1,5 @@
 import css from './today-entry.css';
+import { academyUrl } from './academy.js';
 
 /** A single native-lesson entry with one rotating, factual learning reminder. */
 export function createTodayEntry(React,{Icon}={}) {
@@ -28,7 +29,8 @@ export function createTodayEntry(React,{Icon}={}) {
       h('style',null,css),
       visible&&h('header',{className:'nv-home-welcome'},
         h('time',null,new Intl.DateTimeFormat('zh-CN',{month:'long',day:'numeric',weekday:'long'}).format(now)),
-        h('h1',null,greeting+'，今天想学点什么？')),
+        h('h1',null,greeting+'，今天想学点什么？'),
+        h('a',{className:'nv-home-gallery',href:academyUrl('gallery.html'),target:'_blank',rel:'noopener'},'书院画廊 ↗')),
       visible&&!composerReady&&h('div',{className:'nv-home-preparing',role:composerError?'alert':'status'},composerError||'正在准备输入框…',composerError&&h('button',{onClick:onPrepare},'重试')),
       h('div',{key:'native',className:visible?'nv-home-native':'nv-home-pass',style:visible&&!composerReady?{display:'none'}:undefined},children),
       // A sentence another page wanted in the composer but could not put there.
