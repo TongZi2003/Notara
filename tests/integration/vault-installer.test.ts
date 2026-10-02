@@ -102,9 +102,14 @@ test('quick install stages the bundle, keeps unrelated files and can reinstall i
     await mkdir(join(root, 'vault-runtime'));
     await writeFile(join(root, 'vault-runtime', 'classroom.json'), 'private learning data');
     const commands: string[] = [];
-    const options = { npmEntry: 'mock-npm-cli.js', skipLatest: true, run: mockRun(commands), assertIdle: async () => {}, log: () => {} };
+    const messages: string[] = [];
+    const options = { npmEntry: 'mock-npm-cli.js', skipLatest: true, run: mockRun(commands), assertIdle: async () => {}, log: (message: string) => messages.push(message) };
 
     await expect(installVault(root, options)).resolves.toBe('1.0.0');
+    const percentages = messages.flatMap(message => { const match = message.match(/^\[[#-]{20}\] (\d+)%/); return match ? [Number(match[1])] : []; });
+    expect(percentages[0]).toBe(20);
+    expect(percentages.at(-1)).toBe(95); // Desktop shortcut setup is the final bootstrap stage.
+    expect(percentages).toEqual([...percentages].sort((a, b) => a - b));
     expect(await readFile(join(root, 'my-extra.txt'), 'utf8')).toBe('keep me');
     expect(await readFile(join(root, 'vault-runtime', 'classroom.json'), 'utf8')).toBe('private learning data');
     expect(await readFile(join(root, 'examples/native-vault/client.js'), 'utf8')).toBe('synthetic platform build output\n');

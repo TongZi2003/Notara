@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "description": "Static website for oh-my-student.com. Standalone so the hosting build does not install the DSH runtime.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "engines": {
     "node": ">=22.12.0"
   },

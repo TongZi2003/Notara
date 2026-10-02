@@ -26,7 +26,8 @@ export interface InstallOptions {
 /** No shell parsing: paths containing spaces, Chinese text or & remain one argument. */
 export async function runInstallCommand(cwd: string, entry: string, args: string[]): Promise<void> {
   await new Promise<void>((done, reject) => {
-    const child = spawn(process.execPath, [entry, ...args], { cwd, stdio: 'inherit', windowsHide: true });
+    const child = spawn(process.execPath, [entry, ...args], { cwd, stdio: 'inherit', windowsHide: true,
+      env: { ...process.env, npm_config_progress: 'false', npm_config_color: 'false' } });
     child.once('error', reject);
     child.once('exit', code => code === 0 ? done() : reject(new Error(`安装命令失败（退出码 ${code ?? '未知'}）。请查看上方错误，修复后重新运行安装。`)));
   });
@@ -90,6 +91,11 @@ async function assertCompleteArchive(root: string, inventory: Inventory): Promis
 /** Installs only a released bundle. Learning data and runtime snapshots are never visited. */
 export async function installVault(directory: string, options: InstallOptions): Promise<string> {
   const root = resolve(directory), log = options.log ?? console.log, run = options.run ?? runInstallCommand;
+  const progress = (percent: number, stage: string): void => {
+    const filled = Math.floor(percent / 5);
+    log(`[${'#'.repeat(filled)}${'-'.repeat(20 - filled)}] ${percent}% ${stage}`);
+  };
+  progress(20, '校验安装包（百分比表示安装阶段，不是剩余时间）');
   if (await exists(join(root, '.git'))) throw new Error('这是源码仓库。请保留原来的 npm ci / npm run vault 安装方式；快捷安装请使用 Release 压缩包。');
   if (await exists(join(root, JOURNAL))) throw new Error(`上次替换中断，程序备份位置记录在 ${join(root, JOURNAL)}。请保留该目录，勿继续覆盖；可在新的空目录重新解压安装。`);
   const original = await inventoryAt(root);
@@ -105,28 +111,31 @@ export async function installVault(directory: string, options: InstallOptions): 
     await lock.writeFile(JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() }));
     const contract = await codeContract(root);
     log(`安装位置：${root}\n压缩包版本：${contract.version}`);
-    log(options.skipLatest ? '已选择安装包内版本，跳过联网检查。' : '正在检查 GitHub 最新正式发布…');
+    progress(25, options.skipLatest ? '使用包内版本，跳过联网检查' : '检查 GitHub 最新正式发布');
     const release = options.skipLatest ? null : await discoverRelease(contract.version, contract.runtime, options.fetcher);
     work = await mkdtemp(join(root, '.notara-install-'));
     let stage = join(work, 'bundled');
     const backup = join(work, 'backup');
     await mkdir(stage); await mkdir(backup);
     for (const name of topNames(original)) await cp(join(root, name), join(stage, name), { recursive: true, errorOnExist: true, force: false });
-    log('正在临时目录安装 npm 依赖，原目录在安装成功前保持不变…');
+    progress(35, '在临时目录安装依赖；本阶段需等待 npm 完成');
     await run(stage, options.npmEntry, ['ci', '--include=dev', '--no-audit', '--no-fund']);
     if (release) {
-      log(`正在下载并校验正式版 ${release.version}…`);
+      progress(50, `下载并校验正式版 ${release.version}`);
       const { unzipSync } = createRequire(join(stage, 'package.json'))('fflate') as typeof import('fflate');
       stage = join(work, 'new'); await mkdir(stage);
       await extractRelease(await download(release.archiveUrl, 100_000_000, options.fetcher ?? fetch), release.sha256, stage, unzipSync);
       const nextContract = await codeContract(stage);
       if (nextContract.version !== release.version || !sameRuntime(nextContract.runtime, release.runtime)) throw new Error('发布包内容与更新信息不一致。');
       await assertCompleteArchive(stage, await inventoryAt(stage));
+      progress(60, '安装新版依赖；本阶段需等待 npm 完成');
       await run(stage, options.npmEntry, ['ci', '--include=dev', '--no-audit', '--no-fund']);
     }
     const next = await inventoryAt(stage);
     await assertOwnedDirectories(stage, next);
+    progress(70, '构建白板与学习界面');
     await run(stage, packageBin(stage, 'tsx', 'tsx'), [join(stage, 'scripts/build-native-vault.ts')]);
+    progress(80, '构建像素教室');
     await run(stage, packageBin(stage, 'tsx', 'tsx'), [join(stage, 'scripts/build-pixel-classroom.ts')]);
     // Generated assets can differ across supported platforms. Record the build
     // we actually installed, so a second installation still detects user edits.
@@ -140,6 +149,7 @@ export async function installVault(directory: string, options: InstallOptions): 
     }
     await inventoryAt(root);
     await assertOwnedDirectories(root, original);
+    progress(90, '校验完成，切换程序文件');
     // Write recovery evidence before the first move. An abrupt power loss leaves
     // the backup intact and blocks a second installer from obscuring it.
     await writeFile(join(root, JOURNAL), JSON.stringify({ format: 1, version: next.version, backup, names }, null, 2), { flag: 'wx' });
@@ -158,6 +168,7 @@ export async function installVault(directory: string, options: InstallOptions): 
       throw error;
     }
     await unlink(join(root, JOURNAL));
+    progress(95, '程序已就绪');
     log(`安装完成：${next.version}，程序保存在当前解压目录。${release ? '' : '未选择或未发现可安装的更高正式版，保留包内版本。'}`);
     return next.version;
   } finally {

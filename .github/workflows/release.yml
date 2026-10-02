@@ -21,6 +21,7 @@ jobs:
       contents: read
     outputs:
       tag: ${{ steps.release.outputs.tag }}
+      source: ${{ steps.release.outputs.source }}
     steps:
       - name: Resolve release tag
         id: release
@@ -30,6 +31,11 @@ jobs:
           tag="${INPUT_TAG:-${GITHUB_REF_NAME#codex/release-}}"
           [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/codex/release-v* ]]; then
+            echo "source=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo "source=$tag" >> "$GITHUB_OUTPUT"
+          fi
   windows:
     needs: resolve
     runs-on: windows-2025
@@ -39,7 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.resolve.outputs.tag }}
+          ref: ${{ needs.resolve.outputs.source }}
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
@@ -53,8 +59,24 @@ jobs:
       - run: npm run test:plugins
       - name: Test the real Windows sandbox and CLI
         run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/native-vault-git-bash.test.ts tests/integration/native-vault-memory.test.ts tests/integration/native-vault-teaching.test.ts tests/integration/native-vault-windows-shell.test.ts tests/integration/native-vault-windows-cli.test.ts tests/integration/native-vault-windows-pipe.test.ts
-      - name: Verify Unicode desktop shortcuts and start-stop
-        run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/windows-shortcuts.test.ts
+      - name: Verify Unicode shortcuts, installer and start-stop
+        run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/windows-shortcuts.test.ts tests/integration/windows-installer.test.ts tests/integration/vault-installer.test.ts
+      - name: Build the Windows x64 ready-to-run package
+        run: npm run release:portable
+      - name: Verify portable startup without system Node or Git
+        shell: pwsh
+        run: |
+          $env:NOTARA_TEST_PORTABLE_ARCHIVE = (Get-ChildItem .runtime/portable-release/notara-portable-*-win-x64.zip).FullName
+          node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/windows-portable.test.ts
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: notara-windows-portable
+          path: |
+            .runtime/portable-release/notara-portable-*-win-x64.zip
+            .runtime/portable-release/notara-portable-*-win-x64.zip.sha256
+          if-no-files-found: error
+          include-hidden-files: true
+          compression-level: 0
   release:
     needs: [resolve, windows]
     runs-on: ubuntu-24.04
@@ -62,7 +84,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.resolve.outputs.tag }}
+          ref: ${{ needs.resolve.outputs.source }}
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
@@ -84,7 +106,12 @@ jobs:
           if (process.env.NOTARA_RELEASE_TAG !== `v${result.version}`) throw new Error('Release tag must match the plugin version');
           console.log(`Release bundle: ${result.archive}`);
           JS
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: notara-windows-portable
+          path: .runtime/release
       - name: Publish the completed release
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
           NOTARA_RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
@@ -94,5 +121,5 @@ jobs:
           else
             gh release create "$NOTARA_RELEASE_TAG" --draft --verify-tag --generate-notes --notes-file "docs/releases/native-vault-${NOTARA_RELEASE_TAG#v}.md" --title "Notara $NOTARA_RELEASE_TAG"
           fi
-          gh release upload "$NOTARA_RELEASE_TAG" .runtime/release/notara-*.zip .runtime/release/notara-update.json --clobber
+          gh release upload "$NOTARA_RELEASE_TAG" .runtime/release/notara-*.zip .runtime/release/notara-portable-*.sha256 .runtime/release/notara-update.json --clobber
           gh release edit "$NOTARA_RELEASE_TAG" --draft=false --latest

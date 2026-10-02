@@ -237,6 +237,9 @@ foreach ($case in $cases) {
     $child = Invoke-QAChild $fixtureScript $case.Args $childEnvironment
     $processExitCode = $child.ExitCode
     $output = $child.Output
+    if ($output -notmatch '\[[#-]{20}\] \d+%') { throw "$($case.Name): installer progress bar is missing." }
+    if ($case.Exit -ne 0 -and $output -match '\] 100%') { throw "$($case.Name): failed installation reported 100%." }
+    if ($case.Exit -eq 0 -and $case.Installer -gt 0 -and $output -notmatch '\] 100%') { throw "$($case.Name): completed installation did not finish its progress bar." }
 
     $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
     Assert-Equal $processExitCode $case.Exit "$($case.Name) process exit"

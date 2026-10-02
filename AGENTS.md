@@ -37,6 +37,10 @@
 
 ## 工作约定
 
+- Windows x64 免安装包由 `scripts/build-portable-release.ts` 在 Windows 构建，携带独立 Node/npm、已安装依赖和标准发布代码，不含用户运行目录。`notara-portable.json` 校验预构建资源后才跳过启动构建；启动器优先使用包内 runtime，并为更新器提供对应 npm。程序移动或旧数据升级仍须显式 `vault:upgrade`，不得绕过快照版本保护。普通安装器只适用于标准 Release ZIP，便携包不带其安装入口。
+- `codex/release-v*` 分支推送只校验该提交及其实际便携包，不要求预建版本标签、不发布资产；标签推送或手动指定已有标签才进入正式发布。`.runtime` 下的 artifact 仅按 ZIP/校验文件白名单开启隐藏文件上传。
+- 白板自动排版按已固定卡片的实际宽高避让，并将其占用宽度计入所在板块；用户手动固定的位置不由自动排版改写。控制器的 ready 状态只在私有状态文件成功发布后对启动调用可见；Windows 文件占用只允许有界重试原子替换，不删除目标文件来腾位置。
+
 - Native Vault 0.23.1 的 Windows Release 快捷安装入口为 `安装 Notara.cmd` / `scripts/windows-install.ps1`，由 Node 原生执行 `scripts/install-vault.ts`（启动时不能依赖已有 node_modules）。发布包带 `notara-files.json` 源文件哈希清单；源码仓库或修改过的包拒绝覆盖。依赖与新版代码在解压目录的临时子目录构建后切换，原数据与快照不迁移；源码/npm 安装继续保留。测试使用临时包与注入操作，不执行真实 winget 安装或写真实桌面。
 - Native Vault 0.23.1 的 ChatGPT 订阅接入在 `chatgpt-auth.js / chatgpt-provider.js / chatgpt-runtime.js`。使用 OpenAI 官方动态注册、PKCE 和 loopback callback；令牌只写 `DSH_HOME/notara-chatgpt`，禁止进入浏览器、日志、Vault 或发布包。每账号独立路由，模型从授权目录读取，Responses 必须等 `response.completed` 才完成。无真实账号时只能记录协议模拟与浏览器登录入口测试，不能宣称真实订阅推理通过。
 - 0.23.1 白板卡片的可选 `height` 与 `width` 随布局持久化；resize 使用指针捕获并按相机缩放换算，恢复默认同时清除位置和手动尺寸，全览也采用资料卡手动高度。公式保持原 KaTeX 渲染，只在卡内局部滚动。课堂永久删除经独立 `notaraSession` Remote 和输入标题确认，删除前证明整棵关联会话树空闲；删除保护覆盖原生会话修改入口，等待已开始的修改后重新核对确认，不能只拦新 prompt。仅处理原生 JSONL 会话目录，保留学习资料与共享附件。
@@ -311,7 +315,7 @@
 - `website/` 是 oh-my-student.com 的静态官网源目录（Vite 多页：首页、`features`、`philosophy`、`install`、`first-lesson`、`faq`）。共用片段在 `website/partials/`，由 `website/vite.config.ts / site()` 在构建时注入，并用 KaTeX 预渲染正文里的 `\( \)`、`\[ \]`。`npm run site:dev`（端口 57180）、`site:build`（输出 `website/dist/`）、`site:preview`（57181）；`tsx website/scripts/check.mts [origin]` 检查各页桌面与手机宽度下的控制台、失败请求、内链和横向溢出。纯官网改动不需要跑教学运行时回归。
 - 手写字体 `website/public/fonts/notara-hand.woff2` 是 `resources/fonts/wenkai.woff2` 按全站用字取的子集，改页面文字后执行 `npm run site:font`（需要 `uvx`）。截图由 `npm run site:capture` 在隔离实例里用测试模型和合成资料生成（先 `npm run build:native-vault`），页面上标注“示例资料 · 实际界面”；不从真实 Vault 截图。
 - 托管在阿里云 ESA Pages（导入 GitHub 仓库，生产分支 `main`，控制台根目录保持默认 `/`）。ESA 在仓库根目录读取 `/esa.jsonc` 并在根目录执行命令，命令经 `npm --prefix website` 指向子项目；`website/esa.jsonc` 仅是根目录被设为 `/website` 时的兜底副本。`website/package.json` 与它的 lockfile 只含 Vite 与 KaTeX，版本与根目录锁定一致，云端构建不装 DSH 运行时。改动这两处依赖时同步根目录版本。
-- 官网文案只写当前版本已实现的功能。边界（模型调用发往所选服务商、费用由服务商决定、Windows 真实模型课堂未验收、仓库未附开源许可证）与 README、`docs/install.md` 保持一致；理念页正文由作者提供。
+- 官网文案只写当前版本已实现的功能。边界（模型调用发往所选服务商、费用由服务商决定、Windows 真实模型课堂未验收、自有代码采用 MIT 且第三方许可保留）与 README、`docs/install.md` 保持一致；理念页正文由作者提供。
 - 官网首页与安装页通过 `website/partials/editions.html` 并列展示独立桌面版与 DSH 插件版。桌面版源码私有，公开安装包与版本说明使用 `TongZi2003/Notara-Desktop-Releases`；尚无安装包时只链接发布页，不生成下载地址。既有截图、命令与数据目录明确标为插件版。桌面版发布后同步更新版本入口、安装说明与 FAQ。
 
 ## 验证口径

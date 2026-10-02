@@ -202,7 +202,16 @@ export async function writePrivateFile(path: string, content: string | Buffer): 
     const file = await open(pending, 'wx', 0o600);
     try { await file.writeFile(content); await file.sync(); } finally { await file.close(); }
     await securePrivatePath(pending);
-    await rename(pending, resolved);
+    // Readers/antivirus can briefly deny replacement on Windows. Keep the old
+    // file intact while retrying the same secured temporary file; never unlink
+    // the destination or relax its ACL to work around a sharing violation.
+    for (let attempt = 0; ; attempt++) {
+      try { await rename(pending, resolved); break; }
+      catch (error) {
+        if (process.platform !== 'win32' || !['EPERM', 'EACCES', 'EBUSY'].includes((error as NodeJS.ErrnoException).code ?? '') || attempt >= 8) throw error;
+        await new Promise(resolveDelay => setTimeout(resolveDelay, Math.min(25 * 2 ** attempt, 200)));
+      }
+    }
     await securePrivatePath(resolved);
   } finally { await rm(pending, { force: true }); }
 }

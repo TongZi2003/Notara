@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "StudyForge as a DSH-native plugin and Host domain (DeepSeek Harness).",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "engines": {
     "node": ">=24.0.0"
   },
@@ -18,6 +18,7 @@
     "vault:open": "tsx scripts/vault.ts --open",
     "vault:upgrade": "tsx scripts/vault-upgrade.ts",
     "release:bundle": "tsx scripts/build-vault-release.ts",
+    "release:portable": "tsx scripts/build-portable-release.ts",
     "vault:remote:configure": "tsx scripts/remote-vault.ts configure",
     "vault:remote:start": "tsx scripts/remote-vault.ts start",
     "vault:remote:stop": "tsx scripts/remote-vault.ts stop",

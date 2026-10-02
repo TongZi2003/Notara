@@ -15,9 +15,12 @@ import { VAULT_TEST_MODEL, VAULT_TEST_PROVIDER } from './fixtures/vault-test-mod
 // @ts-expect-error Native Vault is plain JS; the preset module has no declarations.
 import { TEACHER_PRESET, TEACHER_PRESET_ID } from '../examples/native-vault/teacher-preset.js';
 
-await import('./build-native-vault.ts');
-
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// Released portable builds already carry validated client/teaching/font assets.
+// A source checkout and ordinary installed updates keep their existing build path.
+const prebuilt = await (await import('./prebuilt-vault.ts')).verifyPrebuiltVault(project);
+if (!prebuilt) await import('./build-native-vault.ts');
+
 // Directory links need no privilege on Windows only as junctions; 'dir' stays elsewhere.
 const dirLink = process.platform === 'win32' ? 'junction' as const : 'dir' as const;
 const bootTimeoutMs = 45_000;
@@ -270,7 +273,7 @@ tags: [math, vector]
   await writeFile(join(home, 'profiles/web/cordis.patch.yml'), studentProfile(), { mode: 0o600 });
   let pixelPluginRoot: string | undefined;
   if (options.pixelClassroom) {
-    await (await import('./build-pixel-classroom.ts')).buildPixelClassroom();
+    if (!prebuilt) await (await import('./build-pixel-classroom.ts')).buildPixelClassroom();
     pixelPluginRoot = join(root, 'pixel-classroom-plugin');
     await mkdir(pixelPluginRoot);
     for (const file of ['package.json', 'index.js', 'client.js', 'dist']) {

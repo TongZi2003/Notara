@@ -280,6 +280,57 @@ test.skipIf(!windowsOnly)('Windows PowerShell 5 starts and stops one isolated sy
   }
 }, 180_000);
 
+test.skipIf(!windowsOnly).each([2, Infinity])('Start waits for durable controller state and handles %s sharing violations', async failures => {
+  const sandbox = await createSandbox();
+  const statePath = controllerStatePath(sandbox.controllerConfig);
+  const gate = join(sandbox.directory, 'controller-write-gate');
+  const injector = pathToFileURL(resolve('tests/fixtures/controller-state-write-fault.mjs')).href;
+  sandbox.env.NODE_OPTIONS += ` --import=${injector}`;
+  sandbox.env.NOTARA_TEST_CONTROLLER_STATE = statePath;
+  sandbox.env.NOTARA_TEST_CONTROLLER_GATE = gate;
+  sandbox.env.NOTARA_TEST_CONTROLLER_FAILURES = String(failures);
+  let seed: Awaited<ReturnType<typeof startVaultPersistent>> | undefined;
+  let launching: ReturnType<typeof runLauncher> | undefined;
+  try {
+    seed = await withProcessEnvironment(sandbox.env, () => startVaultPersistent(sandbox.runtimeRoot, { port: 0, testModel: true }));
+    const port = Number(new URL(seed.authUrl).port);
+    await seed.stop(); seed = undefined;
+    let settled = false;
+    let launchResult: Awaited<ReturnType<typeof runLauncher>> | undefined;
+    launching = runLauncher('Start', sandbox, { port, noBrowser: true }).then(result => { settled = true; launchResult = result; return result; });
+    await expect.poll(async () => {
+      if (await stat(`${gate}.entered`).then(() => true, () => false)) return 'entered';
+      if (launchResult) throw new Error(`Controller write gate was not reached: ${JSON.stringify(launchResult)}`);
+      return 'waiting';
+    }, { timeout: 45_000 }).toBe('entered');
+    const stored = JSON.parse(await readFile(statePath, 'utf8')) as { endpoint: string; token: string; phase: string };
+    expect(stored.phase).toBe('starting');
+    const response = await fetch(new URL('/v1/status', stored.endpoint), { headers: { authorization: `Bearer ${stored.token}` } });
+    expect(response.status).toBe(200);
+    expect((await response.json() as { phase: string }).phase).toBe('starting');
+    expect(settled, 'Start reported success before the ready state was saved').toBe(false);
+    await writeFile(`${gate}.release`, 'continue');
+    const result = await launching;
+    if (Number.isFinite(failures)) {
+      expect(result.code, `${result.stdout}\n${result.stderr}`).toBe(0);
+      expect(Number(await readFile(`${gate}.attempts`, 'utf8'))).toBeGreaterThan(failures);
+      expect((await waitForControllerReady(statePath)).ownsVault).toBe(true);
+      expect(await liveVaultUrl(sandbox.runtimeRoot)).toBeDefined();
+    } else {
+      expect(result.code, `${result.stdout}\n${result.stderr}`).not.toBe(0);
+      expect(result.stdout + result.stderr).toContain('Synthetic controller state sharing violation');
+      await expect.poll(() => liveVaultUrl(sandbox.runtimeRoot), { timeout: 15_000 }).toBeUndefined();
+      await expect.poll(() => stat(statePath).then(() => true, () => false), { timeout: 15_000 }).toBe(false);
+    }
+  } finally {
+    await writeFile(`${gate}.release`, 'cleanup');
+    await launching;
+    await seed?.stop();
+    await stopIfStillRunning(sandbox);
+    await rm(sandbox.directory, { recursive: true, force: true });
+  }
+}, 180_000);
+
 test.skipIf(!windowsOnly)('Windows PowerShell 5 creates COM-readable shortcuts and refuses another install shortcut', async () => {
   const sandbox = await createSandbox();
   try {

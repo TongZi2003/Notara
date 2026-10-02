@@ -1,13 +1,27 @@
 # 安装和使用 Notara
 
-适用源码版本：Notara 0.23.5 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。Unicode 快捷方式与桌面图标变更见[本版说明](releases/native-vault-0.23.5.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
+适用源码版本：Notara 0.23.6 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。免安装包、启动状态与白板排版变更见[本版说明](releases/native-vault-0.23.6.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
+
+## Windows x64 免安装版
+
+下载 Release 中的 `notara-portable-版本号-win-x64.zip`，完整解压后双击「启动 Notara.cmd」。包内包含 Node.js、npm、Windows 依赖与构建产物，无需先安装系统 Node.js、Git 或运行安装脚本。运行要求仍为 Windows 10 1903+ / Windows 11 x64；首次启动需要初始化数据目录，模型账号和可选的 ngrok 仍需自行配置。
+
+用「关闭 Notara.cmd」停止；需要桌面入口时运行「创建桌面快捷方式.cmd」。便携包的程序体积较大，课堂与资料仍保存在用户的 `.notara/vault-runtime`，并不写入程序包。
+
+已有旧版本数据、移动或重新命名程序目录时，先停止服务并保留数据备份，在新程序目录的 PowerShell 中执行：
+
+```powershell
+.\runtime\node.exe --import=tsx .\scripts\vault-upgrade.ts
+```
+
+自定义数据目录在后面加 `--root "你的数据目录"`。再双击启动；移动目录后需要重新创建快捷方式。自动更新仍通过设置页面进行，更新下载的代码可能需要安装依赖和构建。普通安装包、Git/npm 安装方法继续保留。
 
 ## Windows 压缩包快捷安装
 
 1. 从 [GitHub Releases](https://github.com/TongZi2003/Notara/releases/latest) 下载 `notara-版本号.zip`（不要选择自动生成的 Source code 包）。
 2. 完整解压到可写的文件夹，例如 `D:\学习工具`；程序位于解压出的 `D:\学习工具\notara`，之后保持该位置。
 3. 双击 **安装 Notara.cmd**。脚本检测 Node.js 24+、npm、Git for Windows 的 Bash，已有可用依赖直接使用，缺少的通过 WinGet 安装；Windows 请求权限时由你确认。
-4. 等待检查官方最新正式版、安装 npm 依赖并构建。成功后自动创建桌面「启动 Notara」「关闭 Notara」，双击启动即可。安装本身不启动服务，ngrok 仍是设置里的可选功能。
+4. 等待检查官方最新正式版、安装 npm 依赖并构建。进度条显示阶段完成百分比；安装依赖期间等待 npm 完成，不把等待时间当成下载百分比。成功后自动创建桌面「启动 Notara」「关闭 Notara」，双击启动即可。安装本身不启动服务，ngrok 仍是设置里的可选功能。
 
 WinGet 由 Windows 的 App Installer 提供；若缺失，按脚本给出的官方链接安装 App Installer，或按下方原有步骤手动安装 Node.js 和 Git，再运行脚本。Windows 自动安装命令使用固定包 ID 和官方 WinGet 源，参数参见 [Microsoft WinGet 安装文档](https://learn.microsoft.com/en-us/windows/package-manager/winget/install)。不会修改系统执行策略。
 

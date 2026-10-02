@@ -458,6 +458,10 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
     ownsVault: false,
     remoteActive: false,
   };
+  // A successful HTTP status must describe state that has finished its private
+  // atomic write. In particular, Start must not succeed while ready is still
+  // being saved (and may yet fail on a Windows file-sharing violation).
+  let publishedStatus = statusOf(state);
 
   const serial = <T>(action: () => Promise<T>): Promise<T> => {
     const result = transition.then(action, action);
@@ -468,7 +472,9 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
     state = { ...state, phase, ownsVault, remoteActive: !!tunnel && !!proxy,
       ...(remoteConfig ? { publicHost: remoteConfig.publicHost, localPort: remoteConfig.localPort } : {}) };
     if (!state.remoteActive) { delete state.publicHost; }
+    const nextStatus = statusOf(state);
     await saveState(paths.state, state);
+    publishedStatus = nextStatus;
   };
   const startRemote = async (): Promise<void> => {
     if (stopping) throw new Error('Notara is already shutting down.');
@@ -538,7 +544,7 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
       jsonResponse(response, 401, { message: 'Unauthorized.' }); request.resume(); return;
     }
     request.resume();
-    if (request.method === 'GET' && request.url === '/v1/status') { jsonResponse(response, 200, statusOf(state)); return; }
+    if (request.method === 'GET' && request.url === '/v1/status') { jsonResponse(response, 200, publishedStatus); return; }
     if (request.method === 'POST' && request.url === '/v1/remote/start') {
       void serial(async () => {
         await startup;

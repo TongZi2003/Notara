@@ -64,17 +64,38 @@ test('pinned blocks keep their position; sections run left to right after an old
   assert.deepEqual(at(layout, 'old'), { x: 60, y: 60, width: 340, pinned: true });
   assert.equal(at(layout, 'pinned').x, 900, 'a dragged block stays where the student put it');
   assert.equal(layout.frames[0].x, 60 + 340 + LAYOUT.sectionGap, 'sections begin to the right of the old board');
-  // s1 had one column in use when s2 began, so it is one column wide.
-  assert.equal(layout.frames[0].width, LAYOUT.track);
-  assert.equal(layout.frames[1].x, layout.frames[0].x + LAYOUT.track + LAYOUT.sectionGap);
+  // The flow still uses one column, but the frame includes the pinned card.
+  assert.equal(layout.frames[0].columns, 1);
+  assert.equal(layout.frames[0].width, 900 + LAYOUT.track - layout.frames[0].x);
+  assert.equal(layout.frames[1].x, 900 + LAYOUT.track + LAYOUT.sectionGap);
   assert.equal(at(layout, 'b').x, layout.frames[1].x);
-  assert.equal(at(layout, 'a').y, top, 'the flow does not avoid the pinned block');
+  assert.equal(at(layout, 'a').y, top, 'a card that does not intersect the pin stays in place');
   assert.deepEqual(readingOrder([section('s1'), section('s2')], blocks).map(group => [group.title, group.blocks.map(item => item.id)]), [[null, ['old']], ['s1', ['a', 'pinned']], ['s2', ['b']]]);
 });
 
 test('a resized card keeps its chosen width and height while pinned', () => {
   const resized = block('resized', 's', { x: 240, y: 180, width: 520, height: 360 });
   assert.deepEqual(at(layoutBoard([section('s')], [resized]), 'resized'), { x: 240, y: 180, width: 520, height: 360, pinned: true });
+});
+
+test('a widened pinned card reserves its actual space before the next section', () => {
+  const cards = [block('wide', 's1', { x: LAYOUT.origin, y: top, width: 1092, height: 900 }), block('next', 's2')];
+  const result = layoutBoard([section('s1'), section('s2')], cards);
+  assert.ok(at(result, 'next').x >= at(result, 'wide').x + 1092 + LAYOUT.sectionGap);
+  assert.ok(result.frames[0].width >= 1092);
+  assert.ok(result.frames[0].height >= top + 900 - LAYOUT.origin);
+  assert.equal(at(result, 'wide').x, LAYOUT.origin, 'the student position stays intact');
+});
+
+test('automatic blocks avoid pinned rectangles, including measured growth and adjacent obstacles', () => {
+  const cards = [block('p', 's', { x: LAYOUT.origin, y: top, width: 500 }),
+    block('q', 's', { x: LAYOUT.origin + 50, y: top + 450, width: 300, height: 160 }), block('auto', 's')];
+  const result = layoutBoard([section('s')], cards, new Map([['p', 420], ['auto', 200]]));
+  assert.ok(at(result, 'auto').y >= top + 450 + 160 + LAYOUT.gap);
+  const grown = layoutBoard([section('s')], cards, new Map([['p', 800], ['auto', 200]]));
+  assert.ok(at(grown, 'auto').y >= top + 800 + LAYOUT.gap);
+  assert.equal(at(grown, 'p').y, top);
+  assert.equal(at(grown, 'q').y, top + 450);
 });
 
 test('an earlier section keeps the columns it had when the next began; later blocks go down inside them', () => {

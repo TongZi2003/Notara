@@ -5,7 +5,7 @@
  * full moves on to the next, and when all are full a new band starts below.
  * A wide block spans two columns and a full one all three, each placed under
  * what the columns it covers already hold. A block the student dragged is
- * pinned: its own x/y win and the flow neither moves nor avoids it.
+ * pinned: its own x/y win, and automatic blocks avoid its occupied rectangle.
  *
  * Sections run left to right. When the teacher starts the next section, the
  * previous one keeps only the columns it had used by then; blocks added to it
@@ -31,7 +31,7 @@ export const isPinned = block => Number.isFinite(block.x) && Number.isFinite(blo
  * @returns `{positions: Map(id → {x,y,width,height?}), frames: [{id,title,x,y,width,height,columns,titleWidth}]}`
  */
 export function layoutBoard(sections, blocks, heights = new Map(), layout = LAYOUT) {
-  const positions = new Map(), frames = [];
+  const positions = new Map(), frames = [], obstacles = [];
   const heightOf = id => { const value = heights.get(id); return Number.isFinite(value) && value > 0 ? value : layout.estimate; };
   const known = new Set(sections.map(section => section.id));
   // Pinned blocks without a section are the old board's own positions; the
@@ -41,6 +41,7 @@ export function layoutBoard(sections, blocks, heights = new Map(), layout = LAYO
     if (!isPinned(block)) continue;
     const width = Number.isFinite(block.width) ? block.width : sizeWidth(block.size, layout);
     positions.set(block.id, { x: block.x, y: block.y, width, ...(Number.isFinite(block.height)?{height:block.height}:{}), pinned: true });
+    obstacles.push({ section: block.section, x: block.x, y: block.y, width, height: Number.isFinite(block.height) ? block.height : heightOf(block.id) });
     if (!known.has(block.section)) legacyRight = Math.max(legacyRight, block.x + width);
   }
   let left = Number.isFinite(legacyRight) ? legacyRight + layout.sectionGap : layout.origin;
@@ -57,8 +58,16 @@ export function layoutBoard(sections, blocks, heights = new Map(), layout = LAYO
     const freeze = () => { if (columns === layout.columns && Number.isFinite(cutoff)) columns = Math.max(1, used); };
     const put = (id, column, span, y) => {
       const height = heightOf(id), entry = { x: left + column * step, y, width: span * layout.track + (span - 1) * layout.gutter, column, span, height };
+      // Move down past every colliding pinned card. Retest after each move:
+      // clearing one card may put us into another farther down the canvas.
+      for (;;) {
+        const collisions = obstacles.filter(rect => entry.x < rect.x + rect.width + layout.gutter && entry.x + entry.width + layout.gutter > rect.x
+          && entry.y < rect.y + rect.height + layout.gap && entry.y + height + layout.gap > rect.y);
+        if (!collisions.length) break;
+        entry.y = Math.max(...collisions.map(rect => rect.y + rect.height + layout.gap));
+      }
       placed.set(id, entry); positions.set(id, { x: entry.x, y: entry.y, width: entry.width });
-      for (let c = column; c < column + span; c++) bottoms[c] = y + height + layout.gap;
+      for (let c = column; c < column + span; c++) bottoms[c] = entry.y + height + layout.gap;
       used = Math.max(used, column + span);
     };
     const lowest = (column, span) => Math.max(...bottoms.slice(column, column + span));
@@ -95,8 +104,10 @@ export function layoutBoard(sections, blocks, heights = new Map(), layout = LAYO
     }
     freeze();
     // The last section is still open to the right; an earlier one ends where its columns end.
-    const shown = Number.isFinite(cutoff) ? columns : Math.max(1, used), width = sectionWidth(layout, shown);
-    frames.push({ id: section.id, title: section.title, x: left, y: top, width, height: Math.max(...bottoms) - top, columns: shown,
+    const pinned = obstacles.filter(rect => rect.section === section.id);
+    const shown = Number.isFinite(cutoff) ? columns : Math.max(1, used);
+    const width = Math.max(sectionWidth(layout, shown), ...pinned.map(rect => rect.x + rect.width - left));
+    frames.push({ id: section.id, title: section.title, x: left, y: top, width, height: Math.max(...bottoms, ...pinned.map(rect => rect.y + rect.height + layout.gap)) - top, columns: shown,
       // A title may run into the gap before the next section, or freely past the last one.
       titleWidth: Number.isFinite(cutoff) ? width + layout.sectionGap - 16 : Math.max(width, sectionWidth(layout)) });
     left += width + layout.sectionGap;

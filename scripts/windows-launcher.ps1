@@ -79,7 +79,13 @@ try {
     if ($Port -lt 0 -or $Port -gt 65535) { throw '端口必须在 1 到 65535 之间，留空则使用默认端口。' }
     $nodePath = $null
     $npmEntry = $null
-    foreach ($candidate in @(Get-Command node.exe -CommandType Application -All -ErrorAction Stop)) {
+    $portableMarker = Join-Path $projectRoot 'notara-portable.json'
+    $bundledNode = Join-Path $projectRoot 'runtime\node.exe'
+    if (Test-Path -LiteralPath $portableMarker -PathType Leaf) {
+        if (-not (Test-Path -LiteralPath $bundledNode -PathType Leaf)) { throw '免安装包缺少运行时，请重新完整解压 Windows x64 免安装包。' }
+        $nodeCandidates = @([pscustomobject]@{ Source = $bundledNode })
+    } else { $nodeCandidates = @(Get-Command node.exe -CommandType Application -All -ErrorAction SilentlyContinue) }
+    foreach ($candidate in $nodeCandidates) {
         $nodeOutput = @(& $candidate.Source -p 'process.versions.node')
         $nodeCode = $LASTEXITCODE
         $nodeVersion = [string]($nodeOutput | Select-Object -First 1)

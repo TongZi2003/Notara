@@ -15,6 +15,11 @@ $markerPath = Join-Path $projectRoot 'notara-files.json'
 $installerPath = Join-Path $PSScriptRoot 'install-vault.ts'
 $launcherPath = Join-Path $PSScriptRoot 'windows-launcher.ps1'
 
+function Show-InstallProgress([int]$Percent, [string]$Stage) {
+    $filled = [int][Math]::Floor($Percent / 5)
+    Write-Host ('[' + ('#' * $filled) + ('-' * (20 - $filled)) + "] $Percent% $Stage")
+}
+
 function Show-InstallerMessage([string]$Message, [bool]$Failed = $false) {
     Write-Host $Message
     if (-not $NoUI) {
@@ -193,7 +198,7 @@ function Get-WinGetPath {
 
 function Install-WinGetPackage([string]$WinGetPath, [string]$PackageId, [string]$DisplayName) {
     Write-Host "正在通过 WinGet 安装 $DisplayName。安装器可能会请求 UAC 确认。"
-    $arguments = @('install', '--id', $PackageId, '--exact', '--source', 'winget', '--accept-source-agreements', '--accept-package-agreements', '--silent')
+    $arguments = @('install', '--id', $PackageId, '--exact', '--source', 'winget', '--accept-source-agreements', '--accept-package-agreements', '--silent', '--disable-interactivity')
     & $WinGetPath @arguments
     $installExitCode = $LASTEXITCODE
     if ($installExitCode -ne 0) {
@@ -202,6 +207,7 @@ function Install-WinGetPackage([string]$WinGetPath, [string]$PackageId, [string]
 }
 
 function Invoke-NotaraInstall {
+    Show-InstallProgress 0 '检查安装目录（进度表示完成的安装阶段）'
     if (Test-Path -LiteralPath (Join-Path $projectRoot '.git')) {
         throw "检测到 Git 源码 checkout。此快捷安装入口只支持 Notara Release 资产 ZIP。源码 checkout 请使用旧方式：在 Git Bash 中执行 npm ci --no-audit --no-fund，然后 npm run vault。"
     }
@@ -212,6 +218,7 @@ function Invoke-NotaraInstall {
         throw "发布包缺少 scripts\install-vault.ts，请重新下载 Notara Release ZIP。"
     }
 
+    Show-InstallProgress 5 '检查 Node.js、npm 和 Git Bash'
     Refresh-ProcessPath
     $state = Get-DependencyState
     if ($state.Git.ExplicitInvalid) { throw $state.Git.Reason }
@@ -235,6 +242,7 @@ function Invoke-NotaraInstall {
         }
 
         if (-not $state.Node.Path) {
+            Show-InstallProgress 10 '安装 Node.js；请等待系统安装器完成'
             Install-WinGetPackage $wingetPath 'OpenJS.NodeJS.LTS' 'Node.js LTS 24+'
             Refresh-ProcessPath
             $state.Node = Get-NodeRuntime
@@ -242,6 +250,7 @@ function Invoke-NotaraInstall {
         }
 
         if (-not $state.Git.Path) {
+            Show-InstallProgress 15 '安装 Git for Windows；请等待系统安装器完成'
             Install-WinGetPackage $wingetPath 'Git.Git' 'Git for Windows（含 Git Bash）'
             Refresh-ProcessPath
             $state.Git = Get-GitBashRuntime
@@ -270,6 +279,7 @@ function Invoke-NotaraInstall {
     }
 
     if (-not $NoShortcuts) {
+        Show-InstallProgress 95 '创建桌面启动与关闭快捷方式'
         $powerShellExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
         $shortcutArguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $launcherPath, '-Action', 'Shortcuts')
         $shortcutArguments += '-NoUI'
@@ -278,6 +288,7 @@ function Invoke-NotaraInstall {
         if ($shortcutExitCode -ne 0) { throw "Notara 已安装，但创建桌面快捷方式失败（退出码 $shortcutExitCode）。仍可双击解压目录中的「启动 Notara.cmd」和「关闭 Notara.cmd」。" }
     }
 
+    Show-InstallProgress 100 '安装完成'
     $success = "Notara 安装完成。以后双击解压目录中的「启动 Notara.cmd」启动，双击「关闭 Notara.cmd」停止。"
     if ($NoShortcuts) { $success += "`n桌面快捷方式未创建；可随时双击「创建桌面快捷方式.cmd」。" }
     Show-InstallerMessage $success
