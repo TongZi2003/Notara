@@ -4,7 +4,7 @@
 
 Notara 是基于 **DeepSeek Harness** 的学习工具。题目、理解的变化和课堂小结保存在本机的 Markdown 文件里。下次回来，可以沿着计划、Vault 和技能页继续学。
 
-当前版本 **0.23.3**，依赖 **DSH 0.2.0-rc.1**。本版修复 Windows 教师命令与资料写入、管理员启动环境中的管道权限、空白课堂草稿恢复和 ChatGPT 登录端口问题。Windows 云端预检已通过，详情见 [0.23.3 发布说明](docs/releases/native-vault-0.23.3.md)。
+当前版本 **0.23.4**，依赖 **DSH 0.2.0-rc.1**。本版为 Windows 的「启动 Notara」「关闭 Notara」补上 Notara 图标，保留 0.23.3 的管道、资料写入、课堂草稿与登录端口修复。详情见 [0.23.4 发布说明](docs/releases/native-vault-0.23.4.md)。
 
 ## 可以怎样学
 
@@ -18,7 +18,7 @@ Notara 是基于 **DeepSeek Harness** 的学习工具。题目、理解的变化
 
 ### Windows 快捷安装
 
-从 [0.23.3 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.23.3) 下载 [notara-0.23.3.zip](https://github.com/TongZi2003/Notara/releases/download/v0.23.3/notara-0.23.3.zip)。完整解压到可写的程序目录，再双击其中的 **安装 Notara.cmd**。发布包由标签发布流程完成最终检查后提供。
+从 [0.23.4 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.23.4) 下载 [notara-0.23.4.zip](https://github.com/TongZi2003/Notara/releases/download/v0.23.4/notara-0.23.4.zip)。完整解压到可写的程序目录，再双击其中的 **安装 Notara.cmd**。发布包由标签发布流程完成最终检查后提供，桌面启动和关闭入口使用黄色便笺 N 图标。
 
 安装器检查 **Node.js 24+、npm 和 Git Bash**。缺少时通过 Windows **WinGet** 安装，系统权限提示由你确认。随后检查最新正式版、安装依赖、构建，并创建桌面「启动 Notara」「关闭 Notara」。程序保存在解压出的 `notara` 文件夹中；安装完成后，双击启动入口即可喵。
 

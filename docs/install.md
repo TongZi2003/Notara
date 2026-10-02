@@ -1,6 +1,6 @@
 # 安装和使用 Notara
 
-适用源码版本：Notara 0.23.3 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。自动化验证范围和真实账号验收边界见[版本说明](releases/native-vault-0.23.3.md)。
+适用源码版本：Notara 0.23.4 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。桌面图标变更见[本版说明](releases/native-vault-0.23.4.md)，运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
 
 ## Windows 压缩包快捷安装
 

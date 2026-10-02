@@ -53,6 +53,8 @@ jobs:
       - run: npm run test:plugins
       - name: Test the real Windows sandbox and CLI
         run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/native-vault-git-bash.test.ts tests/integration/native-vault-memory.test.ts tests/integration/native-vault-teaching.test.ts tests/integration/native-vault-windows-shell.test.ts tests/integration/native-vault-windows-cli.test.ts tests/integration/native-vault-windows-pipe.test.ts
+      - name: Verify desktop shortcut icons
+        run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/windows-shortcuts.test.ts -t "COM-readable shortcuts"
   release:
     needs: [resolve, windows]
     runs-on: ubuntu-24.04

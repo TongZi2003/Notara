@@ -33,6 +33,7 @@ interface ShortcutInfo {
   workingDirectory: string;
   description: string;
   windowStyle: number;
+  iconLocation: string;
 }
 
 const controllerStatePath = (config: string): string => `${config.replace(/\.[^./\\]+$/, '')}.controller.json`;
@@ -168,7 +169,7 @@ async function readShortcut(path: string, env: NodeJS.ProcessEnv): Promise<Short
     '$shell = New-Object -ComObject WScript.Shell',
     'try {',
     `  $link = $shell.CreateShortcut(${psLiteral(path)})`,
-    '  $json = [pscustomobject]@{ targetPath = $link.TargetPath; arguments = $link.Arguments; workingDirectory = $link.WorkingDirectory; description = $link.Description; windowStyle = $link.WindowStyle } | ConvertTo-Json -Compress',
+    '  $json = [pscustomobject]@{ targetPath = $link.TargetPath; arguments = $link.Arguments; workingDirectory = $link.WorkingDirectory; description = $link.Description; windowStyle = $link.WindowStyle; iconLocation = $link.IconLocation } | ConvertTo-Json -Compress',
     '  [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($json))',
     '} finally { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell) }',
   ].join('\n');
@@ -313,11 +314,16 @@ test.skipIf(!windowsOnly)('Windows PowerShell 5 creates COM-readable shortcuts a
     expect(start.description).toContain(projectRoot);
     expect(stop.description).toContain(projectRoot);
     expect(start.windowStyle).toBe(7);
+    const expectedIcon = `${join(projectRoot, 'resources/icons/notara.ico')},0`;
+    expect(start.iconLocation).toBe(expectedIcon);
+    expect(stop.iconLocation).toBe(expectedIcon);
 
     const repeated = await runLauncher('Shortcuts', sandbox, { port: shortcutPort });
     expect(repeated.code, `${repeated.stdout}\n${repeated.stderr}`).toBe(0);
     expect((await readShortcut(startPath, sandbox.env)).arguments).toBe(start.arguments);
     expect((await readShortcut(stopPath, sandbox.env)).arguments).toBe(stop.arguments);
+    expect((await readShortcut(startPath, sandbox.env)).iconLocation).toBe(expectedIcon);
+    expect((await readShortcut(stopPath, sandbox.env)).iconLocation).toBe(expectedIcon);
 
     const foreignDirectory = join(sandbox.directory, '其他安装 & 不覆盖');
     await mkdir(foreignDirectory, { recursive: true });

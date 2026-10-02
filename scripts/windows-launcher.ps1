@@ -39,6 +39,7 @@ function New-DesktopShortcuts {
     [void][IO.Directory]::CreateDirectory($destination)
     $shell = New-Object -ComObject WScript.Shell
     $powershellPath = Join-Path ([Environment]::GetFolderPath('System')) 'WindowsPowerShell\v1.0\powershell.exe'
+    $iconPath = Join-Path $projectRoot 'resources\icons\notara.ico'
     $entries = @(@{ Name = '启动 Notara'; Action = 'Start' }, @{ Name = '关闭 Notara'; Action = 'Stop' })
     try {
         # Validate both existing names before changing either shortcut.
@@ -60,6 +61,7 @@ function New-DesktopShortcuts {
             $link.WorkingDirectory = $projectRoot
             $link.Description = $entry.Name + ' (' + $projectRoot + ')'
             $link.WindowStyle = 7
+            if (Test-Path -LiteralPath $iconPath -PathType Leaf) { $link.IconLocation = $iconPath + ',0' }
             $link.Save()
         }
         Show-Result "已创建「启动 Notara」和「关闭 Notara」两个桌面快捷方式。`n移动或重新解压项目后，请在新目录重新创建快捷方式。"
