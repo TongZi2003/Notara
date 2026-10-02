@@ -41,29 +41,37 @@ function sid(ptr){
   if(!api.sidString(ptr,out))return `invalid-${api.error()}`;
   try{return koffi.decode(out[0],'char16_t',-1);}finally{api.free(out[0]);}
 }
+// GetTokenInformation embeds SID/ACL storage in the returned Buffer. Pass a
+// view of that storage to FFI, so borrowed pointers never outlive their owner.
+function pointedBytes(record,offset=0){
+  const ptr=koffi.decode(record,offset,'void *');
+  if(!ptr)return null;
+  const start=Number(koffi.address(ptr)-koffi.address(record));
+  if(start<0||start>=record.length)throw new Error('Token record pointer outside query storage');
+  return record.subarray(start);
+}
 function describeToken(expected){
   const out=[null];if(!api.token(api.current(),8,out))throw new Error(`OpenToken ${api.error()}`);
   const token=out[0];
   try{
-    const user=sid(koffi.decode(info(token,1),0,'void *'));
+    const user=sid(pointedBytes(info(token,1)));
     const names=new Map([[user,'current-user'],['S-1-5-32-544','administrators'],['S-1-5-18','system'],['S-1-1-0','everyone'],['S-1-5-11','authenticated-users'],['S-1-5-4','interactive'],[expected.workspaceSid,'workspace-write'],[expected.tempSid,'temp-write']]);
     const principal=value=>names.get(value)??`sid-sha256:${hash(value).slice(0,16)}`;
     const groups=kind=>{
       const value=info(token,kind),count=value.readUInt32LE(0),rows=[];
-      for(let i=0;i<count;i++)rows.push({principal:principal(sid(koffi.decode(value,8+i*16,'void *'))),attributes:`0x${value.readUInt32LE(16+i*16).toString(16)}`});
+      for(let i=0;i<count;i++)rows.push({principal:principal(sid(pointedBytes(value,8+i*16))),attributes:`0x${value.readUInt32LE(16+i*16).toString(16)}`});
       return rows;
     };
-    const acl=koffi.decode(info(token,6),0,'void *'),aces=[];
+    const acl=pointedBytes(info(token,6)),aces=[];
     if(acl){
-      const header=Buffer.from(koffi.decode(acl,koffi.array('uint8_t',8)));
-      for(let i=0;i<header.readUInt16LE(4);i++){
+      for(let i=0;i<acl.readUInt16LE(4);i++){
         const ace=[null];if(!api.ace(acl,i,ace))throw new Error(`GetAce ${api.error()}`);
-        const head=Buffer.from(koffi.decode(ace[0],koffi.array('uint8_t',8))),size=head.readUInt16LE(2);
-        const bytes=Buffer.from(koffi.decode(ace[0],koffi.array('uint8_t',size)));
+        const start=Number(koffi.address(ace[0])-koffi.address(acl)),head=acl.subarray(start,start+8),size=head.readUInt16LE(2);
+        const bytes=acl.subarray(start,start+size);
         aces.push({type:head[0],flags:head[1],mask:`0x${head.readUInt32LE(4).toString(16)}`,principal:head[0]<=3?principal(sid(bytes.subarray(8))):'object-or-other-ace'});
       }
     }
-    const integrity=sid(koffi.decode(info(token,25),0,'void *'));
+    const integrity=sid(pointedBytes(info(token,25)));
     const il=new Map([['S-1-16-0','untrusted'],['S-1-16-4096','low'],['S-1-16-8192','medium'],['S-1-16-12288','high'],['S-1-16-16384','system']]);
     return {elevated:!!info(token,20).readUInt32LE(0),elevationType:info(token,18).readUInt32LE(0),restricted:!!api.restricted(token),integrity:il.get(integrity)??'other',groups:groups(2),restrictingSids:groups(11),defaultDaclNull:!acl,defaultDacl:aces};
   }finally{api.close(token);}
