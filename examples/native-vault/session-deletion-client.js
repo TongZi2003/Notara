@@ -65,7 +65,7 @@ export function createSessionDeletionUI(React, { Dialog, IconButton }) {
           h('p', null, `还会删除 ${preview.linkedSessions.length} 条关联的子会话记录：`),
           h('ul', null, preview.linkedSessions.map((child, index) => h('li', { key: `${child.title}-${index}` }, child.title, child.worker ? '（工作员）' : '（关联课堂）')))),
         h('p', { className: 'nv-delete-preserved' }, 'Vault 资料、白板、路线和卡片会保留；共享附件也会保留，以免影响其他课堂。'),
-        h('label', { className: 'nv-delete-name-label' }, '输入课堂名称以确认删除',
+        h('label', { className: 'nv-delete-name-label' }, '复制上方提示框引号内的课堂名称，粘贴到这里就能删除了喵',
           h('input', { 'aria-label': '输入课堂名称以确认删除', value: typedTitle, disabled: busy, autoComplete: 'off', onChange: event => setTypedTitle(event.target.value) })),
         h('label', { className: 'nv-delete-ack' },
           h('input', { type: 'checkbox', checked: acknowledged, disabled: busy, onChange: event => setAcknowledged(event.target.checked) }),
