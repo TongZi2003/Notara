@@ -109,6 +109,7 @@
     "fflate": "0.8.3",
     "jsxgraph": "1.13.3",
     "katex": "0.16.47",
+    "koffi": "3.1.1",
     "lexical": "0.49.0",
     "pdfjs-dist": "6.3.289",
     "proper-lockfile": "4.1.2",

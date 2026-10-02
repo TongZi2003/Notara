@@ -41,6 +41,8 @@ import { reviewState, validateReviewNote, validateResult, validateKeyStep, REVIE
 import { safeRelativePath, resolveVaultRoot, revisionFor, pathKey, portablePath } from './vault.js';
 import { BOARD_DIRECTORY } from './board-data.js';
 import { USER_SKILL_DIRECTORY, globalSkillRoot, readUserSkills, saveUserSkill, setSkillRoot } from './user-skills.js';
+import { CLI_WRITE_COMMANDS, CLI_WRITE_URL_ENV, CLI_WRITE_MODE_ENV } from './cli-write-contract.js';
+import { requestCliWrite } from './cli-write-client.js';
 
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;
@@ -51,6 +53,8 @@ const BATCH_STDIN_LIMIT = 2 * 1024 * 1024;
 
 /** Every user-visible failure explains what happened and what to do next. */
 const ERROR_HELP = {
+  cli_write_denied: ['当前课堂没有本次写入权限。', '让用户在权限设置中允许工作区写入后重试。'],
+  cli_write_unavailable: ['本次文件写入通道已结束或不可用。', '重新发起这次命令；不要关闭沙箱或忽略文件权限错误。'],
   batch_original_mismatch: ['原文没有唯一匹配，未修改这个文件。', '用 sed 或 rg 重新读取相关段落，扩大到唯一原文后仅重试这一项。'],
   batch_duplicate_path: ['同一批包含重复目标文件。', '将同一文件的修改合并为一项，再提交整批。'],
   cli_workspace_required: ['没有可用的工作区。', '让用户确认当前学习集，或在独立使用时加 --workspace <绝对路径>。'],
@@ -606,7 +610,7 @@ function addRefs(hits, workspaceId) {
   return hits.map(hit => (hit.ref ? hit : { ...hit, ref: sourceRef(workspaceId, hit.path, hit.revision, hit.anchor ? { anchor: hit.anchor } : undefined) }));
 }
 
-async function runCommand(command, args, { fs, root, env }) {
+async function runCommand(command, args, { fs, root, env, signal }) {
   // `root` is already resolved and symlink-checked by the caller.
   const workspacePath = root;
   const bound = typeof env.DSH_NOTARA_WORKSPACE === 'string' && env.DSH_NOTARA_WORKSPACE.length > 0;
@@ -618,14 +622,14 @@ async function runCommand(command, args, { fs, root, env }) {
   const workspace = { id: workspaceId, path: workspacePath, title: basename(workspacePath) || '学习笔记' };
   const registry = { list: () => [workspace] };
   const ctx = contextFor(fs, registry);
-  const io = createEditorVaultIO(ctx, workspacePath);
+  const io = createEditorVaultIO(ctx, workspacePath, signal);
   const standalone = !bound;
   // A real Host session makes the write a teacher action whose source is bound
   // to this session and call. The workspace path is the Host-injected cwd, not a
   // model argument, so the scope guard cannot be redirected from stdin. Without
   // a session the same writer runs as the standalone actor `self`.
   const exec = sessionId
-    ? { agent: { session: { id: sessionId, header: { cwd: workspacePath } } }, callId, signal: new AbortController().signal }
+    ? { agent: { session: { id: sessionId, header: { cwd: workspacePath } } }, callId, signal: signal ?? new AbortController().signal }
     : null;
   const review = createReviewRuntime({ ctx, editorFor: async () => io });
   if(command==='write-batch')return writeBatch(io,args.files);
@@ -991,6 +995,15 @@ async function main() {
     return;
   }
   try {
+    if (bound && CLI_WRITE_COMMANDS.includes(command)) {
+      if (env[CLI_WRITE_MODE_ENV] === 'read-only') throw new CliError('cli_write_denied');
+      if (env[CLI_WRITE_URL_ENV]) {
+        const response = await requestCliWrite(command, args, env);
+        write(response, process.stdout);
+        if (!response.ok) process.exitCode = EXIT_FAILURE;
+        return;
+      }
+    }
     const resolved = await resolveWorkspace(root);
     const { fs } = await localFileSystem(resolved);
     const result = await runCommand(command, args, { fs, root: resolved, env });

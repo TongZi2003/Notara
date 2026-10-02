@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { EventEmitter } from 'node:events';
 import { ChatgptAccounts, ISSUER, RESOURCE, validateIdToken } from './chatgpt-auth.js';
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -22,7 +23,7 @@ test('ID validation rejects tampering, wrong issuer/audience/nonce/subject, expi
   await assert.rejects(validateIdToken(token.join('.'), options), /identity_invalid/);
 });
 
-async function setup(t) {
+async function setup(t, options = {}) {
   const root = await mkdtemp(join(tmpdir(), 'notara chatgpt-$()`-'));
   let authorize, exchanges = 0, refreshes = 0, grant = 'openid chatgpt.tokens.use.direct resource.invoke', rejectRefresh = false, rejectExchange = false, revokeStatus = 200;
   const requests = [];
@@ -46,7 +47,7 @@ async function setup(t) {
       return Response.json({ access_token: 'private-access', refresh_token: 'private-refresh', token_type: 'Bearer', scope: grant, expires_in: 3600, id_token: jwt({ ...claims, nonce: authorize.searchParams.get('nonce') }) });
     }
     throw new Error('Unexpected request');
-  } });
+  }, ...options });
   t.after(async () => { accounts.close(); await rm(root, { recursive: true, force: true }); });
   return { accounts, root, requests, get exchanges() { return exchanges; }, get refreshes() { return refreshes; }, set grant(value) { grant = value; }, set rejectRefresh(value) { rejectRefresh = value; }, set rejectExchange(value) { rejectExchange = value; }, set revokeStatus(value) { revokeStatus = value; }, async start(id) {
     const started = await accounts.begin(id);
@@ -59,6 +60,100 @@ async function setup(t) {
     return { authorize, callback };
   } };
 }
+
+class AllocatedServer extends EventEmitter {
+  constructor({ port = 10080, error, stalled = false } = {}) {
+    super(); this.port = port; this.error = error; this.stalled = stalled;
+  }
+  listen(options) {
+    assert.equal(options.host, '127.0.0.1'); assert.equal(options.port, 0);
+    this.options = options; this.started?.();
+    if (!this.stalled) queueMicrotask(() => this.emit(this.error ? 'error' : 'listening', this.error));
+    return this;
+  }
+  address() { return this.closed ? null : { address: '127.0.0.1', family: 'IPv4', port: this.port }; }
+  close(callback) { this.closed = true; queueMicrotask(() => callback?.()); return this; }
+  closeAllConnections() { this.connectionsClosed = true; }
+}
+
+test('OAuth allocation closes browser-blocked and unavailable ports before retrying on IPv4 loopback', async t => {
+  const rejected = [
+    new AllocatedServer({ port: 10080 }),
+    new AllocatedServer({ error: Object.assign(new Error('occupied'), { code: 'EADDRINUSE' }) }),
+    new AllocatedServer({ port: 6667 }),
+    new AllocatedServer({ error: Object.assign(new Error('excluded'), { code: 'EACCES' }) }),
+  ];
+  const accepted = new AllocatedServer({ port: 49152 });
+  let count = 0;
+  const fixture = await setup(t, { createCallbackServer() {
+    if (count) { assert.equal(rejected[count - 1].closed, true); assert.equal(rejected[count - 1].connectionsClosed, true); }
+    return rejected[count++] ?? accepted;
+  } });
+  await fixture.accounts.load();
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const started = await fixture.accounts.begin();
+  assert.equal(count, 5);
+  assert.equal(new URL(started.url).port, '49152');
+  assert.equal(fixture.accounts.pending.server, accepted);
+  t.mock.timers.tick(5000);
+  assert.equal(fixture.accounts.pending.server, accepted);
+  assert.equal(accepted.options.signal.aborted, false);
+  for (const server of rejected) {
+    assert.equal(server.closed, true); assert.equal(server.connectionsClosed, true);
+    assert.equal(server.listenerCount('error'), 0); assert.equal(server.listenerCount('listening'), 0);
+  }
+  fixture.accounts.cancel();
+  assert.equal((await fixture.accounts.status()).pending, false);
+  assert.equal(accepted.closed, true); assert.equal(accepted.connectionsClosed, true);
+});
+
+test('OAuth blocked-port retries are bounded and leave no pending registration or server', async t => {
+  const servers = [];
+  const fixture = await setup(t, { createCallbackServer() {
+    const server = new AllocatedServer(); servers.push(server); return server;
+  } });
+  await assert.rejects(fixture.accounts.begin(), /chatgpt_request_failed/);
+  assert.equal(servers.length, 16);
+  assert(servers.every(server => server.closed && server.connectionsClosed));
+  assert.equal((await fixture.accounts.status()).pending, false);
+  assert.deepEqual(fixture.requests, []);
+  assert.equal(fixture.accounts.data.pendingClientId, undefined);
+  const failed = new AllocatedServer({ error: Object.assign(new Error('invalid'), { code: 'EINVAL' }) });
+  let failures = 0;
+  const permanent = await setup(t, { createCallbackServer() { failures++; return failed; } });
+  await assert.rejects(permanent.accounts.begin(), /chatgpt_request_failed/);
+  assert.equal(failures, 1); assert.equal(failed.closed, true); assert.equal(failed.connectionsClosed, true);
+  assert.equal(permanent.accounts.pending, null);
+});
+
+test('OAuth cancellation and manager shutdown abort an unfinished callback allocation', async t => {
+  for (const action of ['cancel', 'close']) {
+    let ready;
+    const listened = new Promise(resolve => { ready = resolve; });
+    const server = new AllocatedServer({ stalled: true }); server.started = ready;
+    const fixture = await setup(t, { createCallbackServer: () => server });
+    const rejected = assert.rejects(fixture.accounts.begin(), { name: 'AbortError' });
+    await listened; fixture.accounts[action](); await rejected;
+    assert.equal(server.options.signal.aborted, true);
+    assert.equal(server.closed, true); assert.equal(server.connectionsClosed, true);
+    assert.equal(fixture.accounts.pending, null);
+    assert.equal(server.listenerCount('error'), 0); assert.equal(server.listenerCount('listening'), 0);
+  }
+});
+
+test('OAuth callback allocation times out and closes an unfinished server', async t => {
+  let ready;
+  const listened = new Promise(resolve => { ready = resolve; });
+  const server = new AllocatedServer({ stalled: true }); server.started = ready;
+  const fixture = await setup(t, { createCallbackServer: () => server });
+  await fixture.accounts.load();
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const rejected = assert.rejects(fixture.accounts.begin(), /chatgpt_request_failed/);
+  await listened; t.mock.timers.tick(5000); await rejected;
+  assert.equal(server.options.signal.aborted, true);
+  assert.equal(server.closed, true); assert.equal(server.connectionsClosed, true);
+  assert.equal(fixture.accounts.pending, null);
+});
 
 test('real loopback OAuth flow persists private credentials; public status never includes them; returning login reuses host/client', async t => {
   const fixture = await setup(t), { accounts } = fixture;

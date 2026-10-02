@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { mkdir, writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { startVaultIsolated, type VaultRuntime } from '../../scripts/dev-isolated.ts';
+import { connectVault } from '../fixtures/vault-http.ts';
 // @ts-expect-error The standalone Vault JS has no declaration; exercise its real formatter instead of duplicating the persisted format in a fixture.
 import { upsertLessonSummary } from '../../examples/native-vault/lesson-data.js';
 
@@ -19,6 +20,84 @@ const tab = async (page: Page, name: string) => {
 };
 const lessonPane = (page: Page) => page.getByRole('complementary', { name: '课程详情' });
 const nodePane = (page: Page) => page.getByRole('complementary', { name: '节点详情' });
+
+test('teaching drafts stay with the saved blank lesson when another blank restores first', async ({ page }, testInfo) => {
+  test.setTimeout(150_000);
+  const runtime = await startVaultIsolated({ testModel: true });
+  const client = await connectVault(runtime);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  let releaseRestore = () => {};
+  try {
+    await page.goto(runtime.authUrl);
+    const later = page.getByRole('button', { name: /Configure later|稍后配置/ });
+    try { await later.waitFor({ timeout: 8000 }); await later.click(); } catch { /* already configured */ }
+    const start = page.locator('.nv-panel').getByRole('button', { name: '新的一课', exact: true });
+    await start.click();
+    const settings = page.getByRole('button', { name: '教学设置', exact: true });
+    await settings.click();
+    const dialog = page.getByRole('dialog', { name: '教学设置' });
+    await dialog.getByLabel('本课临时要求').fill('只属于这节空白课的未保存草稿');
+    await dialog.getByRole('button', { name: '关闭', exact: true }).click();
+    const remembered = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('notara-vault-view') ?? 'null')?.sessionId as string | undefined);
+    await expect.poll(remembered).toBeTruthy();
+    const owner = (await remembered())!;
+
+    // Both identities are real Host sessions accounted to the same workspace.
+    // The later one makes native blank enumeration ambiguous, as in the reload race.
+    const workspace = client.value(await client.rpc<{ workspace: { workspaceId: string } }>('workspace/create', { request: { path: client.workspace } })).workspace;
+    const other = client.value(await client.rpc<{ sessionId: string }>('session/create', { request: { workspaceId: workspace.workspaceId } })).sessionId;
+    expect(other).not.toBe(owner);
+    const rows = client.value(await client.rpc<{ items: { sessionId: string; blank: boolean }[] }>('session/list', { _request: {} })).items;
+    expect(rows.find(row => row.sessionId === owner)?.blank).toBe(true);
+    expect(rows.find(row => row.sessionId === other)?.blank).toBe(true);
+
+    // The native saved selection can differ from this tab's lesson (for example,
+    // another tab selected it). Delay its real restoration, then let it settle.
+    // No settings, drafts or responses are fabricated by this transport gate.
+    await page.evaluate(id => localStorage.setItem('dsh.sessions.current', JSON.stringify({ sessionId: id })), other);
+    let restoreStarted = false;
+    const gate = new Promise<void>(done => { releaseRestore = done; });
+    await page.route('**/api/session/create', async route => {
+      if ((route.request().postData() ?? '').includes(other)) { restoreStarted = true; await gate; }
+      await route.continue();
+    });
+    const restored = page.waitForResponse(response => response.url().endsWith('/api/session/create') && (response.request().postData() ?? '').includes(other));
+    await page.reload();
+    await expect.poll(() => restoreStarted).toBe(true);
+    releaseRestore(); await restored;
+    await page.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+    await start.click();
+    await settings.click();
+    await expect(dialog.getByLabel('本课临时要求')).toHaveValue('只属于这节空白课的未保存草稿');
+    await expect.poll(remembered).toBe(owner);
+    await dialog.getByRole('button', { name: '关闭', exact: true }).click();
+
+    // Explicitly open the other native identity, then return: the first draft
+    // remains intact, and the other lesson has its own empty settings form.
+    for (const id of [other, owner]) {
+      await page.evaluate(sessionId => {
+        sessionStorage.setItem('notara-vault-view', JSON.stringify({ section: 'lesson', sessionId }));
+        localStorage.setItem('dsh.sessions.current', JSON.stringify({ sessionId }));
+      }, id);
+      await page.reload(); await start.click(); await settings.click();
+      await expect(dialog.getByLabel('本课临时要求')).toHaveValue(id === owner ? '只属于这节空白课的未保存草稿' : '');
+      await expect.poll(remembered).toBe(id);
+      await dialog.getByRole('button', { name: '关闭', exact: true }).click();
+    }
+    // The locked native sidebar reports this cancellation when tab restoration
+    // replaces the initial selection before its sidebar finished opening. The
+    // command-skills regression documents the same precise SDK diagnostic.
+    expect(errors.filter(text => !/^Sidebar Session opening failed: Error: Session reference "[^"]+" is released/.test(text))).toEqual([]);
+  } finally {
+    releaseRestore();
+    await testInfo.attach('browser-errors', { body: JSON.stringify(errors), contentType: 'application/json' });
+    await testInfo.attach('host-log', { body: runtime.log(), contentType: 'text/plain' });
+    await client.close();
+    await runtime.stop();
+  }
+});
 
 test('vault teaching keeps settings, routes and 锦囊 facts learner-facing', async ({ page }, testInfo) => {
   test.setTimeout(240_000);

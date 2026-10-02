@@ -18,7 +18,14 @@ export const TEACHER_PRESET = Object.freeze({
   plugins: [
     { id: 'persona', name: '@deepseek-ai/dsh-persona', config: { prefix: '你是教学者，根据真实资料、学生的思路和当前学习目标推进。教法可以调整，课堂保持同一会话。' } },
     { id: 'tool-fs', name: '@deepseek-ai/dsh-tool-fs' },
-    { id: 'tool-bash', name: '@deepseek-ai/dsh-tool-bash' },
+    ...(process.platform === 'win32' ? [{
+      id: 'teacher-shell', name: 'cordis:group', group: true,
+      isolate: { shell: true },
+      config: [
+        { id: 'windows-posix', name: '@notara/vault-native/windows-posix-executor', config: { timeoutMs: 60000 } },
+        { id: 'tool-bash', name: '@notara/vault-native/windows-posix-tool' },
+      ],
+    }] : [{ id: 'tool-bash', name: '@deepseek-ai/dsh-tool-bash' }]),
     // job_output / job_list / job_kill, the controller that background Bash and
     // background workers (ask_worker run_in_background) need, and completion notices.
     { id: 'tool-jobs', name: '@deepseek-ai/dsh-tool-jobs' },

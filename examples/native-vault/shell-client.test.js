@@ -10,10 +10,10 @@ const selected=(spaces,sessions,...rest)=>selectedVaultDirectory(spaces,main(ses
 const lessons=(directory,spaces,sessions)=>directoryLessons(directory,spaces,main(sessions));
 
 function runtime(connect){
-  const state={current:'old',byId:{old:{blank:false},fresh:{blank:true}}};
+  const state={phase:'ready',current:'old',byId:{old:{blank:false,cwd:'/course'},fresh:{blank:true,cwd:'/course'}}};
   const opened=[];
   return {state,opened,ctx:{
-    workspaces:{list:{getSnapshot:()=>({items:[{workspaceId:'w',sessionIds:['old','fresh']}]})}},
+    workspaces:{list:{getSnapshot:()=>({phase:'ready',items:[{workspaceId:'w',path:'/course',sessionIds:['old','fresh']}]}),subscribe:()=>()=>{}}},
     sessions:{list:{getSnapshot:()=>main(state)}},
     uiWorkspace:{connectWorkspace:connect,openSession:id=>{opened.push(id);state.current=id;}},
   }};
@@ -114,13 +114,151 @@ test('a reload waits for DSH to restore its own selection before reopening the l
   assert.deepEqual(r.opened,['old']);
   assert.equal(listeners.size,0,'the wait unsubscribes');
 });
-test('a reloaded tab whose lesson is gone or blank goes Home and forgets it',async()=>{
-  for(const id of ['missing','fresh']){
+test('a reloaded blank lesson keeps its exact identity even when DSH restored another blank first',async()=>{
+  const r=runtime(async()=> 'other'),storage=tabStore({sessionId:'fresh',layout:{left:'chat',right:null,ratio:62}});
+  r.state.byId.other={blank:true,cwd:'/course'};r.state.current='other';
+  r.ctx.workspaces.list.getSnapshot=()=>({phase:'ready',items:[{workspaceId:'w',path:'/course',sessionIds:['other','fresh']}]});
+  const nav=createVaultNavigation({storage});await nav.resume(r.ctx);
+  assert.equal(nav.getSnapshot().section,'lesson');assert.equal(r.state.current,'fresh');
+  assert.deepEqual(r.opened,['fresh']);
+  let starts=0;r.ctx.uiWorkspace.startSession=()=>{starts++;};
+  assert.equal(nav.startLesson(r.ctx,'w'),true);
+  assert.deepEqual(r.opened,['fresh','fresh']);assert.equal(starts,0,'native blank enumeration must not replace the current blank');
+});
+test('a reloaded tab drops missing, archived, worker and foreign blank lessons',async()=>{
+  for(const id of ['missing','archived','worker','unregistered','foreign']){
     const r=runtime(async()=> 'fresh'),storage=tabStore({sessionId:id,layout:{left:'chat',right:null,ratio:62}}),nav=createVaultNavigation({storage});
+    r.state.byId.archived={blank:true,cwd:'/course'};r.state.byId.worker={blank:false,origin:'subagent'};
+    r.state.byId.unregistered={blank:true,cwd:'/course'};r.state.byId.foreign={blank:true,cwd:'/elsewhere'};
+    r.ctx.workspaces.list.getSnapshot=()=>({phase:'ready',items:[{workspaceId:'w',path:'/course',sessionIds:['old','fresh','archived','worker','foreign']}],archivedSessionIds:['archived']});
     await nav.resume(r.ctx);
     assert.equal(nav.getSnapshot().section,'home');assert.deepEqual(r.opened,[]);
     assert.deepEqual(readView(storage),{section:'home',plan:'calendar',vault:'files'},'the lesson is forgotten; Home is remembered');
   }
+});
+test('new lessons wait for restoration and keep explicit workspace switches native',()=>{
+  const r=runtime(async()=> 'fresh'),nav=createVaultNavigation({storage:tabStore({sessionId:'fresh'})}),starts=[];
+  r.ctx.uiWorkspace.startSession=id=>starts.push(id);
+  assert.equal(nav.startLesson(r.ctx,'w'),false);assert.deepEqual(starts,[]);
+  nav.show('home');r.state.current=undefined;
+  assert.equal(nav.startLesson(r.ctx,'w'),false);assert.deepEqual(starts,[]);
+  r.state.current='fresh';
+  r.ctx.workspaces.list.getSnapshot=()=>({phase:'ready',items:[{workspaceId:'w',path:'/course',sessionIds:['old','fresh']},{workspaceId:'other',path:'/other',sessionIds:[]}]});
+  assert.equal(nav.startLesson(r.ctx,'other'),true);assert.deepEqual(starts,['other']);assert.deepEqual(r.opened,[]);
+  r.state.current='old';assert.equal(nav.startLesson(r.ctx,'w'),true);assert.deepEqual(starts,['other','w']);
+});
+test('blank lesson restoration waits for workspace membership instead of forgetting a pending directory',async()=>{
+  const r=runtime(async()=> 'fresh'),listeners=new Set(),spaceListeners=new Set(),storage=tabStore({sessionId:'fresh'});
+  let spaces={phase:'pending',items:[]};
+  r.ctx.workspaces.list.getSnapshot=()=>spaces;
+  r.ctx.workspaces.list.subscribe=fn=>{spaceListeners.add(fn);return()=>spaceListeners.delete(fn);};
+  r.ctx.sessions.list.subscribe=fn=>{listeners.add(fn);return()=>listeners.delete(fn);};
+  const nav=createVaultNavigation({storage}),pending=nav.resume(r.ctx);
+  await new Promise(done=>setTimeout(done,20));
+  assert.equal(nav.getSnapshot().resuming,true);assert.deepEqual(r.opened,[]);
+  assert.equal(readView(storage).sessionId,'fresh');
+  spaces={phase:'ready',items:[{workspaceId:'w',path:'/course',sessionIds:['old','fresh']}]};
+  for(const fn of [...spaceListeners])fn();await pending;
+  assert.equal(nav.getSnapshot().section,'lesson');assert.equal(nav.getSnapshot().resuming,false);
+  assert.deepEqual(r.opened,['fresh']);assert.equal(listeners.size,0);assert.equal(spaceListeners.size,0);
+});
+test('a late workspace feed preserves the saved blank identity after the bounded restore wait',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  const r=runtime(async()=> 'fresh'),listeners=new Set(),spaceListeners=new Set(),storage=tabStore({sessionId:'fresh'});
+  let spaces={phase:'pending',items:[]};
+  r.ctx.workspaces.list.getSnapshot=()=>spaces;
+  r.ctx.workspaces.list.subscribe=fn=>{spaceListeners.add(fn);return()=>spaceListeners.delete(fn);};
+  r.ctx.sessions.list.subscribe=fn=>{listeners.add(fn);return()=>listeners.delete(fn);};
+  const nav=createVaultNavigation({storage}),pending=nav.resume(r.ctx);
+  t.mock.timers.tick(5000);await pending;
+  assert.equal(nav.getSnapshot().resuming,true);assert.equal(readView(storage).sessionId,'fresh');
+  assert.equal(listeners.size,1);assert.equal(spaceListeners.size,1);
+  spaces={phase:'ready',items:[{workspaceId:'w',path:'/course',sessionIds:['old','fresh']}]};
+  for(const fn of [...spaceListeners])fn();
+  assert.equal(nav.getSnapshot().resuming,false);assert.deepEqual(r.opened,['fresh']);assert.equal(listeners.size,0);assert.equal(spaceListeners.size,0);
+});
+test('a pending session feed cannot erase the saved lesson when the restore timeout expires',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  const r=runtime(async()=> 'fresh'),listeners=new Set(),spaceListeners=new Set(),storage=tabStore({sessionId:'fresh'}),rows=r.state.byId;
+  r.state.phase='pending';r.state.current=undefined;r.state.byId={};
+  r.ctx.sessions.list.subscribe=fn=>{listeners.add(fn);return()=>listeners.delete(fn);};
+  r.ctx.workspaces.list.subscribe=fn=>{spaceListeners.add(fn);return()=>spaceListeners.delete(fn);};
+  const nav=createVaultNavigation({storage}),pending=nav.resume(r.ctx);
+  t.mock.timers.tick(5000);await pending;
+  assert.equal(nav.getSnapshot().section,'lesson');assert.equal(nav.getSnapshot().resuming,true);
+  assert.equal(readView(storage).sessionId,'fresh');assert.deepEqual(r.opened,[]);
+  assert.equal(listeners.size,1);assert.equal(spaceListeners.size,1);
+  r.state.phase='ready';r.state.current='old';r.state.byId=rows;
+  for(const fn of [...listeners])fn();
+  assert.equal(nav.getSnapshot().resuming,false);assert.deepEqual(r.opened,['fresh']);
+  assert.equal(listeners.size,0);assert.equal(spaceListeners.size,0);
+});
+test('late session and workspace baselines may arrive in either order without changing the saved lesson',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  for(const first of ['sessions','workspaces']){
+    const r=runtime(async()=> 'fresh'),listeners=new Set(),spaceListeners=new Set(),storage=tabStore({sessionId:'fresh'}),rows=r.state.byId;
+    let spaces={phase:'pending',items:[]};
+    r.state.phase='pending';r.state.current=undefined;r.state.byId={};
+    r.ctx.workspaces.list.getSnapshot=()=>spaces;
+    r.ctx.sessions.list.subscribe=fn=>{listeners.add(fn);return()=>listeners.delete(fn);};
+    r.ctx.workspaces.list.subscribe=fn=>{spaceListeners.add(fn);return()=>spaceListeners.delete(fn);};
+    const nav=createVaultNavigation({storage}),pending=nav.resume(r.ctx);
+    t.mock.timers.tick(5000);await pending;
+    for(const feed of [first,first==='sessions'?'workspaces':'sessions']){
+      if(feed==='sessions'){r.state.phase='ready';r.state.current='old';r.state.byId=rows;for(const fn of [...listeners])fn();}
+      else{spaces={phase:'ready',items:[{workspaceId:'w',path:'/course',sessionIds:['old','fresh']}]};for(const fn of [...spaceListeners])fn();}
+      if(feed===first){assert.equal(nav.getSnapshot().resuming,true);assert.equal(readView(storage).sessionId,'fresh');assert.deepEqual(r.opened,[]);}
+    }
+    assert.equal(nav.getSnapshot().resuming,false);assert.deepEqual(r.opened,['fresh']);
+    assert.equal(listeners.size,0);assert.equal(spaceListeners.size,0);
+  }
+});
+test('ready baselines still restore the saved lesson after the bounded native-selection wait',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  const r=runtime(async()=> 'fresh'),listeners=new Set(),spaceListeners=new Set(),nav=createVaultNavigation({storage:tabStore({sessionId:'fresh'})});
+  r.state.current=undefined;
+  r.ctx.sessions.list.subscribe=fn=>{listeners.add(fn);return()=>listeners.delete(fn);};
+  r.ctx.workspaces.list.subscribe=fn=>{spaceListeners.add(fn);return()=>spaceListeners.delete(fn);};
+  const pending=nav.resume(r.ctx);t.mock.timers.tick(5000);await pending;
+  assert.equal(nav.getSnapshot().resuming,false);assert.deepEqual(r.opened,['fresh']);
+  assert.equal(listeners.size,0);assert.equal(spaceListeners.size,0);
+});
+test('explicit navigation cancels the initial restore wait immediately',async()=>{
+  const r=runtime(async()=> 'fresh'),listeners=new Set(),spaceListeners=new Set(),nav=createVaultNavigation({storage:tabStore({sessionId:'fresh'})});
+  r.state.current=undefined;
+  r.ctx.sessions.list.subscribe=fn=>{listeners.add(fn);return()=>listeners.delete(fn);};
+  r.ctx.workspaces.list.subscribe=fn=>{spaceListeners.add(fn);return()=>spaceListeners.delete(fn);};
+  const pending=nav.resume(r.ctx);nav.show('plan');
+  assert.equal(listeners.size,0);assert.equal(spaceListeners.size,0);await pending;
+  assert.equal(nav.getSnapshot().section,'plan');assert.equal(nav.getSnapshot().resuming,false);assert.deepEqual(r.opened,[]);
+});
+test('explicit navigation removes both late-feed subscriptions and never reopens the previous lesson',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  const moves=[nav=>nav.show('plan'),nav=>nav.showReviewQueue(),nav=>nav.adoptHome('fresh','w'),(nav,ctx)=>nav.openLesson(ctx,'old')];
+  for(const move of moves){
+    const r=runtime(async()=> 'fresh'),listeners=new Set(),spaceListeners=new Set(),nav=createVaultNavigation({storage:tabStore({sessionId:'fresh'})});
+    let spaces={phase:'pending',items:[]};
+    r.ctx.workspaces.list.getSnapshot=()=>spaces;
+    r.ctx.sessions.list.subscribe=fn=>{listeners.add(fn);return()=>listeners.delete(fn);};
+    r.ctx.workspaces.list.subscribe=fn=>{spaceListeners.add(fn);return()=>spaceListeners.delete(fn);};
+    const pending=nav.resume(r.ctx);t.mock.timers.tick(5000);await pending;
+    assert.equal(listeners.size,1);assert.equal(spaceListeners.size,1);
+    const queued=[...listeners,...spaceListeners];move(nav,r.ctx);
+    assert.equal(nav.getSnapshot().resuming,false);assert.equal(listeners.size,0);assert.equal(spaceListeners.size,0);
+    const opened=[...r.opened];
+    spaces={phase:'ready',items:[{workspaceId:'w',path:'/course',sessionIds:['old','fresh']}]};
+    for(const fn of queued)fn();
+    assert.deepEqual(r.opened,opened,'even an already queued feed notification cannot reopen the saved lesson');
+  }
+});
+test('disposing navigation cancels pending restoration and all of its subscriptions',async()=>{
+  const r=runtime(async()=> 'fresh'),listeners=new Set(),spaceListeners=new Set(),nav=createVaultNavigation({storage:tabStore({sessionId:'fresh'})});
+  r.state.current=undefined;
+  r.ctx.sessions.list.subscribe=fn=>{listeners.add(fn);return()=>listeners.delete(fn);};
+  r.ctx.workspaces.list.subscribe=fn=>{spaceListeners.add(fn);return()=>spaceListeners.delete(fn);};
+  const pending=nav.resume(r.ctx);nav.dispose();await pending;
+  assert.equal(listeners.size,0);assert.equal(spaceListeners.size,0);assert.deepEqual(r.opened,[]);
+  assert.equal(nav.startLesson(r.ctx,'w'),false);
 });
 test('a lesson is remembered with its panes, any other section as itself; never while resuming, and moving away first cancels the resume',async()=>{
   const storage=tabStore(),nav=createVaultNavigation({storage});

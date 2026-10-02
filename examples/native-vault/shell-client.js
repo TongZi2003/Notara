@@ -42,6 +42,12 @@ const SECTIONS=new Set(['home','plan','vault','skills']);
 const PLAN_VIEW_IDS=['calendar','routes','review','scheduled'],VAULT_VIEW_IDS=['files','cards','graph'];
 /** How long a reload waits for DSH to restore its selection before reopening the lesson anyway. */
 const RESUME_WAIT_MS=5000;
+/** A blank lesson can already own teaching settings and unsaved edits. */
+function blankInDirectory(directory,spaces,sessions,sessionId){
+  const row=sessions.byId?.[sessionId];
+  return !!directory&&row?.blank===true&&row.origin!=='subagent'&&directory.sessionIds?.includes(sessionId)
+    &&row.cwd===directory.path&&!(spaces.archivedSessionIds??[]).includes(sessionId);
+}
 function tabStorage(storage){try{return storage??globalThis.sessionStorage??null;}catch{return null;}}
 /** What this tab showed before a reload: a lesson with its panes, or a section and its view. */
 export function readView(storage){
@@ -66,12 +72,19 @@ export function createVaultNavigation({storage}={}) {
   let resumeLayout=resume?.layout?{sessionId:resume.sessionId,layout:resume.layout}:null;
   const listeners=new Set();
   let controller=null;
+  let resumeRetry=null;
+  let resumeWait=null,disposed=false;
+  const cancelResume=()=>{
+    const stopWait=resumeWait,stopRetry=resumeRetry;
+    resumeWait=null;resumeRetry=null;stopWait?.();stopRetry?.();
+  };
   const notify=()=>{for(const fn of listeners)fn();};
   const publish=patch=>{value={...value,...patch};notify();};
   const write=record=>{try{store?.setItem(VIEW_KEY,JSON.stringify(record));}catch{/* storage unavailable */}};
   const forget=()=>{resumeLayout=null;try{store?.removeItem(VIEW_KEY);}catch{/* storage unavailable */}};
   const rememberSection=()=>{if(!value.resuming&&value.section!=='lesson')write({section:value.section,plan:value.plan,vault:value.vault});};
   const move=(section,tab,request)=>{
+    cancelResume();
     if(section!=='home')controller?.abort();
     // A sentence waiting for Home's composer is meant for this visit only.
     value={...value,section,resuming:false,...(section==='home'?{homeSession:null,homeError:''}:{pendingDraft:null}),...(section==='vault'&&tab?{vault:tab}:{}),...(section==='plan'&&tab?{plan:tab}:{}),request,serial:value.serial+1};
@@ -85,6 +98,7 @@ export function createVaultNavigation({storage}={}) {
     command(section,tab,command){move(section,tab,{command,nonce:value.serial+1});},
     complete(){if(!value.request)return;value={...value,request:null};notify();},
     showReviewQueue(){
+      cancelResume();
       controller?.abort();
       value={...value,section:'plan',plan:'review',resuming:false,pendingDraft:null,request:{reviewFilter:'due',nonce:value.serial+1},serial:value.serial+1};
       rememberSection();notify();
@@ -97,6 +111,7 @@ export function createVaultNavigation({storage}={}) {
     requestDirectoryPicker(){publish({pickerRequest:value.pickerRequest+1});},
     /** A directory picked on Home: its blank lesson becomes Home's own, so the student stays on Home. */
     adoptHome(sessionId,workspaceId){
+      cancelResume();
       controller?.abort();
       value={...value,section:'home',resuming:false,homeSession:sessionId,homeWorkspaceId:workspaceId,directoryId:workspaceId,homeError:'',request:null,serial:value.serial+1};
       rememberSection();notify();
@@ -125,9 +140,23 @@ export function createVaultNavigation({storage}={}) {
     },
     /** Open a lesson from elsewhere (the library, a record) on a chosen view. */
     openLesson(ctx,sessionId,view='chat'){
+      cancelResume();
       controller?.abort();
       publish({section:'lesson',resuming:false,homeSession:null,pendingDraft:null,layoutRequest:{sessionId,view,nonce:value.serial+1},serial:value.serial+1});
       ctx.uiWorkspace.openSession(sessionId);
+    },
+    /** Continue this directory's current blank lesson before asking native DSH
+     * to find another one. Its settings and drafts belong to this exact id. */
+    startLesson(ctx,workspaceId){
+      if(disposed||value.resuming)return false;
+      const spaces=ctx.workspaces.list.getSnapshot(),sessions=ctx.sessions.list.getSnapshot();
+      const directory=spaces.items.find(item=>item.workspaceId===workspaceId);
+      if(spaces.phase!=='ready'||!directory||!mainViewSettled(sessions))return false;
+      const current=currentSessionId(sessions);
+      this.show('lesson');
+      if(blankInDirectory(directory,spaces,sessions,current))ctx.uiWorkspace.openSession(current);
+      else ctx.uiWorkspace.startSession(workspaceId);
+      return true;
     },
     completeLayoutRequest(){if(value.layoutRequest)publish({layoutRequest:null});},
     /** Remember the lesson and its panes shown in this tab; any other section remembers itself. */
@@ -146,22 +175,51 @@ export function createVaultNavigation({storage}={}) {
      * own selection: opening earlier races that restore. The wait is bounded, so a
      * restore that never lands still lets the lesson come back. */
     async resume(ctx){
-      if(!resume||!value.resuming)return;
-      const list=ctx.sessions.list,settled=()=>{const snapshot=list.getSnapshot();return snapshot.phase!=='pending'&&currentSessionId(snapshot)!==undefined;};
+      if(disposed||!resume||!value.resuming||resumeWait||resumeRetry)return;
+      const list=ctx.sessions.list,workspaces=ctx.workspaces.list;
+      const feedsReady=()=>workspaces.getSnapshot().phase==='ready'&&list.getSnapshot().phase==='ready';
+      const settled=()=>feedsReady()&&mainViewSettled(list.getSnapshot());
       if(!settled())await new Promise(done=>{
-        let stop=()=>{};
-        const finish=()=>{clearTimeout(timer);stop();done();};
+        let stop=()=>{},stopSpaces=()=>{},finished=false;
+        const finish=()=>{
+          if(finished)return;
+          finished=true;clearTimeout(timer);stop();stopSpaces();if(resumeWait===finish)resumeWait=null;done();
+        };
         const timer=setTimeout(finish,RESUME_WAIT_MS);
+        resumeWait=finish;
         stop=list.subscribe(()=>{if(settled())finish();});
+        stopSpaces=workspaces.subscribe(()=>{if(settled())finish();});
         if(settled())finish();
       });
-      if(!value.resuming)return;
-      const snapshot=list.getSnapshot(),row=snapshot.byId?.[resume.sessionId];
-      publish({resuming:false});
-      if(!row||row.blank===true||row.origin==='subagent'){forget();if(value.section==='lesson')this.show('home');return;}
-      if(currentSessionId(snapshot)!==resume.sessionId)ctx.uiWorkspace.openSession(resume.sessionId);
+      if(disposed||!value.resuming)return;
+      const restore=()=>{
+        if(disposed||!value.resuming||!feedsReady())return;
+        const snapshot=list.getSnapshot(),row=snapshot.byId?.[resume.sessionId],spaces=workspaces.getSnapshot();
+        const directory=spaces.items.find(item=>item.sessionIds?.includes(resume.sessionId));
+        if(!row||row.origin==='subagent'||(spaces.archivedSessionIds??[]).includes(resume.sessionId)
+          ||(row.blank===true&&!blankInDirectory(directory,spaces,snapshot,resume.sessionId))){forget();if(value.section==='lesson')this.show('home');return;}
+        if(currentSessionId(snapshot)!==resume.sessionId)ctx.uiWorkspace.openSession(resume.sessionId);
+        publish({resuming:false});
+      };
+      if(feedsReady()){restore();return;}
+      // Neither unloaded feed can prove a remembered lesson missing or foreign.
+      // Retry once both baselines arrive; the bounded native-selection wait is over.
+      let stop=()=>{},stopSpaces=()=>{},stopped=false;
+      const stopRetry=()=>{
+        if(stopped)return;
+        stopped=true;stop();stopSpaces();if(resumeRetry===stopRetry)resumeRetry=null;
+      };
+      const retry=()=>{
+        if(stopped)return;
+        if(disposed||!value.resuming){stopRetry();return;}
+        if(!feedsReady())return;
+        // Native retention notifications are synchronous: detach before opening.
+        stopRetry();restore();
+      };
+      resumeRetry=stopRetry;
+      stop=list.subscribe(retry);stopSpaces=workspaces.subscribe(retry);retry();
     },
-    dispose(){controller?.abort();controller=null;listeners.clear();},
+    dispose(){disposed=true;controller?.abort();controller=null;cancelResume();listeners.clear();},
   };
 }
 

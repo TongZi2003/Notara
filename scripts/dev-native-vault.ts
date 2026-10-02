@@ -8,7 +8,7 @@ import { build } from 'esbuild';
 import lockfile from 'proper-lockfile';
 import { ensureVaultAliases, installedPluginRoot, liveVaultUrl, mustUpgradeBeforeStart, pluginVersions, readVaultState, vaultPluginLinks, writeVaultState, validateVaultPort } from './vault-launcher-state.ts';
 import { packageBin } from './package-bin.ts';
-import { findGitBash, windowsProbe } from './git-bash.ts';
+import { ensureWindowsPosix } from './windows-posix.ts';
 import { upgradeLegacySettings } from './legacy-settings.ts';
 import { studentProfile } from './vault-profile.ts';
 import { VAULT_TEST_MODEL, VAULT_TEST_PROVIDER } from './fixtures/vault-test-model.ts';
@@ -71,13 +71,13 @@ export interface VaultOptions {
   testModel?: boolean;
   /** Optional Pixel Agents demo, installed as a separate native DSH plugin. */
   pixelClassroom?: boolean;
-  /** Tests only: run the teacher's Bash through Notara's Git Bash executor with
-   * this bash on any platform. On Windows the executor is always used. */
+  /** Tests only: exercise the legacy Bash file executor on POSIX. Windows
+   * always uses its pinned native POSIX shell inside the teacher preset. */
   gitBash?: string;
 }
 
 /** Whether this instance's teacher runs Bash through Notara's Git Bash executor. */
-const usesGitBash = (options: { gitBash?: string | undefined }): boolean => process.platform === 'win32' || options.gitBash !== undefined;
+const usesGitBash = (options: { gitBash?: string | undefined }): boolean => process.platform !== 'win32' && options.gitBash !== undefined;
 
 export interface VaultPersistentOptions extends Omit<VaultOptions, 'pixelClassroom'> { port?: number }
 
@@ -343,13 +343,10 @@ async function bootVault(root: string, options: VaultOptions & { preserve?: bool
   for (const key of Object.keys(env)) {
     if (key.startsWith('DSH_') && key !== 'DSH_HOME' && key !== 'DSH_TELEMETRY_DISABLED') delete env[key];
   }
-  // The Git Bash executor reads its program from here (git-bash-executor.js).
-  if (options.gitBash !== undefined) env.NOTARA_GIT_BASH = options.gitBash;
-  else if (process.platform === 'win32') {
-    const found = findGitBash(windowsProbe());
-    if (found.path === undefined) throw new Error('reason' in found ? found.reason : '没有找到 Git Bash。');
-    env.NOTARA_GIT_BASH = found.path;
-  }
+  // Windows uses a pinned native executable, verified before the Host boots.
+  // Only the teacher preset replaces its shell; ordinary sessions retain pwsh.
+  if (process.platform === 'win32') env.NOTARA_WINDOWS_POSIX = await ensureWindowsPosix(project);
+  else if (options.gitBash !== undefined) env.NOTARA_GIT_BASH = options.gitBash;
   const redact = (text: string): string => text.replace(/([?&]token=)[^\s&]+/g, '$1[redacted]');
   let port = options.port ?? 0;
   function launch(): VaultProcess {

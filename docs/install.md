@@ -1,6 +1,6 @@
 # 安装和使用 Notara
 
-适用版本：Notara 0.23.1 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows 尚未完成全流程验收，新功能的自动化验证范围和已知限制见[发布说明](releases/native-vault-0.23.1.md)。
+适用源码版本：Notara 0.23.2 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。自动化验证范围和真实账号验收边界见[版本说明](releases/native-vault-0.23.2.md)。
 
 ## Windows 压缩包快捷安装
 
@@ -145,7 +145,7 @@ npm run vault -- --root /你的数据目录
 | 页面 401 或浏览器没有打开 | 服务运行时执行 `npm run vault:open`；自定义实例带上相同的 `--root`。 |
 | 端口被占用 | 检查是否已有实例。新实例可以显式指定空闲端口；不要删除学习目录。 |
 | 提示必须升级插件 | 停止服务、完整备份、运行 `npm run vault:upgrade`。单独拉取代码不会替换快照。 |
-| Windows 找不到 Bash | 安装 Git for Windows、重新打开 Git Bash；特殊安装位置使用 `NOTARA_GIT_BASH` 指定 `bash.exe`。 |
+| Windows shell 下载或校验失败 | 确认网络和代理可访问 frippery.org，再重试启动；使用完整的新版 Release ZIP 可直接使用包内已校验的 BusyBox。不要改用 WSL 的 bash.exe 或关闭沙箱。 |
 | 模型一直没有回复 | 核对模型配置、余额和网络。需要诊断时在“学习界面”开启调试记录；分享报错时去掉凭据和私密课堂内容。 |
 
 Windows 的详细路径与端口说明见 [Windows 安装说明](runtime/windows-native-vault.md)。启动与认证机制见[启动说明](runtime/vault-launcher.md)。

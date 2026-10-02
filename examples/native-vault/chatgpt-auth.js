@@ -10,9 +10,47 @@ export const ISSUER = 'https://auth.openai.com';
 export const RESOURCE = 'https://api.openai.com/v1';
 const TOKEN_URL = `${ISSUER}/api/accounts/oauth/token`;
 const SCOPES = 'openid profile email offline_access resource.invoke chatgpt.tokens.use.direct';
+// Fetch Standard §2.9: an OS-assigned port can still be blocked by browsers.
+// https://fetch.spec.whatwg.org/#port-blocking
+const BAD_PORTS = new Set([
+  0, 1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77,
+  79, 87, 95, 101, 102, 103, 104, 109, 110, 111, 113, 115, 117, 119, 123, 135,
+  137, 139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531,
+  532, 540, 548, 554, 556, 563, 587, 601, 636, 989, 990, 993, 995, 1719, 1720,
+  1723, 2049, 3659, 4045, 4190, 5060, 5061, 6000, 6566, 6665, 6666, 6667,
+  6668, 6669, 6679, 6697, 10080,
+]);
 const random = () => randomBytes(32).toString('base64url');
 const fail = code => { throw new Error(code); };
 const issuedClient = value => typeof value === 'string' && value !== 'dynamic_agent_client' && /^[A-Za-z0-9_-]{1,200}$/.test(value);
+
+function closeCallbackServer(server) {
+  return new Promise(resolve => {
+    server.close(() => resolve());
+    server.closeAllConnections();
+  });
+}
+
+function listenCallbackServer(server, signal) {
+  return new Promise((resolve, reject) => {
+    const binding = new AbortController();
+    let settled = false;
+    const finish = error => {
+      if (settled) return; settled = true;
+      signal.removeEventListener('abort', aborted);
+      server.removeListener('error', failed); server.removeListener('listening', listening);
+      if (error) reject(error); else resolve();
+    };
+    const aborted = () => { binding.abort(signal.reason); finish(signal.reason); };
+    const failed = error => finish(error);
+    const listening = () => finish();
+    if (signal.aborted) { aborted(); return; }
+    signal.addEventListener('abort', aborted, { once: true });
+    server.once('error', failed); server.once('listening', listening);
+    try { server.listen({ port: 0, host: '127.0.0.1', signal: binding.signal }); }
+    catch (error) { finish(error); }
+  });
+}
 
 async function protectPrivatePath(path, directory) {
   if (process.platform !== 'win32') await chmod(path, directory ? 0o700 : 0o600);
@@ -63,10 +101,12 @@ export async function validateIdToken(token, { clientId, nonce, subject, jwks, n
 
 /** One manager per locked DSH runtime. All credential mutations/refreshes are serialized. */
 export class ChatgptAccounts {
-  constructor(directory, { fetch: fetcher = globalThis.fetch, protect = protectDirectory, onChange = () => {}, now = Date.now } = {}) {
+  constructor(directory, { fetch: fetcher = globalThis.fetch, protect = protectDirectory, onChange = () => {}, now = Date.now, createCallbackServer = createServer } = {}) {
     this.directory = directory; this.fetch = fetcher; this.protect = protect; this.onChange = onChange; this.now = now;
     this.queue = Promise.resolve(); this.pending = null; this.notice = ''; this.controllers = new Map();
     this.shutdown = new AbortController();
+    // A local constructor seam for deterministic allocator tests; no environment override.
+    this.createCallbackServer = createCallbackServer;
   }
   exclusive(fn) { const work = this.queue.then(fn); this.queue = work.catch(() => {}); return work; }
   async load() {
@@ -117,17 +157,48 @@ export class ChatgptAccounts {
       this.shutdown.signal.throwIfAborted();
       const account = id ? data.accounts.find(a => a.id === id) : undefined;
       if (id && !account) fail('chatgpt_account_missing');
-      const attempt = { id: random(), state: random(), nonce: random(), verifier: random(), account, clientId: account?.clientId || data.pendingClientId, expires: this.now() + 300_000 };
-      const server = createServer((req, res) => { void this.callback(attempt, req, res); });
-      await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
-      attempt.server = server; attempt.redirect = `http://127.0.0.1:${server.address().port}/auth/callback`;
-      attempt.timer = setTimeout(() => { if (this.pending === attempt) { this.notice = 'chatgpt_signin_expired'; this.cancel(); } }, 300_000);
-      attempt.timer.unref(); this.pending = attempt;
-      // The ID-token hint is sent only by a server redirect to the official issuer.
-      return { url: `http://127.0.0.1:${server.address().port}/start/${attempt.id}` };
+      const attempt = { id: random(), state: random(), nonce: random(), verifier: random(), account, clientId: account?.clientId || data.pendingClientId, expires: this.now() + 300_000, controller: new AbortController() };
+      const deadline = new AbortController();
+      const timer = setTimeout(() => deadline.abort(new Error('chatgpt_request_failed')), 5000); timer.unref();
+      const signal = AbortSignal.any([this.shutdown.signal, attempt.controller.signal, deadline.signal]);
+      this.pending = attempt;
+      try {
+        for (let n = 0; n < 16; n++) {
+          signal.throwIfAborted();
+          const server = this.createCallbackServer((req, res) => { void this.callback(attempt, req, res); });
+          attempt.server = server;
+          try { await listenCallbackServer(server, signal); }
+          catch (error) {
+            await closeCallbackServer(server);
+            signal.throwIfAborted();
+            if (error.code === 'EADDRINUSE' || error.code === 'EACCES') continue;
+            fail('chatgpt_request_failed');
+          }
+          const address = server.address();
+          if (!address || typeof address === 'string' || address.address !== '127.0.0.1' || !Number.isInteger(address.port) || address.port < 1 || address.port > 65535 || BAD_PORTS.has(address.port)) {
+            await closeCallbackServer(server);
+            continue;
+          }
+          signal.throwIfAborted();
+          server.on('error', () => { if (this.pending === attempt) { this.notice = 'chatgpt_request_failed'; this.cancel(); } });
+          attempt.redirect = `http://127.0.0.1:${address.port}/auth/callback`;
+          attempt.timer = setTimeout(() => { if (this.pending === attempt) { this.notice = 'chatgpt_signin_expired'; this.cancel(); } }, 300_000);
+          attempt.timer.unref();
+          // The ID-token hint is sent only by a server redirect to the official issuer.
+          return { url: `http://127.0.0.1:${address.port}/start/${attempt.id}` };
+        }
+        fail('chatgpt_request_failed');
+      } catch (error) {
+        if (this.pending === attempt) this.cancel();
+        throw error;
+      } finally { clearTimeout(timer); }
     });
   }
-  cancel() { if (this.pending) { clearTimeout(this.pending.timer); this.pending.server.close(); this.pending.server.closeAllConnections(); this.pending = null; } }
+  cancel() {
+    const attempt = this.pending; if (!attempt) return;
+    this.pending = null; clearTimeout(attempt.timer); attempt.controller.abort();
+    if (attempt.server) void closeCallbackServer(attempt.server);
+  }
   async callback(attempt, req, res) {
     res.setHeader('cache-control', 'no-store'); res.setHeader('referrer-policy', 'no-referrer'); res.setHeader('content-type', 'text/plain; charset=utf-8');
     try {

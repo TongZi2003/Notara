@@ -65,7 +65,7 @@
   - 工作员：`jobs.start` 的 `owner` 是会话 id，结果字段是 `result`；`subagents.listChildren` 按 `id` 与 `mode` 认子会话。原生拒绝归档正在运行的会话，所以老师在自己的回合里保存小结并要求收起时，工具返回 `archiveScheduled`，回合结束后再收起（`teaching-runtime.js / archiveWhenIdle`）。
   - 对话里的产出：0.2.0 的“改动文件”卡打开的是差异查看，保持原生；行内文件提及照旧进资料面板（`conversation-file-navigation.js`）。
   - 发布包的 `files` 必须覆盖 Host 引用的每个模块（`package-files.test.js`）。
-  - Windows 实机仍未验收；不得报告 Windows 课堂通过。
+  - Windows 真实模型课堂仍未验收；确定性实机测试不能替代真实课堂验收。
 
 - Native Vault 0.20.1 起讲解式改为“讲解—变式”，老师可以在一节课里临时换讲法（设计稿第五节，`docs/dev-log/2026-09-28-teaching-modes-0.20.1.md`）。
   - `presets/lecture.md` 一轮四步：讲解、类比、询问理解（请学生说出关键一步）、变式迁移（从同结构到改条件再到换情境，尽量瞄准常见错法的预判）；学生做变式的表现是关键一步与深度的证据。`manifest.json` 标题改为“讲解—变式”，id 仍是 `lecture`。
@@ -112,11 +112,14 @@
   - 绑定剧本同时记 `scriptBodyRevision`（去掉课堂小结块后的正文版本），`DSH_NOTARA_LESSON` 由 `lessonPinText` 生成；是否过期一律由 `script-binding.js / scriptBindingStale` 判断（只在服务端用；`lesson-data.js` 会进浏览器端的包，不能引用 Node 模块），写小结不算改剧本。
   - 读不了的路线单独列出并带 `error`，其余照常；技能的待采用修订被替换时旧文本进 `.trash/`。
 
-- Native Vault 0.19.6 起 Windows 上老师的 Bash 由 Git Bash 在原生沙箱里执行（`docs/dev-log/2026-09-28-git-bash-executor-0.19.6.md`）。
-  - `git-bash-executor.js`（导出为 `@notara/vault-native/git-bash-executor`）继承原生 `SandboxBashExecutor`：程序是启动器找到的 `NOTARA_GIT_BASH` 绝对路径，每条命令写成私有临时脚本以 `bash --noprofile --norc <脚本>` 执行后删除，环境加 `GIT_BASH_ENV`；受限模式仍经原生 `ctx.sandbox`，审批、超时、输出上限用原生的。
-  - 启动器每次启动经 `scripts/git-bash.ts / findGitBash` 找 Git Bash（`NOTARA_GIT_BASH` → `git --exec-path` → 注册表 → 常见安装目录），拒绝 WSL 的入口，找不到就如实失败，不退回 PowerShell。`vaultPatch` 在 Windows 上关掉 `pwsh-sandbox`、插入 `notara-git-bash`；隔离实例的 `gitBash` 选项用于在其他平台测试这个执行器。
-  - Windows 上注入给老师的 `DSH_NOTARA_*` 路径一律是 `C:/...` 正斜杠写法（`teaching-runtime.js / shellPath`）。
-  - Windows 实机尚未验收；不得报告 Windows 课堂通过。
+- Native Vault 0.23.2 替换 0.19.6 的 Windows Git Bash 执行方案：教师使用固定版本的原生 BusyBox ash（Windows 10 1903+ / Windows 11、x64 Node），仍经原生 `ctx.sandbox` 受限令牌执行。`scripts/windows-posix.ts` 校验下载和缓存；发布包同时携带二进制、对应完整源码与 GPLv2 许可证。
+  - `windows-posix-executor.js` 与 `windows-posix-tool.js` 挂在教师预设的独立 `shell` 服务组；普通预设保留原生 PowerShell。工具公开名仍为 `bash`，描述明确 Windows 上为 POSIX ash，不承诺完整 GNU Bash 语法。长命令写私有 UTF-8 脚本，前台、后台、取消均在结算前清理。
+  - Windows `workspace-write` 下，六个使用 Vault IO/CAS 的 CLI 写命令经每次调用独立的 loopback 写入桥；工作区、课堂和调用身份只来自 Host 的 `dshEnv` 与原生权限。只读模式不得创建写能力，命令请求不能填写 root、env 或 policy，结束/取消先撤销能力再等待已开始的写入。
+  - `windows-cli-fs.js` 在 Host 内固定目录句柄、拒绝重解析路径、使用私有 Medium 完整性暂存和原生原子发布；保留版本冲突校验和文件 ACL。禁止通过关闭沙箱、忽略 DACL 错误或扩大沙箱令牌权限修复兼容问题。
+  - Windows 上注入给老师的 `DSH_NOTARA_*` 路径仍用 `C:/...` 正斜杠。旧 `git-bash-executor.js` 与隔离实例 `gitBash` 选项只保留在非 Windows 显式回归中；Git Bash 可继续作为用户安装、启动项目的终端。
+  - 确定性 Windows 实机测试与真实模型课堂验收分别记账；前者不能替代真实教学证据。
+  - 空白课堂也可能持有教学设置和未保存草稿；重载恢复须等待原生 workspace/session 登记就绪并保持同一 session，不能将草稿复制到另一课堂。点击“新的一课”时，当前目录的既有空白课堂可以继续使用。
+  - ChatGPT loopback 登录端口由系统分配后仍须排除 Fetch 标准禁用端口；关闭被拒的监听器后有界重试，取消与超时释放监听器，不放宽浏览器端口限制。
 
 - Native Vault 0.19.5 起已有运行目录用 `npm run vault:upgrade` 升级（`docs/dev-log/2026-09-28-vault-upgrade-0.19.5.md`）。
   - `dev-native-vault.ts / upgradeVaultPersistent`：服务运行时或拿不到数据目录锁时拒绝；旧快照改名为 `vault-plugin-<旧版本>` 保留；新快照与 `home/cordis.patch.yml` 由播种时同一对函数生成（`installPluginSnapshot`、`vaultPatch`），依赖链接到执行升级的代码目录；失败时恢复旧快照；课堂、资料、设置与凭据不动。
@@ -305,7 +308,7 @@
 - `website/` 是 oh-my-student.com 的静态官网源目录（Vite 多页：首页、`features`、`philosophy`、`install`、`first-lesson`、`faq`）。共用片段在 `website/partials/`，由 `website/vite.config.ts / site()` 在构建时注入，并用 KaTeX 预渲染正文里的 `\( \)`、`\[ \]`。`npm run site:dev`（端口 57180）、`site:build`（输出 `website/dist/`）、`site:preview`（57181）；`tsx website/scripts/check.mts [origin]` 检查各页桌面与手机宽度下的控制台、失败请求、内链和横向溢出。纯官网改动不需要跑教学运行时回归。
 - 手写字体 `website/public/fonts/notara-hand.woff2` 是 `resources/fonts/wenkai.woff2` 按全站用字取的子集，改页面文字后执行 `npm run site:font`（需要 `uvx`）。截图由 `npm run site:capture` 在隔离实例里用测试模型和合成资料生成（先 `npm run build:native-vault`），页面上标注“示例资料 · 实际界面”；不从真实 Vault 截图。
 - 托管在阿里云 ESA Pages（导入 GitHub 仓库，生产分支 `main`，控制台根目录保持默认 `/`）。ESA 在仓库根目录读取 `/esa.jsonc` 并在根目录执行命令，命令经 `npm --prefix website` 指向子项目；`website/esa.jsonc` 仅是根目录被设为 `/website` 时的兜底副本。`website/package.json` 与它的 lockfile 只含 Vite 与 KaTeX，版本与根目录锁定一致，云端构建不装 DSH 运行时。改动这两处依赖时同步根目录版本。
-- 官网文案只写当前版本已实现的功能。边界（模型调用发往所选服务商、费用由服务商决定、Windows 未实机验收、仓库未附开源许可证）与 README、`docs/install.md` 保持一致；理念页正文由作者提供。
+- 官网文案只写当前版本已实现的功能。边界（模型调用发往所选服务商、费用由服务商决定、Windows 真实模型课堂未验收、仓库未附开源许可证）与 README、`docs/install.md` 保持一致；理念页正文由作者提供。
 - 官网首页与安装页通过 `website/partials/editions.html` 并列展示独立桌面版与 DSH 插件版。桌面版源码私有，公开安装包与版本说明使用 `TongZi2003/Notara-Desktop-Releases`；尚无安装包时只链接发布页，不生成下载地址。既有截图、命令与数据目录明确标为插件版。桌面版发布后同步更新版本入口、安装说明与 FAQ。
 
 ## 验证口径

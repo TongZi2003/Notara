@@ -5,6 +5,7 @@
 .notara-install-journal.json
 notara-files.json
 node_modules/
+/vendor/windows-posix/
 *.tsbuildinfo
 
 # Test / build output
@@ -54,6 +55,7 @@ coverage/
 !/docs/releases/native-vault-0.22.0.md
 !/docs/releases/native-vault-0.22.1.md
 !/docs/releases/native-vault-0.23.1.md
+!/docs/releases/native-vault-0.23.2.md
 
 # Retired workbench-only build/test configurations (kept locally).
 /tsconfig.math-plugin.json

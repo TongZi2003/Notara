@@ -1,6 +1,6 @@
 {
   "name": "@notara/vault-native",
-  "version": "0.23.1",
+  "version": "0.23.2",
   "type": "module",
   "main": "index.js",
   "files": [
@@ -62,6 +62,12 @@
     "calendar-data.js",
     "remote-client.js",
     "vault-cli.js",
+    "cli-write-contract.js",
+    "cli-write-client.js",
+    "cli-write-broker.js",
+    "windows-cli-fs.js",
+    "windows-posix-executor.js",
+    "windows-posix-tool.js",
     "file-operations.js",
     "ripgrep-path.js",
     "pomodoro-data.js",
@@ -77,6 +83,8 @@
     "./teacher": "./teacher.js",
     "./client": "./client.js",
     "./git-bash-executor": "./git-bash-executor.js",
+    "./windows-posix-executor": "./windows-posix-executor.js",
+    "./windows-posix-tool": "./windows-posix-tool.js",
     "./package.json": "./package.json"
   },
   "dsh": {
@@ -90,6 +98,7 @@
     }
   },
   "dependencies": {
+    "koffi": "3.1.1",
     "@deepseek-ai/dsh-typert-protocol": "0.2.0-rc.1",
     "@deepseek-ai/dsh-bash-sandbox": "0.2.0-rc.1",
     "@deepseek-ai/cordis": "4.0.4",

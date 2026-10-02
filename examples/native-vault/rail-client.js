@@ -116,7 +116,7 @@ export function createVaultRail(React, { navigation, Icon, IconButton, Menu, Dia
     const groups = lessonGroups(filterByTitle(lessons, search.query, row => row.title || '未命名课堂'), new Date());
     const [deleteTarget, setDeleteTarget] = useState(null), [deleteNotice, setDeleteNotice] = useState('');
     const open = row => { navigation.show('lesson'); ctx.uiWorkspace.openSession(row.id); dismiss(); };
-    const start = () => { if (!directory) { navigation.requestDirectoryPicker(); return; } navigation.show('lesson'); ctx.uiWorkspace.startSession(directory.workspaceId); dismiss(); };
+    const start = () => { if (!directory) { navigation.requestDirectoryPicker(); return; } if (navigation.startLesson(ctx, directory.workspaceId)) dismiss(); };
     const requestDelete = async row => {
       setDeleteNotice('');
       if (currentSessionId(sessions) === row.id) {
@@ -140,7 +140,7 @@ export function createVaultRail(React, { navigation, Icon, IconButton, Menu, Dia
       h('div', { className: 'nv-directory' },
         h('button', { type: 'button', className: 'nv-directory-button', 'aria-label': directory ? '选择目录，当前：' + directory.title : '选择学习目录', 'aria-haspopup': 'dialog', 'aria-expanded': state.open, disabled: state.switching || spaces.phase !== 'ready', title: directory?.path || '选择学习目录', onClick: () => navigation.requestDirectoryPicker() },
           h(Icon, { name: 'folder' }), h('span', null, state.switching ? '正在打开…' : directory?.title || '选择学习目录'), h('span', { className: 'nv-directory-chevron', 'aria-hidden': true }, '⌄'))),
-      h('button', { type: 'button', className: 'nv-new-lesson', 'aria-label': '新的一课', disabled: state.switching, onClick: start }, h(Icon, { name: 'plus' }), '新的一课'),
+      h('button', { type: 'button', className: 'nv-new-lesson', 'aria-label': '新的一课', disabled: state.switching || nav.resuming || spaces.phase !== 'ready' || sessions.phase !== 'ready' || (!!directory && !mainViewSettled(sessions)), onClick: start }, h(Icon, { name: 'plus' }), '新的一课'),
       deleteNotice && h('p', { role: 'status', className: 'nv-delete-status' }, deleteNotice),
       h('div', { className: 'nv-panel-scroll' },
         groups.length

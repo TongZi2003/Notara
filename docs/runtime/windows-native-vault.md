@@ -1,6 +1,6 @@
 # Windows：安装 Native Vault
 
-本说明用于在 Windows 上安装 Native Vault。Windows 的启动、浏览器和部分工具已有隔离验证；完整真实课堂流程尚未验收，Git Bash/MSYS 与锁定 DSH 沙箱存在已知兼容性问题。
+本说明用于在 Windows 上安装 Native Vault。0.23.2 起教师使用 Windows 原生 BusyBox ash，避免 MSYS 初始化与受限令牌不兼容。需要 Windows 10 1903+ / Windows 11 和 x64 Node；真实模型与账号验收仍须单独记录。
 
 ## 压缩包快捷安装
 
@@ -46,14 +46,11 @@ Git Bash 窗口需要保持打开；关闭它会停止本地服务。以后在 `
 
 高级用法：在 PowerShell 中使用 `scripts/windows-launcher.ps1 -Action Shortcuts -RuntimeRoot "D:\Notara Data" -ControllerConfig "D:\Notara Private\control.json" -Port 47093` 创建绑定自定义目录的两个快捷方式。`-ShortcutDirectory` 可以指定其他输出文件夹；`-NoUI` 适合自动化运行，启动时的 `-NoBrowser` 只跳过打开浏览器。
 
-老师处理资料用的 Bash 由 Git for Windows 的 `bash.exe` 执行，并受 Windows 原生沙箱约束。启动器每次启动时按这个顺序找它：
+老师处理资料使用 `busybox-w32` 的 Unicode x64 版本 `FRP-6075-g169694ebd`，仍由 DSH 原生 Windows 沙箱执行。启动器校验 `vendor/windows-posix/` 中的固定版本；源码安装首次运行会从官方站点下载，失败会明确报错，后续有完整缓存即可离线启动。新发布包包含可执行文件、完整对应源码、GPLv2 许可证及来源说明，校验值固定在 `scripts/windows-posix.ts`。
 
-1. 环境变量 `NOTARA_GIT_BASH`（设了就只用它）；
-2. `git --exec-path` 所在的 Git 安装目录；
-3. 注册表里 Git for Windows 的安装位置；
-4. `C:\Program Files\Git`、`C:\Program Files (x86)\Git`、用户目录下的 `AppData\Local\Programs\Git` 与 scoop 的安装目录。
+教师工具支持 POSIX shell、中文、长脚本、heredoc、管道，以及内置 `ls/cat/grep/sed/printf`。这不是完整 Bash，不应依赖 Bash 数组或全部 GNU 命令选项；模型收到的工具说明会明确这一点。普通会话仍使用 DSH 原生 PowerShell。Git Bash 可以继续作为安装终端，但 `NOTARA_GIT_BASH` 不再选择 Windows 教师的执行器。
 
-System32 和 WindowsApps 下的 `bash.exe` 是 WSL 的入口，不会被选用。找不到时启动失败，并列出检查过的位置。Git 装在别处时，把 `bash.exe` 的完整路径写进 `NOTARA_GIT_BASH`，例如 `export NOTARA_GIT_BASH="D:/PortableGit/bin/bash.exe"`，再运行 `npm run vault`。
+教师 CLI 写入需要本地、支持 Windows ACL 的学习目录；UNC/SMB 网络共享，以及工作区内部的目录联接和其他重解析路径，会明确拒绝。遇到目录保护错误时，请在普通本地目录中使用，不通过关闭沙箱或放宽权限绕过。
 
 ## 3. 数据与登录
 
@@ -71,7 +68,7 @@ npm run vault:open
 
 ## 4. 常见启动问题
 
-- 提示没有找到 Git Bash：安装 Git for Windows 后重新打开终端；装在非默认位置时设置 `NOTARA_GIT_BASH`。
+- 提示 Windows shell 下载或 SHA-256 校验失败：检查网络、代理和代码目录的写权限后重试；不要关闭校验或沙箱。使用完整新版 Release ZIP 可以复用包内依赖。
 - PowerShell 提示禁止运行 `npm.ps1`：改用上面的 Git Bash；无需为此放宽系统执行策略。
 - 提示 Node 版本不足：重新打开终端，再核对 `node --version`，确保不是仍在使用旧安装。
 - `EPERM` 或链接创建失败：本版 Vault 目录链接已统一使用 Windows junction，避免依赖创建目录符号链接的管理员权限。若仍失败，保留错误与失败路径用于定位，不通过删除学习数据重试。
