@@ -47,7 +47,9 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run build:native-vault && npm run build:pixel-classroom
-      - run: npm run test:unit
+      # These tests start real PowerShell ACL helpers; cold hosted runners can
+      # exceed Vitest's 5 s default. Keep every assertion and a bounded deadline.
+      - run: npm run test:unit -- --testTimeout=30000
       - run: npm run test:plugins
       - name: Test the real Windows sandbox and CLI
         run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/native-vault-git-bash.test.ts tests/integration/native-vault-memory.test.ts tests/integration/native-vault-teaching.test.ts tests/integration/native-vault-windows-shell.test.ts tests/integration/native-vault-windows-cli.test.ts
