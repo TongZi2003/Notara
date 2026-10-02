@@ -44,6 +44,7 @@
 - 0.23.1 设置里的「远控设置」经 `notaraRemote` 和启动器私有桥管理 ngrok；默认关闭，保存配置不启动，完整重启不自动恢复，关闭远控保留本地课堂。浏览器只接收脱敏状态，密码与令牌不回显或进入浏览器持久存储。桥只监听 loopback 并验证 Bearer，设置操作与 CLI 使用同一运行目录互斥锁。压力测试入口为 `test:stress` / `test:stress:browser`，仅使用合成数据与隔离实例，报告写入 `.runtime/`。
 - 0.23.1 更新提示挂在原生 `shell.overlay`，全局右上角、可关闭、不抢焦点，沿用主题 token。启动检查仍由 supervisor 每次启动发起一次（另保留每30分钟与手动检查），浏览器轮询只读状态。公开 `launchId` 只区分启动周期，不是凭据；关闭记忆按 launchId/版本在本浏览器跨页同步，新启动或新版本重新提醒。更新停止阶段部分成功抛错也必须实际尝试恢复旧 Host，不能直接宣称已恢复。
 - 0.23.1 Windows 双击与桌面快捷方式入口由根目录三个 `.cmd`、`scripts/windows-launcher.ps1` 和 `desktop-vault.ts` 提供，共用 `remote-vault.ts` 的 local-start/stop。PowerShell 文件保留 UTF-8 BOM，兼容 Windows PowerShell 5.1 中文；参数直接传给 node/npm-cli，不通过拼接 cmd。默认本地后台启动后打开当前登录入口，冷启动等待最多120秒，明确失败立即返回。关闭只处理控制器拥有的实例，不能将外部实例仍运行说成已关闭；必须等待末次 stopping 状态写入完成后再删除控制状态，避免异步写入重建死记录。创建桌面快捷方式的测试必须传临时 ShortcutDirectory/RuntimeRoot/ControllerConfig，不能写真实桌面或默认用户数据目录。
+  - 0.23.5 快捷方式经 `scripts/windows-shortcuts.ps1` 的 Unicode `IShellLinkW` / `IPersistFile` 读写，避免 WSH 在当前 ANSI 代码页下损坏中文或其他 Unicode 文件路径。保存前先验证两个已有快捷方式均属于当前安装；图标使用随包的 `resources/icons/notara.ico`。Windows 发布门禁运行完整快捷方式集成套件，临时路径包含中文、emoji、阿拉伯文和 `&`，不以更改系统 locale 或删减路径测试绕过失败。
 
 - 发布校验在干净检出后先构建 Native Vault 与像素教室，再运行依赖生成资源的插件测试。发布失败后可用 `release.yml` 的手动入口指定既有正式标签，或推送 `codex/release-v<版本>` 恢复分支；流程重新检出并完整校验该标签的代码，不移动版本标签、不覆盖已经公开的 Release。
 

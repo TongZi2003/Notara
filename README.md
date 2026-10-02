@@ -4,7 +4,7 @@
 
 Notara 是基于 **DeepSeek Harness** 的学习工具。题目、理解的变化和课堂小结保存在本机的 Markdown 文件里。下次回来，可以沿着计划、Vault 和技能页继续学。
 
-当前版本 **0.23.4**，依赖 **DSH 0.2.0-rc.1**。本版为 Windows 的「启动 Notara」「关闭 Notara」补上 Notara 图标，保留 0.23.3 的管道、资料写入、课堂草稿与登录端口修复。详情见 [0.23.4 发布说明](docs/releases/native-vault-0.23.4.md)。
+当前版本 **0.23.5**，依赖 **DSH 0.2.0-rc.1**。本版修复 Windows 在中文、emoji 和阿拉伯文目录中创建、读取桌面快捷方式的问题，并为「启动 Notara」「关闭 Notara」使用黄色便笺 N 图标。0.23.3 的管道、资料写入、课堂草稿与登录端口修复继续保留。详情见 [0.23.5 发布说明](docs/releases/native-vault-0.23.5.md)。
 
 ## 可以怎样学
 
@@ -18,7 +18,7 @@ Notara 是基于 **DeepSeek Harness** 的学习工具。题目、理解的变化
 
 ### Windows 快捷安装
 
-从 [0.23.4 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.23.4) 下载 [notara-0.23.4.zip](https://github.com/TongZi2003/Notara/releases/download/v0.23.4/notara-0.23.4.zip)。完整解压到可写的程序目录，再双击其中的 **安装 Notara.cmd**。发布包由标签发布流程完成最终检查后提供，桌面启动和关闭入口使用黄色便笺 N 图标。
+从 [0.23.5 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.23.5) 下载 [notara-0.23.5.zip](https://github.com/TongZi2003/Notara/releases/download/v0.23.5/notara-0.23.5.zip)。完整解压到可写的程序目录，再双击其中的 **安装 Notara.cmd**。发布包由标签发布流程完成最终检查后提供，桌面启动和关闭入口使用黄色便笺 N 图标。
 
 安装器检查 **Node.js 24+、npm 和 Git Bash**。缺少时通过 Windows **WinGet** 安装，系统权限提示由你确认。随后检查最新正式版、安装依赖、构建，并创建桌面「启动 Notara」「关闭 Notara」。程序保存在解压出的 `notara` 文件夹中；安装完成后，双击启动入口即可喵。
 
@@ -42,11 +42,11 @@ npm run vault
 
 Windows 需要 **Windows 10 1903+ / Windows 11 和 x64 Node**。教师处理资料使用固定版本的原生 BusyBox ash，并继续受 DSH 沙箱约束；普通会话使用原生 PowerShell。Git Bash 仍可用来安装和启动项目。
 
-源码首次启动会下载并校验教师 shell，缓存齐全后可离线复用。0.23.3 Release ZIP 包含可执行文件、完整对应源码、GPLv2 许可证与来源说明。教师 shell 支持 POSIX ash 语法；依赖 Bash 数组或 GNU 扩展的脚本需要调整。教师 CLI 写入要求本地、支持 Windows ACL 的学习目录；UNC/SMB 共享及工作区内部重解析路径会拒绝。详情见 [Windows 说明](docs/runtime/windows-native-vault.md)。
+源码首次启动会下载并校验教师 shell，缓存齐全后可离线复用。Release ZIP 包含可执行文件、完整对应源码、GPLv2 许可证与来源说明。教师 shell 支持 POSIX ash 语法；依赖 Bash 数组或 GNU 扩展的脚本需要调整。教师 CLI 写入要求本地、支持 Windows ACL 的学习目录；UNC/SMB 共享及工作区内部重解析路径会拒绝。详情见 [Windows 说明](docs/runtime/windows-native-vault.md)。
 
 ### 日常启动与关闭
 
-Windows 完成依赖安装后，可以双击项目目录中的 **启动 Notara.cmd** 与 **关闭 Notara.cmd**。源码用户还可双击 **创建桌面快捷方式.cmd**，在当前用户桌面创建两个入口。
+Windows 完成依赖安装后，可以双击项目目录中的 **启动 Notara.cmd** 与 **关闭 Notara.cmd**。源码用户还可双击 **创建桌面快捷方式.cmd**，在当前用户桌面创建两个入口。两个快捷方式使用 Notara 图标，支持中文、emoji 和阿拉伯文路径；无需更改 Windows 的系统语言设置。
 
 启动入口在后台运行服务，并打开当前登录入口。关闭浏览器后，服务继续运行；关闭入口等待它管理的实例停止，保留课堂和资料。若服务由另一个终端启动，请在原终端按 `Ctrl+C` 停止，再改用快捷方式。移动程序目录后需重新创建快捷方式；同名入口属于另一份安装时，脚本会拒绝覆盖。
 
@@ -133,9 +133,11 @@ npm run release:bundle
 
 0.23.3 的 Windows 云端预检中，原生沙箱与 CLI 回归 **16/16** 通过，脚本单元测试 **71** 项通过，插件测试 **569** 项通过、无跳过；双插件构建和两组类型检查均通过。前一候选在云端失败的五项管道与 CLI 用例已通过，新增管理员默认 DACL 回归也通过。
 
-本地 Windows 复测已完成全部 **71** 项集成测试、**71** 项脚本单元测试、**567** 项插件测试与两组类型检查；另有 **2** 项插件测试因本机文件符号链接权限跳过。完整浏览器回归 **43/43** 通过，服务端压力测试覆盖 **12** 个并发课堂与 **262** 个请求并通过。
+0.23.3 的本地 Windows 复测已完成全部 **71** 项集成测试、**71** 项脚本单元测试、**567** 项插件测试与两组类型检查；另有 **2** 项插件测试因本机文件符号链接权限跳过。完整浏览器回归 **43/43** 通过，服务端压力测试覆盖 **12** 个并发课堂与 **262** 个请求并通过。
 
-本轮浏览器压力测试通过，覆盖 **4** 页、**32** 轮、**696** 个响应，保留 **60** 份资料与 **12** 个课堂，控制台和页面异常为 **0**。正式发布由 Windows 和 Linux 自动检查共同控制；上述测试不代表新电脑的完整环境安装验收。
+0.23.3 的浏览器压力测试通过，覆盖 **4** 页、**32** 轮、**696** 个响应，保留 **60** 份资料与 **12** 个课堂，控制台和页面异常为 **0**。这些历史结果不代表 0.23.5 已通过云端检查，也不代表新电脑的完整环境安装验收。
+
+0.23.5 的正式发布继续由 Windows 和 Linux 自动检查共同控制，并新增完整 **5** 项 PowerShell 5 快捷方式流程校验，覆盖 Unicode 创建与启停、图标、重复创建、防覆盖和外部实例保护。发布状态以 [Actions 记录](https://github.com/TongZi2003/Notara/actions/workflows/release.yml)为准；0.23.4 候选因英文 Windows 环境中的路径编码问题未发布，保留原标签，修复以新版本交付。
 
 测试使用隔离端口、临时数据目录、合成资料与测试模型。压力报告写入本机 `.runtime/`。真实 ChatGPT 订阅推理、ngrok 公网连通与真实教学质量尚未验收。详细范围与待验项目见 [0.23.3 发布说明](docs/releases/native-vault-0.23.3.md)，依赖版本见[上游锁定记录](docs/runtime/upstream-lock.json)。
 

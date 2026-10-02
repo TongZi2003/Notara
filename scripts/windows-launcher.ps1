@@ -37,35 +37,36 @@ function New-DesktopShortcuts {
     if (-not $ShortcutDirectory) { throw '无法定位桌面，请指定 -ShortcutDirectory。' }
     $destination = [IO.Path]::GetFullPath($ShortcutDirectory)
     [void][IO.Directory]::CreateDirectory($destination)
-    $shell = New-Object -ComObject WScript.Shell
+    . (Join-Path $PSScriptRoot 'windows-shortcuts.ps1')
     $powershellPath = Join-Path ([Environment]::GetFolderPath('System')) 'WindowsPowerShell\v1.0\powershell.exe'
     $iconPath = Join-Path $projectRoot 'resources\icons\notara.ico'
     $entries = @(@{ Name = '启动 Notara'; Action = 'Start' }, @{ Name = '关闭 Notara'; Action = 'Stop' })
-    try {
-        # Validate both existing names before changing either shortcut.
-        foreach ($entry in $entries) {
-            $path = Join-Path $destination ($entry.Name + '.lnk')
-            if (Test-Path -LiteralPath $path) {
-                $old = $shell.CreateShortcut($path)
-                if ($old.WorkingDirectory -ne $projectRoot -or -not $old.Arguments.Contains((Quote-Argument $scriptPath))) {
-                    throw "同名快捷方式属于另一个安装目录，请先移走它：$path"
-                }
+    # Validate both existing names before changing either shortcut.
+    foreach ($entry in $entries) {
+        $path = Join-Path $destination ($entry.Name + '.lnk')
+        if (Test-Path -LiteralPath $path) {
+            $old = Read-NotaraShortcut -Path $path
+            if ($old.WorkingDirectory -ne $projectRoot -or -not $old.Arguments.Contains((Quote-Argument $scriptPath))) {
+                throw "同名快捷方式属于另一个安装目录，请先移走它：$path"
             }
         }
-        foreach ($entry in $entries) {
-            $link = $shell.CreateShortcut((Join-Path $destination ($entry.Name + '.lnk')))
-            $link.TargetPath = $powershellPath
-            $link.Arguments = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ' + (Quote-Argument $scriptPath) +
-                ' -Action ' + $entry.Action + ' -RuntimeRoot ' + (Quote-Argument $RuntimeRoot) + ' -ControllerConfig ' + (Quote-Argument $ControllerConfig)
-            if ($entry.Action -eq 'Start' -and $Port -gt 0) { $link.Arguments += ' -Port ' + $Port }
-            $link.WorkingDirectory = $projectRoot
-            $link.Description = $entry.Name + ' (' + $projectRoot + ')'
-            $link.WindowStyle = 7
-            if (Test-Path -LiteralPath $iconPath -PathType Leaf) { $link.IconLocation = $iconPath + ',0' }
-            $link.Save()
+    }
+    foreach ($entry in $entries) {
+        $path = Join-Path $destination ($entry.Name + '.lnk')
+        $arguments = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ' + (Quote-Argument $scriptPath) +
+            ' -Action ' + $entry.Action + ' -RuntimeRoot ' + (Quote-Argument $RuntimeRoot) + ' -ControllerConfig ' + (Quote-Argument $ControllerConfig)
+        if ($entry.Action -eq 'Start' -and $Port -gt 0) { $arguments += ' -Port ' + $Port }
+        $iconLocation = $powershellPath + ',0'
+        if (Test-Path -LiteralPath $iconPath -PathType Leaf) { $iconLocation = $iconPath + ',0' }
+        elseif (Test-Path -LiteralPath $path) { $iconLocation = (Read-NotaraShortcut -Path $path).IconLocation }
+        $shortcut = @{
+            Path = $path; TargetPath = $powershellPath; Arguments = $arguments
+            WorkingDirectory = $projectRoot; Description = $entry.Name + ' (' + $projectRoot + ')'
+            WindowStyle = 7; IconLocation = $iconLocation
         }
-        Show-Result "已创建「启动 Notara」和「关闭 Notara」两个桌面快捷方式。`n移动或重新解压项目后，请在新目录重新创建快捷方式。"
-    } finally { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell) }
+        Write-NotaraShortcut @shortcut
+    }
+    Show-Result "已创建「启动 Notara」和「关闭 Notara」两个桌面快捷方式。`n移动或重新解压项目后，请在新目录重新创建快捷方式。"
 }
 
 try {

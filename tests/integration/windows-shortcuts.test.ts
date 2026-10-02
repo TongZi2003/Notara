@@ -15,6 +15,7 @@ const execFileAsync = promisify(execFile);
 const projectRoot = resolve('.');
 const qaEvidenceRoot = resolve('.runtime/windows-shortcut-qa');
 const launcherPath = resolve('scripts/windows-launcher.ps1');
+const shortcutInteropPath = resolve('scripts/windows-shortcuts.ps1');
 const powershellPath = join(process.env.WINDIR ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
 const windowsOnly = process.platform === 'win32';
 
@@ -53,7 +54,7 @@ async function randomPort(): Promise<number> {
 
 async function createSandbox(): Promise<Sandbox> {
   await mkdir(qaEvidenceRoot, { recursive: true });
-  const directory = await mkdtemp(join(tmpdir(), 'Notara 快捷方式验收 & '));
+  const directory = await mkdtemp(join(tmpdir(), 'Notara 快捷方式🧪 مرحبا & '));
   const profile = join(directory, '临时用户 & profile');
   const runtimeRoot = join(directory, '用户数据 & 课堂', 'Notara 运行目录');
   const controllerConfig = join(directory, '私有配置 & remote', 'remote.json');
@@ -150,7 +151,7 @@ async function runLauncher(
 }
 
 async function runPowerShellCommand(command: string, env: NodeJS.ProcessEnv): Promise<string> {
-  const result = await execFileAsync(powershellPath, ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', command], {
+  const result = await execFileAsync(powershellPath, ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')], {
     cwd: projectRoot,
     env,
     encoding: 'utf8',
@@ -166,12 +167,10 @@ function psLiteral(value: string): string { return `'${value.replace(/'/g, "''")
 async function readShortcut(path: string, env: NodeJS.ProcessEnv): Promise<ShortcutInfo> {
   const command = [
     "$ErrorActionPreference = 'Stop'",
-    '$shell = New-Object -ComObject WScript.Shell',
-    'try {',
-    `  $link = $shell.CreateShortcut(${psLiteral(path)})`,
+    `. ${psLiteral(shortcutInteropPath)}`,
+    `  $link = Read-NotaraShortcut -Path ${psLiteral(path)}`,
     '  $json = [pscustomobject]@{ targetPath = $link.TargetPath; arguments = $link.Arguments; workingDirectory = $link.WorkingDirectory; description = $link.Description; windowStyle = $link.WindowStyle; iconLocation = $link.IconLocation } | ConvertTo-Json -Compress',
     '  [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($json))',
-    '} finally { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell) }',
   ].join('\n');
   const encoded = await runPowerShellCommand(command, env);
   return JSON.parse(Buffer.from(encoded, 'base64').toString('utf16le')) as ShortcutInfo;
@@ -180,14 +179,8 @@ async function readShortcut(path: string, env: NodeJS.ProcessEnv): Promise<Short
 async function createForeignShortcut(path: string, workingDirectory: string, env: NodeJS.ProcessEnv): Promise<void> {
   const command = [
     "$ErrorActionPreference = 'Stop'",
-    '$shell = New-Object -ComObject WScript.Shell',
-    'try {',
-    `  $link = $shell.CreateShortcut(${psLiteral(path)})`,
-    "  $link.TargetPath = 'notepad.exe'",
-    `  $link.WorkingDirectory = ${psLiteral(workingDirectory)}`,
-    "  $link.Arguments = '-not-owned-by-this-install'",
-    '  $link.Save()',
-    '} finally { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell) }',
+    `. ${psLiteral(shortcutInteropPath)}`,
+    `Write-NotaraShortcut -Path ${psLiteral(path)} -TargetPath 'notepad.exe' -WorkingDirectory ${psLiteral(workingDirectory)} -Arguments '-not-owned-by-this-install'`,
   ].join('\n');
   await runPowerShellCommand(command, env);
 }
@@ -212,6 +205,7 @@ async function waitForControllerReady(path: string): Promise<{ phase: string; ow
 test('Windows PowerShell launcher source carries the UTF-8 BOM required for Chinese text in PowerShell 5', async () => {
   const scriptBytes = await readFile(launcherPath);
   expect(scriptBytes.subarray(0, 3)).toEqual(Buffer.from([0xef, 0xbb, 0xbf]));
+  expect((await readFile(shortcutInteropPath)).subarray(0, 3)).toEqual(Buffer.from([0xef, 0xbb, 0xbf]));
 });
 
 test.skipIf(!windowsOnly)('Windows Start refuses install locks and recovery journals before launching the Vault', async () => {
