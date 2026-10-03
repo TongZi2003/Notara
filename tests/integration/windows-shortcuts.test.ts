@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { execFile, spawn } from 'node:child_process';
 import { closeSync, openSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -176,11 +176,11 @@ async function readShortcut(path: string, env: NodeJS.ProcessEnv): Promise<Short
   return JSON.parse(Buffer.from(encoded, 'base64').toString('utf16le')) as ShortcutInfo;
 }
 
-async function createForeignShortcut(path: string, workingDirectory: string, env: NodeJS.ProcessEnv): Promise<void> {
+async function createForeignShortcut(path: string, workingDirectory: string, env: NodeJS.ProcessEnv, args = '-not-owned-by-this-install'): Promise<void> {
   const command = [
     "$ErrorActionPreference = 'Stop'",
     `. ${psLiteral(shortcutInteropPath)}`,
-    `Write-NotaraShortcut -Path ${psLiteral(path)} -TargetPath 'notepad.exe' -WorkingDirectory ${psLiteral(workingDirectory)} -Arguments '-not-owned-by-this-install'`,
+    `Write-NotaraShortcut -Path ${psLiteral(path)} -TargetPath 'notepad.exe' -WorkingDirectory ${psLiteral(workingDirectory)} -Arguments ${psLiteral(args)}`,
   ].join('\n');
   await runPowerShellCommand(command, env);
 }
@@ -337,47 +337,52 @@ test.skipIf(!windowsOnly)('Windows PowerShell 5 creates COM-readable shortcuts a
     const shortcutPort = await randomPort();
     const generated = await runLauncher('Shortcuts', sandbox, { port: shortcutPort });
     expect(generated.code, `${generated.stdout}\n${generated.stderr}`).toBe(0);
-    const startPath = join(sandbox.shortcutDirectory, 'Start Notara.lnk');
-    const stopPath = join(sandbox.shortcutDirectory, 'Stop Notara.lnk');
+    const startPath = join(sandbox.shortcutDirectory, 'Notara「拾页」.lnk');
     expect((await stat(startPath)).isFile()).toBe(true);
-    expect((await stat(stopPath)).isFile()).toBe(true);
+    await expect(stat(join(sandbox.shortcutDirectory, 'Stop Notara.lnk'))).rejects.toMatchObject({ code: 'ENOENT' });
 
     const start = await readShortcut(startPath, sandbox.env);
-    const stop = await readShortcut(stopPath, sandbox.env);
     const quoted = (value: string): string => `"${value.replace(/(\\+)$/, '$1$1')}"`;
     const expectedBase = `-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ${quoted(launcherPath)}`;
     expect(start.targetPath.toLowerCase()).toBe(powershellPath.toLowerCase());
-    expect(stop.targetPath.toLowerCase()).toBe(powershellPath.toLowerCase());
     expect(start.workingDirectory.toLowerCase()).toBe(projectRoot.toLowerCase());
-    expect(stop.workingDirectory.toLowerCase()).toBe(projectRoot.toLowerCase());
     const canonicalRuntimeRoot = await realpath(sandbox.runtimeRoot);
     const canonicalConfig = join(await realpath(join(sandbox.directory, '私有配置 & remote')), 'remote.json');
     const canonicalStart = `${expectedBase} -Action Start -RuntimeRoot ${quoted(canonicalRuntimeRoot)} -ControllerConfig ${quoted(canonicalConfig)}`;
-    const canonicalStop = `${expectedBase} -Action Stop -RuntimeRoot ${quoted(canonicalRuntimeRoot)} -ControllerConfig ${quoted(canonicalConfig)}`;
     expect(start.arguments).toBe(`${canonicalStart} -Port ${shortcutPort}`);
-    expect(stop.arguments).toBe(canonicalStop);
     expect(start.description).toContain(projectRoot);
-    expect(stop.description).toContain(projectRoot);
     expect(start.windowStyle).toBe(7);
     const expectedIcon = `${join(projectRoot, 'resources/icons/notara.ico')},0`;
     expect(start.iconLocation).toBe(expectedIcon);
-    expect(stop.iconLocation).toBe(expectedIcon);
+
+    for (const name of ['Start Notara', 'Stop Notara', '启动 Notara', '关闭 Notara']) await copyFile(startPath, join(sandbox.shortcutDirectory, `${name}.lnk`));
 
     const repeated = await runLauncher('Shortcuts', sandbox, { port: shortcutPort });
     expect(repeated.code, `${repeated.stdout}\n${repeated.stderr}`).toBe(0);
     expect((await readShortcut(startPath, sandbox.env)).arguments).toBe(start.arguments);
-    expect((await readShortcut(stopPath, sandbox.env)).arguments).toBe(stop.arguments);
     expect((await readShortcut(startPath, sandbox.env)).iconLocation).toBe(expectedIcon);
-    expect((await readShortcut(stopPath, sandbox.env)).iconLocation).toBe(expectedIcon);
+    for (const name of ['Start Notara', 'Stop Notara', '启动 Notara', '关闭 Notara']) await expect(stat(join(sandbox.shortcutDirectory, `${name}.lnk`))).rejects.toMatchObject({ code: 'ENOENT' });
 
     const foreignDirectory = join(sandbox.directory, '其他安装 & 不覆盖');
     await mkdir(foreignDirectory, { recursive: true });
-    const foreignStart = join(foreignDirectory, 'Start Notara.lnk');
+    const foreignStart = join(foreignDirectory, 'Notara「拾页」.lnk');
     await createForeignShortcut(foreignStart, foreignDirectory, sandbox.env);
     const refused = await runLauncher('Shortcuts', sandbox, { shortcutDirectory: foreignDirectory });
     expect(refused.code).not.toBe(0);
     expect(await stat(foreignStart)).toBeDefined();
     await expect(stat(join(foreignDirectory, 'Stop Notara.lnk'))).rejects.toMatchObject({ code: 'ENOENT' });
+    await rm(foreignStart);
+    const legacyForeign = join(foreignDirectory, 'Start Notara.lnk');
+    await createForeignShortcut(legacyForeign, foreignDirectory, sandbox.env);
+    const migrated = await runLauncher('Shortcuts', sandbox, { shortcutDirectory: foreignDirectory });
+    expect(migrated.code, `${migrated.stdout}\n${migrated.stderr}`).toBe(0);
+    expect((await readShortcut(legacyForeign, sandbox.env)).arguments).toBe('-not-owned-by-this-install');
+    expect((await stat(foreignStart)).isFile()).toBe(true);
+    // A custom target stays foreign even with this install's working directory
+    // and arguments; a reused old visible name is not proof of ownership.
+    await createForeignShortcut(legacyForeign, projectRoot, sandbox.env, start.arguments);
+    expect((await runLauncher('Shortcuts', sandbox, { shortcutDirectory: foreignDirectory })).code).toBe(0);
+    expect((await readShortcut(legacyForeign, sandbox.env)).targetPath.toLowerCase()).toContain('notepad.exe');
   } finally {
     await rm(sandbox.directory, { recursive: true, force: true });
   }

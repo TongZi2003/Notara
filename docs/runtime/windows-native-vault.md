@@ -38,13 +38,15 @@ Git Bash 窗口需要保持打开；关闭它会停止本地服务。以后在 `
 
 ### 桌面一键启动与关闭
 
-完成依赖安装后，双击项目目录里的 `create-notara-shortcuts.cmd`，在当前用户桌面生成 `Start Notara.lnk` 和 `Stop Notara.lnk`。也可以直接双击项目中的 `start-notara.cmd` / `stop-notara.cmd`。
+完成依赖安装后，双击项目目录里的 `create-notara-shortcuts.cmd`，在当前用户桌面生成一个 **Notara「拾页」.lnk**。也可以直接双击项目中的 `start-notara.cmd` / `stop-notara.cmd`。页面左下角、设置上方新增红色关闭图标；确认弹窗左边取消、右边红色确定，点击背景或按 Esc 可取消。
 
 启动入口使用后台控制器，服务就绪后打开当前认证入口；退出启动窗口或关闭浏览器都不会停止服务。关闭入口等待控制器及它管理的本地服务停止，保留全部学习数据；默认不开启 ngrok。重复启动复用实例，重复停止安全。若服务由另一个终端启动，关闭入口提示使用原终端的 `Ctrl+C`，不会按进程名批量结束 Node。
 
-快捷方式绑定创建时的代码和数据目录；项目搬到另一个位置后，删除这两个旧快捷方式，再在新位置重新创建。脚本支持中文、空格路径；不需要管理员权限，也不修改系统执行策略。创建脚本使用 Windows 已有的 PowerShell 和快捷方式接口。
+快捷方式绑定创建时的安装和数据目录；页面更新后，启动入口跟随选定的新版代码。创建时只整理确认属于同一安装的旧 Start/Stop 与启动/关闭入口。项目搬到另一个位置后，请先确认并移开指向原目录的同名入口，再创建。脚本支持中文、空格路径；不需要管理员权限，也不修改系统执行策略。创建脚本使用 Windows 已有的 PowerShell 和快捷方式接口。
 
-高级用法：在 PowerShell 中使用 `scripts/windows-launcher.ps1 -Action Shortcuts -RuntimeRoot "D:\Notara Data" -ControllerConfig "D:\Notara Private\control.json" -Port 47093` 创建绑定自定义目录的两个快捷方式。`-ShortcutDirectory` 可以指定其他输出文件夹；`-NoUI` 适合自动化运行，启动时的 `-NoBrowser` 只跳过打开浏览器。
+高级用法：在 PowerShell 中使用 `scripts/windows-launcher.ps1 -Action Shortcuts -RuntimeRoot "D:\Notara Data" -ControllerConfig "D:\Notara Private\control.json" -Port 47093` 创建绑定自定义目录的单个快捷方式。`-ShortcutDirectory` 可以指定其他输出文件夹；`-NoUI` 适合自动化运行，启动时的 `-NoBrowser` 只跳过打开浏览器。
+
+服务意外退出时，管理程序确认原进程与锁释放后自动恢复原地址和已保存的数据；默认十分钟最多三次。主动关闭立即禁止恢复，再清理所属进程、远控与状态。整个管理程序也被结束时无法自救，请再次启动。Windows 桌面正常双击入口由桌面启动，不应依赖开发工具的进程生命周期。
 
 老师处理资料使用 `busybox-w32` 的 Unicode x64 版本 `FRP-6075-g169694ebd`，仍由 DSH 原生 Windows 沙箱执行。启动器校验 `vendor/windows-posix/` 中的固定版本；源码安装首次运行会从官方站点下载，失败会明确报错，后续有完整缓存即可离线启动。新发布包包含可执行文件、完整对应源码、GPLv2 许可证及来源说明，校验值固定在 `scripts/windows-posix.ts`。
 

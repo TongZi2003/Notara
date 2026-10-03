@@ -1,6 +1,6 @@
 # 安装和使用 Notara
 
-适用源码版本：Notara 0.23.8 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。对话菜单与本轮修复见[本版说明](releases/native-vault-0.23.8.md)，画廊和图标见[0.23.7 说明](releases/native-vault-0.23.7.md)，免安装包与白板排版见[0.23.6 说明](releases/native-vault-0.23.6.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
+适用源码版本：Notara 0.23.9 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。对话菜单与本轮修复见[本版说明](releases/native-vault-0.23.9.md)，画廊和图标见[0.23.7 说明](releases/native-vault-0.23.7.md)，免安装包与白板排版见[0.23.6 说明](releases/native-vault-0.23.6.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
 
 ## Windows x64 免安装版
 
@@ -21,7 +21,7 @@
 1. 从 [GitHub Releases](https://github.com/TongZi2003/Notara/releases/latest) 下载 `notara-版本号.zip`（不要选择自动生成的 Source code 包）。
 2. 完整解压到可写的文件夹，例如 `D:\学习工具`；程序位于解压出的 `D:\学习工具\notara`，之后保持该位置。
 3. 双击 **install-notara.cmd**。脚本检测 Node.js 24+、npm、Git for Windows 的 Bash，已有可用依赖直接使用，缺少的通过 WinGet 安装；Windows 请求权限时由你确认。
-4. 等待检查官方最新正式版、安装 npm 依赖并构建。百分比表示已到达的安装阶段，不代表下载字节数或剩余时间。成功后自动创建桌面「Start Notara」「Stop Notara」，双击启动即可。安装本身不启动服务，ngrok 仍是设置里的可选功能。
+4. 等待检查官方最新正式版、安装 npm 依赖并构建。百分比表示已到达的安装阶段，不代表下载字节数或剩余时间。成功后自动创建桌面 Notara「拾页」，双击启动即可；关闭使用页面左下角的红色按钮。安装本身不启动服务，ngrok 仍是设置里的可选功能。
 
 WinGet 由 Windows 的 App Installer 提供；若缺失，按脚本给出的官方链接安装 App Installer，或按下方原有步骤手动安装 Node.js 和 Git，再运行脚本。Windows 自动安装命令使用固定包 ID 和官方 WinGet 源，参数参见 [Microsoft WinGet 安装文档](https://learn.microsoft.com/en-us/windows/package-manager/winget/install)。不会修改系统执行策略。
 
@@ -75,15 +75,16 @@ npm run vault
 
 ## 日常打开和停止
 
-Windows 安装依赖后，双击项目目录中的 **create-notara-shortcuts.cmd**，桌面会出现带书页 N 图标的「Start Notara」和「Stop Notara」。也可直接双击项目目录中的 **start-notara.cmd** / **stop-notara.cmd**。快捷方式创建与读取支持中文、emoji 和阿拉伯文路径，无需更改系统语言设置。图标随发布包提供，并由文件清单校验。
+Windows 安装依赖后，双击项目目录中的 **create-notara-shortcuts.cmd**，桌面会出现一个带书页 N 图标的 **Notara「拾页」**。关闭使用页面左下角、设置上方的红色按钮，弹窗中左侧取消、右侧红色确定；点击空白处或按 Esc 取消。也可直接双击项目目录中的 **start-notara.cmd** / **stop-notara.cmd**。快捷方式创建与读取支持中文、emoji 和阿拉伯文路径，无需更改系统语言设置。图标随发布包提供，并由文件清单校验。
 
 若刚才已用 `npm run vault` 启动，先在那个终端按 `Ctrl+C` 停止，再改用启动快捷方式。
 
 - 启动：后台运行 Notara 并打开当前登录入口；重复启动会复用已运行的实例。
-- 关闭：等待该后台实例正常停止，保留课堂和资料；已经停止时可重复点击。浏览器标签页不自动关闭。
+- 关闭：页面确认后停止所属服务与自动恢复，保留课堂和资料；正在生成的回复与后台任务也会停止。浏览器标签页不自动关闭。
 - 无需保持终端窗口；关闭浏览器不会停止后台服务。ngrok 不会随启动快捷方式自动开启。
-- 若服务原本通过下方命令在其他终端启动，关闭快捷方式会提示回原终端按 `Ctrl+C`，不会强制结束其他进程。
-- 移动项目目录后，删除原位置对应的两个旧快捷方式，在新目录重新创建。脚本拒绝覆盖其他安装目录的同名快捷方式。
+- 若服务原本通过下方命令在其他终端启动，`stop-notara.cmd` 会提示回原终端按 `Ctrl+C`；页面关闭可通过该服务自己的管理程序退出，不会按进程名批量结束 Node。
+- 创建时只整理确认属于同一安装目录和数据根的旧启动、关闭入口。移动项目目录后，确认并移开指向旧位置的同名 Notara「拾页」，在新目录重新创建；脚本拒绝覆盖其他安装目录的同名入口。
+- 服务意外退出后可自动恢复已保存的课堂；默认十分钟内最多三次，清理或启动失败则停止恢复。电脑关机或整个管理进程退出时，请再次启动。主动关闭不会触发恢复。
 
 源码方式首次使用需安装 Node.js、Git for Windows，并执行一次 `npm ci --no-audit --no-fund`；Release 用户可以用上方快捷安装自动完成。缺少环境或依赖时启动入口显示错误，不会自动开启远控。仅 PowerShell 本次启动使用进程级脚本执行参数。
 

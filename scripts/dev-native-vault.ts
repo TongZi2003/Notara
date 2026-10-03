@@ -372,7 +372,7 @@ async function bootVault(root: string, options: VaultOptions & { preserve?: bool
   else if (options.gitBash !== undefined) env.NOTARA_GIT_BASH = options.gitBash;
   const redact = (text: string): string => text.replace(/([?&]token=)[^\s&]+/g, '$1[redacted]');
   function launch(): VaultProcess {
-    const child = spawn(process.execPath, [`--max-http-header-size=${webMaxHeaderSizeBytes}`, packageBin(project, '@deepseek-ai/dsh', 'dsh'), 'web', '--host', '127.0.0.1', '--port', String(port), '--no-open'], { cwd: workspace, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    const child = spawn(process.execPath, [`--max-http-header-size=${webMaxHeaderSizeBytes}`, '--import', pathToFileURL(join(project, 'scripts/vault-parent-guard.js')).href, packageBin(project, '@deepseek-ai/dsh', 'dsh'), 'web', '--host', '127.0.0.1', '--port', String(port), '--no-open'], { cwd: workspace, env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'], windowsHide: true });
     let output = '';
     let authUrl = '';
     let spawnError: Error | undefined;
@@ -382,7 +382,7 @@ async function bootVault(root: string, options: VaultOptions & { preserve?: bool
       output += chunk.toString();
       authUrl = /dsh web: (http:\/\/\S+)/.exec(output)?.[1] ?? authUrl;
     };
-    child.stdout.on('data', collect); child.stderr.on('data', collect);
+    child.stdout!.on('data', collect); child.stderr!.on('data', collect);
     async function stopProcess(): Promise<void> {
       if (child.pid !== undefined && child.exitCode === null && child.signalCode === null) {
         // On Windows a signal only ends DSH itself; taskkill /T also ends the

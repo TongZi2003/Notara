@@ -4,6 +4,8 @@
 
 ## 当前事实源
 
+- Native Vault 0.23.9 启动 supervisor 支持有界意外退出恢复（十分钟最多三次），等待所属 Host 与 proper-lockfile 心跳释放后沿用原端口/数据。Host 父 IPC 断开进入 DSH 关闭流程；不从陈旧记录杀 PID。页面导航底部、设置上方新增红色关闭图标和原生 Dialog 确认，notaraVault.shutdown 走私有 bridge，先同步 requestStop 再延迟清理；remote 控制器委托完整 beginShutdown。桌面仅生成 Notara「拾页」，只迁移同安装的旧入口，保留英文 .cmd 与原终端命令。整个 supervisor 退出不在自恢复范围内，已保存数据保留，进行中的回复不承诺恢复。
+
 - Native Vault 0.23.7 新增独立角色画廊：首页「书院画廊」在新标签页打开 `/notara/vault/academy/gallery.html`。`resources/academy` 保留提供的素材；画廊只展示九张完整角色设定图与文档；`academy-data.json` 仅作展示，`font-route.js` 白名单服务页面、脚本和图片。此批角色不接入教学人格、课堂头像或像素角色。应用 favicon 与新建桌面快捷方式改用书页 N 图标；不改变既有默认教学人格。
 
 - DSH 依赖版本以 `package-lock.json` 和 `docs/runtime/upstream-lock.json` 为准，所有 `@deepseek-ai/dsh-*` 必须保持同一 `0.2.0-rc.1` 系列，`@deepseek-ai/cordis` 为 `4.0.4`。

@@ -8,6 +8,7 @@ import { createFileTree } from './file-tree-client.js';
 import { currentSessionId, mainViewSettled } from './session-current.js';
 import { createSessionDeletionUI } from './session-deletion-client.js';
 import { createSessionActionsUI } from './session-actions-client.js';
+import { createShutdownUI } from './shutdown-client.js';
 
 /** Below this width the native sidebar folds itself and an opened panel covers the content. */
 const NARROW = 1024;
@@ -26,6 +27,7 @@ export function createVaultRail(React, { navigation, Icon, IconButton, Menu, Nat
   const Tree = createFileTree(React, { STYLE });
   const { DeleteSessionDialog } = createSessionDeletionUI(React, { Dialog, IconButton });
   const { useSessionActions } = createSessionActionsUI(React, { Dialog, IconButton, Icon, NativeMenu });
+  const { useVaultShutdown } = createShutdownUI(React, { Dialog, IconButton });
   const { usePanelSearch, SearchButton, SearchInput } = createPanelSearch(React, { IconButton });
   const fmtDay = new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' });
 
@@ -270,6 +272,7 @@ export function createVaultRail(React, { navigation, Icon, IconButton, Menu, Nat
   }
 
   function Sidebar({ ctx, collapsed, renderSidebarSlot }) {
+    const shutdown = useVaultShutdown(ctx);
     const nav = useNav(), active = railSectionOf(nav.section);
     const dismiss = () => { if (window.innerWidth < NARROW && !collapsed) ctx.layout.toggleSidebar(); };
     // Folded, a press switches the main area; only the section already shown there
@@ -290,9 +293,9 @@ export function createVaultRail(React, { navigation, Icon, IconButton, Menu, Nat
       h('nav', { className: 'nv-rail', 'aria-label': '学习导航' },
         h(IconButton, { icon: 'sidebar', label: collapsed ? '展开面板' : '收起面板', onClick: () => ctx.layout.toggleSidebar() }),
         sections.map(section => h('button', { key: section.id, type: 'button', className: 'nv-rail-button', 'aria-label': section.label, title: section.label, 'aria-current': active === section.id ? 'page' : undefined, onClick: () => choose(section.id) }, h(Icon, { name: section.icon }))),
-        h('div', { className: 'nv-rail-foot' }, renderSidebarSlot('sidebar.footer.action', { wide: false }), renderSidebarSlot('sidebar.settings', { wide: false }))),
+        h('div', { className: 'nv-rail-foot' }, renderSidebarSlot('sidebar.footer.action', { wide: false }), shutdown.button, renderSidebarSlot('sidebar.settings', { wide: false }))),
       !collapsed && Panel && h('div', { className: 'nv-panel', 'data-section': active }, h(Panel, { ctx, dismiss, renderSidebarSlot })),
-      h(DirectoryPicker, { ctx }));
+      h(DirectoryPicker, { ctx }), shutdown.dialog);
   }
   return { Sidebar };
 }

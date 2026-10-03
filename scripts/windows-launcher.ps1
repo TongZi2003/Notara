@@ -40,13 +40,28 @@ function New-DesktopShortcuts {
     . (Join-Path $PSScriptRoot 'windows-shortcuts.ps1')
     $powershellPath = Join-Path ([Environment]::GetFolderPath('System')) 'WindowsPowerShell\v1.0\powershell.exe'
     $iconPath = Join-Path $projectRoot 'resources\icons\notara.ico'
-    $entries = @(@{ Name = 'Start Notara'; Action = 'Start' }, @{ Name = 'Stop Notara'; Action = 'Stop' })
-    # Validate both existing names before changing either shortcut.
+    $entries = @(@{ Name = 'Notara「拾页」'; Action = 'Start' })
+    $legacyPaths = @()
+    $defaultRuntimeRoot = [IO.Path]::GetFullPath((Join-Path $userDirectory '.notara\vault-runtime'))
+    # Migrate only shortcuts owned by this installation. A different install's
+    # old Start/Stop entries remain intact, even if their visible names match.
+    foreach ($name in @('Start Notara', 'Stop Notara', '启动 Notara', '关闭 Notara')) {
+        $legacyPath = Join-Path $destination ($name + '.lnk')
+        if (Test-Path -LiteralPath $legacyPath -PathType Leaf) {
+            $old = Read-NotaraShortcut -Path $legacyPath
+            if ($old.TargetPath -eq $powershellPath -and $old.WorkingDirectory -eq $projectRoot -and $old.Arguments.Contains((Quote-Argument $scriptPath)) -and
+                $old.Arguments -match '(?:^|\s)-Action\s+(?:Start|Stop)(?:\s|$)' -and
+                ((-not $old.Arguments.Contains('-RuntimeRoot ') -and $RuntimeRoot -eq $defaultRuntimeRoot) -or $old.Arguments.Contains('-RuntimeRoot ' + (Quote-Argument $RuntimeRoot)))) {
+                $legacyPaths += $legacyPath
+            }
+        }
+    }
+    # Validate the new name before changing any shortcut.
     foreach ($entry in $entries) {
         $path = Join-Path $destination ($entry.Name + '.lnk')
         if (Test-Path -LiteralPath $path) {
             $old = Read-NotaraShortcut -Path $path
-            if ($old.WorkingDirectory -ne $projectRoot -or -not $old.Arguments.Contains((Quote-Argument $scriptPath))) {
+            if ($old.TargetPath -ne $powershellPath -or $old.WorkingDirectory -ne $projectRoot -or -not $old.Arguments.Contains((Quote-Argument $scriptPath))) {
                 throw "同名快捷方式属于另一个安装目录，请先移走它：$path"
             }
         }
@@ -66,7 +81,8 @@ function New-DesktopShortcuts {
         }
         Write-NotaraShortcut @shortcut
     }
-    Show-Result "已创建「Start Notara」和「Stop Notara」两个桌面快捷方式。`n移动或重新解压项目后，请在新目录重新创建快捷方式。"
+    foreach ($legacyPath in $legacyPaths) { Remove-Item -LiteralPath $legacyPath }
+    Show-Result "已创建桌面快捷方式：Notara「拾页」。`n关闭时请点击页面左下角、设置上方的红色按钮。`n移动或重新解压项目后，请在新目录重新创建快捷方式。"
 }
 
 try {

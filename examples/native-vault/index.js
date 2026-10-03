@@ -145,6 +145,7 @@ export class NotaraVaultRemote extends TypertRemoteService {
   async updateStatus(input) { exactInput(input, [], ['sessionId']); return this.ctx.notaraUpdates.status(); }
   async checkUpdate(input) { exactInput(input, [], ['sessionId']); return this.ctx.notaraUpdates.check(); }
   async applyUpdate(input) { exactInput(input, [], ['sessionId']); return this.ctx.notaraUpdates.apply(); }
+  async shutdown(input) { exactInput(input, [], ['sessionId']); return this.ctx.notaraUpdates.shutdown(); }
   async board(input) {return this.teachingCall('board',exactInput(input,['sessionId']));}
   async mutateBoard(input) {return this.teachingCall('mutateBoard',exactInput(input,['sessionId','expectedRevision','patch'],['blockId','sourcePath']));}
   async answerBoard(input) {

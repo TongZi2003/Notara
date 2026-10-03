@@ -5,6 +5,7 @@ delete process.env.NOTARA_UPDATE_TOKEN;
 export function createUpdateBridge(ctx, { url = launcherCredentials.url, token = launcherCredentials.token } = {}, fetcher = fetch) {
   if (url && (!/^http:\/\/127\.0\.0\.1:\d+$/.test(url) || !token)) throw new Error('更新服务配置无效。');
   let updating = false;
+  let closing = false;
   const unsupported = { phase: 'unsupported', message: '请通过 npm run vault 启动，才能检查和安装更新。' };
   const call = async action => {
     if (!url || !token) return unsupported;
@@ -16,7 +17,12 @@ export function createUpdateBridge(ctx, { url = launcherCredentials.url, token =
   };
   return {
     status: () => call('status'), check: () => call('check'),
-    get updating() { return updating; },
+    get updating() { return updating || closing; },
+    async shutdown() {
+      if (!url || !token) throw new Error('当前启动方式不支持从页面关闭，请回到启动终端按 Ctrl+C。');
+      closing = true;
+      try { return await call('shutdown'); } catch (error) { closing = false; throw error; }
+    },
     async apply() {
       if (!url || !token) throw new Error('当前启动器不支持更新，请通过 npm run vault 启动。');
       const agents = ctx.get('agents')?.list?.();

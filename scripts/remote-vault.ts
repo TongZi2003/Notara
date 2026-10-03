@@ -580,6 +580,7 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
   const beginShutdown = (phase: 'stopping' | 'failed' = 'stopping'): Promise<void> => {
     if (shutdownTask) return shutdownTask;
     stopping = true;
+    runtime?.requestStop();
     if (healthTimer) clearInterval(healthTimer);
     state = { ...state, phase };
     const publishShutdown = serial(async () => {
@@ -621,11 +622,15 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
     return currentShutdown;
   };
   const refreshStatus = async (): Promise<PublicStatus> => {
-    if (await readyVaultHasStopped(options.root, () => ({
+    const mayHandleFailure = (): boolean => !stopping && state.phase === 'ready' && runtime?.controller.status().phase !== 'restarting';
+    const recovery = ownsVault ? runtime?.recoveryStatus() : undefined;
+    if (recovery?.phase === 'recovering' && mayHandleFailure()) return { ...publishedStatus, phase: 'starting' };
+    if (mayHandleFailure() && (recovery?.phase === 'failed' || (!recovery && await readyVaultHasStopped(options.root, () => ({
       phase: stopping ? 'stopping' : state.phase,
       updating: runtime?.controller.status().phase === 'restarting',
-    }))) {
-      state = { ...state, lastError: 'The local Vault stopped unexpectedly. Start Notara again to recover.' };
+    }))))) {
+      if (!mayHandleFailure()) return publishedStatus;
+      state = { ...state, lastError: recovery?.phase === 'failed' ? 'Notara 自动恢复未完成，请重新打开 Notara「拾页」。恢复阶段记录在数据目录的 launcher-events.log。' : 'Notara 服务意外停止，请重新打开 Notara「拾页」。' };
       await publishState('failed');
       // Do not await server shutdown from a status request: close() also waits
       // for this response. The serialized action returns before cleanup starts.
@@ -700,8 +705,9 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
           // Match `npm run vault`: use the selected managed code snapshot and
           // keep its update controller/bridge in the same owned lifecycle.
           const code = await managedCode(options.root) ?? projectRoot;
-          runtime = await superviseVault(options.root, code, mode === 'local' ? options.port : remoteConfig?.localPort);
+          runtime = await superviseVault(options.root, code, mode === 'local' ? options.port : remoteConfig?.localPort, undefined, undefined, { shutdown: () => beginShutdown() });
           ownsVault = true;
+          if (stopping) runtime.requestStop();
           state = { ...state, localPort: httpUrlPort(new URL(runtime.authUrl)) };
           await logPrivate(paths.log, 'Local Vault became ready.');
         }

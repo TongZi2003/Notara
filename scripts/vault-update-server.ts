@@ -5,14 +5,30 @@ import type { RemoteAccessService, RemoteSettingsCode } from './remote-access-se
 import { listenWebLoopback } from './listen-web-loopback.ts';
 
 /** Only the authenticated DSH Host can reach this private launcher bridge. */
-export async function startUpdateServer(controller: UpdateController, remote?: RemoteAccessService): Promise<{ url: string; token: string; close(): Promise<void> }> {
+export async function startUpdateServer(controller: UpdateController, remote?: RemoteAccessService, reserveShutdown?: () => () => Promise<void>): Promise<{ url: string; token: string; close(): Promise<void> }> {
   const token = randomBytes(32).toString('hex');
+  let shutdownRequested = false;
+  let shutdownTimer: ReturnType<typeof setTimeout> | undefined;
   const server = createServer({ maxHeaderSize: 16 * 1024 }, (request, response) => {
     const auth = Buffer.from(request.headers.authorization ?? ''), expected = Buffer.from(`Bearer ${token}`);
     if (request.method !== 'POST' || auth.length !== expected.length || !timingSafeEqual(auth, expected) || request.headers.origin) {
       request.resume(); response.writeHead(403).end(); return;
     }
     const send = (value: unknown, status = 200) => { response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify(value)); };
+    if (request.url === '/shutdown') {
+      request.resume();
+      if (!reserveShutdown) { send({ message: '当前启动方式不支持从页面关闭，请回到启动终端按 Ctrl+C。' }, 409); return; }
+      if (shutdownRequested) { send({ phase: 'stopping' }); return; }
+      if (controller.status().phase === 'restarting') { send({ message: '更新正在重启服务，请稍等片刻再关闭。' }, 409); return; }
+      // Reserve synchronously: no update/recovery can start after acceptance.
+      const shutdown = reserveShutdown();
+      shutdownRequested = true;
+      send({ phase: 'stopping' });
+      // Give the Host time to return the acknowledgement over its WebSocket.
+      shutdownTimer = setTimeout(() => { void shutdown().catch(() => { /* The owner records failed cleanup. */ }); }, 500);
+      return;
+    }
+    if (shutdownRequested) { request.resume(); send({ message: 'Notara 正在关闭。' }, 409); return; }
     const remoteRoute = /^\/remote\/(status|save|enable|disable)$/.exec(request.url ?? '');
     if (remoteRoute) {
       if (!remote) { request.resume(); response.writeHead(404).end(); return; }
@@ -56,7 +72,7 @@ export async function startUpdateServer(controller: UpdateController, remote?: R
     response.writeHead(404).end();
   });
   const port = await listenWebLoopback(server);
-  return { url: `http://127.0.0.1:${port}`, token, close: () => new Promise<void>((done, reject) => { server.close(error => error ? reject(error) : done()); server.closeIdleConnections(); }) };
+  return { url: `http://127.0.0.1:${port}`, token, close: () => new Promise<void>((done, reject) => { clearTimeout(shutdownTimer); server.close(error => error ? reject(error) : done()); server.closeIdleConnections(); }) };
 }
 
 function knownRemoteCode(error: unknown): error is Error & { message: RemoteSettingsCode } {

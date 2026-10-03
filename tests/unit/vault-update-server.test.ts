@@ -5,6 +5,29 @@ import { startUpdateServer } from '../../scripts/vault-update-server.ts';
 import type { RemoteAccessService } from '../../scripts/remote-access-service.ts';
 import { isBrowserBlockedPort } from '../../examples/native-vault/http-port.js';
 
+test('shutdown is authenticated, reserved before its reply, and only executes once after acknowledgement', async () => {
+  const controller = new UpdateController('0.23.9', '.', {
+    discover: async () => null, prepare: async () => '.', stop: async () => {}, upgrade: async () => {}, start: async () => {}, commit: async () => {},
+  });
+  let reservations = 0, stops = 0;
+  const bridge = await startUpdateServer(controller, undefined, () => { reservations++; return async () => { stops++; }; });
+  const headers = { authorization: `Bearer ${bridge.token}` };
+  try {
+    expect((await fetch(bridge.url + '/shutdown', { method: 'POST' })).status).toBe(403);
+    expect((await fetch(bridge.url + '/shutdown', { headers })).status).toBe(403);
+    expect((await fetch(bridge.url + '/shutdown', { method: 'POST', headers: { ...headers, origin: 'https://example.com' } })).status).toBe(403);
+    expect(reservations).toBe(0);
+    const reply = await fetch(bridge.url + '/shutdown', { method: 'POST', headers });
+    expect(await reply.json()).toEqual({ phase: 'stopping' });
+    expect(reservations).toBe(1); expect(stops).toBe(0);
+    expect((await fetch(bridge.url + '/apply', { method: 'POST', headers })).status).toBe(409);
+    expect((await fetch(bridge.url + '/check', { method: 'POST', headers })).status).toBe(409);
+    expect(await (await fetch(bridge.url + '/shutdown', { method: 'POST', headers })).json()).toEqual({ phase: 'stopping' });
+    await expect.poll(() => stops).toBe(1);
+    expect(reservations).toBe(1);
+  } finally { await bridge.close(); }
+});
+
 test('the update bridge does not publish a browser-blocked OS-assigned endpoint', async () => {
   const controller = new UpdateController('0.23.7', '.', {
     discover: async () => null, prepare: async () => '.', stop: async () => {}, upgrade: async () => {}, start: async () => {}, commit: async () => {},

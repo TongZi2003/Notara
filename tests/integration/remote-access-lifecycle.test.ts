@@ -67,19 +67,22 @@ test('a controller releases a crashed synthetic worker and permits Start to reco
   await symlink(join(project, 'node_modules'), join(code, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
   await writeFile(join(code, 'scripts/vault-process.ts'), `
 import { createServer } from 'node:http';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 const root = process.argv[2];
 const server = createServer((request, response) => {
   if (request.url === '/proof-exit') {
     response.end('synthetic worker exits'); setTimeout(() => process.exit(37), 50);
+  } else if (request.url === '/proof-stall') {
+    void writeFile(join(root, 'stall-recovery'), 'synthetic').then(() => { response.end('synthetic next worker will not become ready'); setTimeout(() => process.exit(38), 50); });
   } else if (request.url === '/proof-disappear') {
     response.end('synthetic listener exits'); setTimeout(() => server.close(), 50);
   } else if (request.url.includes('token=')) {
     response.writeHead(303, { location: './', 'set-cookie': 'dsh-auth-synthetic=fixture; Path=/; HttpOnly' }).end();
   } else response.end('synthetic worker');
 });
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+const requestedPort = Number(process.argv[3]);
+await new Promise(resolve => server.listen(Number.isFinite(requestedPort) ? requestedPort : 0, '127.0.0.1', resolve));
 const port = server.address().port;
 const authUrl = 'http://127.0.0.1:' + port + '/?token=synthetic-fixture-token';
 await writeFile(join(root, 'vault-runtime.json'), JSON.stringify({ kind: 'notara-vault-persistent', version: 1, port, testModel: true }));
@@ -87,7 +90,8 @@ await writeFile(join(root, 'launcher.json'), JSON.stringify({ pid: process.pid, 
 process.on('message', message => {
   if (message?.type === 'stop') { server.closeAllConnections(); server.close(() => { if (process.connected) process.disconnect(); }); }
 });
-process.send?.({ type: 'ready', authUrl });
+if (await readFile(join(root, 'stall-recovery'), 'utf8').catch(() => '')) await writeFile(join(root, 'recovery-start.entered'), 'starting');
+else process.send?.({ type: 'ready', authUrl });
 `);
   const { version } = JSON.parse(await readFile(join(code, 'examples/native-vault/package.json'), 'utf8')) as { version: string };
   await writeFile(join(root, 'notara-release.json'), JSON.stringify({ format: 1, code, version }));
@@ -111,14 +115,28 @@ globalThis.fetch = async (input, init) => {
       const url = await liveVaultUrl(root);
       expect(url).toBeDefined();
       const current = new URL(url!);
+      const oldLauncher = JSON.parse(await readFile(join(root, 'launcher.json'), 'utf8')) as { pid: number };
       await fetch(new URL(route, current.origin)).then(response => response.text());
-      await expect.poll(() => liveVaultUrl(root), { timeout: 10_000 }).toBeUndefined();
-      const status = (await command('status')).stdout;
-      expect(status).not.toContain('controller is ready');
-      await command('local-start');
+      await expect.poll(async () => {
+        if (!(await liveVaultUrl(root))) return false;
+        const next = JSON.parse(await readFile(join(root, 'launcher.json'), 'utf8')) as { pid: number };
+        return next.pid !== oldLauncher.pid;
+      }, { timeout: 30_000 }).toBe(true);
+      expect((await command('status')).stdout).toContain('ready');
       expect(await liveVaultUrl(root)).toBeDefined();
+      expect(new URL((await liveVaultUrl(root))!).origin).toBe(current.origin);
       expect(await readFile(join(root, 'synthetic-learning.md'), 'utf8')).toBe('# Synthetic learning data remains unchanged\n');
     }
+    // Explicit Stop cancels a replacement stuck before IPC ready; it must not
+    // wait for launch's normal 90 second timeout or leave its listener behind.
+    await fetch(new URL('/proof-stall', (await liveVaultUrl(root))!)).then(response => response.text());
+    await expect.poll(async () => lstat(join(root, 'recovery-start.entered')).then(() => true, () => false), { timeout: 15_000 }).toBe(true);
+    const stopStarted = Date.now();
+    await command('stop');
+    expect(Date.now() - stopStarted).toBeLessThan(30_000);
+    expect(await liveVaultUrl(root)).toBeUndefined();
+    await rm(join(root, 'stall-recovery')); await rm(join(root, 'recovery-start.entered'));
+    await command('local-start');
     // A transient log-path failure must keep ownership closed, still stop the
     // worker, and allow a later explicit Stop to retry after the fault is fixed.
     const logPath = config.replace(/\.[^./\\]+$/, '') + '.log';
@@ -167,13 +185,23 @@ test('a failed remote shutdown still stops the owned worker and a later Stop com
   await writeFile(join(code, 'scripts/vault-process.ts'), `
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-const timer = setInterval(() => {}, 1000);
+import { createServer } from 'node:http';
+const root = process.argv[2];
+const server = createServer((request, response) => {
+  if (request.url.includes('token=')) response.writeHead(303, {location:'./', 'set-cookie':'dsh-auth-synthetic=fixture; Path=/; HttpOnly'}).end();
+  else response.end('synthetic owned worker');
+});
+await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+const port = server.address().port;
+const authUrl = 'http://127.0.0.1:' + port + '/?token=synthetic-fixture-token';
+await writeFile(join(root, 'vault-runtime.json'), JSON.stringify({kind:'notara-vault-persistent',version:1,port,testModel:true}));
+await writeFile(join(root, 'launcher.json'), JSON.stringify({pid:process.pid,authUrl}));
 process.on('message', async message => {
   if (message?.type !== 'stop') return;
   await writeFile(join(process.argv[2], 'synthetic-worker-stopped.txt'), 'stopped');
-  clearInterval(timer); if (process.connected) process.disconnect();
+  server.closeAllConnections(); server.close(() => { if (process.connected) process.disconnect(); });
 });
-process.send?.({ type: 'ready', authUrl: 'http://127.0.0.1:57321/?token=synthetic-fixture-token' });
+process.send?.({ type: 'ready', authUrl });
 `);
   let stopAttempts = 0;
   let runtime: Awaited<ReturnType<typeof superviseVault>> | undefined;
