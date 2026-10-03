@@ -6,6 +6,7 @@ import { zipSync } from 'fflate';
 import { codeContract, MANIFEST_NAME } from './vault-updates.ts';
 import { ensureWindowsPosixBundle, type WindowsPosixBundle } from './windows-posix.ts';
 import { withVaultBuiltSnapshot } from './vault-build-lock.ts';
+import { verifyReleaseZipBytes } from './verify-release-zip.ts';
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export async function buildRelease(output: string, source = project, internals: {
@@ -39,6 +40,7 @@ export async function buildRelease(output: string, source = project, internals: 
   const inventory = Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name.slice('notara/'.length), createHash('sha256').update(bytes).digest('hex')]));
   files['notara/notara-files.json'] = new TextEncoder().encode(JSON.stringify({ format: 1, version: contract.version, files: inventory }, null, 2) + '\n');
   const bytes = zipSync(files, { level: 6 });
+  verifyReleaseZipBytes(Buffer.from(bytes));
   const archive = `notara-${contract.version}.zip`;
   await mkdir(output, { recursive: true });
   await writeFile(join(output, archive), bytes);

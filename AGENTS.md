@@ -4,6 +4,8 @@
 
 ## 当前事实源
 
+- 发布 ZIP 在 `verify-release-zip.ts` 用 Node zlib 独立解压并核对全部条目 CRC/长度（含未列入代码清单的依赖和字体），两种打包器输出前均调用；便携包保留 fflate UTF-8 容器与 CRC 计数，压缩采用 Node 原生 Deflate pipeline，不再使用曾生成非法回溯引用的 fflate streaming Deflate。
+
 - Native Vault 0.23.9 启动 supervisor 支持有界意外退出恢复（十分钟最多三次），等待所属 Host 与 proper-lockfile 心跳释放后沿用原端口/数据。Host 父 IPC 断开进入 DSH 关闭流程；不从陈旧记录杀 PID。页面导航底部、设置上方新增红色关闭图标和原生 Dialog 确认，notaraVault.shutdown 走私有 bridge，先同步 requestStop 再延迟清理；remote 控制器委托完整 beginShutdown。桌面仅生成 Notara「拾页」，只迁移同安装的旧入口，保留英文 .cmd 与原终端命令。整个 supervisor 退出不在自恢复范围内，已保存数据保留，进行中的回复不承诺恢复。
 
 - Native Vault 0.23.7 新增独立角色画廊：首页「书院画廊」在新标签页打开 `/notara/vault/academy/gallery.html`。`resources/academy` 保留提供的素材；画廊只展示九张完整角色设定图与文档；`academy-data.json` 仅作展示，`font-route.js` 白名单服务页面、脚本和图片。此批角色不接入教学人格、课堂头像或像素角色。应用 favicon 与新建桌面快捷方式改用书页 N 图标；不改变既有默认教学人格。

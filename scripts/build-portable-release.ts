@@ -2,14 +2,24 @@ import { createHash } from 'node:crypto';
 import { closeSync, createReadStream, openSync, writeFileSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import { Transform, Writable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { Zip, ZipDeflate } from 'fflate';
+import { createDeflateRaw } from 'node:zlib';
+import { Zip, ZipPassThrough } from 'fflate';
 import { buildRelease } from './build-vault-release.ts';
 import { extractRelease } from './vault-updates.ts';
 import { PORTABLE_MARKER, verifyPrebuiltVault, type PortableManifest } from './prebuilt-vault.ts';
+import { verifyReleaseZip } from './verify-release-zip.ts';
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const hash = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
+
+class NativeCompressedZipEntry extends ZipPassThrough {
+  override compression = 8;
+  // ZipPassThrough tracks input size/CRC; the native deflater emits the data.
+  protected override process(_chunk: Uint8Array, _final: boolean): void {}
+}
 
 /** Stream file contents while encoding ZIP paths explicitly as UTF-8. System
  * tar's ZIP filename encoding depends on the Windows runner's active locale. */
@@ -27,10 +37,31 @@ export async function writePortableArchive(root: string, archive: string): Promi
         const path = join(directory, entry.name), name = `${prefix}/${entry.name}`;
         if (entry.isDirectory()) await addDirectory(path, name);
         else if (entry.isFile()) {
-          const file = new ZipDeflate(name, { level: 6 });
+          // Keep fflate's UTF-8 ZIP container and CRC accounting, but compress
+          // with native zlib. Its streaming encoder produced references before
+          // the start of some binary files, rejected by strict ZIP readers.
+          const file = new NativeCompressedZipEntry(name);
           zip.add(file);
-          for await (const chunk of createReadStream(path, { highWaterMark: 256 * 1024 })) file.push(chunk, false);
-          file.push(new Uint8Array(), true);
+          await pipeline(
+            createReadStream(path, { highWaterMark: 256 * 1024 }),
+            new Transform({
+              transform(chunk: Buffer, _encoding, done) {
+                try { file.push(chunk, false); done(null, chunk); } catch (error) { done(error as Error); }
+              },
+              flush(done) {
+                try { file.push(new Uint8Array(), true); done(); } catch (error) { done(error as Error); }
+              },
+            }),
+            createDeflateRaw({ level: 6 }),
+            new Writable({
+              write(chunk: Buffer, _encoding, done) {
+                try { file.ondata(null, new Uint8Array(chunk), false); done(); } catch (error) { done(error as Error); }
+              },
+              final(done) {
+                try { file.ondata(null, new Uint8Array(), true); done(); } catch (error) { done(error as Error); }
+              },
+            }),
+          );
         } else throw new Error(`便携包不能包含链接或特殊文件：${name}`);
       }
     };
@@ -70,6 +101,7 @@ export async function buildPortableRelease(output: string, source = project): Pr
     await verifyPrebuiltVault(stage);
     const archive = join(destination, `notara-portable-${released.version}-win-x64.zip`);
     await writePortableArchive(stage, archive);
+    await verifyReleaseZip(archive);
     const checksum = `${archive}.sha256`;
     await writeFile(checksum, `${hash(await readFile(archive))}  notara-portable-${released.version}-win-x64.zip\n`);
     return { archive, checksum, version: released.version };
