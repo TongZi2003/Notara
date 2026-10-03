@@ -59,7 +59,10 @@ test('页面确认关闭完整桌面控制器、取消保活并保留课堂和�
   const errors: string[] = []; let shuttingDown = false;
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => {
-    if (message.type() === 'error' && !(shuttingDown && /WebSocket|ERR_CONNECTION_(REFUSED|RESET)|Failed to fetch|connection.*closed/i.test(message.text()))) errors.push(message.text());
+    // Chromium may report a truncated HTTP stream when the acknowledged
+    // shutdown ends its Host (observed on Linux). Only tolerate transport
+    // closure after the explicit Stop; every pageerror remains a failure.
+    if (message.type() === 'error' && !(shuttingDown && /WebSocket|ERR_CONNECTION_(REFUSED|RESET)|ERR_INCOMPLETE_CHUNKED_ENCODING|Failed to fetch|connection.*closed/i.test(message.text()))) errors.push(message.text());
   });
   try {
     await command('local-start');
