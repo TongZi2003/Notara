@@ -42,9 +42,46 @@ export function createVaultUI(React) {
     return h('div',{className:'nv-popover',ref:root},h(IconButton,{icon,label,'aria-expanded':open,'aria-haspopup':'menu',onClick:()=>setOpen(v=>!v)}),open&&h('div',{className:'nv-popover-panel',role:'menu'},items.filter(Boolean).map(item=>h('button',{key:item.label,role:'menuitem',disabled:item.disabled,onClick:()=>{setOpen(false);item.run();}},item.label))));
   }
   function Dialog({title,onClose,children}) {
-    const ref=React.useRef(null);
-    React.useEffect(()=>{const before=document.activeElement;ref.current?.querySelector('input,button,select')?.focus();return()=>before?.focus?.();},[]);
-    return h('div',{className:'nv-dialog',onPointerDown:e=>{if(e.target===e.currentTarget)onClose();},onKeyDown:e=>{if(e.key==='Escape')onClose();if(e.key==='Tab'){const all=[...ref.current.querySelectorAll('button:not(:disabled),input,select,textarea')];if(e.shiftKey&&document.activeElement===all[0]){e.preventDefault();all.at(-1)?.focus();}else if(!e.shiftKey&&document.activeElement===all.at(-1)){e.preventDefault();all[0]?.focus();}}}},h('section',{ref,role:'dialog','aria-modal':true,'aria-label':title,style:{maxHeight:'calc(100dvh - 40px)',overflowY:'auto'}},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},h('h2',null,title),h(IconButton,{label:'关闭',icon:'close',onClick:onClose})),children));
+    const ref=React.useRef(null), close=React.useRef(onClose);
+    close.current=onClose;
+    React.useLayoutEffect(()=>{
+      const dialog=ref.current, overlay=dialog.parentElement, doc=dialog.ownerDocument, before=doc.activeElement;
+      const top=()=>[...doc.querySelectorAll('.nv-dialog')].filter(node=>node.isConnected&&node.getClientRects().length).at(-1);
+      const controls=node=>[...node.querySelectorAll('button,input,select,textarea,a[href],[tabindex],[contenteditable="true"]')].filter(item=>!item.matches(':disabled')&&item.tabIndex>=0&&item.getClientRects().length);
+      let last;
+      const focus=()=>{
+        const target=last?.isConnected&&dialog.contains(last)&&!last.matches(':disabled')&&last.getClientRects().length?last:controls(dialog)[0]??dialog;
+        target.focus({preventScroll:true});
+      };
+      const contain=event=>{
+        if(top()!==overlay)return;
+        if(dialog.contains(event.target)){last=event.target;return;}
+        focus();
+      };
+      const key=event=>{
+        if(top()!==overlay||event.isComposing||event.keyCode===229||event.ctrlKey||event.altKey||event.metaKey)return;
+        if(event.key==='Escape'){
+          event.preventDefault();event.stopPropagation();close.current();
+        }else if(event.key==='Tab'){
+          const all=controls(dialog), active=doc.activeElement;
+          if(!all.length||!dialog.contains(active)||event.shiftKey&&active===all[0]||!event.shiftKey&&active===all.at(-1)){
+            event.preventDefault();((event.shiftKey?all.at(-1):all[0])??dialog).focus({preventScroll:true});
+          }
+        }
+      };
+      doc.addEventListener('focusin',contain,true);doc.addEventListener('keydown',key,true);
+      if(top()===overlay)focus();
+      return()=>{
+        const wasTop=top()===overlay;
+        doc.removeEventListener('focusin',contain,true);doc.removeEventListener('keydown',key,true);
+        if(wasTop)queueMicrotask(()=>{
+          const remaining=top();
+          if(before?.isConnected&&!before.matches(':disabled')&&before.getClientRects().length&&(!remaining||remaining.contains(before)))before.focus({preventScroll:true});
+          else if(remaining){const section=remaining.querySelector('[role="dialog"]');(controls(section)[0]??section).focus({preventScroll:true});}
+        });
+      };
+    },[]);
+    return h('div',{className:'nv-dialog',onPointerDown:e=>{if(e.target===e.currentTarget)onClose();}},h('section',{ref,tabIndex:-1,role:'dialog','aria-modal':true,'aria-label':title,style:{maxHeight:'calc(100dvh - 40px)',overflowY:'auto'}},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},h('h2',null,title),h(IconButton,{label:'关闭',icon:'close',onClick:onClose})),children));
   }
   return { Icon, IconButton, Menu, Dialog };
 }

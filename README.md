@@ -6,7 +6,7 @@ Notara 用于围绕题目、讲义和学习问题展开讨论，并记录你的�
 
 Notara 底层基于 **DeepSeek Harness**。保存的解题卡片、学生理解和课堂小结会乖乖留在本地的 Markdown 文件里，对话记录由本地运行时另行保存。下次回来，沿着计划、Vault 和技能页就能接着学啦。
 
-当前版本为 **0.23.9**，依赖 **DSH 0.2.0-rc.1**。第一次来可以从安装开始；已经坐进教室的同学，直接跳到想用的功能就好。这份说明里的按钮名称都按当前版本写，免得你对着屏幕到处找，小耳朵都找耷拉了。
+当前版本为 **0.23.10**，依赖 **DSH 0.2.0-rc.1**。第一次来可以从安装开始；已经坐进教室的同学，直接跳到想用的功能就好。这份说明里的按钮名称都按当前版本写，免得你对着屏幕到处找，小耳朵都找耷拉了。
 
 | 你现在想做什么 | 从这里出发 |
 | --- | --- |
@@ -49,7 +49,7 @@ Windows 入口文件统一使用英文名，方便在不同语言的系统上使
 
 ### Windows x64 免安装版（推荐）
 
-如果希望省去安装环境与本地构建的等待，可以直接抱走 [notara-portable-0.23.9-win-x64.zip](https://github.com/TongZi2003/Notara/releases/download/v0.23.9/notara-portable-0.23.9-win-x64.zip)。面向 **Windows 10 1903+ / Windows 11 x64** 系统喵。
+如果希望省去安装环境与本地构建的等待，可以直接抱走 [notara-portable-0.23.10-win-x64.zip](https://github.com/TongZi2003/Notara/releases/download/v0.23.10/notara-portable-0.23.10-win-x64.zip)。面向 **Windows 10 1903+ / Windows 11 x64** 系统喵。
 
 1. 下载并完整解压到一个普通可写文件夹中（千万不要直接在压缩包里点运行，耳朵会吓耷拉的！）。
 2. 双击「start-notara.cmd」。不需要预先安装 Node.js、npm 或 Git，也不用敲任何安装脚本。
@@ -68,7 +68,7 @@ Windows 入口文件统一使用英文名，方便在不同语言的系统上使
 
 ### Windows 快捷安装
 
-从 [0.23.9 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.23.9) 下载 [notara-0.23.9.zip](https://github.com/TongZi2003/Notara/releases/download/v0.23.9/notara-0.23.9.zip)。完整解压到可写目录，双击运行里面的 **install-notara.cmd**。桌面入口带有新的书页 N 图标。
+从 [0.23.10 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.23.10) 下载 [notara-0.23.10.zip](https://github.com/TongZi2003/Notara/releases/download/v0.23.10/notara-0.23.10.zip)。完整解压到可写目录，双击运行里面的 **install-notara.cmd**。桌面入口带有新的书页 N 图标。
 
 安装器会自动检查 **Node.js 24+、npm 和 Git Bash**。若缺少组件，将通过 Windows **WinGet** 自动补全（系统弹出权限确认时轻点允许即可）。随后检查最新正式版、安装依赖并构建，在解压出的 `notara` 目录准备好环境。百分比表示已到达的安装阶段，不代表下载字节数或剩余时间。窗口太小或输出到文件时，会自动使用文字进度。
 
@@ -607,6 +607,16 @@ npm run vault
 ## 🐾 更新小记：从最新的一页往前翻
 
 这里按当前仓库保留的版本说明与版本提交，**从新到旧**整理。正式发布版附发布页；尚未公开的改动也会标出来，免得你抱着下载按钮扑个空。
+
+### 0.23.10 · 小弹窗，别把焦点弄丢呀
+
+唔，收尾时还捉到一只藏在键盘旁的小虫。弹窗明明已经打开，输入框却有时又把焦点拉走，Esc 就找不到它啦。这次把小弹窗的围栏补好了。
+
+- **弹窗接住键盘焦点**：关闭确认等小弹窗打开时，焦点留在弹窗内；课堂输入框延迟聚焦也不会把它带走。
+- **按键乖乖听话**：Tab 和 Shift+Tab 在弹窗内循环，Esc 取消并回到打开它的按钮。输入法合成时的 Esc 留给选字过程，不会误关弹窗。
+- **草稿留在原处**：取消弹窗不会发送或改写未完成的输入。学习集、课堂记录和账号配置都保留，0.23.9 的自动恢复与单个桌面入口也继续陪着你。
+
+[0.23.10 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.23.10) · [详细版本说明](docs/releases/native-vault-0.23.10.md)
 
 ### 0.23.9 · 一枚小书页，陪你安心收工
 

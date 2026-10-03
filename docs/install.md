@@ -1,6 +1,6 @@
 # 安装和使用 Notara
 
-适用源码版本：Notara 0.23.9 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。对话菜单与本轮修复见[本版说明](releases/native-vault-0.23.9.md)，画廊和图标见[0.23.7 说明](releases/native-vault-0.23.7.md)，免安装包与白板排版见[0.23.6 说明](releases/native-vault-0.23.6.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
+适用源码版本：Notara 0.23.10 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。弹窗键盘修复见[本版说明](releases/native-vault-0.23.10.md)，自动恢复、关闭和单个桌面入口见[0.23.9 说明](releases/native-vault-0.23.9.md)，画廊和图标见[0.23.7 说明](releases/native-vault-0.23.7.md)，免安装包与白板排版见[0.23.6 说明](releases/native-vault-0.23.6.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
 
 ## Windows x64 免安装版
 

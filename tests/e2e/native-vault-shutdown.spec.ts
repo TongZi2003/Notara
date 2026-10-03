@@ -19,6 +19,45 @@ async function enter(page: Page, authUrl: string) {
   await expect(trigger(page)).toBeVisible({ timeout: 30_000 });
 }
 
+test('关闭弹窗保持键盘焦点；延迟的输入框聚焦不会吞掉 Escape 或改写草稿', async ({ page }) => {
+  const runtime = await startVaultIsolated({ testModel: true });
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await enter(page, runtime.authUrl);
+    const composer = page.locator('[data-composer-input][contenteditable="true"]').last();
+    await expect(composer).toBeVisible();
+    const draft = '暂存草稿：稍后继续学习';
+    await composer.fill(draft);
+    await trigger(page).click();
+    await expect(confirmation(page)).toBeVisible();
+    // Native conversation restoration can focus the composer after the dialog mounts.
+    await composer.evaluate(element => (element as HTMLElement).focus());
+    await expect.poll(() => confirmation(page).evaluate(element => element.contains(element.ownerDocument.activeElement))).toBe(true);
+    const closeButton = confirmation(page).getByRole('button', { name: '关闭', exact: true });
+    await expect(closeButton).toBeFocused();
+    // A pending settings form disables its fieldset, rather than each child button.
+    await confirmation(page).evaluate(element => {
+      const fieldset = element.ownerDocument.createElement('fieldset');
+      fieldset.disabled = true;
+      const button = element.ownerDocument.createElement('button');
+      button.textContent = 'Synthetic disabled control';
+      fieldset.append(button); element.append(fieldset);
+    });
+    await page.keyboard.press('Shift+Tab');
+    await expect(confirmation(page).getByRole('button', { name: '确定', exact: true })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(closeButton).toBeFocused();
+    await closeButton.dispatchEvent('keydown', { key: 'Escape', isComposing: true });
+    await expect(confirmation(page)).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(confirmation(page)).toHaveCount(0);
+    await expect(trigger(page)).toBeFocused();
+    await expect(composer).toContainText(draft);
+    expect(errors).toEqual([]);
+  } finally { await page.close(); await runtime.stop(); }
+});
+
 test('红色关闭按钮支持取消、背景与 Escape；不支持的启动方式如实提示并允许重试', async ({ page }) => {
   const runtime = await startVaultIsolated({ testModel: true });
   const errors: string[] = [];
