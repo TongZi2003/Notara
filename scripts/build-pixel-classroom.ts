@@ -2,9 +2,11 @@ import { build } from 'esbuild';
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { withVaultBuild } from './vault-build-lock.ts';
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export async function buildPixelClassroom(): Promise<string> {
+  return withVaultBuild(project, 'pixel-classroom', async () => {
   const source = resolve(project, 'examples/pixel-classroom');
   // Execute the pinned upstream build helper with its own source conventions;
   // do not pull the vendored TS project into our composite scripts project.
@@ -35,5 +37,6 @@ export async function buildPixelClassroom(): Promise<string> {
   const bytes = (await readFile(resolve(output, 'classroom.js'))).length;
   console.log(`Pixel Agents classroom: ${bytes} bytes; pinned engine and bundled artwork`);
   return output;
+  });
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await buildPixelClassroom();

@@ -74,12 +74,13 @@ export const flowBlanks = spec => spec.nodes.filter(node => node.blank).map(node
 // Text measure: a CJK character is about one em, Latin about half.
 const FONT = 15, LINE = 22, MAX_LINE = 176;
 const charWidth = char => /[⺀-鿿＀-￯]/.test(char) ? FONT : FONT * .56;
-function wrap(text) {
+function wrap(text, maxWidth = MAX_LINE, measure = charWidth) {
   const lines = [];
   let line = '', width = 0;
   for (const char of text) {
-    const w = charWidth(char);
-    if (width + w > MAX_LINE && line) { lines.push(line); line = ''; width = 0; }
+    if (char === '\n') { lines.push(line); line = ''; width = 0; continue; }
+    const w = measure(char);
+    if (width + w > maxWidth && line) { lines.push(line); line = ''; width = 0; }
     line += char; width += w;
   }
   if (line) lines.push(line);
@@ -87,7 +88,17 @@ function wrap(text) {
 }
 const lineWidth = line => [...line].reduce((sum, char) => sum + charWidth(char), 0);
 
-/** Layered layout: longest-path layers, barycentric ordering, fixed gaps. */
+// Labels use the actual 12px SVG face, with conservative glyph advances.
+const LABEL_FONT = 12, LABEL_LINE = 18, LABEL_WIDTH = 168, LABEL_PAD = 8;
+const labelCharWidth = char => /[ -~]/.test(char) && !/[MWmw@]/.test(char) ? LABEL_FONT * .65 : LABEL_FONT;
+function sizeFlowLabel(text) {
+  if (!text) return null;
+  const lines = wrap(text, LABEL_WIDTH, labelCharWidth);
+  return { lines, w: Math.ceil(Math.max(...lines.map(line => [...line].reduce((sum, char) => sum + labelCharWidth(char), 0)))) + LABEL_PAD * 2,
+    h: lines.length * LABEL_LINE + 10 };
+}
+
+/** Layered layout: labels own measured gutters; nodes never obscure their text. */
 export function layoutFlow(spec) {
   const index = new Map(spec.nodes.map((node, i) => [node.id, i]));
   const sized = spec.nodes.map(node => {
@@ -124,36 +135,108 @@ export function layoutFlow(spec) {
       list.forEach((v, order) => position.set(v, order));
     }
   }
-  const right = spec.direction === 'right', gapMain = 64, gapCross = 24, pad = 16;
+  const right = spec.direction === 'right', gapCross = 24, pad = 16;
   const along = node => right ? node.w : node.h, across = node => right ? node.h : node.w;
   const bands = layers.map(list => list ? Math.max(...list.map(v => along(sized[v]))) : 0);
   const spans = layers.map(list => list ? list.reduce((sum, v) => sum + across(sized[v]), 0) + gapCross * (list.length - 1) : 0);
-  const widest = Math.max(...spans, 0);
+  const labels = spec.edges.map(edge => {
+    const size = sizeFlowLabel(edge.label), from = layer[index.get(edge.from)], to = layer[index.get(edge.to)];
+    return { size, from, to, cut: from < to ? Math.floor((from + to - 1) / 2) : null };
+  });
+  const gaps = bands.map(() => 64);
+  labels.forEach(label => {
+    if (label.size && label.cut !== null) gaps[label.cut] = Math.max(gaps[label.cut], (right ? label.size.w : label.size.h) + 32);
+  });
+  const widest = Math.max(...spans, 0), starts = [];
   let main = pad;
   const boxes = new Map();
   layers.forEach((list, l) => {
     if (!list) return;
+    starts[l] = main;
     let cross = pad + (widest - spans[l]) / 2;
     for (const v of list) {
       const node = sized[v], offset = (bands[l] - along(node)) / 2;
       boxes.set(node.id, right ? { x: main + offset, y: cross, w: node.w, h: node.h } : { x: cross, y: main + offset, w: node.w, h: node.h });
       cross += across(node) + gapCross;
     }
-    main += bands[l] + gapMain;
+    main += bands[l] + gaps[l];
   });
-  const width = Math.round((right ? main - gapMain : widest) + pad * (right ? 1 : 2));
-  const height = Math.round((right ? widest : main - gapMain) + pad * (right ? 2 : 1));
-  const edges = spec.edges.map(edge => {
-    const a = boxes.get(edge.from), b = boxes.get(edge.to);
-    const start = right ? [a.x + a.w, a.y + a.h / 2] : [a.x + a.w / 2, a.y + a.h], end = right ? [b.x, b.y + b.h / 2] : [b.x + b.w / 2, b.y];
-    const backward = right ? end[0] <= start[0] : end[1] <= start[1];
-    const bend = backward ? 60 : Math.max(24, (right ? end[0] - start[0] : end[1] - start[1]) / 2);
-    const c1 = right ? [start[0] + bend, start[1] - (backward ? 70 : 0)] : [start[0] - (backward ? 70 : 0), start[1] + bend];
-    const c2 = right ? [end[0] - bend, end[1] - (backward ? 70 : 0)] : [end[0] - (backward ? 70 : 0), end[1] - bend];
-    const mid = [0.125 * start[0] + 0.375 * c1[0] + 0.375 * c2[0] + 0.125 * end[0], 0.125 * start[1] + 0.375 * c1[1] + 0.375 * c2[1] + 0.125 * end[1]];
-    return { ...edge, d: `M ${start.map(round).join(' ')} C ${c1.map(round).join(' ')}, ${c2.map(round).join(' ')}, ${end.map(round).join(' ')}`, labelAt: mid.map(round) };
+  const width = (right ? main - gaps.at(-1) : widest) + pad * (right ? 1 : 2);
+  const height = (right ? widest : main - gaps.at(-1)) + pad * (right ? 2 : 1);
+  const centers = new Map();
+  const crossCenter = box => right ? box.y + box.h / 2 : box.x + box.w / 2;
+  // Labels sharing a gutter get separate cross-axis lanes, even when two
+  // branches have exactly the same geometric midpoint.
+  for (let cut = 0; cut < gaps.length; cut++) {
+    const candidates = labels.flatMap((label, e) => {
+      if (!label.size || label.cut !== cut) return [];
+      const edge = spec.edges[e], wanted = (crossCenter(boxes.get(edge.from)) + crossCenter(boxes.get(edge.to))) / 2;
+      return [{ e, size: label.size, wanted }];
+    }).sort((a, b) => a.wanted - b.wanted || a.e - b.e);
+    let previousEnd = -Infinity;
+    for (const item of candidates) {
+      const extent = right ? item.size.h : item.size.w;
+      const cross = Math.max(item.wanted, previousEnd + 8 + extent / 2);
+      previousEnd = cross + extent / 2;
+      const along = starts[cut] + bands[cut] + gaps[cut] / 2;
+      centers.set(item.e, right ? [along, cross] : [cross, along]);
+    }
+  }
+  // A normal label can extend beyond the narrowest node band (especially a
+  // vertical chain). Return lanes start beyond both, not merely beyond nodes.
+  const normalCrossStart = labels.flatMap((label, e) => {
+    if (!label.size || label.cut === null) return [];
+    const center = centers.get(e);
+    return [(right ? center[1] : center[0]) - (right ? label.size.h : label.size.w) / 2];
   });
-  return { width, height, direction: spec.direction, nodes: sized.map(node => ({ ...node, ...boxes.get(node.id) })), edges };
+  let outside = Math.min(pad, ...normalCrossStart, ...[...boxes.values()].map(box => right ? box.y : box.x)) - 24;
+  const paths = spec.edges.map((edge, e) => {
+    const a = boxes.get(edge.from), b = boxes.get(edge.to), label = labels[e];
+    const start = right ? [a.x + a.w, a.y + a.h / 2] : [a.x + a.w / 2, a.y + a.h];
+    const end = right ? [b.x, b.y + b.h / 2] : [b.x + b.w / 2, b.y];
+    const backward = label.from >= label.to;
+    let points, mid;
+    if (backward) {
+      // Return edges live beyond the outermost nodes. A long return label
+      // therefore cannot land on a node or outside the exported viewBox.
+      const extent = label.size ? (right ? label.size.h : label.size.w) : 0;
+      outside -= extent / 2;
+      mid = right ? [(start[0] + end[0]) / 2, outside] : [outside, (start[1] + end[1]) / 2];
+      points = right
+        ? [start, [start[0] + 36, start[1]], [start[0] + 36, mid[1]], mid, [end[0] - 36, mid[1]], [end[0] - 36, end[1]], end]
+        : [start, [start[0], start[1] + 36], [mid[0], start[1] + 36], mid, [mid[0], end[1] - 36], [end[0], end[1] - 36], end];
+      outside -= extent / 2 + 24;
+    } else if (label.size) {
+      mid = centers.get(e);
+      const bendA = Math.max(8, (right ? mid[0] - start[0] : mid[1] - start[1]) / 2);
+      const bendB = Math.max(8, (right ? end[0] - mid[0] : end[1] - mid[1]) / 2);
+      points = right
+        ? [start, [start[0] + bendA, start[1]], [mid[0] - bendA, mid[1]], mid, [mid[0] + bendB, mid[1]], [end[0] - bendB, end[1]], end]
+        : [start, [start[0], start[1] + bendA], [mid[0], mid[1] - bendA], mid, [mid[0], mid[1] + bendB], [end[0], end[1] - bendB], end];
+    } else {
+      const bend = Math.max(24, (right ? end[0] - start[0] : end[1] - start[1]) / 2);
+      const c1 = right ? [start[0] + bend, start[1]] : [start[0], start[1] + bend];
+      const c2 = right ? [end[0] - bend, end[1]] : [end[0], end[1] - bend];
+      points = [start, c1, c2, end];
+      mid = [0.125 * start[0] + 0.375 * c1[0] + 0.375 * c2[0] + 0.125 * end[0], 0.125 * start[1] + 0.375 * c1[1] + 0.375 * c2[1] + 0.125 * end[1]];
+    }
+    return { ...edge, points, mid, ...(label.size ? { labelLines: label.size.lines, labelBox: { x: mid[0] - label.size.w / 2, y: mid[1] - label.size.h / 2, w: label.size.w, h: label.size.h } } : {}) };
+  });
+  // Include label backgrounds and return curves in the canvas extent, so SVG
+  // clipping and the live blank-node overlays share the same positive frame.
+  const extents = [...boxes.values(), ...paths.flatMap(edge => edge.labelBox ? [edge.labelBox] : []),
+    ...paths.flatMap(edge => edge.points.map(([x, y]) => ({ x, y, w: 0, h: 0 })))];
+  const minX = Math.min(pad, ...extents.map(box => box.x)), minY = Math.min(pad, ...extents.map(box => box.y));
+  const dx = pad - minX, dy = pad - minY;
+  const maxX = Math.max(width - pad, ...extents.map(box => box.x + box.w)), maxY = Math.max(height - pad, ...extents.map(box => box.y + box.h));
+  const edges = paths.map(({ points, mid, labelBox, ...edge }) => {
+    const at = point => [round(point[0] + dx), round(point[1] + dy)].join(' ');
+    const d = `M ${at(points[0])} C ${points.slice(1, 4).map(at).join(', ')}${points.length === 7 ? ` C ${points.slice(4).map(at).join(', ')}` : ''}`;
+    return { ...edge, d, labelAt: [round(mid[0] + dx), round(mid[1] + dy)], ...(labelBox ? { labelBox: { ...labelBox, x: round(labelBox.x + dx), y: round(labelBox.y + dy) } } : {}) };
+  });
+  return { width: Math.ceil(maxX + dx + pad), height: Math.ceil(maxY + dy + pad), direction: spec.direction,
+    nodes: sized.map(node => { const box = boxes.get(node.id); return { ...node, ...box, x: round(box.x + dx), y: round(box.y + dy) }; }), edges };
+
 }
 const round = value => Math.round(value * 10) / 10;
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -168,7 +251,16 @@ export function flowNodeShape(node) {
 /** A complete, static, escaped SVG of the flow (export, reading copies). */
 export function renderFlowSvg(layout, { id = 'flow', fills = {} } = {}) {
   const marker = `${id}-arrow`;
-  const edges = layout.edges.map(edge => `<path class="nb-flow-edge${edge.dashed ? ' is-dashed' : ''}" d="${edge.d}" marker-end="url(#${marker})"/>${edge.label ? `<text class="nb-flow-label" x="${edge.labelAt[0]}" y="${edge.labelAt[1] - 4}" text-anchor="middle">${escape(edge.label)}</text>` : ''}`).join('');
+  const edges = layout.edges.map(edge => {
+    let label = '';
+    if (edge.label) {
+      const lines = edge.labelLines ?? [edge.label], box = edge.labelBox;
+      const top = box ? box.y + LABEL_FONT + 5 : edge.labelAt[1] - 4;
+      const background = box ? `<rect class="nb-flow-label-bg" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="3"/>` : '';
+      label = background + `<text class="nb-flow-label" x="${edge.labelAt[0]}" y="${top}" text-anchor="middle">${lines.map((line, i) => `<tspan x="${edge.labelAt[0]}" dy="${i ? LABEL_LINE : 0}">${escape(line)}</tspan>`).join('')}</text>`;
+    }
+    return `<path class="nb-flow-edge${edge.dashed ? ' is-dashed' : ''}" d="${edge.d}" marker-end="url(#${marker})"/>${label}`;
+  }).join('');
   const nodes = layout.nodes.map(node => {
     const lines = node.blank ? [fills[node.id] || '？'] : node.lines, top = node.y + node.h / 2 - (lines.length - 1) * LINE / 2 + 5;
     return `<g class="nb-flow-node" data-shape="${node.shape}"${node.blank ? ' data-blank="true"' : ''}>${flowNodeShape(node)}${lines.map((line, i) => `<text x="${round(node.x + node.w / 2)}" y="${round(top + i * LINE)}" text-anchor="middle">${escape(line)}</text>`).join('')}</g>`;
@@ -201,4 +293,4 @@ export function flowAnswerText(spec, answer) {
 export const FLOW_SYNTAX = '```flow\ndirection right\nA[1023 交子官营] --> B[发行过量]\nB -- 准备金不足 --> C[币值下跌]\nC -.-> D((为什么不能停发？))\nB --> E[?]\n```\n每行一条或一串连线：A[文字] 是事件或概念，B((文字)) 是待讨论的问题，C{文字} 是判断分支，D[?] 是留给学生补的空；--> 是确定的关系，-.-> 是推测或待验证的关系，-- 说明 --> 在连线上写说明。节点第一次出现时写文字，后面只写它的名字。direction right 从左到右（时间线用它），默认从上到下。';
 
 /** The diagram's look, shared by the board page and the exported notes. */
-export const FLOW_CSS = '.nb-flow{display:block;width:100%;height:auto;overflow:visible}.nb-flow-edge{fill:none;stroke:#8ea6ba;stroke-width:1.6}.nb-flow-edge.is-dashed{stroke-dasharray:5 4}.nb-flow marker path{fill:#8ea6ba}.nb-flow-node rect,.nb-flow-node polygon{fill:#fff;stroke:#9cb3c6;stroke-width:1.3}.nb-flow-node[data-shape=question] rect{fill:#fdf6ec;stroke:#d7b17b}.nb-flow-node[data-shape=decision] polygon{fill:#f3f7fa}.nb-flow-node[data-blank] rect{fill:#f7fafc;stroke-dasharray:4 3}.nb-flow text{font:15px "Kaiti SC",STKaiti,"KaiTi",serif;fill:#2d3742}.nb-flow .nb-flow-label{font:12px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;fill:#687d90;paint-order:stroke;stroke:#fff;stroke-width:4px}';
+export const FLOW_CSS = '.nb-flow{display:block;width:100%;height:auto;overflow:visible}.nb-flow-edge{fill:none;stroke:#8ea6ba;stroke-width:1.6}.nb-flow-edge.is-dashed{stroke-dasharray:5 4}.nb-flow marker path{fill:#8ea6ba}.nb-flow-node rect,.nb-flow-node polygon{fill:#fff;stroke:#9cb3c6;stroke-width:1.3}.nb-flow-node[data-shape=question] rect{fill:#fdf6ec;stroke:#d7b17b}.nb-flow-node[data-shape=decision] polygon{fill:#f3f7fa}.nb-flow-node[data-blank] rect{fill:#f7fafc;stroke-dasharray:4 3}.nb-flow text{font:15px "Kaiti SC",STKaiti,"KaiTi",serif;fill:#2d3742}.nb-flow .nb-flow-label-bg{fill:#fff;stroke:none}.nb-flow .nb-flow-label{font:12px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;fill:#687d90;paint-order:stroke;stroke:#fff;stroke-width:4px}';

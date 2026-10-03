@@ -2,6 +2,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { UpdateController } from './vault-updates.ts';
 import type { RemoteAccessService, RemoteSettingsCode } from './remote-access-service.ts';
+import { listenWebLoopback } from './listen-web-loopback.ts';
 
 /** Only the authenticated DSH Host can reach this private launcher bridge. */
 export async function startUpdateServer(controller: UpdateController, remote?: RemoteAccessService): Promise<{ url: string; token: string; close(): Promise<void> }> {
@@ -54,10 +55,8 @@ export async function startUpdateServer(controller: UpdateController, remote?: R
     }
     response.writeHead(404).end();
   });
-  await new Promise<void>((done, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', done); });
-  const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('更新服务启动失败。');
-  return { url: `http://127.0.0.1:${address.port}`, token, close: () => new Promise<void>((done, reject) => { server.close(error => error ? reject(error) : done()); server.closeIdleConnections(); }) };
+  const port = await listenWebLoopback(server);
+  return { url: `http://127.0.0.1:${port}`, token, close: () => new Promise<void>((done, reject) => { server.close(error => error ? reject(error) : done()); server.closeIdleConnections(); }) };
 }
 
 function knownRemoteCode(error: unknown): error is Error & { message: RemoteSettingsCode } {

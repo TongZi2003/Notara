@@ -30,6 +30,46 @@ export function stableBoardPreview(body='') {
   const inline=[...value.replace(/\$\$[^]*?\$\$/g,match=>' '.repeat(match.length)).matchAll(/(?<!\\)\$/g)];if(inline.length%2)value=value.slice(0,inline.at(-1).index);
   return value;
 }
+/** Source ranges that must stay intact when selecting text or splitting cells. */
+function protectedBoardSourceRanges(source) {
+  const pattern = /(^|\n)[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:\n[ \t]*\2[^\n]*(?=\n|$)|$)|`+[^`\n]*`+|!?\[\[[^\]\n]+\]\]|!?\[[^\]\n]*\]\([^\n]*?\)|(?<!\\)\$\$[\s\S]*?(?<!\\)\$\$|(?<!\\)\$[^$\n]+(?<!\\)\$|<[^>\n]*>/g;
+  return [...String(source).matchAll(pattern)].map(match => ({ start: match.index, end: match.index + match[0].length }));
+}
+const overlapsRange = (start, end, ranges) => ranges.some(range => start < range.end && end > range.start);
+
+/** Pipes inside formulas, code, references and annotations are not table separators. */
+export function splitBoardTableCells(source) {
+  const row = String(source).trim(), ranges = protectedBoardSourceRanges(row);
+  for (const match of row.matchAll(/<mark data-color="(?:blue|green|orange|pink)">[\s\S]*?<\/mark>/g)) ranges.push({ start: match.index, end: match.index + match[0].length });
+  ranges.sort((left, right) => left.start - right.start || right.end - left.end);
+  const cells = []; let cell = '', index = 0, rangeIndex = 0;
+  while (index < row.length) {
+    while (rangeIndex < ranges.length && ranges[rangeIndex].end <= index) rangeIndex++;
+    const range = ranges[rangeIndex];
+    if (range && range.start <= index) { cell += row.slice(index, range.end); index = range.end; continue; }
+    if (row[index] === '\\' && row[index + 1] === '|') { cell += '|'; index += 2; continue; }
+    if (row[index] === '\\' && row[index + 1] === '\\') { cell += '\\\\'; index += 2; continue; }
+    if (row[index] === '|') { cells.push(cell.trim()); cell = ''; }
+    else cell += row[index];
+    index++;
+  }
+  cells.push(cell.trim());
+  if (cells.length > 1 && cells[0] === '') cells.shift();
+  if (cells.length > 1 && cells.at(-1) === '') cells.pop();
+  return cells;
+}
+
+/** Reject the entire DOM Range if any formula, link or code is part of it. */
+export function boardSelectionText(root, selection) {
+  if (!root || !selection || selection.isCollapsed || selection.rangeCount !== 1) return null;
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) return null;
+  for (const node of root.querySelectorAll('.katex,code,pre,a,[data-source],.nb-source-link,img,svg,input,textarea')) {
+    if (range.intersectsNode(node)) return null;
+  }
+  return selection.toString();
+}
+
 export function renderBoardMarkdown(source,{exporting=false,assetUrls={}}={}) {
   function inline(text){
     const pattern=/<mark data-color="(blue|green|orange|pink)">([^]*?)<\/mark>|!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]|\[\[([^\]|]+)(?:\|([^\]]+))?\]\]|\[([^\]]+)\]\(([^\s)]+)\)|\*\*([^*]+)\*\*|`([^`\n]+)`|\$\$([^]*?)\$\$|\$([^$\n]+)\$/g;
@@ -57,7 +97,7 @@ export function renderBoardMarkdown(source,{exporting=false,assetUrls={}}={}) {
     if(inCode){code.push(line);continue;}
     if(line.includes('|')&&/^\s*\|?\s*:?-{3,}/.test(lines[index+1]??'')){
       if(list){out.push('</ul>');list=false;}
-      const cells=value=>value.trim().replace(/^\||\|$/g,'').split('|').map(cell=>inline(cell.trim()));
+      const cells=value=>splitBoardTableCells(value).map(inline);
       out.push('<table><thead><tr>'+cells(line).map(cell=>'<th>'+cell+'</th>').join('')+'</tr></thead><tbody>');index++;
       while(lines[index+1]?.includes('|')){index++;out.push('<tr>'+cells(lines[index]).map(cell=>'<td>'+cell+'</td>').join('')+'</tr>');}out.push('</tbody></table>');continue;
     }
@@ -77,16 +117,21 @@ export function renderBoardInline(text) {
 export function highlightBoardText(body,selected,color) {
   if(color!==null&&!HIGHLIGHTS.includes(color))throw new Error('请选择一种高亮颜色。');
   if(!selected)return body;
-  // Whole existing marks are edited in place. Other selections must identify a unique source range.
-  const marked=new RegExp('<mark data-color="(?:blue|green|orange|pink)">'+selected.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'</mark>','g');
-  const matches=[...body.matchAll(marked)];
-  const replacement=color?`<mark data-color="${color}">${selected}</mark>`:selected;
-  if(matches.length===1)return body.slice(0,matches[0].index)+replacement+body.slice(matches[0].index+matches[0][0].length);
-  const at=body.indexOf(selected);
-  if(at<0||body.indexOf(selected,at+selected.length)!==-1||/[<>]/.test(selected))throw new Error('请只选择一处完整的普通文字，再添加高亮。');
-  // Do not nest a new mark inside an existing annotation or break a Markdown link.
-  const before=body.slice(0,at);if(before.lastIndexOf('<mark')>before.lastIndexOf('</mark>'))throw new Error('请选中这段高亮的完整文字后修改颜色。');
-  return body.slice(0,at)+replacement+body.slice(at+selected.length);
+  const message='请只选择一处完整的普通文字，再添加高亮。';
+  if(/[<>]/.test(selected))throw new Error(message);
+  const protectedRanges=protectedBoardSourceRanges(body),marks=[],candidates=[];
+  for(const match of body.matchAll(/<mark data-color="(?:blue|green|orange|pink)">([\s\S]*?)<\/mark>/g)) {
+    const start=match.index,end=start+match[0].length,innerStart=start+match[0].indexOf('>')+1;
+    marks.push({start,end});
+    if(match[1]===selected&&!overlapsRange(innerStart,innerStart+selected.length,protectedRanges))candidates.push({start,end,marked:true});
+  }
+  for(let start=body.indexOf(selected);start>=0;start=body.indexOf(selected,start+1)) {
+    const end=start+selected.length;
+    if(!overlapsRange(start,end,protectedRanges)&&!overlapsRange(start,end,marks))candidates.push({start,end,marked:false});
+  }
+  if(candidates.length!==1)throw new Error(message);
+  const {start,end}=candidates[0],replacement=color?`<mark data-color="${color}">${selected}</mark>`:selected;
+  return body.slice(0,start)+replacement+body.slice(end);
 }
 export function renderInteractiveSnapshot(scene) {
   if(!scene||scene.kind!=='math'||scene.preset!=='parabola')return '';

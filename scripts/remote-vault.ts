@@ -1,5 +1,5 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { appendFile, mkdir, open, readFile, realpath, rm, stat } from 'node:fs/promises';
+import { appendFile, lstat, mkdir, open, readFile, realpath, rm } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import lockfile from 'proper-lockfile';
@@ -8,12 +8,14 @@ import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
-import { liveVaultUrl, validateVaultPort } from './vault-launcher-state.ts';
+import { httpUrlPort, liveVaultUrl, validateVaultPort } from './vault-launcher-state.ts';
+import { listenWebLoopback } from './listen-web-loopback.ts';
 import { managedCode, superviseVault } from './vault-supervisor.ts';
 import { assertPrivateDirectoryOutsideCheckout, defaultRemoteConfigPath, ensurePrivateDirectory, readRemoteConfig, securePrivatePath, validateRemoteConfig, writePrivateFile, writeRemoteConfig, type RemoteAccessConfig } from './remote-access-config.ts';
 import { assertNgrokReady, buildNgrokPolicy, startNgrokTunnel, type NgrokTunnel } from './remote-ngrok.ts';
 import { startRemoteProxy, type RemoteProxy } from './remote-access-proxy.ts';
 import { acquireRemoteAccessLock } from './remote-access-lock.ts';
+import { readyVaultHasStopped } from './remote-vault-health.ts';
 
 type StartMode = 'all' | 'local' | 'remote-only';
 type SupervisorMode = 'starting' | 'ready' | 'failed' | 'stopping';
@@ -149,7 +151,18 @@ async function readControllerState(path: string): Promise<ControllerState | unde
   if (state?.format !== 1 || !Number.isInteger(state.pid) || state.pid < 1 || typeof state.runtimeRoot !== 'string' || !isAbsolute(state.runtimeRoot) || typeof state.endpoint !== 'string' ||
     typeof state.token !== 'string' || state.token.length < 40 || !Number.isInteger(state.startedAt))
     throw new Error(`Remote controller state is invalid at ${path}; inspect it before deleting it.`);
-  await securePrivatePath(path);
+  try { await securePrivatePath(path); }
+  catch (error) {
+    // Shutdown may remove the volatile record between reading it and the ACL
+    // check. A vanished file is not a permission failure; every other error
+    // still fails closed, including replacement by another present record.
+    const present = await lstat(path).then(() => true, (failure: NodeJS.ErrnoException) => {
+      if (failure.code === 'ENOENT') return false;
+      throw failure;
+    });
+    if (!present) return undefined;
+    throw error;
+  }
   return state;
 }
 
@@ -209,6 +222,28 @@ async function waitForController(paths: ReturnType<typeof statePaths>, requested
   throw new Error(lastError ? `Remote startup timed out: ${lastError}` : `Remote startup did not become ready within ${timeoutMs / 1000} seconds. See ${paths.log}.`);
 }
 
+async function waitForControllerShutdown(paths: ReturnType<typeof statePaths>, options: CliOptions, previous: ControllerState): Promise<void> {
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    const current = await readControllerState(paths.state);
+    if (current) {
+      await assertControllerRoot(current, options.root);
+      // Another Start may already have recovered the same runtime. Re-read it
+      // through the normal start path instead of stopping that new controller.
+      if (current.pid !== previous.pid || current.startedAt !== previous.startedAt) return;
+      if (!(await processAlive(current.pid))) await discardDeadController(paths, current);
+    } else {
+      const locked = await lockfile.check(paths.lock, { stale: 10_000 }).catch(error => {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+        throw error;
+      });
+      if (!locked) return;
+    }
+    await new Promise(resolveWait => setTimeout(resolveWait, 150));
+  }
+  throw new Error(`The previous Notara controller did not finish cleaning up. See ${paths.log}.`);
+}
+
 async function startBackground(mode: StartMode, options: CliOptions): Promise<void> {
   const paths = statePaths(options.config);
   await assertPrivateDirectoryOutsideCheckout(paths.directory);
@@ -218,6 +253,13 @@ async function startBackground(mode: StartMode, options: CliOptions): Promise<vo
     const alive = await processAlive(existing.pid);
     const reply = alive ? await controllerRequest(existing, 'GET', '/v1/status').catch(() => undefined) : undefined;
     if (reply?.status === 200 && reply.value) {
+      if (reply.value.phase === 'failed' || reply.value.phase === 'stopping') {
+        // Cleanup owns the old worker and its locks. Never bypass it by deleting
+        // a live controller record or launching another copy alongside it.
+        await controllerRequest(existing, 'POST', '/v1/stop').catch(() => undefined);
+        await waitForControllerShutdown(paths, options, existing);
+        return startBackground(mode, options);
+      }
       if (mode === 'all' || mode === 'remote-only') {
         const updated = await controllerRequest(existing, 'POST', '/v1/remote/start');
         if (updated.status !== 200) throw new Error(updated.message ?? 'Could not start the remote tunnel.');
@@ -239,8 +281,13 @@ async function startBackground(mode: StartMode, options: CliOptions): Promise<vo
     existing = undefined;
   }
 
-  const lockExists = await stat(`${paths.lock}.lock`).then(() => true, () => false);
-  if (lockExists) {
+  // A lock directory can outlive a crashed controller. Use the lock library's
+  // heartbeat/staleness rules instead of treating any directory as a live lock.
+  const lockIsActive = await lockfile.check(paths.lock, { stale: 10_000 }).catch(error => {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  });
+  if (lockIsActive) {
     try {
       const ready = await waitForController(paths, options.root, 15_000);
       if (mode === 'all' || mode === 'remote-only') {
@@ -404,14 +451,7 @@ async function saveState(path: string, state: ControllerState): Promise<void> {
 }
 
 async function listenControlServer(server: Server): Promise<number> {
-  await new Promise<void>((resolve, reject) => {
-    const onError = (error: Error): void => reject(error);
-    server.once('error', onError);
-    server.listen(0, '127.0.0.1', () => { server.off('error', onError); resolve(); });
-  });
-  const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('Remote control listener did not bind a TCP port.');
-  return address.port;
+  return listenWebLoopback(server);
 }
 
 async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void> {
@@ -445,6 +485,8 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
   let transition: Promise<void> = Promise.resolve();
   let stopping = false;
   let shutdownTask: Promise<void> | undefined;
+  let healthTimer: ReturnType<typeof setInterval> | undefined;
+  let healthProbe: Promise<unknown> | undefined;
   const controllerToken = randomBytes(32).toString('base64url');
   const startedAt = Date.now();
   let state: ControllerState = {
@@ -483,7 +525,7 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
     remoteConfig = config;
     const login = await liveVaultUrl(options.root);
     if (!login) throw new Error('No verified local Notara service is running. Start `npm run vault:local:start` first.');
-    if (Number(new URL(login).port) !== config.localPort) throw new Error(`Remote settings expect Vault port ${config.localPort}, but the running Vault uses ${new URL(login).port}. Update the remote configuration.`);
+    if (httpUrlPort(new URL(login)) !== config.localPort) throw new Error(`Remote settings expect Vault port ${config.localPort}, but the running Vault uses ${httpUrlPort(new URL(login))}. Update the remote configuration.`);
     releaseRemoteOwnership = await acquireRemoteAccessLock(options.root);
     try {
       const ngrokConfigPath = await assertNgrokReady(config.ngrokPath);
@@ -535,6 +577,63 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
     if (remoteConfig) await logPrivate(paths.log, 'Remote access stopped.');
     if (errors.length) throw new AggregateError(errors, 'Remote access did not stop cleanly.');
   };
+  const beginShutdown = (phase: 'stopping' | 'failed' = 'stopping'): Promise<void> => {
+    if (shutdownTask) return shutdownTask;
+    stopping = true;
+    if (healthTimer) clearInterval(healthTimer);
+    state = { ...state, phase };
+    const publishShutdown = serial(async () => {
+      await startup.catch(() => undefined);
+      // Publish only after any pending state write has settled. Leaving the
+      // record until all resources and the lock are released gates a new Start.
+      await publishState(phase);
+    });
+    shutdownTask = (async () => {
+      const errors: unknown[] = [];
+      try { await publishShutdown; } catch (error) { errors.push(error); }
+      // A failed remote/state cleanup must not prevent an attempt to stop the
+      // owned worker. Keep ownership evidence if any cleanup remains uncertain.
+      try { await stopRemote(); } catch (error) { errors.push(error); }
+      if (runtime && ownsVault) {
+        try { await runtime.stop(); } catch (error) { errors.push(error); }
+      }
+      try { await logPrivate(paths.log, errors.length ? 'Notara shutdown has unfinished cleanup.' : ownsVault ? 'Notara and remote access stopped.' : 'Remote access stopped; the externally started Vault remains running.'); }
+      catch (error) { errors.push(error); }
+      if (errors.length) {
+        state = { ...state, lastError: 'Notara shutdown did not finish cleanly. Inspect the private controller log before restarting.' };
+        try { await publishState('failed'); } catch (error) { errors.push(error); }
+        throw new AggregateError(errors, 'Notara shutdown did not stop all resources cleanly.');
+      }
+      await new Promise<void>(resolveClose => {
+        controlServer.close(() => resolveClose());
+        controlServer.closeIdleConnections();
+      });
+      await releaseLock?.();
+      await rm(paths.state, { force: true });
+    })();
+    const currentShutdown = shutdownTask;
+    void currentShutdown.catch(async error => {
+      // Keep failed ownership closed, but an explicit Stop can retry a
+      // transient cleanup error. A logging failure must not reject this handler.
+      if (shutdownTask === currentShutdown) shutdownTask = undefined;
+      try { await logPrivate(paths.log, `Shutdown failed: ${errorText(error)}`); } catch { /* Preserve the failed record and lock. */ }
+    });
+    return currentShutdown;
+  };
+  const refreshStatus = async (): Promise<PublicStatus> => {
+    if (await readyVaultHasStopped(options.root, () => ({
+      phase: stopping ? 'stopping' : state.phase,
+      updating: runtime?.controller.status().phase === 'restarting',
+    }))) {
+      state = { ...state, lastError: 'The local Vault stopped unexpectedly. Start Notara again to recover.' };
+      await publishState('failed');
+      // Do not await server shutdown from a status request: close() also waits
+      // for this response. The serialized action returns before cleanup starts.
+      void beginShutdown('failed');
+    }
+    if (stopping && publishedStatus.running) throw new Error('Notara is shutting down; its previous ready status is no longer valid.');
+    return publishedStatus;
+  };
   const controlServer = createServer((request: IncomingMessage, response: ServerResponse) => {
     const header = request.headers.authorization;
     if (request.socket.remoteAddress !== '127.0.0.1' && request.socket.remoteAddress !== '::ffff:127.0.0.1') {
@@ -544,7 +643,11 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
       jsonResponse(response, 401, { message: 'Unauthorized.' }); request.resume(); return;
     }
     request.resume();
-    if (request.method === 'GET' && request.url === '/v1/status') { jsonResponse(response, 200, publishedStatus); return; }
+    if (request.method === 'GET' && request.url === '/v1/status') {
+      void serial(refreshStatus).then(value => jsonResponse(response, 200, value), error => jsonResponse(response, 503, { message: errorText(error) }));
+      return;
+    }
+    if (stopping && request.url !== '/v1/stop') { jsonResponse(response, 409, { message: 'Notara is already shutting down.' }); return; }
     if (request.method === 'POST' && request.url === '/v1/remote/start') {
       void serial(async () => {
         await startup;
@@ -566,24 +669,7 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
       return;
     }
     if (request.method === 'POST' && request.url === '/v1/stop') {
-      if (!shutdownTask) {
-        stopping = true;
-        state = { ...state, phase: 'stopping' };
-        shutdownTask = (async () => {
-          await startup.catch(() => undefined);
-          await transition;
-          // A pending atomic rename must settle before cleanup removes state;
-          // otherwise it can recreate a record for a controller that has exited.
-          await publishState('stopping');
-          await stopRemote();
-          if (runtime && ownsVault) await runtime.stop();
-          await logPrivate(paths.log, ownsVault ? 'Notara and remote access stopped.' : 'Remote access stopped; the externally started Vault remains running.');
-          await new Promise<void>(resolve => controlServer.close(() => resolve()));
-          await rm(paths.state, { force: true });
-          await releaseLock?.();
-        })();
-        void shutdownTask.catch(error => { void logPrivate(paths.log, `Shutdown failed: ${errorText(error)}`); });
-      }
+      void beginShutdown();
       jsonResponse(response, 202, { message: 'Stopping.' });
       return;
     }
@@ -594,6 +680,13 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
     state = { ...state, endpoint: `http://127.0.0.1:${controlPort}/`, ...(remoteConfig ? { localPort: remoteConfig.localPort } : {}) };
   await publishState('starting');
   await logPrivate(paths.log, `Controller started in ${mode} mode.`);
+  healthTimer = setInterval(() => {
+    if (healthProbe || stopping || state.phase !== 'ready') return;
+    // Keep at most one probe queued/running, and refuse automatic replacement
+    // when liveness cannot be verified (for example, an I/O or auth error).
+    healthProbe = serial(refreshStatus).catch(() => undefined).finally(() => { healthProbe = undefined; });
+  }, 1000);
+  healthTimer.unref();
 
   const startupTask = (async () => {
     try {
@@ -601,7 +694,7 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
         const existingLogin = await liveVaultUrl(options.root);
         if (existingLogin) {
           ownsVault = false;
-          state = { ...state, localPort: Number(new URL(existingLogin).port) };
+          state = { ...state, localPort: httpUrlPort(new URL(existingLogin)) };
           await logPrivate(paths.log, 'Attached to an already running local Vault.');
         } else {
           // Match `npm run vault`: use the selected managed code snapshot and
@@ -609,7 +702,7 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
           const code = await managedCode(options.root) ?? projectRoot;
           runtime = await superviseVault(options.root, code, mode === 'local' ? options.port : remoteConfig?.localPort);
           ownsVault = true;
-          state = { ...state, localPort: Number(new URL(runtime.authUrl).port) };
+          state = { ...state, localPort: httpUrlPort(new URL(runtime.authUrl)) };
           await logPrivate(paths.log, 'Local Vault became ready.');
         }
         if (stopping) return;
@@ -639,37 +732,15 @@ async function runSupervisor(mode: StartMode, options: CliOptions): Promise<void
   })();
   startupTask.then(startupResolve, startupReject);
 
-  startup.catch(() => {
-    void (async () => {
-      stopping = true;
-      await stopRemote().catch(error => logPrivate(paths.log, `Remote cleanup failed: ${errorText(error)}`));
-      if (runtime && ownsVault) await runtime.stop().catch(error => logPrivate(paths.log, `Vault cleanup failed: ${errorText(error)}`));
-      await new Promise<void>(resolve => controlServer.close(() => resolve()));
-      await rm(paths.state, { force: true });
-      await releaseLock?.();
-    })();
-  });
+  startup.catch(() => { void beginShutdown('failed'); });
 
-  const stopOnSignal = (): void => {
-    if (shutdownTask) return;
-    stopping = true;
-    shutdownTask = (async () => {
-      await startup.catch(() => undefined);
-      await transition;
-      await stopRemote();
-      if (runtime && ownsVault) await runtime.stop();
-      await new Promise<void>(resolve => controlServer.close(() => resolve()));
-      await rm(paths.state, { force: true });
-      await releaseLock?.();
-    })();
-    void shutdownTask.catch(error => { void logPrivate(paths.log, `Signal shutdown failed: ${errorText(error)}`); });
-  };
+  const stopOnSignal = (): void => { void beginShutdown(); };
   process.once('SIGINT', stopOnSignal);
   process.once('SIGTERM', stopOnSignal);
   await startup;
   await new Promise<void>(resolve => {
     const poll = setInterval(() => {
-      if (shutdownTask) { clearInterval(poll); void shutdownTask.finally(() => resolve()); }
+      if (shutdownTask) { clearInterval(poll); void shutdownTask.then(() => resolve(), () => resolve()); }
     }, 100);
     poll.unref();
   });

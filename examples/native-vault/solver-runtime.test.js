@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Session } from '@deepseek-ai/dsh-session';
 import { updateTeachingSettings } from './teaching-state.js';
+import { CHATGPT_AUTHENTICATED_EVENT } from './chatgpt-contract.js';
 const module = await import('./solver-runtime.js').catch(() => ({}));
 
 function setup({ models = ['gpt-5.6-sol'], start, teacher = 'gpt-5.6-sol', cwd } = {}) {
@@ -50,6 +51,111 @@ test('a route the provider refuses is marked: the next dispatch fails fast until
   assert.equal((await solver.read({ sessionId: session.id })).workers[0].ready, true);
   await solver.ask({ preset: 'exercise', goal: '现在可以了' }, { ...exec, callId: 'third' });
   assert.equal(calls.length, 2);
+});
+
+test('structured AUTH stops repeated dispatch and only that ChatGPT reauthentication releases it', async () => {
+  let refuse = true;
+  const fixture = setup({ start: () => ({ id: 'auth-child', localAgent: { session: { snapshotEvents: () => [{ type: 'turn/end', data: { reason: { kind: 'error', error: { code: 'AUTH', message: '请在设置的 ChatGPT 账号中重新登录。' } } } }] } }, result: Promise.resolve(refuse ? { stopReason: 'error', output: [] } : { stopReason: 'completed', output: [{ type: 'text', text: '已完成' }] }), dispose: async () => {} }) });
+  const { ctx, teaching, session, exec, calls } = fixture, listeners = new Map();
+  ctx.on = (name, listener) => { listeners.set(name, listener); };
+  const provider = 'notara-chatgpt-account-a', another = 'notara-chatgpt-account-b';
+  ctx.llm.listProviders = () => [{ id: provider, name: 'Synthetic ChatGPT' }];
+  session.append('request/header', { header: { config: { provider, model: 'gpt-5.6-sol' } }, reason: 'initial' });
+  const solver = new module.NotaraSolver(ctx, teaching, { defaultsPath: null });
+  await assert.rejects(solver.ask({ preset: 'problem', goal: '第一次' }, { ...exec, callId: 'auth-first' }), /solver_model_unavailable[\s\S]*重新登录/);
+  assert.equal((await solver.read({ sessionId: session.id })).workers[0].ready, false);
+  await assert.rejects(solver.ask({ preset: 'exercise', goal: '换预设也不能绕过' }, { ...exec, callId: 'auth-again' }), /solver_model_unavailable[\s\S]*上次就调用不了/);
+  assert.equal(calls.length, 1);
+  listeners.get(CHATGPT_AUTHENTICATED_EVENT)(another);
+  await assert.rejects(solver.ask({ preset: 'review', goal: '其他账号重登无关' }, { ...exec, callId: 'auth-other' }), /solver_model_unavailable/);
+  assert.equal(calls.length, 1);
+  const ordinary = `${provider}\u0000ordinary-config-error`, unrelated = `${another}\u0000other-model`;
+  solver.unavailable.set(ordinary, 'Provider is not configured');
+  solver.unavailable.set(unrelated, 'AUTH 登录失效'); solver.authenticationFailures.add(unrelated);
+  refuse = false;
+  listeners.get(CHATGPT_AUTHENTICATED_EVENT)(provider);
+  assert.equal(solver.unavailable.get(ordinary), 'Provider is not configured');
+  assert.equal(solver.unavailable.get(unrelated), 'AUTH 登录失效');
+  assert.equal((await solver.read({ sessionId: session.id })).workers[0].ready, true);
+  assert.equal((await solver.ask({ preset: 'exercise', goal: '重登以后完成' }, { ...exec, callId: 'auth-recovered' })).status, 'completed');
+  assert.equal(calls.length, 2);
+});
+
+test('remote AUTH diagnostics are classified without English authentication wording', async () => {
+  const { solver, exec, calls, session } = setup({ start: () => ({ id: 'remote-auth-child', result: Promise.resolve({ stopReason: 'error', diagnostic: 'AUTH 请重新登录自己的账号。', output: [] }), dispose: async () => {} }) });
+  await assert.rejects(solver.ask({ preset: 'general', goal: '远程工作员' }, exec), /solver_model_unavailable[\s\S]*重新登录/);
+  assert.equal((await solver.read({ sessionId: session.id })).workers[0].ready, false);
+  await assert.rejects(solver.ask({ preset: 'lesson', goal: '相同失效路由' }, { ...exec, callId: 'remote-auth-again' }), /solver_model_unavailable/);
+  assert.equal(calls.length, 1);
+});
+
+for (const timing of ['before-result', 'during-failure-flush']) {
+  test(`an old AUTH result cannot block a new login: ${timing}`, { timeout: 5000 }, async () => {
+    let respond, spawned, failedFlush, releaseFlush;
+    const result = new Promise(resolve => { respond = resolve; });
+    const started = new Promise(resolve => { spawned = resolve; });
+    const failed = new Promise(resolve => { failedFlush = resolve; });
+    const holdFlush = new Promise(resolve => { releaseFlush = resolve; });
+    const { ctx, teaching, session, exec, calls } = setup({ start: () => {
+      spawned();
+      return { id: 'old-login-child', localAgent: { session: { snapshotEvents: () => [{ type: 'turn/end', data: { reason: { kind: 'error', error: { code: 'AUTH', message: '旧登录凭据已失效。' } } } }] } }, result, dispose: async () => {} };
+    } });
+    const listeners = new Map(), provider = 'notara-chatgpt-account-a';
+    ctx.on = (name, listener) => { listeners.set(name, listener); };
+    ctx.llm.listProviders = () => [{ id: provider, name: 'Synthetic ChatGPT' }];
+    session.append('request/header', { header: { config: { provider, model: 'gpt-5.6-sol' } }, reason: 'initial' });
+    teaching.flush = async current => {
+      if (timing === 'during-failure-flush' && current.snapshotEvents().at(-1)?.data?.status === 'failed') {
+        failedFlush(); await holdFlush;
+      }
+    };
+    const solver = new module.NotaraSolver(ctx, teaching, { defaultsPath: null });
+    const rejected = assert.rejects(solver.ask({ preset: 'problem', goal: '旧登录仍在途' }, { ...exec, callId: 'old-login' }), /solver_model_unavailable/);
+    await started;
+    if (timing === 'before-result') listeners.get(CHATGPT_AUTHENTICATED_EVENT)(provider);
+    respond({ stopReason: 'error', output: [] });
+    if (timing === 'during-failure-flush') { await failed; listeners.get(CHATGPT_AUTHENTICATED_EVENT)(provider); releaseFlush(); }
+    await rejected;
+    const view = await solver.read({ sessionId: session.id });
+    assert.equal(view.tasks[0].status, 'failed', 'the old task still reports its actual failure');
+    assert.equal(view.workers[0].ready, true, 'the successful new login remains usable');
+    ctx.subagents.start = async (provider, request) => { calls.push({ provider, request }); return { id: 'new-login-child', result: Promise.resolve({ stopReason: 'completed', output: [{ type: 'text', text: '新登录调用成功。' }] }), dispose: async () => {} }; };
+    assert.equal((await solver.ask({ preset: 'exercise', goal: '新登录继续' }, { ...exec, callId: 'new-login' })).status, 'completed');
+    assert.equal(calls.length, 2);
+  });
+}
+
+test('a late ordinary route refusal remains blocked despite a successful login notification', { timeout: 5000 }, async () => {
+  let respond, spawned;
+  const result = new Promise(resolve => { respond = resolve; }), started = new Promise(resolve => { spawned = resolve; });
+  const { ctx, teaching, session, exec, calls } = setup({ start: () => { spawned(); return { id: 'ordinary-failed-child', result, dispose: async () => {} }; } });
+  const listeners = new Map(), provider = 'notara-chatgpt-account-a';
+  ctx.on = (name, listener) => { listeners.set(name, listener); };
+  ctx.llm.listProviders = () => [{ id: provider, name: 'Synthetic ChatGPT' }];
+  session.append('request/header', { header: { config: { provider, model: 'gpt-5.6-sol' } }, reason: 'initial' });
+  const solver = new module.NotaraSolver(ctx, teaching, { defaultsPath: null });
+  const rejected = assert.rejects(solver.ask({ preset: 'problem', goal: '模型配置实际有问题' }, { ...exec, callId: 'ordinary-first' }), /solver_model_unavailable/);
+  await started; listeners.get(CHATGPT_AUTHENTICATED_EVENT)(provider);
+  respond({ stopReason: 'error', diagnostic: 'PI_AI_ERROR Provider is not configured: synthetic', output: [] });
+  await rejected;
+  assert.equal((await solver.read({ sessionId: session.id })).workers[0].ready, false);
+  await assert.rejects(solver.ask({ preset: 'exercise', goal: '不能换角色绕过' }, { ...exec, callId: 'ordinary-second' }), /solver_model_unavailable[\s\S]*上次就调用不了/);
+  assert.equal(calls.length, 1);
+});
+
+test('provider topology notifications refresh catalogs while retaining ordinary route refusals', async () => {
+  const { ctx, teaching, session } = setup(), listeners = new Map();
+  ctx.on = (name, listener) => { listeners.set(name, listener); };
+  const solver = new module.NotaraSolver(ctx, teaching, { defaultsPath: null });
+  const before = await solver.read({ sessionId: session.id });
+  solver.unavailable.set('test\u0000gpt-5.6-sol', 'Provider is not configured');
+  ctx.llm.listModels = async () => [{ id: 'gpt-5.6-sol', name: 'Refreshed model' }];
+  assert.equal((await solver.read({ sessionId: session.id })).models[0].label, before.models[0].label);
+  listeners.get('llm/adapters-updated')();
+  const after = await solver.read({ sessionId: session.id });
+  assert.match(after.models[0].label, /^Refreshed model/);
+  assert.equal(after.workers[0].ready, false);
+  assert.match(after.workers[0].reason, /Provider is not configured/);
 });
 
 test('shared defaults apply to every lesson, a lesson override wins, and inherit clears one level', async t => {

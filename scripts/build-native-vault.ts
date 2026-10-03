@@ -1,11 +1,17 @@
-import './patch-session-extension.ts';
-import './patch-input-source-filter.ts';
-import './patch-skill-menu.ts';
 import { build } from 'esbuild';
 import { readFile, writeFile, cp, rm } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { outputNamed } from './package-bin.ts';
 import { ACADEMY_FILES } from '../examples/native-vault/academy.js';
+import { withVaultBuild } from './vault-build-lock.ts';
+
+await withVaultBuild(resolve('.'), 'native-vault', async () => {
+// Patches also read/write shared dependencies, so run only after acquiring the
+// same lock that protects generated assets and the runtime's snapshot copy.
+await import('./patch-session-extension.ts');
+await import('./patch-input-source-filter.ts');
+await import('./patch-skill-menu.ts');
+await import('./patch-student-ui.ts');
 
 const KATEX_STYLES = resolve('node_modules/katex/dist/katex.min.css');
 const LATEX_STYLES_PLACEHOLDER = '__NOTARA_VAULT_LATEX_CSS__';
@@ -99,3 +105,4 @@ for (const name of Object.keys(ACADEMY_FILES)) {
   await cp(source, resolve(academyRoot, name));
 }
 console.log(`native-vault client: ${Buffer.byteLength(output)} bytes`);
+});

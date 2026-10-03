@@ -73,3 +73,51 @@ test('panel and page pick the same skill, falling back to the first one when the
   assert.equal(selectedSkill(groups, '').row.key, groups[0].rows[0].key);
   assert.equal(selectedSkill([], 'set:w:pie'), undefined);
 });
+
+
+test('a completed skill action makes earlier refresh data and errors obsolete without clearing a newer refresh', async()=>{
+  const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
+  const first=deferred(),second=deferred();let calls=0;
+  const store=createSkillsStore(()=>++calls===1?first.promise:second.promise);
+  const old=store.refresh();await Promise.resolve();
+  await store.act(async()=>({ok:true,value:{status:'active',revision:'new'}}));
+  const fresh=store.refresh();await Promise.resolve();
+  first.resolve({ok:true,value:{status:'draft',revision:'old'}});await old;
+  assert.deepEqual(store.getSnapshot().data,{status:'active',revision:'new'});
+  assert.equal(store.refresh(),fresh,'an old finally cannot clear the newer pending read');
+  second.resolve({ok:true,value:{status:'active',revision:'newer'}});await fresh;
+  assert.deepEqual(store.getSnapshot().data,{status:'active',revision:'newer'});
+  const lateError=deferred(),failedStore=createSkillsStore(()=>lateError.promise);
+  const oldFailure=failedStore.refresh();await Promise.resolve();
+  await failedStore.act(async()=>({ok:true,value:{status:'active'}}));
+  lateError.reject(new Error('old read failure'));await oldFailure;
+  assert.equal(failedStore.getSnapshot().error,'');
+  assert.equal(failedStore.getSnapshot().busy,false);
+});
+
+test('a read started during a skill write cannot overwrite its result or clear the change-event refresh',async t=>{
+  const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
+  const write=deferred(),during=deferred(),fresh=deferred();let loads=0,announced;
+  const store=createSkillsStore(()=>++loads===1?during.promise:fresh.promise);
+  const originalDispatch=globalThis.dispatchEvent;
+  globalThis.dispatchEvent=()=>{announced=store.refresh();return true;};
+  t.after(()=>{if(originalDispatch===undefined)delete globalThis.dispatchEvent;else globalThis.dispatchEvent=originalDispatch;});
+  const action=store.act(()=>write.promise);
+  const old=store.refresh();assert.equal(store.refresh(),old);
+  await Promise.resolve();assert.equal(loads,1);
+  write.resolve({ok:true,value:{status:'active'}});await action;
+  await Promise.resolve();assert.equal(loads,2,'the change event is admitted even while the write is busy');
+  assert.deepEqual(store.getSnapshot().data,{status:'active'});
+  during.reject(new Error('obsolete during-write read'));await old;
+  assert.equal(store.getSnapshot().error,'');
+  assert.deepEqual(store.getSnapshot().data,{status:'active'});
+  assert.equal(store.refresh(),announced,'the old read cannot clear the change-event flight');
+  fresh.resolve({ok:true,value:{status:'active',revision:'new'}});await announced;
+  assert.deepEqual(store.getSnapshot().data,{status:'active',revision:'new'});
+});
+
+test('a synchronous read failure does not prevent the next skill refresh',async()=>{
+  let calls=0;const store=createSkillsStore(()=>{if(++calls===1)throw new Error('read failed');return {ok:true,value:{status:'active'}};});
+  await store.refresh();assert.equal(store.getSnapshot().error,'read failed');
+  await store.refresh();assert.deepEqual(store.getSnapshot().data,{status:'active'});assert.equal(store.getSnapshot().error,'');
+});

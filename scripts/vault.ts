@@ -1,7 +1,7 @@
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { liveVaultUrl, pluginVersions, validateVaultPort } from './vault-launcher-state.ts';
+import { httpUrlPort, liveVaultUrl, pluginVersions, validateVaultPort } from './vault-launcher-state.ts';
 import { managedCode, superviseVault } from './vault-supervisor.ts';
 import { openVaultBrowser } from './open-vault-browser.ts';
 
@@ -29,7 +29,7 @@ if (managed && managed !== project) {
     console.log(`这个数据目录运行的是 ${versions.snapshot}，代码目录里是 ${versions.checkout}。先停止服务，再运行 npm run vault:upgrade 升级（课堂与资料都保留）。`);
   const running = await liveVaultUrl(root);
   if (running) {
-    if (port !== undefined && Number(new URL(running).port) !== port) throw new Error('Vault 已在其他端口运行，请先停止该实例。');
+    if (port !== undefined && httpUrlPort(new URL(running)) !== port) throw new Error('Vault 已在其他端口运行，请先停止该实例。');
     console.log(`使用现有 Notara 服务：${new URL(running).origin}/`);
     if (!noOpen) openBrowser(running);
   } else {

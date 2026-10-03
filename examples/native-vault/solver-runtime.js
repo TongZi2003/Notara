@@ -10,6 +10,7 @@ import { SOLVER_SOURCE_LIMIT, solverSources, solverSourceBlocks } from './solver
 import { PERSONA_TEXT_LIMIT, personaText, workerPersona } from './persona.js';
 import { activeUserSkills } from './user-skills.js';
 import { resolveVaultRoot } from './vault.js';
+import { CHATGPT_AUTHENTICATED_EVENT } from './chatgpt-contract.js';
 
 const workerSkills = [...teachingManifest.choices, ...teachingManifest.skills.filter(item => item.id.startsWith('subject-'))];
 const LIMITS = Object.freeze({ problem: 18000, focus: 4000, title: 200, excerpt: 12000, materials: 24000, items: 12 });
@@ -39,6 +40,17 @@ function childFailureDetail(run, result) {
     return typeof error?.message === 'string' ? `${typeof error.code === 'string' ? error.code + ' ' : ''}${error.message}` : '';
   } catch { return ''; }
 }
+
+/** Prefer the child's structured failure code; remote diagnostics retain a code prefix. */
+function childFailureCode(run, result) {
+  try {
+    const end = run?.localAgent?.session?.snapshotEvents().findLast(event => event.type === 'turn/end');
+    const error = end?.data?.reason?.kind === 'error' ? end.data.reason.error : undefined;
+    if (typeof error?.code === 'string') return error.code;
+  } catch { /* Remote children may expose only the diagnostic text. */ }
+  return /^([A-Z][A-Z0-9_-]+)(?::|\s|$)/.exec(result?.diagnostic ?? '')?.[1];
+}
+const authenticationFailure = (run, result) => ['AUTH', 'MISSING_CREDENTIAL', 'INVALID_CREDENTIAL'].includes(childFailureCode(run, result));
 /**
  * Name why a child run ended early. A route that cannot be called at all fails
  * every retry the same way, so it is reported as a model problem the student
@@ -46,6 +58,7 @@ function childFailureDetail(run, result) {
  */
 export function workerFailure(result, preset, run) {
   const detail = childFailureDetail(run, result).replace(/\s+/g, ' ').trim().slice(0, 300);
+  if (authenticationFailure(run, result)) return `solver_model_unavailable: ${preset.name}的模型账号需要重新登录或检查凭据（${detail}）。请告诉学生到设置中修复登录或凭据；不要原样重试，也不要换别的预设重试。`;
   if (/not configured|missing_credential|credential|api[ _-]?key|unauthori[sz]ed|\b40[13]\b/i.test(detail)) return `solver_model_unavailable: ${preset.name}的模型调用不了（${detail}）。这是模型配置问题：请告诉学生到教室设置为${preset.name}选一个已配置的模型；不要原样重试，也不要换别的预设重试，同一路由都会失败。`;
   return detail ? `solver_analysis_failed: ${preset.name}没有完成（${detail}）。` : 'solver_analysis_failed';
 }
@@ -155,6 +168,20 @@ export class NotaraSolver {
     this.ctx = ctx; this.teaching = teaching; this.active = new Map(); this.catalog = null; this.defaultsPath = defaultsPath;
     // Routes a worker could not call at all (no credential, refused). Cleared on the next save of any worker setting.
     this.unavailable = new Map();
+    this.authenticationFailures = new Set();
+    this.authenticationGenerations = new Map();
+    ctx.on?.('llm/adapters-updated', () => { this.catalog = null; });
+    ctx.on?.(CHATGPT_AUTHENTICATED_EVENT, provider => this.providerAuthenticated(provider));
+  }
+  /** Successful reauthentication releases only that account's authentication failures. */
+  providerAuthenticated(provider) {
+    if (typeof provider !== 'string' || !provider.startsWith('notara-chatgpt-')) return;
+    this.authenticationGenerations.set(provider, (this.authenticationGenerations.get(provider) ?? 0) + 1);
+    this.catalog = null;
+    for (const key of this.authenticationFailures) {
+      if (!key.startsWith(`${provider}\u0000`)) continue;
+      this.authenticationFailures.delete(key); this.unavailable.delete(key);
+    }
   }
   async defaults() { return readWorkerDefaults(this.defaultsPath); }
   assertTeacher(agent) {
@@ -234,6 +261,7 @@ export class NotaraSolver {
         await this.teaching.flush(agent.session);
       }
       this.unavailable.clear();
+      this.authenticationFailures.clear();
       return this.read({ sessionId });
     }
     if (!Object.hasOwn(WORKER_TOOLS, tools ?? '')) invalid('tools', '只接受 none（交付材料）或 read（原生读取、搜索与看图）');
@@ -247,6 +275,7 @@ export class NotaraSolver {
     }
     // A save is the student acting on the settings: earlier "cannot be called" marks no longer hold.
     this.unavailable.clear();
+    this.authenticationFailures.clear();
     if (scope === 'default') {
       // 只改模型或资料范围时不传 persona 就保持原来的人格；传空串才是回到「只用任务角色」。
       const shared = sharedSettings((await this.defaults()).presets[preset]);
@@ -354,7 +383,9 @@ export class NotaraSolver {
   }
   /** Record, spawn and settle one prepared worker; the caller already reserved its slot. */
   async execute({ id, session, exec, signal, controller, active, preset, settings, runRoute, route, persona, requestKey, inputId, goal, focus, materials, sources }) {
-    let started = false;
+    let started = false, accountFailure = false;
+    // A late failure from an older login cannot block the newly authenticated account.
+    const authenticationGeneration = this.authenticationGenerations.get(runRoute.provider) ?? 0;
     try {
       await this.writeTask(session, { id, status: 'running', preset: preset.id, tools: settings.tools, route: runRoute, inputId, requestKey, startedAt: new Date().toISOString() }); started = true;
       const evidence = await solverSourceBlocks(this.ctx, { ...exec, signal }, route, sources);
@@ -367,7 +398,7 @@ export class NotaraSolver {
       const result = await active.run.result;
       if (signal.aborted || solverState(session).tasks.find(row => row.id === id)?.status === 'canceled') fail('solver_canceled');
       if (result.stopReason === 'max-tokens') fail(`solver_budget_exhausted: ${preset.name} 未在本次 ${runRoute.maxTokens} token 生成上限内完成，没有可交付的完整结果。请缩小任务或定位具体疑点，不原样重试；如需调整上限，由用户在教室设置中决定。`);
-      if (result.stopReason !== 'completed') fail(workerFailure(result, preset, active.run));
+      if (result.stopReason !== 'completed') { accountFailure = authenticationFailure(active.run, result); fail(workerFailure(result, preset, active.run)); }
       const analysis = result.output.filter(block => block.type === 'text').map(block => block.text).join('\n').trim();
       if (!analysis) fail('solver_analysis_empty');
       try { await active.run.dispose(); active.run = null; } catch (error) { throw new Error('solver_cleanup_failed', { cause: error }); }
@@ -379,7 +410,11 @@ export class NotaraSolver {
       if (started && solverState(session).tasks.find(row => row.id === id)?.status === 'running') await this.writeTask(session, { id, status: canceled ? 'canceled' : 'failed', failureCode: canceled ? 'solver_canceled' : /^(?:solver_|vault_|pdf_)[a-z_]+/.exec(error.message)?.[0] ?? 'solver_analysis_failed', finishedAt: new Date().toISOString() });
       if (canceled) fail('solver_canceled');
       // The provider refused the route itself: remember it so the next dispatch fails fast and the classroom says why.
-      if (/^solver_model_unavailable/.test(error.message)) this.unavailable.set(routeKey(runRoute), /（([^）]{1,300})）/.exec(error.message)?.[1] ?? '提供方拒绝了请求');
+      if (/^solver_model_unavailable/.test(error.message) && (!accountFailure || authenticationGeneration === (this.authenticationGenerations.get(runRoute.provider) ?? 0))) {
+        const key = routeKey(runRoute);
+        this.unavailable.set(key, /（([^）]{1,300})）/.exec(error.message)?.[1] ?? '提供方拒绝了请求');
+        if (accountFailure) this.authenticationFailures.add(key); else this.authenticationFailures.delete(key);
+      }
       if (/^(solver_|vault_|pdf_)/.test(error.message)) throw error;
       throw new Error('solver_analysis_failed', { cause: error });
     } finally {

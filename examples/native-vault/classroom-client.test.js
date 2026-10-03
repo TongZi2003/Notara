@@ -377,3 +377,18 @@ test('the status line counts several running workers', async () => {
   assert.equal(runningLabel(rows), '2个后台任务进行中');
   assert.equal(runningLabel(rows.slice(1)), '后台任务进行中');
 });
+
+test('the classroom keeps every recent task the Host returned, including older completed records after running work', () => {
+  const tasks = Array.from({ length: 20 }, (_, index) => ({
+    id: `recent-${index}`, preset: index < 5 ? 'general' : 'exercise',
+    status: index < 5 ? 'running' : 'completed', inspectable: true,
+    startedAt: new Date(Date.UTC(2026, 9, 3, 1, 20 - index)).toISOString(),
+  }));
+  const rows = taskRows(payload({ tasks }));
+  assert.equal(rows.length, tasks.length);
+  assert.deepEqual(rows.map(row => row.id), tasks.map(row => row.id));
+  assert.equal(rows[19].name, '出题员');
+  assert.equal(rows[19].inspectable, true);
+  assert.equal(rows[19].cancelable, false);
+  assert.equal(rows.slice(0, 5).every(row => row.cancelable), true);
+});

@@ -7,5 +7,8 @@ export default defineConfig({
     include: ['tests/unit/**/*.test.ts'],
     // Zero matches is a failure by design: an empty lane must not pass.
     passWithNoTests: false,
+    // Private-file tests launch real PowerShell ACL checks. Keep their Windows
+    // concurrency bounded in local runs and CI so cold starts stay comparable.
+    ...(process.platform === 'win32' ? { maxWorkers: 2 } : {}),
   },
 });

@@ -26,6 +26,7 @@ const paths = {
   folder:'M3 7V5h6l2 2h10v13H3z', sliders:'M4 8h9M17 8h3M4 16h3M11 16h9M15 5v6M7 13v6', log:'M5 4h14v16H5zM8 9h8M8 13h8M8 17h5', timer:'M12 8v4l2.5 2.5M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM10 2h4',
   calendar:'M4 5h16v16H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2',
   trash:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7',
+  edit:'M4 20l4-1 12-12-3-3L5 16l-1 4ZM14 7l3 3', archive:'M3 3h18v5H3zM5 8v13h14V8M9 12h6',
   home:'M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z', clock:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
   books:'M5 4h4v16H5zM10 4h4v16h-4zM15 5l3.5-1 3 15-3.5 1z', sparkle:'M12 3l2.2 5.3L20 9l-4.3 3.8L17 18.5 12 15.6 7 18.5l1.3-5.7L4 9l5.8-.7z',
   route:'M6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 18h5a3 3 0 0 0 0-6h-2a3 3 0 0 1 0-6h5', layers:'M12 3 2 8l10 5 10-5-10-5ZM2 12l10 5 10-5M2 16l10 5 10-5',

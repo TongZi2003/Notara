@@ -47,6 +47,7 @@ window.__ModuleLoader__.load({
   factory: (require) => {
     const React = require('react');
     const { resolveSlotLabel } = require('@deepseek-ai/dsh-client-ui-slots');
+    const { Menu: NativeMenu } = require('@deepseek-ai/dsh-client-ui-primitives');
     const { useCallback, useEffect, useMemo, useRef, useState } = React;
     const { Icon, IconButton, Menu, Dialog } = createVaultUI(React);
     const navigation = createVaultNavigation();
@@ -617,7 +618,7 @@ window.__ModuleLoader__.load({
 
     const { CodeEditor } = createCodeEditor(React);
     const { SkillsPanel, SkillsView } = createSkillsPage(React, { navigation, EmptyState, IconButton });
-    const { Sidebar } = createVaultRail(React, { navigation, Icon, IconButton, Menu, Dialog, STYLE, SkillsPanel });
+    const { Sidebar } = createVaultRail(React, { navigation, Icon, IconButton, Menu, NativeMenu, Dialog, STYLE, SkillsPanel });
     const App = createVaultAssets(React, { STYLE, EmptyState, CodeMirrorMarkdown, CodeEditor, PdfReader, AssetPreview, insertVaultReference, IconButton, Menu, Dialog, ensureSession: ctx => ensureTeachingSession(ctx), openLessonBoard: (ctx, sessionId) => navigation.openLesson(ctx, sessionId, 'board') });
     const { GraphView, CardsView } = createVaultViews(React, { STYLE, IconButton, Menu, Dialog });
     // 路线资料是一份真实页面: 请老师规划或调整走的是既有的输入框引用入口（和

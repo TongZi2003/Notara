@@ -1,3 +1,5 @@
+// Host-only notification: a signed-in account may retry routes blocked by expired credentials.
+export const CHATGPT_AUTHENTICATED_EVENT = 'notara/chatgpt-authenticated';
 export const CHATGPT_METHODS = Object.freeze(['status', 'begin', 'cancel', 'signOut', 'models']);
 export const CHATGPT_NOTICES = Object.freeze({
   chatgpt_connected: '已连接。在对话的模型选择器中选择 ChatGPT 账号下的模型即可开始。',

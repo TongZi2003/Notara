@@ -218,6 +218,9 @@ export async function startRemoteProxy(options: RemoteProxyOptions): Promise<Rem
       headers: mapRequestHeaders(incoming, options, isBundle),
     }, async upstreamResponse => {
       if (!isBundle) {
+        const interrupted = (error: Error): void => { if (!outgoing.destroyed) outgoing.destroy(error); };
+        upstreamResponse.once('error', interrupted);
+        upstreamResponse.once('aborted', () => interrupted(new Error('The local Notara response ended before it was complete.')));
         outgoing.writeHead(upstreamResponse.statusCode ?? 502, mapResponseHeaders(upstreamResponse.headers, options));
         upstreamResponse.pipe(outgoing);
         return;
@@ -245,7 +248,7 @@ export async function startRemoteProxy(options: RemoteProxyOptions): Promise<Rem
     });
     upstream.once('error', () => {
       if (!outgoing.headersSent) respond(outgoing, 502, 'The local Notara service is unavailable.');
-      else outgoing.end();
+      else outgoing.destroy();
     });
     incoming.once('aborted', () => upstream.destroy());
     incoming.once('error', () => upstream.destroy());

@@ -1,9 +1,16 @@
 import { readFile, writeFile, rename, chmod, lstat, symlink, realpath } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
+import { httpUrlPort, isBrowserBlockedPort } from '../examples/native-vault/http-port.js';
+export { httpUrlPort, isBrowserBlockedPort } from '../examples/native-vault/http-port.js';
 
 export interface VaultState { kind: 'notara-vault-persistent'; version: 1; port: number; testModel: boolean; legacyRoots?: string[] }
-export function validateVaultPort(port: number): void {
+function validatePortNumber(port: number): void {
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid Vault port');
+}
+export function validateVaultPort(port: number): void {
+  validatePortNumber(port);
+  // Zero is the launcher's automatic-selection sentinel, never a live URL.
+  if (port !== 0 && isBrowserBlockedPort(port)) throw new Error(`端口 ${port} 被浏览器禁止访问；请改用其他端口，或使用 --port 0 自动选择。`);
 }
 export async function readVaultState(root: string): Promise<VaultState | undefined> {
   let raw: string;
@@ -11,7 +18,9 @@ export async function readVaultState(root: string): Promise<VaultState | undefin
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; }
   const state = JSON.parse(raw) as VaultState;
   if (state?.kind !== 'notara-vault-persistent' || state.version !== 1 || typeof state.testModel !== 'boolean') throw new Error('Invalid Vault runtime registration');
-  validateVaultPort(state.port);
+  // Older launchers could save an inaccessible port. Still read that record so
+  // an explicit --port override can recover the same instance without data loss.
+  validatePortNumber(state.port);
   if (state.legacyRoots !== undefined && (!Array.isArray(state.legacyRoots) || state.legacyRoots.some(path => typeof path !== 'string' || !isAbsolute(path)))) throw new Error('Invalid legacy Vault roots');
   return state;
 }
@@ -39,7 +48,7 @@ export async function liveVaultUrl(root: string): Promise<string | undefined> {
   const state = await readVaultState(root);
   if (!state || !Number.isInteger(record.pid) || record.pid < 1) return undefined;
   const url = new URL(record.authUrl);
-  if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.username || url.password || url.pathname !== '/' || Number(url.port) !== state.port || !url.searchParams.has('token')) throw new Error('Invalid Vault login address');
+  if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.username || url.password || url.pathname !== '/' || httpUrlPort(url) !== state.port || !url.searchParams.has('token')) throw new Error('Invalid Vault login address');
   try { process.kill(record.pid, 0); } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ESRCH') return undefined; throw error; }
   let response: Response;
   try { response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(3000) }); }

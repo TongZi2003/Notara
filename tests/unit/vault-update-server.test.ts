@@ -1,7 +1,30 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
+import { Server, type AddressInfo } from 'node:net';
 import { UpdateController } from '../../scripts/vault-updates.ts';
 import { startUpdateServer } from '../../scripts/vault-update-server.ts';
 import type { RemoteAccessService } from '../../scripts/remote-access-service.ts';
+import { isBrowserBlockedPort } from '../../examples/native-vault/http-port.js';
+
+test('the update bridge does not publish a browser-blocked OS-assigned endpoint', async () => {
+  const controller = new UpdateController('0.23.7', '.', {
+    discover: async () => null, prepare: async () => '.', stop: async () => {}, upgrade: async () => {}, start: async () => {}, commit: async () => {},
+  });
+  const actualAddress = Server.prototype.address;
+  let rejected = false;
+  const inspect = vi.spyOn(Server.prototype, 'address').mockImplementation(function (this: Server) {
+    const actual = actualAddress.call(this);
+    if (!rejected && actual && typeof actual !== 'string') { rejected = true; return { ...actual, port: 6000 } as AddressInfo; }
+    return actual;
+  });
+  let bridge: Awaited<ReturnType<typeof startUpdateServer>> | undefined;
+  try {
+    bridge = await startUpdateServer(controller);
+    expect(rejected).toBe(true);
+    expect(isBrowserBlockedPort(Number(new URL(bridge.url).port))).toBe(false);
+    const response = await fetch(bridge.url + '/status', { method: 'POST', headers: { authorization: `Bearer ${bridge.token}` } });
+    expect(await response.json()).toMatchObject({ currentVersion: '0.23.7' });
+  } finally { inspect.mockRestore(); await bridge?.close(); }
+});
 
 test('the private bridge denies browser and unauthenticated control requests', async () => {
   const controller = new UpdateController('0.21.4', '/old', {

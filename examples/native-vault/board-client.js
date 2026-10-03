@@ -1,7 +1,7 @@
 import css from './board-client.css';
 import { createVaultClient, visibleInterval } from './remote-client.js';
 import { VIEW_IDS } from './views-client.js';
-import { renderBoardMarkdown,renderBoardInline,highlightBoardText,HIGHLIGHTS,exportBoard,boardImageTargets,stableBoardPreview } from './board-render.js';
+import { renderBoardMarkdown,renderBoardInline,highlightBoardText,HIGHLIGHTS,exportBoard,boardImageTargets,stableBoardPreview,boardSelectionText } from './board-render.js';
 import { getBoardStream,subscribeBoardStream } from './board-stream.js';
 import { createMathInteractive } from './interactive-math-client.js';
 import { readComponent,splitBoardBody } from './board-components.js';
@@ -22,11 +22,14 @@ const bounded=(value,range)=>Math.max(range.min,Math.min(range.max,Math.round(va
 
 // One rendered HTML per Markdown text: a poll or a drag never re-renders prose.
 const markdownCache=new Map();
+const EMPTY_ASSET_URLS=Object.freeze({});
 function cachedMarkdown(text,assetUrls){
-  const images=boardImageTargets(text),key=images.length?text+'\u0000'+images.map(path=>assetUrls[path]?'1':'0').join(''):text;
-  if(markdownCache.has(key)){const html=markdownCache.get(key);markdownCache.delete(key);markdownCache.set(key,html);return html;}
+  // Image content is owned by this classroom's client. Never reuse another
+  // classroom's rendered data URL, or keep large URLs in global cache keys.
+  if(boardImageTargets(text).length)return renderBoardMarkdown(text,{assetUrls});
+  if(markdownCache.has(text)){const html=markdownCache.get(text);markdownCache.delete(text);markdownCache.set(text,html);return html;}
   const html=renderBoardMarkdown(text,{assetUrls});
-  markdownCache.set(key,html);if(markdownCache.size>400)markdownCache.delete(markdownCache.keys().next().value);
+  markdownCache.set(text,html);if(markdownCache.size>400)markdownCache.delete(markdownCache.keys().next().value);
   return html;
 }
 const answersKey=block=>(block.answers??[]).map(entry=>entry.id).join(',');
@@ -111,8 +114,18 @@ export function createLessonBoard(React) {
     const [board,setBoard]=useState(EMPTY),[face,setFace]=useState('board'),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[stream,setStream]=useState(()=>getBoardStream(sessionId)),[expandedInteraction,setExpandedInteraction]=useState(null);
     const [camera,setCamera]=useState({board:{x:0,y:0,z:1},sources:{x:0,y:0,z:1}}),[follow,setFollow]=useState(true),[exporting,setExporting]=useState(false),[include,setInclude]=useState({}),[outline,setOutline]=useState(false);
     const [heights,setHeights]=useState(()=>new Map()),[drag,setDrag]=useState(null),[reading,setReading]=useState(false);
-    const [assetUrls,setAssetUrls]=useState({}),imagePaths=boardImageTargets(board.blocks.map(b=>b.body).join('\n')).join('\n');
-    useEffect(()=>{let alive=true;for(const path of imagePaths.split('\n').filter(Boolean))if(!assetUrls[path])client.readAsset({path}).then(unwrap).then(asset=>{if(alive&&/^image\/(?:png|jpeg|gif|webp|svg\+xml)$/.test(asset.mime))setAssetUrls(prev=>({...prev,[path]:asset.dataUrl}));}).catch(()=>{});return()=>{alive=false;};},[imagePaths,client]);
+    const [assetState,setAssetState]=useState({client:null,urls:EMPTY_ASSET_URLS}),imagePaths=boardImageTargets(board.blocks.map(b=>b.body).join('\n')).join('\n');
+    // Hide URLs from the previous client immediately, before effects run.
+    const assetUrls=assetState.client===client?assetState.urls:EMPTY_ASSET_URLS;
+    useEffect(()=>{
+      let alive=true;
+      const known=assetState.client===client?assetState.urls:EMPTY_ASSET_URLS;
+      setAssetState(previous=>previous.client===client?previous:{client,urls:EMPTY_ASSET_URLS});
+      for(const path of imagePaths.split('\n').filter(Boolean))if(!known[path])client.readAsset({path}).then(unwrap).then(asset=>{
+        if(alive&&/^image\/(?:png|jpeg|gif|webp|svg\+xml)$/.test(asset.mime))setAssetState(previous=>({client,urls:{...(previous.client===client?previous.urls:EMPTY_ASSET_URLS),[path]:asset.dataUrl}}));
+      }).catch(()=>{});
+      return()=>{alive=false;};
+    },[imagePaths,client]);
     const current=useRef(board),mounted=useRef(true),saving=useRef(false),root=useRef(null),viewport=useRef(null),gesture=useRef(null),selection=useRef(null),focusedCall=useRef(null),focusedSection=useRef(null),request=useRef(0),observed=useRef(false),expandedId=useRef(null),boardKey=useRef('');
     current.current=board;const cam=camera[face];
     const accept=value=>{const key=JSON.stringify(value);if(key===boardKey.current)return;boardKey.current=key;setBoard(value);};
@@ -166,7 +179,7 @@ export function createLessonBoard(React) {
       drag:(event,block,source,position)=>{if(saving.current||block.stream||!position)return;event.preventDefault();event.stopPropagation();setFollow(false);selection.current=null;gesture.current={type:'block',block,source,startX:event.clientX,startY:event.clientY,x:position.x,y:position.y};viewport.current.setPointerCapture(event.pointerId);},
       resize:(event,block,position,source)=>{if(saving.current||block.stream||!position)return;event.preventDefault();event.stopPropagation();setFollow(false);selection.current=null;const element=event.currentTarget.closest('.nb-block');gesture.current={type:'resize',block,source,startX:event.clientX,startY:event.clientY,x:position.x,y:position.y,width:position.width,height:position.height??element?.offsetHeight??BLOCK_HEIGHT.min};viewport.current.setPointerCapture(event.pointerId);},
       resizeKey:(event,block,position,source)=>{if(!position)return;const step=event.shiftKey?40:12,element=event.currentTarget.closest('.nb-block'),height=position.height??element?.offsetHeight??BLOCK_HEIGHT.min;let width=bounded(position.width,BLOCK_WIDTH),nextHeight=height;if(event.key==='ArrowRight')width=bounded(width+step,BLOCK_WIDTH);else if(event.key==='ArrowLeft')width=bounded(width-step,BLOCK_WIDTH);else if(event.key==='ArrowDown')nextHeight=bounded(height+step,BLOCK_HEIGHT);else if(event.key==='ArrowUp')nextHeight=bounded(height-step,BLOCK_HEIGHT);else return;event.preventDefault();save(block,{x:position.x,y:position.y,width,height:nextHeight},source);},
-      select:(event,block,source)=>{const selected=window.getSelection();if(!selected||selected.isCollapsed||!event.currentTarget.contains(selected.anchorNode)||!event.currentTarget.contains(selected.focusNode))return;selection.current={block,source,text:selected.toString()};},
+      select:(event,block,source)=>{selection.current=null;const selected=window.getSelection();if(!selected||selected.isCollapsed)return;const text=boardSelectionText(event.currentTarget,selected);selection.current=text?{block,source,text}:{blocked:true};},
       source:path=>openView(VIEW_IDS.assets,path),
       back:id=>{const position=layout.positions.get(id);if(position){setFace('board');setFollow(false);focus(position,'board');}},
       interaction:(block,patch)=>saveInteraction(block,patch),
@@ -181,7 +194,7 @@ export function createLessonBoard(React) {
     const stableActions=useMemo(()=>Object.fromEntries(['drag','resize','resizeKey','select','source','back','interaction','expand','discuss','prefix','ask','unpin','submit','resend'].map(name=>[name,(...args)=>actions.current[name](...args)])),[]);
     const pointerMove=event=>{const g=gesture.current;if(!g)return;const dx=event.clientX-g.startX,dy=event.clientY-g.startY;if(g.type==='pan')moveCamera({x:g.x+dx,y:g.y+dy});else if(g.type==='resize'){g.patch={x:g.x,y:g.y,width:bounded(g.width+dx/cam.z,BLOCK_WIDTH),height:bounded(g.height+dy/cam.z,BLOCK_HEIGHT)};setDrag(g.source?{path:g.block.path,...g.patch}:{id:g.block.id,...g.patch});}else{g.patch={x:Math.round(g.x+dx/cam.z),y:Math.round(g.y+dy/cam.z)};setDrag(g.source?{path:g.block.path,...g.patch}:{id:g.block.id,...g.patch});}};
     const endGesture=event=>{const g=gesture.current;gesture.current=null;if(viewport.current?.hasPointerCapture(event.pointerId))viewport.current.releasePointerCapture(event.pointerId);if(g?.type==='block'||g?.type==='resize'){if(g.patch)save(g.block,g.patch,g.source);else setDrag(null);}};
-    const highlight=color=>{const selected=selection.current;if(!selected){setNotice('先选中板书或资料说明中的文字，再选择颜色。');return;}try{const body=highlightBoardText(selected.block.body,selected.text,color);save(selected.block,{body},selected.source);selection.current={...selected,block:{...selected.block,body}};}catch(error){setNotice(error.message);}};
+    const highlight=color=>{const selected=selection.current;if(!selected){setNotice('先选中板书或资料说明中的文字，再选择颜色。');return;}if(selected.blocked){setNotice('请只选择一处完整的普通文字，再添加高亮。');return;}try{const body=highlightBoardText(selected.block.body,selected.text,color);save(selected.block,{body},selected.source);selection.current={...selected,block:{...selected.block,body}};}catch(error){setNotice(error.message);}};
     function download(type){const output=exportBoard(board,{...include,assetUrls,figureSvgs:snapshotFigures(),mathCss:mathStyleText()});const url=URL.createObjectURL(new Blob([type==='md'?output.markdown:output.html],{type:type==='md'?'text/markdown;charset=utf-8':'text/html;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='课堂笔记.'+type;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setExporting(false);}
     const sourceMap=new Map(board.sources.map(s=>[s.path,s]));
     const writing=stream&&['streaming','pending'].includes(stream.status);

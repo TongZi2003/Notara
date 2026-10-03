@@ -1,14 +1,32 @@
-import { LlmAdapter, LlmError, ToolCallId, attributionHeaders, projectToolUpdates, projectOffloadedImages, offloadedImageText } from '@deepseek-ai/dsh-llm';
+import { LlmAdapter, LlmError, ToolCallId, QUOTA_EXCEEDED_CODE, CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, attributionHeaders, projectToolUpdates, projectOffloadedImages, offloadedImageText } from '@deepseek-ai/dsh-llm';
 import { RESOURCE } from './chatgpt-auth.js';
 import { createHash } from 'node:crypto';
 
 const contentHash = content => createHash('sha256').update(JSON.stringify(content)).digest('hex');
 
-export function chatgptFailure(code) {
+export function chatgptFailure(code, detail = '') {
   if (code === 'chatgpt_signin_required') return new LlmError('请在设置的 ChatGPT 账号中重新登录。', 'AUTH');
   if (code === 'chatgpt_plan_disabled') return new LlmError('请重新登录并允许 Notara 使用 ChatGPT 订阅额度。', 'AUTH');
-  if (code === 'chatgpt_usage_limit' || String(code).startsWith('subscription_sharing_usage_')) return new LlmError('ChatGPT 额度暂不可用，请在 ChatGPT 的用量设置中查看，或稍后重试。', 'QUOTA_EXCEEDED');
+  if (code === 'chatgpt_usage_limit' || String(code).startsWith('subscription_sharing_usage_')) return new LlmError('ChatGPT 额度暂不可用，请在 ChatGPT 的用量设置中查看，或稍后重试。', QUOTA_EXCEEDED_CODE);
+  if (isContextWindowExceededError(`${code ?? ''} ${detail}`)) return new LlmError('ChatGPT 对话超过模型上下文上限。', CONTEXT_WINDOW_EXCEEDED_CODE);
   return new LlmError('ChatGPT 请求未完成，请检查连接后重试。', 'PROVIDER_ERROR');
+}
+
+/** DSH usage buckets are disjoint; Responses input_tokens includes cached input. */
+function responsesUsage(raw) {
+  const malformed = () => { throw new LlmError('ChatGPT 返回了无效的用量数据。', 'MALFORMED_RESPONSE'); };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) malformed();
+  const count = value => {
+    if (value === undefined) return 0;
+    if (!Number.isSafeInteger(value) || value < 0) malformed();
+    return value;
+  };
+  const input = count(raw.input_tokens), output = count(raw.output_tokens);
+  const cached = count(raw.input_tokens_details?.cached_tokens);
+  if (cached > input) malformed();
+  const total = count(raw.total_tokens === undefined ? input + output : raw.total_tokens);
+  return { inputTokens: input - cached, outputTokens: output, cacheReadTokens: cached,
+    ...(total === input + output ? { totalTokens: total } : {}) };
 }
 
 /** Translate the full local history; subscription HTTP requests cannot use server conversation state. */
@@ -104,13 +122,13 @@ export class ChatgptAdapter extends LlmAdapter {
       const response = await this.accounts.request(`${RESOURCE}/responses`, { method: 'POST', signal, headers: { authorization: `Bearer ${access}`, 'content-type': 'application/json', ...attributionHeaders() }, body: JSON.stringify(request) });
       if (!response.ok) {
         if (response.status === 401) throw chatgptFailure('chatgpt_signin_required');
-        let code; try { code = (await response.json()).error?.code; } catch {}
-        throw chatgptFailure(response.status === 429 ? 'chatgpt_usage_limit' : code);
+        let code, detail; try { const error = (await response.json()).error; code = error?.code; detail = error?.message ?? error?.type; } catch {}
+        throw chatgptFailure(response.status === 429 ? 'chatgpt_usage_limit' : code, detail);
       }
       let completed = false, nextIndex = 0, toolCalls = false, replayState;
       const blocks = new Map();
       for await (const event of responseEvents(response.body)) {
-        if (event.type === 'response.failed' || event.type === 'error') throw chatgptFailure(event.response?.error?.code || event.code);
+        if (event.type === 'response.failed' || event.type === 'error') throw chatgptFailure(event.response?.error?.code || event.code, event.response?.error?.message || event.message);
         if (event.type === 'response.incomplete') throw new LlmError('ChatGPT 回复不完整，请缩小问题后重试。', 'PROVIDER_ERROR');
         if (event.type === 'response.output_item.added' && event.item?.type === 'function_call') {
           const item = event.item;
@@ -135,7 +153,7 @@ export class ChatgptAdapter extends LlmAdapter {
           }
           for (const block of blocks.values()) { const { index, ...content } = block; yield { type: 'block-end', index, block: content }; }
           const usage = event.response.usage;
-          if (usage) yield { type: 'usage', usage: { inputTokens: usage.input_tokens || 0, outputTokens: usage.output_tokens || 0, totalTokens: usage.total_tokens || 0, cacheReadTokens: usage.input_tokens_details?.cached_tokens || 0 } };
+          if (usage !== undefined) yield { type: 'usage', usage: responsesUsage(usage) };
           break;
         }
       }

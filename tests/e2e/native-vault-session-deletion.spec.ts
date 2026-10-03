@@ -68,9 +68,10 @@ test('永久删除要求双重确认，级联移除关联会话并在重启后�
     await expect(page.getByText('保护检查已完成。').first()).toBeVisible({ timeout: 20_000 });
 
     // Deleting the selected Session first leaves its native history observation before preview opens.
-    const rootDelete = railPanel(page).getByRole('button', { name: `删除课堂：${ROOT_TITLE}` });
-    await expect(rootDelete).toBeEnabled();
-    await rootDelete.click();
+    const rootMenu = railPanel(page).getByRole('button', { name: `对话操作：${ROOT_TITLE}` });
+    await expect(rootMenu).toBeEnabled();
+    await rootMenu.click();
+    await page.getByRole('menuitem', { name: '删除对话', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: '永久删除课堂' });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText(CHILD_TITLE)).toBeVisible();
@@ -85,7 +86,8 @@ test('永久删除要求双重确认，级联移除关联会话并在重启后�
     listedIds = (await client.sessions()).map(row => row.sessionId);
     expect(listedIds).toEqual(expect.arrayContaining([rootId, childId]));
 
-    await railPanel(page).getByRole('button', { name: `删除课堂：${ROOT_TITLE}` }).click();
+    await rootMenu.click();
+    await page.getByRole('menuitem', { name: '删除对话', exact: true }).click();
     const confirmed = page.getByRole('dialog', { name: '永久删除课堂' });
     const titleInput = confirmed.getByLabel('输入课堂名称以确认删除');
     const acknowledge = confirmed.getByRole('checkbox');

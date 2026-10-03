@@ -239,7 +239,6 @@ export function taskRows(value) {
     })
     .filter(row => row.id)
     .sort((left, right) => (order[left.status] ?? 9) - (order[right.status] ?? 9) || right.startedAt.localeCompare(left.startedAt))
-    .slice(0, 6)
     .map(row => ({
       id: row.id,
       preset: row.preset,
@@ -416,7 +415,7 @@ export function taskElapsedLabel(task, now = Date.now()) {
 }
 
 export const CLASSROOM_CSS = `
-.nv-classroom{display:flex;flex-direction:column;gap:18px;padding:20px;overflow:auto;flex:1;min-height:0}
+.nv-classroom{display:flex;flex-direction:column;gap:18px;padding:20px;overflow:auto;flex:1;min-height:0;box-sizing:border-box}
 .nv-classroom-head{display:flex;align-items:center;gap:8px}
 .nv-classroom-head strong{font-size:16px;letter-spacing:.02em}
 .nv-classroom-head .nv-classroom-note{color:var(--dsw-alias-label-secondary);font-size:12px;margin-left:auto}

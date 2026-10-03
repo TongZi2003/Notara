@@ -94,22 +94,37 @@ export const skillKey = (row, workspaceId) => row.builtin ? `builtin:${row.id}` 
 
 /** One copy of the skill list for the panel and the page; `load` is `() => vault.userSkills({})`. */
 export function createSkillsStore(load) {
-  let value = { data: null, error: '', busy: false, selected: '' }, pending = null;
+  let value = { data: null, error: '', busy: false, selected: '' }, pending = null, generation = 0;
   const listeners = new Set(), publish = patch => { value = { ...value, ...patch }; for (const fn of listeners) fn(); };
   const take = result => { if (!result?.ok) throw new Error(result?.error?.message || '技能暂时读不出来，请稍后再试。'); return result.value; };
+  function readSnapshot() {
+    if (pending) return pending.promise;
+    const flight = { generation, promise: null };
+    pending = flight;
+    flight.promise = Promise.resolve().then(load).then(result => {
+      if (flight.generation === generation) publish({ data: take(result), error: '' });
+    }).catch(failure => {
+      if (flight.generation === generation) publish({ error: failure.message });
+    }).finally(() => { if (pending === flight) pending = null; });
+    return flight.promise;
+  }
   return {
     subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); },
     getSnapshot: () => value,
-    refresh() {
-      pending ??= (async () => { try { publish({ data: take(await load()), error: '' }); } catch (failure) { publish({ error: failure.message }); } finally { pending = null; } })();
-      return pending;
-    },
+    refresh() { return readSnapshot(); },
     async act(call) {
       if (value.busy) return;
+      generation++; pending = null;
       publish({ busy: true });
-      try { publish({ data: take(await call()), error: '' }); announceSkillsChanged(); }
-      // Reload what is really there, and keep saying why the action did not happen.
-      catch (failure) { const message = failure.message; await this.refresh(); publish({ error: message }); }
+      try {
+        const data = take(await call());
+        // Reads admitted before or during the write can describe an older
+        // catalog. Invalidate them before publishing its authoritative result.
+        generation++; pending = null;
+        publish({ data, error: '' }); announceSkillsChanged();
+      }
+      // Reload after a refused action while retaining its actual error.
+      catch (failure) { const message = failure.message; generation++; pending = null; await readSnapshot(); publish({ error: message }); }
       finally { publish({ busy: false }); }
     },
     select(key) { publish({ selected: key }); },

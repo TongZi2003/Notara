@@ -174,6 +174,23 @@ test('real loopback OAuth flow persists private credentials; public status never
   assert.equal((await accounts.status()).accounts[0].connected, true);
 });
 
+test('only successful identity validation notifies reauthentication with the stable account identity', async t => {
+  const changes = [], fixture = await setup(t, { onChange: change => changes.push(change) });
+  const first = await fixture.start();
+  const bad = new URL(first.callback); bad.searchParams.set('state', 'wrong');
+  assert.equal((await fetch(bad)).status, 400); assert.deepEqual(changes, []);
+  assert.equal((await fetch(first.callback)).status, 200);
+  const id = fixture.accounts.data.accounts[0].id;
+  assert.deepEqual(changes, [{ accountId: id, reason: 'signed-in' }]);
+  const declined = await fixture.start(id); declined.callback.searchParams.set('error', 'access_denied');
+  assert.equal((await fetch(declined.callback)).status, 400); assert.equal(changes.length, 1);
+  const again = await fixture.start(id);
+  assert.equal((await fetch(again.callback)).status, 200);
+  assert.deepEqual(changes.at(-1), { accountId: id, reason: 'signed-in' });
+  assert.equal(changes.length, 2);
+  assert.doesNotMatch(JSON.stringify(changes), /private-access|private-refresh|idToken|learner@example/);
+});
+
 test('failed code exchange retains issued registration across restart and retries with a fresh PKCE attempt', async t => {
   const fixture = await setup(t);
   fixture.rejectExchange = true;

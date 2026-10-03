@@ -1,9 +1,9 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { liveVaultUrl, mustUpgradeBeforeStart, pluginVersions, writeVaultState } from '../../scripts/vault-launcher-state.ts';
+import { isBrowserBlockedPort, liveVaultUrl, mustUpgradeBeforeStart, pluginVersions, readVaultState, validateVaultPort, writeVaultState } from '../../scripts/vault-launcher-state.ts';
 
 const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))); });
@@ -27,6 +27,7 @@ async function freePort(): Promise<number> {
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address() as { port: number };
   await new Promise<void>(resolve => server.close(() => resolve()));
+  if (isBrowserBlockedPort(port)) return freePort();
   return port;
 }
 
@@ -54,4 +55,24 @@ describe('mustUpgradeBeforeStart', () => {
     expect(mustUpgradeBeforeStart({ snapshot: undefined, checkout: '0.21.0' })).toBe(false);
     expect(mustUpgradeBeforeStart({ snapshot: '0.0.1-old', checkout: undefined })).toBe(false);
   });
+});
+
+it('rejects browser-blocked manual ports while keeping automatic selection and normal ports usable', () => {
+  for (const port of [22, 6000, 6667, 10080]) expect(() => validateVaultPort(port)).toThrow('被浏览器禁止访问');
+  for (const port of [0, 80, 443, 47093, 57093, 65535]) expect(() => validateVaultPort(port)).not.toThrow();
+  for (const port of [-1, 1.5, NaN, 65536]) expect(() => validateVaultPort(port)).toThrow('Invalid Vault port');
+  expect(isBrowserBlockedPort(0)).toBe(true);
+});
+
+it('can recover an old blocked-port registration by saving a usable override, but never publishes a new blocked port', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-port-state-'));
+  roots.push(root);
+  const state = { kind: 'notara-vault-persistent' as const, version: 1 as const, port: 6000, testModel: false };
+  const path = join(root, 'vault-runtime.json');
+  await writeFile(path, JSON.stringify(state));
+  expect(await readVaultState(root)).toEqual(state);
+  await expect(writeVaultState(root, state)).rejects.toThrow('被浏览器禁止访问');
+  expect(JSON.parse(await readFile(path, 'utf8'))).toEqual(state);
+  await writeVaultState(root, { ...state, port: 57093 });
+  expect((await readVaultState(root))?.port).toBe(57093);
 });

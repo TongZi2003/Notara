@@ -1,6 +1,6 @@
 # 安装和使用 Notara
 
-适用源码版本：Notara 0.23.7 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。画廊、图标与安装改进见[本版说明](releases/native-vault-0.23.7.md)，免安装包与白板排版见[0.23.6 说明](releases/native-vault-0.23.6.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
+适用源码版本：Notara 0.23.8 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。对话菜单与本轮修复见[本版说明](releases/native-vault-0.23.8.md)，画廊和图标见[0.23.7 说明](releases/native-vault-0.23.7.md)，免安装包与白板排版见[0.23.6 说明](releases/native-vault-0.23.6.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
 
 ## Windows x64 免安装版
 
@@ -75,7 +75,7 @@ npm run vault
 
 ## 日常打开和停止
 
-Windows 安装依赖后，双击项目目录中的 **create-notara-shortcuts.cmd**，桌面会出现带黄色便笺 N 图标的「Start Notara」和「Stop Notara」。也可直接双击项目目录中的 **start-notara.cmd** / **stop-notara.cmd**。快捷方式创建与读取支持中文、emoji 和阿拉伯文路径，无需更改系统语言设置。图标随发布包提供，并由文件清单校验。
+Windows 安装依赖后，双击项目目录中的 **create-notara-shortcuts.cmd**，桌面会出现带书页 N 图标的「Start Notara」和「Stop Notara」。也可直接双击项目目录中的 **start-notara.cmd** / **stop-notara.cmd**。快捷方式创建与读取支持中文、emoji 和阿拉伯文路径，无需更改系统语言设置。图标随发布包提供，并由文件清单校验。
 
 若刚才已用 `npm run vault` 启动，先在那个终端按 `Ctrl+C` 停止，再改用启动快捷方式。
 

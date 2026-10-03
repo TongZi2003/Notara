@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { responsesRequest, responseEvents, ChatgptAdapter } from './chatgpt-provider.js';
+import { QUOTA_EXCEEDED_CODE, CONTEXT_WINDOW_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm';
 
 const sse = events => new Response(events.map(event => `event: ${event.type}\r\ndata: ${JSON.stringify(event)}\r\n\r\n`).join(''), { headers: { 'content-type': 'text/event-stream' } });
 const completed = { type: 'response.completed', response: { status: 'completed', usage: { input_tokens: 8, output_tokens: 4, total_tokens: 12 } } };
@@ -73,4 +74,51 @@ test('encrypted reasoning survives stateless follow-up without reviving edited c
   message.content[0].text = 'Hello';
   const switched = await responsesRequest({ ...options, provider: 'notara-chatgpt-other-account', messages: [message] });
   assert.doesNotMatch(JSON.stringify(switched), /opaque-provider-data/);
+});
+
+test('Responses usage separates cached input without changing total or counting it twice', async () => {
+  for (const [raw, expected] of [
+    [{ input_tokens: 100, output_tokens: 20, total_tokens: 120, input_tokens_details: { cached_tokens: 80 } }, { inputTokens: 20, outputTokens: 20, cacheReadTokens: 80, totalTokens: 120 }],
+    [{ input_tokens: 100, output_tokens: 20, total_tokens: 120 }, { inputTokens: 100, outputTokens: 20, cacheReadTokens: 0, totalTokens: 120 }],
+    [{ input_tokens: 100, output_tokens: 20, input_tokens_details: { cached_tokens: 100 } }, { inputTokens: 0, outputTokens: 20, cacheReadTokens: 100, totalTokens: 120 }],
+    [{}, { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, totalTokens: 0 }],
+  ]) {
+    const fixture = adapter([{ ...completed, response: { ...completed.response, usage: raw } }]);
+    const chunks = await collect(fixture.adapter.stream(options)), usage = chunks.find(chunk => chunk.type === 'usage').usage;
+    assert.deepEqual(usage, expected);
+    assert.equal(usage.inputTokens + usage.cacheReadTokens + usage.outputTokens, usage.totalTokens);
+  }
+});
+
+test('malformed usage never finishes successfully and inconsistent aggregate totals are omitted', async () => {
+  for (const raw of [
+    { input_tokens: -1 }, { output_tokens: -1 }, { input_tokens: '100' }, { input_tokens: 1.5 },
+    { input_tokens: 100, input_tokens_details: { cached_tokens: -1 } },
+    { input_tokens: 100, input_tokens_details: { cached_tokens: 101 } },
+    { input_tokens: 100, input_tokens_details: { cached_tokens: 1.5 } },
+    { total_tokens: -1 }, { total_tokens: '120' },
+    { input_tokens: Number.MAX_SAFE_INTEGER, output_tokens: 1 }, null, [],
+  ]) {
+    const fixture = adapter([{ ...completed, response: { ...completed.response, usage: raw } }]), chunks = [];
+    await assert.rejects(async () => { for await (const chunk of fixture.adapter.stream(options)) chunks.push(chunk); }, { code: 'MALFORMED_RESPONSE' });
+    assert.equal(chunks.some(chunk => chunk.type === 'finish'), false);
+  }
+  const fixture = adapter([{ ...completed, response: { ...completed.response, usage: { input_tokens: 100, output_tokens: 20, total_tokens: 999 } } }]);
+  const usage = (await collect(fixture.adapter.stream(options))).find(chunk => chunk.type === 'usage').usage;
+  assert.deepEqual(usage, { inputTokens: 100, outputTokens: 20, cacheReadTokens: 0 });
+});
+
+test('HTTP and SSE context overflow and quota failures use native recovery and notice codes', async () => {
+  const http = (error, status) => new ChatgptAdapter({ track: () => () => {}, access: async () => 'synthetic', request: async () => Response.json({ error }, { status }) });
+  for (const client of [
+    http({ code: 'context_length_exceeded' }, 400),
+    http({ message: 'This input exceeds the model context window.' }, 400),
+    adapter([{ type: 'response.failed', response: { error: { code: 'context_length_exceeded' } } }]).adapter,
+    adapter([{ type: 'error', message: 'Maximum context length exceeded.' }]).adapter,
+  ]) await assert.rejects(collect(client.stream(options)), { code: CONTEXT_WINDOW_EXCEEDED_CODE });
+  for (const client of [
+    http({ code: 'subscription_sharing_usage_limit_exceeded' }, 429),
+    adapter([{ type: 'response.failed', response: { error: { code: 'subscription_sharing_usage_limit_exceeded' } } }]).adapter,
+  ]) await assert.rejects(collect(client.stream(options)), { code: QUOTA_EXCEEDED_CODE });
+  await assert.rejects(collect(http({ code: 'server_error' }, 500).stream(options)), { code: 'PROVIDER_ERROR' });
 });

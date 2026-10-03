@@ -182,3 +182,33 @@ test('bold text on the board keeps its inline syntax: formulas, code and highlig
   // Bold content is still escaped: raw HTML inside it stays text.
   assert.match(renderBoardMarkdown('**<b>x</b>**'),/<strong>&lt;b&gt;x&lt;\/b&gt;<\/strong>/);
 });
+
+
+test('highlights protect formulas, code and links while a unique ordinary word beside them stays editable',()=>{
+  for(const source of ['$x$','$$x$$','$$\nx\n$$','`x`','```js\nx\n```','~~~js\nx\n~~~','[[资料.md|x]]','[x](https://example.com)','[资料](x)','<mark data-color="green">xxx</mark>'])assert.throws(()=>highlightBoardText(source,'x','blue'));
+  const source='普通 x，公式 $x$，代码 `x`，链接 [[资料.md|x]]。';
+  const highlighted=highlightBoardText(source,'x','blue');
+  assert.equal(highlighted,'普通 <mark data-color="blue">x</mark>，公式 $x$，代码 `x`，链接 [[资料.md|x]]。');
+  assert.match(renderBoardMarkdown(highlighted),/class="katex"/);
+  assert.doesNotMatch(renderBoardMarkdown(highlighted),/&lt;mark/);
+  assert.throws(()=>highlightBoardText('普通 x 与另一个 x，公式 $x$','x','blue'));
+  assert.throws(()=>highlightBoardText('普通 x 与 <mark data-color="green">x</mark>','x','blue'),'a source-only selection cannot choose between two visible copies');
+  const marked='<mark data-color="green">重点</mark>';
+  assert.equal(highlightBoardText(marked,'重点','blue'),'<mark data-color="blue">重点</mark>');
+  assert.equal(highlightBoardText(marked,'重点',null),'重点');
+});
+
+test('board tables and HTML export preserve formulas, alias links, code and escaped pipes in their own cells',()=>{
+  const source='| 项目 | 内容 |\n|---|---|\n| 绝对值 | $|x|$ |\n| 范数 | $\\|x\\|$ |\n| 资料 | [[资料.md|教材]] |\n| 代码 | `a|b` |\n| 转义 | a\\|b |\n| 高亮 | <mark data-color="blue">a|b</mark> |';
+  const html=renderBoardMarkdown(source);
+  assert.equal((html.match(/<td>/g)??[]).length,12);
+  assert.equal((html.match(/class="katex"/g)??[]).length,2);
+  assert.match(html,/<button class="nb-source-link" data-source="资料.md">教材<\/button>/);
+  assert.match(html,/<td><code>a\|b<\/code><\/td>/);
+  assert.match(html,/<td>a\|b<\/td>/);
+  assert.match(html,/<td><mark data-color="blue">a\|b<\/mark><\/td>/);
+  const exported=exportBoard({sections:[],blocks:[{id:'table',title:'表格',kind:'note',body:source}]}).html;
+  assert.equal((exported.match(/<td>/g)??[]).length,12);
+  assert.equal((exported.match(/class="katex"/g)??[]).length,2);
+  assert.doesNotMatch(exported,/data-source=/,'export keeps the label as text without an application-only button');
+});

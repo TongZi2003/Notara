@@ -5,6 +5,20 @@ import { readFileSync, writeFileSync } from 'node:fs';
 // native commands and usage keep their original behavior and permissions.
 const patches = [
   {
+    package: 'dsh-client-ui-settings-general',
+    sha: '86ae7c4e519e58c93a216c7b800e1abae2c586092ef025196be1bce6f27a5f9f',
+    pairs: [
+      [
+        'if (appeared && open) close();',
+        'if (appeared && open && !document.body.hasAttribute("data-notara-ui")) close();',
+      ],
+      [
+        'onboardingStep !== void 0 && renderSlot("settings.onboarding", {',
+        'onboardingStep !== void 0 && (!open || !document.body.hasAttribute("data-notara-ui")) && renderSlot("settings.onboarding", {',
+      ],
+    ],
+  },
+  {
     package: 'dsh-client-ui-commands',
     sha: '797f7da86aba76760c01d7d2161a95610ef79424e6bf8a690cc9eda880823af6',
     pairs: [[
@@ -35,4 +49,4 @@ for (const patch of patches) {
   }
   if (result !== source) writeFileSync(path, result);
 }
-console.log('Verified DSH student command and usage presentation');
+console.log('Verified DSH student settings, command and usage presentation');

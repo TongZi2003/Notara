@@ -66,6 +66,7 @@ coverage/
 !/docs/releases/native-vault-0.23.5.md
 !/docs/releases/native-vault-0.23.6.md
 !/docs/releases/native-vault-0.23.7.md
+!/docs/releases/native-vault-0.23.8.md
 
 # Retired workbench-only build/test configurations (kept locally).
 /tsconfig.math-plugin.json

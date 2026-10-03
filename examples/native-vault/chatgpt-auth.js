@@ -4,22 +4,13 @@ import { mkdir, readFile, writeFile, rename, rm, lstat, chmod } from 'node:fs/pr
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { isBrowserBlockedPort } from './http-port.js';
 
 const exec = promisify(execFile);
 export const ISSUER = 'https://auth.openai.com';
 export const RESOURCE = 'https://api.openai.com/v1';
 const TOKEN_URL = `${ISSUER}/api/accounts/oauth/token`;
 const SCOPES = 'openid profile email offline_access resource.invoke chatgpt.tokens.use.direct';
-// Fetch Standard §2.9: an OS-assigned port can still be blocked by browsers.
-// https://fetch.spec.whatwg.org/#port-blocking
-const BAD_PORTS = new Set([
-  0, 1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77,
-  79, 87, 95, 101, 102, 103, 104, 109, 110, 111, 113, 115, 117, 119, 123, 135,
-  137, 139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531,
-  532, 540, 548, 554, 556, 563, 587, 601, 636, 989, 990, 993, 995, 1719, 1720,
-  1723, 2049, 3659, 4045, 4190, 5060, 5061, 6000, 6566, 6665, 6666, 6667,
-  6668, 6669, 6679, 6697, 10080,
-]);
 const random = () => randomBytes(32).toString('base64url');
 const fail = code => { throw new Error(code); };
 const issuedClient = value => typeof value === 'string' && value !== 'dynamic_agent_client' && /^[A-Za-z0-9_-]{1,200}$/.test(value);
@@ -175,7 +166,7 @@ export class ChatgptAccounts {
             fail('chatgpt_request_failed');
           }
           const address = server.address();
-          if (!address || typeof address === 'string' || address.address !== '127.0.0.1' || !Number.isInteger(address.port) || address.port < 1 || address.port > 65535 || BAD_PORTS.has(address.port)) {
+          if (!address || typeof address === 'string' || address.address !== '127.0.0.1' || !Number.isInteger(address.port) || address.port < 1 || address.port > 65535 || isBrowserBlockedPort(address.port)) {
             await closeCallbackServer(server);
             continue;
           }
@@ -232,7 +223,7 @@ export class ChatgptAccounts {
         const account = previous ?? { id: randomUUID(), clientId, subject: identity.sub };
         const next = { ...account, email: typeof identity.email === 'string' ? identity.email : '', ...this.tokenFields(tokens), idToken: tokens.id_token };
         this.data.accounts = [...this.data.accounts.filter(a => a.id !== next.id), next]; delete this.data.pendingClientId; await this.save();
-        this.notice = next.scopes.includes('chatgpt.tokens.use.direct') ? 'chatgpt_connected' : 'chatgpt_plan_disabled'; this.onChange();
+        this.notice = next.scopes.includes('chatgpt.tokens.use.direct') ? 'chatgpt_connected' : 'chatgpt_plan_disabled'; this.onChange({ accountId: next.id, reason: 'signed-in' });
       });
       res.end('已连接 ChatGPT。可以关闭此页并返回 Notara。');
     } catch (error) { this.notice = /^chatgpt_/.test(error.message) ? error.message : 'chatgpt_signin_failed'; res.writeHead(400); res.end('登录未完成，请返回 Notara 查看提示并重试。'); }

@@ -106,7 +106,7 @@ test('remote remains disabled by default and rejects expression-like ngrok crede
   }
 });
 
-test('startup failures and abrupt tunnel exits clean resources and release the per-runtime lock', async () => {
+test('a failed remote startup cleans its resources and permits retry without stealing another service lock', async () => {
   const root = await mkdtemp(join(tmpdir(), 'notara-remote-exit-'));
   let starts = 0, proxyCloses = 0, tunnelStops = 0;
   const exitRejectors: Array<(reason: Error) => void> = [];
@@ -116,6 +116,44 @@ test('startup failures and abrupt tunnel exits clean resources and release the p
     startTunnel: async config => {
       starts++;
       if (starts === 1) throw new Error('synthetic tunnel startup failure');
+      const exited = new Promise<never>((_resolve, reject) => { exitRejectors.push(reject); });
+      void exited.catch(() => undefined);
+      return { publicUrl: `https://${config.publicHost}`, exited, async stop() { tunnelStops++; } };
+    },
+  };
+  const first = createRemoteAccessService(root, () => loginUrl, dependencies);
+  const second = createRemoteAccessService(root, () => loginUrl, dependencies);
+  try {
+    await first.save(defaults);
+    await expect(first.enable({})).rejects.toThrow('remote_start_failed');
+    expect(await first.status({})).toMatchObject({ phase: 'error', canDisable: false, code: 'remote_start_failed' });
+    expect(proxyCloses).toBe(1);
+    await expect(readFile(join(root, '.notara', 'remote-access', 'policy.yml'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+
+    await first.enable({});
+    expect(starts).toBe(2);
+    await expect(second.enable({})).rejects.toThrow('remote_busy');
+    expect(await second.status({})).toMatchObject({ phase: 'error', canDisable: false, code: 'remote_busy' });
+
+    await first.disable({});
+    expect(proxyCloses).toBe(2);
+    expect(tunnelStops).toBe(1);
+    expect(await first.status({})).toMatchObject({ phase: 'disabled', canDisable: false });
+  } finally {
+    await Promise.all([first.close().catch(() => undefined), second.close().catch(() => undefined)]);
+    await rm(root, { recursive: true, force: true });
+  }
+}, 30_000);
+
+test('an abrupt remote tunnel exit releases resources and lets another service take ownership', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-remote-exit-'));
+  let starts = 0, proxyCloses = 0, tunnelStops = 0;
+  const exitRejectors: Array<(reason: Error) => void> = [];
+  const dependencies: RemoteAccessDependencies = {
+    assertNgrokReady: async () => join(root, 'fixture-global-ngrok.yml'),
+    startProxy: async options => ({ port: options.proxyPort, close: async () => { proxyCloses++; } }),
+    startTunnel: async config => {
+      starts++;
       const exited = new Promise<never>((_resolve, reject) => { exitRejectors.push(reject); });
       void exited.catch(() => undefined);
       return { publicUrl: `https://${config.publicHost}`, exited, async stop() { tunnelStops++; } };
@@ -133,23 +171,18 @@ test('startup failures and abrupt tunnel exits clean resources and release the p
   };
   try {
     await first.save(defaults);
-    await expect(first.enable({})).rejects.toThrow('remote_start_failed');
-    expect(await first.status({})).toMatchObject({ phase: 'error', canDisable: false, code: 'remote_start_failed' });
-    expect(proxyCloses).toBe(1);
-    await expect(readFile(join(root, '.notara', 'remote-access', 'policy.yml'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
-
-    await first.enable({});
-    expect(starts).toBe(2);
-    await expect(second.enable({})).rejects.toThrow('remote_busy');
-    expect(await second.status({})).toMatchObject({ phase: 'error', canDisable: false, code: 'remote_busy' });
+    await expect(first.enable({})).resolves.toMatchObject({ phase: 'enabled', canDisable: true });
+    expect(starts).toBe(1);
 
     exitRejectors[0]!(new Error('synthetic ngrok exit'));
     expect(await eventually(first, value => value.phase === 'error' && !value.canDisable)).toMatchObject({ code: 'remote_start_failed' });
     expect(tunnelStops).toBe(1);
+    expect(proxyCloses).toBe(1);
     await expect(second.enable({})).resolves.toMatchObject({ phase: 'enabled', canDisable: true });
-    expect(starts).toBe(3);
+    expect(starts).toBe(2);
     await second.disable({});
     expect(tunnelStops).toBe(2);
+    expect(proxyCloses).toBe(2);
   } finally {
     await Promise.all([first.close().catch(() => undefined), second.close().catch(() => undefined)]);
     await rm(root, { recursive: true, force: true });

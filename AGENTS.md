@@ -39,6 +39,8 @@
 
 ## 工作约定
 
+- 课堂列表行使用 `session-actions-client.js` 的三点菜单，提供重命名、归档对话、删除对话。重命名经原生 `sessions.using` 的 `workspaceOperation` 引用调用 `Session.rename`，检查回执并沿用标题投影；归档使用 `uiWorkspace.archiveSession`，Host 的 `workspace/session-active` 拒绝后确认才传 `stopActivity`，撤销用 `unarchiveSession`。删除复用既有 `notaraSession` 双重确认，菜单仅禁用运行中课堂的删除项。原生 Menu 的 portal 避免列表裁切，保留键盘与中文输入法行为；晚到归档结果不得覆盖新的课堂选择。
+
 - Windows x64 免安装包由 `scripts/build-portable-release.ts` 在 Windows 构建，携带独立 Node/npm、已安装依赖和标准发布代码，不含用户运行目录。`notara-portable.json` 校验预构建资源后才跳过启动构建；启动器优先使用包内 runtime，并为更新器提供对应 npm。程序移动或旧数据升级仍须显式 `vault:upgrade`，不得绕过快照版本保护。普通安装器只适用于标准 Release ZIP，便携包不带其安装入口。
 - `codex/release-v*` 分支推送只校验该提交及其实际便携包，不要求预建版本标签、不发布资产；标签推送或手动指定已有标签才进入正式发布。`.runtime` 下的 artifact 仅按 ZIP/校验文件白名单开启隐藏文件上传。
 - 0.23.6 起 Windows 根目录入口使用 `install-notara.cmd`、`start-notara.cmd`、`stop-notara.cmd`、`create-notara-shortcuts.cmd`，桌面入口为 `Start Notara` / `Stop Notara`。ZIP 通过 fflate 流式写入 UTF-8 文件名，不能使用依赖 Windows 活动代码页的 tar 写 ZIP；真实包验收用 Windows PowerShell 调用 .NET `ZipFile.ExtractToDirectory`。

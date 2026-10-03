@@ -255,10 +255,15 @@ body[data-notara-ui=modern] :is(.nv-route-views,.nv-class-views) button:is([aria
 [data-notara-ui=modern] :is(.nv-workspace,.nv-sidebar) button:focus-visible{outline:2px solid var(--dsw-alias-label-tertiary);outline-offset:2px}
 .nv-session-row-wrap{display:flex;align-items:center;gap:2px;min-width:0}
 .nv-session-row-wrap>.nv-session-row{width:auto;min-width:0;flex:1 1 0}
-.nv-session-row-wrap>.nv-session-delete{width:30px;height:30px;flex:none;margin-right:4px;color:var(--dsw-alias-label-tertiary)}
-.nv-session-row-wrap>.nv-session-delete:not(:disabled):hover{color:var(--dsw-alias-state-error-primary)!important;background:rgba(190,34,34,.09)}
-.nv-session-row-wrap>.nv-session-delete:disabled{opacity:.25;cursor:default}
-.nv-session-delete svg{width:16px;height:16px}
+.nv-session-actions{flex:none;margin-right:4px}
+.nv-session-more{width:30px;height:30px;color:var(--dsw-alias-label-tertiary)}
+.nv-session-menu{z-index:95;min-width:160px;max-width:calc(100vw - 16px);box-sizing:border-box;color:var(--dsw-alias-label-primary);font:13px var(--dsw-font-family,system-ui)}
+.nv-session-name{display:grid!important;gap:6px;font-size:13px}
+.nv-session-name input{width:100%;box-sizing:border-box}
+.nv-session-archive-copy{font-size:13px;line-height:1.7;color:var(--dsw-alias-label-secondary)}
+.nv-session-archive-notice{display:flex;align-items:center;gap:4px;margin:8px 0;padding:6px;border:1px solid var(--dsw-alias-border-l1);border-radius:var(--nv-r-md);font-size:12px;color:var(--dsw-alias-label-secondary)}
+.nv-session-archive-notice span{flex:1;min-width:0;overflow-wrap:anywhere}
+.nv-session-archive-notice .nv-quiet{flex:none;padding:0 6px;font-size:12px}
 .nv-delete-warning{margin:16px 0 10px;padding:12px 14px;border-left:3px solid var(--dsw-alias-state-error-primary);border-radius:0 var(--nv-r-sm) var(--nv-r-sm) 0;background:rgba(190,34,34,.07);line-height:1.65}
 .nv-delete-linked{margin:12px 0;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:var(--nv-r-md);background:var(--dsw-alias-bg-layer-2)}
 .nv-delete-linked p{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px}

@@ -1,4 +1,5 @@
 import { readFile, realpath, rm } from 'node:fs/promises';
+import { httpUrlPort } from '../examples/native-vault/http-port.js';
 import { join, resolve } from 'node:path';
 import { parse } from 'yaml';
 import {
@@ -129,7 +130,7 @@ function localPortFromUrl(value: string | undefined): number | undefined {
   if (!value) return undefined;
   try {
     const url = new URL(value);
-    const port = Number(url.port);
+    const port = httpUrlPort(url);
     if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || !Number.isInteger(port) || port < 1 || port > 65535 ||
       url.username || url.password || url.pathname !== '/' || !url.searchParams.has('token') || url.hash) return undefined;
     return port;

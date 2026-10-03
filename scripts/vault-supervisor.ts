@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { pluginVersions } from './vault-launcher-state.ts';
+import { httpUrlPort, pluginVersions } from './vault-launcher-state.ts';
 import { codeContract, discoverRelease, prepareRelease, runPackageScript, UpdateController } from './vault-updates.ts';
 import type { Release } from './vault-updates.ts';
 import { startUpdateServer } from './vault-update-server.ts';
@@ -78,7 +78,7 @@ export async function superviseVault(root: string, code: string, port?: number, 
           if (value && typeof value === 'object' && 'type' in value && value.type === 'ready' && 'authUrl' in value && typeof value.authUrl === 'string') { clearTimeout(timer); done(value.authUrl); }
         });
       });
-      activePort = Number(new URL(authUrl).port);
+      activePort = httpUrlPort(new URL(authUrl));
       return { authUrl, stop };
     } catch (error) { await stop(); throw error; }
   }
@@ -86,6 +86,7 @@ export async function superviseVault(root: string, code: string, port?: number, 
   catch (error) { try { await remote.close(); } finally { await bridge.close(); } throw error; }
   void controller.check();
   const interval = setInterval(() => { void controller.check(); }, 30 * 60_000); interval.unref();
+  let bridgeClosing: Promise<void> | undefined;
   return { authUrl: active.authUrl, controller, remoteAccess: remote, async stop() {
     clearInterval(interval);
     const errors: unknown[] = [];
@@ -97,7 +98,12 @@ export async function superviseVault(root: string, code: string, port?: number, 
       try { await worker.stop(); if (active === worker) active = undefined; }
       catch (error) { errors.push(error); }
     }
-    try { await bridge.close(); } catch (error) { errors.push(error); }
+    try {
+      // A first stop can close the bridge while another owned resource fails.
+      // Retrying that cleanup must not fail merely because this part is done.
+      bridgeClosing ??= bridge.close().catch(error => { bridgeClosing = undefined; throw error; });
+      await bridgeClosing;
+    } catch (error) { errors.push(error); }
     if (errors.length) throw new AggregateError(errors, 'Could not cleanly stop the Notara Vault supervisor.');
   } };
 }

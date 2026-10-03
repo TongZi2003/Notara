@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { createServer, request as httpRequest, type IncomingMessage, type Server } from 'node:http';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -158,6 +158,12 @@ test('remote Vault CLI serializes local start, status and repeated stops without
 
     const before = await command('status');
     expect(before.stdout).toContain('not running');
+    const lockTarget = config.replace(/\.[^./\\]+$/, '') + '.controller-lock';
+    const staleLock = `${lockTarget}.lock`;
+    await writeFile(lockTarget, '');
+    await mkdir(staleLock);
+    const staleTime = new Date(Date.now() - 60_000);
+    await utimes(staleLock, staleTime, staleTime);
     const started = await command('local-start');
     expect(started.stdout).toContain(`http://127.0.0.1:${randomPort}/`);
     expect((await command('local-start')).stdout).toContain(`http://127.0.0.1:${randomPort}/`);

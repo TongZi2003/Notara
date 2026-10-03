@@ -1,14 +1,17 @@
 import { chmod, cp, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import lockfile from 'proper-lockfile';
-import { ensureVaultAliases, installedPluginRoot, liveVaultUrl, mustUpgradeBeforeStart, pluginVersions, readVaultState, vaultPluginLinks, writeVaultState, validateVaultPort } from './vault-launcher-state.ts';
+import { ensureVaultAliases, httpUrlPort, installedPluginRoot, isBrowserBlockedPort, liveVaultUrl, mustUpgradeBeforeStart, pluginVersions, readVaultState, vaultPluginLinks, writeVaultState, validateVaultPort } from './vault-launcher-state.ts';
 import { packageBin } from './package-bin.ts';
 import { ensureWindowsPosix } from './windows-posix.ts';
+import { withVaultBuiltSnapshot } from './vault-build-lock.ts';
+import { confirmTaskkillExited } from './taskkill-result.ts';
+import { acquireVaultRootLock } from './vault-root-lock.ts';
 import { upgradeLegacySettings } from './legacy-settings.ts';
 import { studentProfile } from './vault-profile.ts';
 import { VAULT_TEST_MODEL, VAULT_TEST_PROVIDER } from './fixtures/vault-test-model.ts';
@@ -93,7 +96,10 @@ export async function startVaultIsolated(options: VaultOptions = {}): Promise<Va
     await seedVault(root, options);
     return await bootVault(root, options);
   } catch (error) {
-    await rm(root, { recursive: true, force: true });
+    // The worker may still own handles if stopping failed. Preserve its root
+    // instead of deleting underneath it or obscuring the cleanup failure.
+    if (error instanceof VaultCleanupError) throw error;
+    await rm(root, { recursive: true, force: true, maxRetries: 8, retryDelay: 100 });
     throw error;
   }
 }
@@ -104,9 +110,7 @@ export async function startVaultPersistent(rootInput: string, options: VaultPers
   const root = resolve(rootInput);
   if (options.port !== undefined) validateVaultPort(options.port);
   await mkdir(root, { recursive: true, mode: 0o700 });
-  const release = await lockfile.lock(root, { retries: 0, stale: 10_000 });
-  let released = false;
-  const unlock = async () => { if (!released) { released = true; await release(); } };
+  const unlock = await acquireVaultRootLock(root);
   try {
     let state = await readVaultState(root);
     if (state) {
@@ -126,9 +130,9 @@ export async function startVaultPersistent(rootInput: string, options: VaultPers
       onReady: async port => { state = { ...state!, port }; await writeVaultState(root, state); },
     });
     return { get authUrl() { return runtime.authUrl; }, root, log: () => runtime.log(), restart: () => runtime.restart(),
-      async stop() { try { await runtime.stop(); } finally { await unlock(); } },
+      async stop() { await runtime.stop(); await unlock(); },
     };
-  } catch (error) { await unlock(); throw error; }
+  } catch (error) { if (!(error instanceof VaultCleanupError)) await unlock(); throw error; }
 }
 
 /** The plugin version an instance runs, and the one this checkout would install. */
@@ -276,9 +280,12 @@ tags: [math, vector]
     if (!prebuilt) await (await import('./build-pixel-classroom.ts')).buildPixelClassroom();
     pixelPluginRoot = join(root, 'pixel-classroom-plugin');
     await mkdir(pixelPluginRoot);
-    for (const file of ['package.json', 'index.js', 'client.js', 'dist']) {
-      await cp(join(project, 'examples/pixel-classroom', file), join(pixelPluginRoot, file), { recursive: true });
-    }
+    const copyPixel = async () => {
+      for (const file of ['package.json', 'index.js', 'client.js', 'dist']) {
+        await cp(join(project, 'examples/pixel-classroom', file), join(pixelPluginRoot!, file), { recursive: true });
+      }
+    };
+    if (prebuilt) await copyPixel(); else await withVaultBuiltSnapshot(project, ['pixel-classroom'], copyPixel);
   }
   if (options.testModel) await seedTestModel(root);
   await writeFile(join(home, 'cordis.patch.yml'), vaultPatch(root, pluginRoot, { testModel: options.testModel === true, pixelPluginRoot, gitBash: usesGitBash(options) }));
@@ -290,7 +297,8 @@ tags: [math, vector]
  * checkout that installs it. */
 export async function installPluginSnapshot(root: string): Promise<string> {
   const pluginRoot=join(root,'vault-plugin');
-  await cp(join(project,'examples/native-vault'),pluginRoot,{recursive:true,filter:source=>!source.endsWith('.test.js')&&basename(source)!=='node_modules'});
+  const copy = () => cp(join(project,'examples/native-vault'),pluginRoot,{recursive:true,filter:source=>!source.endsWith('.test.js')&&basename(source)!=='node_modules'});
+  if (prebuilt) await copy(); else await withVaultBuiltSnapshot(project, ['native-vault'], copy);
   await symlink(join(project,'node_modules'),join(pluginRoot,'node_modules'),dirLink);
   return pluginRoot;
 }
@@ -340,7 +348,19 @@ interface VaultProcess {
   log(): string;
 }
 
+class BrowserBlockedVaultPortError extends Error {
+  constructor(port: number) { super(`系统分配的端口 ${port} 被浏览器禁止访问，无法打开 Notara。`); }
+}
+
+class VaultCleanupError extends AggregateError {
+  constructor(startup: unknown, cleanup: unknown) {
+    super([startup, cleanup], 'Notara 启动失败，停止所属进程也未完成；已保留运行目录，请检查错误后重试关闭。');
+  }
+}
+
 async function bootVault(root: string, options: VaultOptions & { preserve?: boolean; port?: number; onReady?: (port: number) => Promise<void> }): Promise<VaultRuntime> {
+  let port = options.port ?? 0;
+  validateVaultPort(port);
   const home = join(root, 'home'), workspace = join(root, 'workspace');
   const env: NodeJS.ProcessEnv = { ...process.env, DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1' };
   for (const key of Object.keys(env)) {
@@ -351,16 +371,13 @@ async function bootVault(root: string, options: VaultOptions & { preserve?: bool
   if (process.platform === 'win32') env.NOTARA_WINDOWS_POSIX = await ensureWindowsPosix(project);
   else if (options.gitBash !== undefined) env.NOTARA_GIT_BASH = options.gitBash;
   const redact = (text: string): string => text.replace(/([?&]token=)[^\s&]+/g, '$1[redacted]');
-  let port = options.port ?? 0;
   function launch(): VaultProcess {
-    const child = spawn(process.execPath, [`--max-http-header-size=${webMaxHeaderSizeBytes}`, packageBin(project, '@deepseek-ai/dsh', 'dsh'), 'web', '--host', '127.0.0.1', '--port', String(port), '--no-open'], { cwd: workspace, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, [`--max-http-header-size=${webMaxHeaderSizeBytes}`, packageBin(project, '@deepseek-ai/dsh', 'dsh'), 'web', '--host', '127.0.0.1', '--port', String(port), '--no-open'], { cwd: workspace, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     let output = '';
     let authUrl = '';
     let spawnError: Error | undefined;
-    const exited = new Promise<void>(resolveExit => {
-      child.once('exit', () => { resolveExit(); });
-      child.once('error', error => { spawnError = error; resolveExit(); });
-    });
+    child.once('error', error => { spawnError = error; });
+    const closed = new Promise<void>(resolveClose => { child.once('close', () => resolveClose()); });
     const collect = (chunk: Buffer): void => {
       output += chunk.toString();
       authUrl = /dsh web: (http:\/\/\S+)/.exec(output)?.[1] ?? authUrl;
@@ -370,10 +387,24 @@ async function bootVault(root: string, options: VaultOptions & { preserve?: bool
       if (child.pid !== undefined && child.exitCode === null && child.signalCode === null) {
         // On Windows a signal only ends DSH itself; taskkill /T also ends the
         // shells and jobs it started, which would otherwise keep the port.
-        if (process.platform === 'win32') spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
-        else child.kill('SIGTERM');
         const timer = setTimeout(() => child.kill('SIGKILL'), killGraceMs);
-        try { await exited; } finally { clearTimeout(timer); }
+        try {
+          if (process.platform === 'win32') {
+            await new Promise<void>((resolveKill, reject) => {
+              execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, timeout: killGraceMs, maxBuffer: 64_000 }, (error, stdout, stderr) => {
+                if (!error) { resolveKill(); return; }
+                void confirmTaskkillExited(error, child.pid!, stdout, stderr).then(gone => {
+                  if (gone) resolveKill(); else reject(error);
+                }, reject);
+              });
+            });
+          } else child.kill('SIGTERM');
+          // exit can precede pipe and descendant cleanup. Windows must finish
+          // the owned taskkill tree operation before any workspace is removed.
+          await closed;
+        } finally { clearTimeout(timer); }
+      } else {
+        await closed;
       }
     }
     async function ready(): Promise<void> {
@@ -389,8 +420,10 @@ async function bootVault(root: string, options: VaultOptions & { preserve?: bool
       }
       // launcher.json carries the live authUrl so a wrapper never parses stdout
       // for the login address; a restart rewrites it with the new pid and URL.
-      if (options.preserve) port = Number(new URL(authUrl).port);
-      await options.onReady?.(Number(new URL(authUrl).port));
+      const actualPort = httpUrlPort(new URL(authUrl));
+      if (isBrowserBlockedPort(actualPort)) throw new BrowserBlockedVaultPortError(actualPort);
+      if (options.preserve) port = actualPort;
+      await options.onReady?.(actualPort);
       const launcher = join(root, 'launcher.json');
       await writeFile(launcher, JSON.stringify({ pid: child.pid, parentPid: process.pid, workspace, node: process.versions.node, testModel: options.testModel === true, authUrl }), { mode: 0o600 });
       await chmod(launcher, 0o600);
@@ -400,22 +433,53 @@ async function bootVault(root: string, options: VaultOptions & { preserve?: bool
   let active = launch();
   let pastLog = '';
   let stopping: Promise<void> | undefined;
+  let stopRequested = false;
+  async function waitUntilReady(): Promise<void> {
+    for (let attempt = 0; ; attempt++) {
+      try { await active.ready; return; }
+      catch (error) {
+        // Keep the OS allocation atomic: bind port 0 in the actual Host and
+        // retry only an unusable result, rather than probing/releasing a socket
+        // that another process could claim before DSH starts. Stop each rejected
+        // child before launching again; publish only the final usable URL.
+        if (!(error instanceof BrowserBlockedVaultPortError) || port !== 0 || attempt >= 7) throw error;
+        await active.stopProcess();
+        pastLog += active.log() + '\n';
+        active = launch();
+      }
+    }
+  }
   // stop() only clears the root once the child has actually exited: a boot that
   // failed mid-write must not be deleted out from under its own process.
   function stop(): Promise<void> {
     // A kept root drops its login record with the process, so a later start
     // never mistakes an unrelated process that reused the pid for this Vault.
-    stopping ??= (async () => { await active.stopProcess(); await rm(options.preserve ? join(root, 'launcher.json') : root, { recursive: true, force: true }); })();
+    stopRequested = true;
+    if (!stopping) {
+      const attempt = (async () => {
+        await active.stopProcess();
+        await rm(options.preserve ? join(root, 'launcher.json') : root, { recursive: true, force: true, maxRetries: 8, retryDelay: 100 });
+      })();
+      stopping = attempt;
+      void attempt.catch(() => { if (stopping === attempt) stopping = undefined; });
+    }
     return stopping;
   }
   async function restart(): Promise<void> {
-    if (stopping) throw new Error('Vault runtime already stopping');
+    if (stopRequested) throw new Error('Vault runtime already stopping');
     await active.stopProcess();
     pastLog += active.log() + '\n';
     active = launch();
-    try { await active.ready; } catch (error) { await stop(); throw error; }
+    await readyOrStop();
   }
-  try { await active.ready; } catch (error) { await stop(); throw error; }
+  async function readyOrStop(): Promise<void> {
+    try { await waitUntilReady(); }
+    catch (error) {
+      try { await stop(); } catch (cleanup) { throw new VaultCleanupError(error, cleanup); }
+      throw error;
+    }
+  }
+  await readyOrStop();
   return { get authUrl() { return active.authUrl(); }, root, log: () => pastLog + active.log(), restart, stop };
 }
 

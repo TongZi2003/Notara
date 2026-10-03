@@ -5,11 +5,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { zipSync } from 'fflate';
 import { codeContract, MANIFEST_NAME } from './vault-updates.ts';
 import { ensureWindowsPosixBundle, type WindowsPosixBundle } from './windows-posix.ts';
+import { withVaultBuiltSnapshot } from './vault-build-lock.ts';
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export async function buildRelease(output: string, source = project, internals: {
   windowsPosix?: (projectRoot: string) => Promise<WindowsPosixBundle>;
 } = {}): Promise<{ archive: string; manifest: string; version: string }> {
+  return withVaultBuiltSnapshot(source, ['native-vault', 'pixel-classroom'], async () => {
   const contract = await codeContract(source);
   const windowsPosix = await (internals.windowsPosix ?? ensureWindowsPosixBundle)(source);
   const files: Record<string, Uint8Array> = {};
@@ -42,6 +44,7 @@ export async function buildRelease(output: string, source = project, internals: 
   await writeFile(join(output, archive), bytes);
   await writeFile(join(output, MANIFEST_NAME), JSON.stringify({ format: 1, version: contract.version, runtime: contract.runtime, archive, sha256: createHash('sha256').update(bytes).digest('hex') }, null, 2) + '\n');
   return { archive: join(output, archive), manifest: join(output, MANIFEST_NAME), version: contract.version };
+  });
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
