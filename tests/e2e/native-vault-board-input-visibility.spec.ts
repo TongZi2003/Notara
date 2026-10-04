@@ -82,9 +82,13 @@ test('typed board reasons remain readable and preserved in native dark mode acro
     await expect(choice.getByRole('status')).toHaveText('这道题要写一句理由。');
     await reason.pressSequentially('DNA remains dissolved', { delay: 20 });
     await expect(reason).toHaveValue('DNA remains dissolved');
+    await expect(choice.getByRole('status')).toHaveCount(0);
     await reason.fill('');
+    await choice.getByRole('button', { name: '交给老师' }).click();
+    await expect(choice.getByRole('status')).toHaveText('这道题要写一句理由。');
     await imeText(page, reason, '因为离心');
     await expect(reason).toHaveValue('因为离心');
+    await expect(choice.getByRole('status')).toHaveCount(0);
     await choice.getByRole('heading', { name: '小检测：离心后DNA在哪一层' }).click();
     diagnostics.reasonAfterIME = await styleOf(reason);
     diagnostics.darkBody = await page.locator('body').evaluate(element => ({ dark: element.hasAttribute('data-ds-dark-theme'), scheme: getComputedStyle(element).colorScheme }));

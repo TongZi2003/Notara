@@ -333,7 +333,9 @@ export function boardAnswerMessage({ sectionTitle, blockTitle, component, answer
 
 /** A one-line summary of an answer for the teacher's per-turn board overview. */
 export function boardAnswerSummary(component, answer) {
-  return shorten(BOARD_COMPONENTS[component.type].text(component.spec, answer), 60);
+  const text=String(BOARD_COMPONENTS[component.type].text(component.spec, answer)).replace(/\s+/g,' ').trim();
+  const chars=Array.from(text);
+  return chars.length>60?chars.slice(0,59).join('')+'…':text;
 }
 
 /** Answers kept for the current question and the ones left from a changed one. */

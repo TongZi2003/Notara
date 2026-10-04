@@ -18,6 +18,7 @@ import { createReviewRuntime } from './review-runtime.js';
 import { createRouteInVault, safeTitlePath as titlePath } from './file-operations.js';
 import { createBoardRuntime,readBoardDocument,boardPath,boardBodyView } from './board-runtime.js';
 import { boardOverview } from './board-data.js';
+import { installBoardForks } from './board-fork.js';
 import { packagedRipgrep } from './ripgrep-path.js';
 import { createPomodoroRuntime } from './pomodoro-runtime.js';
 import { createUserSkillRuntime } from './user-skill-runtime.js';
@@ -381,6 +382,7 @@ export class NotaraTeaching extends Service {
 
 export function installTeachingRuntime(ctx,config={}) {
   const service=new NotaraTeaching(ctx,config);
+  installBoardForks(ctx,service);
   installAgentTools(ctx,service);
   ctx.inject(['shellEnv'],scope=>scope.effect(()=>scope.shellEnv.register({
     name:'notara-vault-cli',

@@ -121,12 +121,16 @@ export function createBoardAnswers(React, { renderInline, inputs = {} }) {
     const [draft, setDraft] = useState(() => readDraft(draftKey) ?? initialDraft(component));
     const [status, setStatus] = useState(null);
     useEffect(() => { setDraft(readDraft(draftKey) ?? initialDraft(component)); setEditing(false); setStatus(null); }, [draftKey]);
-    const update = change => setDraft(previous => { const next = change(previous); writeDraft(draftKey, next); return next; });
+    const update = change => {
+      setDraft(previous => { const next = change(previous); writeDraft(draftKey, next); return next; });
+      // Editing invalidates local validation; delivery failures still need their receipt.
+      setStatus(previous => previous?.validation ? null : previous);
+    };
     const answering = live && (!latest || editing);
     const ready = answerOf(component, draft);
     const exit = kind => update(previous => ({ ...previous, exit: previous.exit === kind ? null : kind }));
     async function submit() {
-      if (ready.missing) { setStatus({ kind: 'error', text: ready.missing }); return; }
+      if (ready.missing) { setStatus({ kind: 'error', text: ready.missing, validation: true }); return; }
       setStatus({ kind: 'sending', text: '正在交给老师…' });
       try {
         const delivery = await onSubmit(ready.value);

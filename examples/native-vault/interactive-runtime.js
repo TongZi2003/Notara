@@ -17,13 +17,22 @@ function parseDocument(content, sessionId, interactionId) {
   return { provider: 'math', interactionId, preset: scene.preset, scene };
 }
 
-async function readDocument(io, sessionId, interactionId) {
+export async function readInteractionDocument(io, sessionId, interactionId) {
   let document;
   try { document = await io.readJson(interactionPath(sessionId, interactionId)); }
   catch (error) { if (error.message === 'vault_file_not_found') fail('interaction_missing'); throw error; }
   const parsed = parseDocument(document.content, sessionId, interactionId);
   const ref = validateInteractiveRef({ provider: parsed.provider, interactionId: parsed.interactionId, revision: document.revision, preset: parsed.preset });
   return { ...parsed, revision: document.revision, ref };
+}
+
+/** The editor and fork setup use the same validated, session-bound writer. */
+export async function saveInteractionDocument(io, sessionId, interactionId, scene, revision, onCommitted) {
+  scene = validateMathScene(scene);
+  const content = JSON.stringify({ type: 'lesson-interaction', session: sessionId, interactionId, provider: 'math', preset: scene.preset, scene });
+  const saved = await io.saveJson(interactionPath(sessionId, interactionId), content, revision, onCommitted);
+  const ref = validateInteractiveRef({ provider: 'math', interactionId, revision: saved.revision, preset: scene.preset });
+  return { ref, revision: saved.revision, scene };
 }
 
 function patchScene(scene, patch) {
@@ -34,22 +43,17 @@ function patchScene(scene, patch) {
 
 export function createInteractionRuntime(service) {
   const editor = sessionId => service.editorFor({ sessionId });
-  const save = async (io, sessionId, interactionId, scene, revision) => {
-    const content = JSON.stringify({ type: 'lesson-interaction', session: sessionId, interactionId, provider: 'math', preset: scene.preset, scene });
-    const saved = await io.saveJson(interactionPath(sessionId, interactionId), content, revision);
-    const ref = validateInteractiveRef({ provider: 'math', interactionId, revision: saved.revision, preset: scene.preset });
-    return { ref, revision: saved.revision, scene };
-  };
+  const save = saveInteractionDocument;
   return {
     async read({ sessionId, interactionId }) {
-      return readDocument(await editor(sessionId), sessionId, interactionId);
+      return readInteractionDocument(await editor(sessionId), sessionId, interactionId);
     },
     async create({ sessionId, scene }) {
       const normalized = validateMathScene(scene), interactionId = randomUUID();
       return save(await editor(sessionId), sessionId, interactionId, normalized, null);
     },
     async mutate({ sessionId, interactionId, expectedRevision, patch }) {
-      const io = await editor(sessionId), current = await readDocument(io, sessionId, interactionId);
+      const io = await editor(sessionId), current = await readInteractionDocument(io, sessionId, interactionId);
       if (expectedRevision !== current.revision) fail('vault_revision_conflict');
       return save(io, sessionId, interactionId, patchScene(current.scene, patch), current.revision);
     },

@@ -324,5 +324,5 @@ export function apply(ctx) {
   installSessionDeletion(ctx);
   installRemoteSettings(ctx);
   // A Cordis plugin body must not return the service instance as a disposable.
-  ctx.inject(['tools','systemPrompt','fs','sessions','sessionController','skills','workspaceRegistry','llm','subagents'],scope=>{installTeachingRuntime(scope);});
+  ctx.inject(['agents','tools','systemPrompt','fs','sessions','sessionController','skills','workspaceRegistry','llm','subagents'],scope=>{installTeachingRuntime(scope);});
 }

@@ -4,6 +4,12 @@
 
 ## 当前事实源
 
+- Native Vault 0.23.11 的每轮白板概览最多 3,000 Unicode 字符（含省略提示）；小板沿用完整输出，超长时按单组件优先最近有效作答，再列较后的板书，并说明省略数量。只限制新动态上下文，不裁原始白板、作答或历史消息；白板变化仍作为尾部 user/runtime-context 追加，不修改首部 system 或工具声明。相同概览不重复追加，不能以本地前缀验证代替真实服务商缓存命中或账单验收。
+
+- Native Vault 0.23.11 的原生对话分支在新教学课堂的 unpublished setup 中复制点击分支时的完整 Markdown 白板（包括布局、作答、资料备注），不是所选消息时的历史板书。复制后按新 session 重绑独立文件，旧数学交互场景也复制到新课堂并刷新引用；读取或复制失败阻断创建，不回执成功的空板。普通新课堂、只读工作员和已有分支不自动复制或迁移。
+
+- Native Vault 0.23.11 白板作答在修改草稿时清除上一次本地必填校验提示；再次提交仍重新校验。保存或发送失败的状态不随输入清除，保留重试回执。
+
 - Native Vault 0.23.10 的共享 Dialog 在 layout effect 中建立 ownerDocument 焦点约束，仅最顶层可见 .nv-dialog 消费 Escape/Tab；忽略 IME 合成和系统组合键，取消后恢复打开按钮。原生 composer 延迟 focus 不得抢走 modal 焦点或改写草稿，回归使用临时课堂真实浏览器。此约束只覆盖同一 document，不能外推到父/兄弟 iframe 或整个 supervisor 存活保证。
 
 - 发布 ZIP 在 `verify-release-zip.ts` 用 Node zlib 独立解压并核对全部条目 CRC/长度（含未列入代码清单的依赖和字体），两种打包器输出前均调用；便携包保留 fflate UTF-8 容器与 CRC 计数，压缩采用 Node 原生 Deflate pipeline，不再使用曾生成非法回溯引用的 fflate streaming Deflate。

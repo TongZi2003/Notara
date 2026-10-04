@@ -39,6 +39,8 @@ async function installRuntime(t,{layout='legacy'}={}) {
   const ctx=new Context();new LocalFileSystem(ctx,{cwd:root,diffBasisMaxBytes:10*1024*1024});
   ctx.reflect.provide('workspaceRegistry',{list:()=>[{id:'install-workspace',path:root,title:'安装'}],archiveSession:async()=>{}});
   ctx.reflect.provide('sessionController',{inspect:async()=>({meta:{cwd:root}})});
+  // Runtime installation also owns the native creation seam; these context tests never spawn.
+  ctx.reflect.provide('agents',{create:async()=>assert.fail('unexpected agent creation in teaching context fixture')});
   const sections=[],shellEnvs=[],handlers=[];
   ctx.reflect.provide('systemPrompt',{section:config=>{sections.push(config);return()=>{};}});
   ctx.reflect.provide('shellEnv',{register:config=>{shellEnvs.push(config);return()=>{};}});

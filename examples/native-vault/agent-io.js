@@ -134,7 +134,7 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
     return {documents,files,errors,truncated,workspaceId:workspace.id};
   }
 
-  async function saveText(path,content,expectedRevision,validate,readBack=read) {
+  async function saveText(path,content,expectedRevision,validate,readBack=read,onCommitted) {
     if(!writeApproved) fail('vault_write_approval_required');
     const bound=boundWrite?.workspaceId===workspace.id&&boundWrite?.path===path;
     if(!editorWorkspace&&!bound&&workspace.path!==vaultScopes(ctx,exec,'current')[0].path) fail('vault_write_scope_invalid');
@@ -152,19 +152,21 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
     const policy=editorWorkspace||bound?{mode:'workspace-write',workspaceRoot:workspace.path}:ctx.get?.('sandboxPolicy')?.resolve({session:exec.agent.session,mode:'workspace-write'})??{mode:'workspace-write',workspaceRoot:workspace.path};
     try{
       const result=await fs.writeText(t,content,expected,signal,policy);
+      // Internal multi-file operations need the receipt even if observation/read-back fails.
+      onCommitted?.({path,revision:revisionFor(content)});
       ctx.emit?.('fs/observed',t,{kind:'present',version:result.version},exec);
     }catch(error){if(['FS_STALE_VERSION','FS_NOT_OBSERVED'].includes(error.code)) fail('vault_revision_conflict');throw error;}
     return readBack(path);
   }
-  async function save(path,content,expectedRevision) {
-    return saveText(path,content,expectedRevision,(targetPath,value)=>parseMarkdownDocument(targetPath,value));
+  async function save(path,content,expectedRevision,onCommitted) {
+    return saveText(path,content,expectedRevision,(targetPath,value)=>parseMarkdownDocument(targetPath,value),read,onCommitted);
   }
-  async function saveJson(path,content,expectedRevision) {
+  async function saveJson(path,content,expectedRevision,onCommitted) {
     return saveText(path,content,expectedRevision,(targetPath,value)=>{
       const normalized=safeRelativePath(targetPath);
       if(!normalized.toLowerCase().endsWith('.json')) fail('vault_json_required');
       try { JSON.parse(value); } catch { fail('vault_json_invalid'); }
-    },readJson);
+    },readJson,onCommitted);
   }
   return {workspace,rootPath,read,readJson,readAsset,scan,save,saveJson};
 }

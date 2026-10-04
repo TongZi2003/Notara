@@ -1,11 +1,12 @@
 {
   "name": "@notara/vault-native",
-  "version": "0.23.10",
+  "version": "0.23.11",
   "license": "MIT",
   "type": "module",
   "main": "index.js",
   "files": [
     "index.js",
+    "board-fork.js",
     "client.js",
     "font-route.js",
     "academy.js",

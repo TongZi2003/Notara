@@ -143,6 +143,7 @@ export function projectBoard(board,revision,files=[]) {
 
 const SIZE_NAMES={wide:'宽',full:'整行'};
 const clock=at=>{const date=new Date(at);return Number.isNaN(date.getTime())?'':date.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});};
+export const BOARD_OVERVIEW_LIMIT=3000;
 /**
  * The teacher's per-turn view of the board: sections, then each block's title,
  * kind and size, then every question on it with whether and how the student
@@ -150,21 +151,48 @@ const clock=at=>{const date=new Date(at);return Number.isNaN(date.getTime())?'':
  */
 export function boardOverview(board) {
   if(!board.blocks.length)return '当前白板还是空的。';
-  const line=block=>{
+  const details=board.blocks.map((block,index)=>{
     const extra=[block.kind,SIZE_NAMES[block.size]].filter(Boolean).join('，');
     const parts=boardComponents(block.body).map(component=>{
       const name=`${component.type}#${component.index+1}`;
-      if(component.error||!component.answerable)return name;
+      if(component.error||!component.answerable)return {text:name,answered:false,at:0};
       const {current,stale}=answersFor(component,block.answers);
       const latest=current.at(-1);
       const state=latest?`已作答 ${current.length} 次，最近 ${clock(latest.at)}：${boardAnswerSummary(component,latest.v)}`:'未作答';
-      return `${name}（${BOARD_COMPONENTS[component.type].title}）${state}${stale.length?`；另有 ${stale.length} 次题目修改前的作答`:''}`;
+      return {text:`${name}（${BOARD_COMPONENTS[component.type].title}）${state}${stale.length?`；另有 ${stale.length} 次题目修改前的作答`:''}`,answered:!!latest,at:latest?Date.parse(latest.at):0};
     });
-    return `  - ${block.title}（${extra}）${parts.length?'：'+parts.join('；'):''}`;
-  };
+    return {block,index,parts,extra,title:`${block.title}（${extra}）`};
+  });
+  const line=detail=>`  - ${detail.title}${detail.parts.length?'：'+detail.parts.map(part=>part.text).join('；'):''}`;
   const known=new Set(board.sections.map(section=>section.id)),rows=[];
-  const legacy=board.blocks.filter(block=>!known.has(block.section));
+  const legacy=details.filter(detail=>!known.has(detail.block.section));
   if(legacy.length)rows.push('- 旧板书（未分板块）',...legacy.map(line));
-  for(const section of board.sections){const blocks=board.blocks.filter(block=>block.section===section.id);if(blocks.length)rows.push(`- 板块「${section.title}」`,...blocks.map(line));}
-  return rows.join('\n');
+  for(const section of board.sections){const blocks=details.filter(detail=>detail.block.section===section.id);if(blocks.length)rows.push(`- 板块「${section.title}」`,...blocks.map(line));}
+  const full=rows.join('\n');
+  if(Array.from(full).length<=BOARD_OVERVIEW_LIMIT)return full;
+
+  // Bound only the new runtime snapshot. Do not rewrite old messages or the board.
+  // Each question is a separate candidate so a large old block's latest answer
+  // cannot disappear merely because its complete line exceeds the budget.
+  const sections=new Map(board.sections.map(section=>[section.id,section.title]));
+  const candidates=details.flatMap(detail=>{
+    // Read-side legacy/manual titles can exceed the Host's write-side limit.
+    const chars=Array.from(detail.block.title);
+    const label=chars.length>160?chars.slice(0,160).join('')+'…（标题截短，需读取原文定位）':detail.block.title;
+    const title=`- ${sections.has(detail.block.section)?`板块「${sections.get(detail.block.section)}」`:'旧板书'} / ${label}（${detail.extra}）`;
+    return detail.parts.length?detail.parts.map((part,index)=>({...part,text:title+'：'+part.text,block:detail.index,component:index}))
+      :[{text:title,answered:false,at:0,block:detail.index,component:null}];
+  });
+  candidates.sort((a,b)=>Number(b.answered)-Number(a.answered)||b.at-a.at||b.block-a.block||(a.component??0)-(b.component??0));
+  const totalComponents=details.reduce((count,detail)=>count+detail.parts.length,0);
+  const footer=(blocks,components)=>`白板概览已省略 ${blocks} 个块、${components} 个组件；优先列最近有效作答，再列较后的板书。完整内容仍在白板文件，需要时读取。`;
+  const budget=BOARD_OVERVIEW_LIMIT-Array.from(footer(board.blocks.length,totalComponents)).length-1;
+  const selected=[],blocks=new Set();let used=0,components=0;
+  for(const candidate of candidates){
+    const cost=Array.from(candidate.text).length+(selected.length?1:0);
+    if(used+cost>budget)continue;
+    selected.push(candidate.text);used+=cost;blocks.add(candidate.block);
+    if(candidate.component!==null)components++;
+  }
+  return [...selected,footer(board.blocks.length-blocks.size,totalComponents-components)].join('\n');
 }
