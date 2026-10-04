@@ -11,14 +11,14 @@
  * The main classroom ships no native text-file rows: `read`/`write`/`edit`/
  * `glob`/`grep` are hidden from the teacher's request and refused by the
  * registry guard, while delegation children keep their own read-only surface
- * (owned by native-vault-solver.test.ts). The teacher reads and searches by
- * combining native Bash (`ls`/`rg`/`grep`/`sed`) and saves Vault Markdown
- * through the bundled command line (`write-batch`); `read_image`, `skill`, the
+ * (owned by native-vault-solver.test.ts). The teacher reads, searches and saves
+ * through dedicated Vault tools; Bash remains available for advanced search,
+ * execution and legacy deterministic commands. `read_image`, `skill`, the
  * PDF command and the four lifecycle operations stay. Bash inherits the native
  * sandbox and approval decision — the teaching layer adds no uniform approval
  * and never guesses read-only from command text. These cases own that non-UI
- * runtime contract: settings→request assembly, Bash reads, native version CAS
- * through the command line, route session identity and the summary/archive path.
+ * runtime contract: settings→request assembly, Vault reads and writes, version
+ * CAS, route session identity and the summary/archive path.
  *
  * The learner-facing surface (composer, settings dialog, route bench, canvas
  * controls) is validated in the Playwright lane.
@@ -49,17 +49,16 @@ interface SavedSummary { saved?: boolean; archived?: boolean; archiveScheduled?:
 
 /** The only dedicated classroom tools left after the minimal split. */
 const NOTARA_TOOL_NAMES = ['save_lesson_summary', 'open_learning_lesson', 'set_teaching_settings', 'ask_worker'];
-/** Native rows the main classroom must actually offer in the assembled request:
- * Bash carries reading, searching and the deterministic commands, image reading
- * and Skills stay rows of their own. */
-const TEACHER_NATIVE_TOOL_NAMES = ['bash', 'read_image', 'skill', 'job_output', 'job_list', 'job_kill'];
-/** Native text-file rows the main classroom hides AND refuses. The teacher reads
- * and searches through Bash and saves through the command line instead; a
+const VAULT_TOOL_NAMES = ['vault_read', 'vault_search', 'vault_save', 'vault_command'];
+/** Native rows the main classroom must actually offer in the assembled request. */
+const TEACHER_NATIVE_TOOL_NAMES = ['bash', ...VAULT_TOOL_NAMES, 'read_image', 'skill', 'job_output', 'job_list', 'job_kill'];
+/** Native text-file rows the main classroom hides AND refuses for ordinary Vault
+ * text. Dedicated Vault tools handle it instead; a
  * delegation child keeps its own surface and is not covered by this rule. */
 const HIDDEN_NATIVE_TOOL_NAMES = ['read', 'write', 'edit', 'glob', 'grep'];
 /** Retired classroom tools: none of them is callable, offered or kept as a
  * compatibility shape, so a caller can never be pulled back onto the old surface. */
-const RETIRED_TOOL_NAMES = ['vault_list', 'vault_read', 'vault_search', 'vault_save', 'learning_find', 'learning_read', 'lesson_log_find', 'create_learning_route', 'review_queue', 'record_review', 'learning_calendar', 'schedule_learning_lesson'];
+const RETIRED_TOOL_NAMES = ['vault_list', 'learning_find', 'learning_read', 'lesson_log_find', 'create_learning_route', 'review_queue', 'record_review', 'learning_calendar', 'schedule_learning_lesson'];
 
 /** The Vault's own content revision: sha256 of the Markdown text, first 24 hex. */
 const revisionOf = (content: string): string => createHash('sha256').update(content, 'utf8').digest('hex').slice(0, 24);
@@ -131,39 +130,49 @@ test('教学设置进入真实装配请求，同课切教法改变下一次请�
 
   // 首次发送前的设置：默认教法来自 Host 自己的目录，不是客户端写死的一份名单。
   const initial = harness.value(await harness.rpc<TeachingSettings>('notaraVault/teachingSettings', { input: { sessionId } }));
-  expect(initial).toMatchObject({ revision: 0, teachingRef: 'socratic', persona: '', learningGoal: null, temporaryInstructions: '', subjects: [] });
-  expect(initial.choices.map(choice => choice.id)).toEqual(['socratic', 'feynman', 'lecture', 'structural']);
+  expect(initial).toMatchObject({ revision: 0, teachingRef: 'mixed', persona: '', learningGoal: null, temporaryInstructions: '', subjects: [] });
+  expect(initial.choices.map(choice => choice.id)).toEqual(['mixed']);
   const updated = harness.value(await harness.rpc<TeachingSettings>('notaraVault/updateTeachingSettings', {
     input: { sessionId, expectedRevision: 0, patch: { teachingRef: 'feynman', learningGoal: { title: '理解条件概率', dailyMinutes: 30 }, temporaryInstructions: '先让我自己试', subjects: ['数学'] } },
   }));
-  expect(updated).toMatchObject({ revision: 1, teachingRef: 'feynman', learningGoal: { title: '理解条件概率' }, temporaryInstructions: '先让我自己试' });
+  expect(updated).toMatchObject({ revision: 1, teachingRef: 'mixed', learningGoal: { title: '理解条件概率' }, temporaryInstructions: '先让我自己试' });
 
   const [firstTurn] = await harness.ask(sessionId, '我们从条件概率开始。', { '我们从条件概率开始。': '先说说你自己的解释。' });
   const firstWire = JSON.stringify(firstTurn);
   // 首条真实请求就带着所选教法、目标与临时要求 —— 不是第一次回复之后才补上。
-  expect(effectiveSystemText(firstTurn!)).toContain('费曼法');
+  expect(effectiveSystemText(firstTurn!)).toContain('混合教法');
   expect(firstWire).toContain('理解条件概率');
   expect(firstWire).toContain('先让我自己试');
   // 教学预设真实挂载：四个课堂生命周期工具＋原生 Bash、读图与技能工具。
   expect(toolNames(firstTurn!)).toEqual(expect.arrayContaining([...NOTARA_TOOL_NAMES, ...TEACHER_NATIVE_TOOL_NAMES]));
-  // 主课堂没有原生文本文件工具：读写走 Bash 与 write-batch，不再挂 read/write/edit/glob/grep。
+  // Ordinary Vault reads and writes use dedicated tools; generic file tools remain
+  // restricted to code paths and are refused for ordinary Vault text.
   // Search stays in Bash; read/write/edit stay offered for code files only (the guard refuses anything else).
   for (const name of ['glob', 'grep']) expect(toolNames(firstTurn!), `主课堂仍挂着原生检索工具 ${name}`).not.toContain(name);
   for (const name of ['read', 'write', 'edit']) expect(toolNames(firstTurn!)).toContain(name);
-  // write-batch 是命令行命令，不是模型工具：工具面里不会出现同名模型工具。
+  // write-batch remains a deterministic command, not a model tool.
   expect(toolNames(firstTurn!).filter(name => /write[-_]?batch/i.test(name))).toEqual([]);
   // 退役工具既不可调用也不再出现在工具面里，不保留旧的兼容形状。
   for (const name of RETIRED_TOOL_NAMES) expect(toolNames(firstTurn!)).not.toContain(name);
   expect(skillNames(firstTurn!).filter(name => name.startsWith('notara-')).length).toBeGreaterThan(0);
+  // Old classroom/script skill names remain model-callable aliases, but are not
+  // entries in the new student-facing catalog.
+  expect(skillNames(firstTurn!)).toEqual(expect.arrayContaining([
+    'notara-socratic', 'notara-feynman', 'notara-lecture', 'notara-structural',
+    'notara-brainstorm', 'notara-markdown-handout', 'notara-route-planning',
+  ]));
 
-  // 同课切到讲解—变式：下一次真实请求换成新教法，目标与课堂都不变。
-  harness.value(await harness.rpc('notaraVault/updateTeachingSettings', { input: { sessionId, expectedRevision: 1, patch: { teachingRef: 'lecture' } } }));
+  // A legacy setting is accepted but normalizes to the one current method.
+  const legacyUpdate = harness.value(await harness.rpc<TeachingSettings>('notaraVault/updateTeachingSettings', { input: { sessionId, expectedRevision: 1, patch: { teachingRef: 'lecture' } } }));
+  expect(legacyUpdate.teachingRef).toBe('mixed');
   const [secondTurn] = await harness.ask(sessionId, '还是你直接讲一遍吧。', { '还是你直接讲一遍吧。': '好，我按结构讲。' });
   const secondWire = JSON.stringify(secondTurn);
-  // 生效的正文换成讲解—变式；原生提示词按 in-history 更新，旧快照留在历史里。
-  expect(effectiveSystemText(secondTurn!)).toContain('讲解—变式');
+  // 旧调用只迁移到 canonical mixed；in-history 保留的旧快照不再作为当前设置。
+  expect(effectiveSystemText(secondTurn!)).toContain('混合教法');
   expect(effectiveSystemText(secondTurn!)).not.toContain('费曼法');
-  expect(secondTurn!.messages.filter(message => message.role === 'system')).toHaveLength(2);
+  expect(effectiveSystemText(secondTurn!)).not.toContain('讲解—变式');
+  expect(secondTurn!.messages.filter(message => message.role === 'system')).toHaveLength(firstTurn!.messages.filter(message => message.role === 'system').length);
+  expect(effectiveSystemText(secondTurn!)).toBe(effectiveSystemText(firstTurn!));
   expect(secondWire).toContain('理解条件概率');
   expect((await harness.turns(sessionId)).length).toBe(2);
   expect((await harness.sessions()).filter(row => row.sessionId === sessionId)).toHaveLength(1);
@@ -172,9 +181,9 @@ test('教学设置进入真实装配请求，同课切教法改变下一次请�
   await runtime.restart();
   harness = await connectVault(runtime);
   expect(harness.value(await harness.rpc<TeachingSettings>('notaraVault/teachingSettings', { input: { sessionId } })))
-    .toMatchObject({ revision: 2, teachingRef: 'lecture', learningGoal: { title: '理解条件概率' }, temporaryInstructions: '先让我自己试', subjects: ['数学'] });
+    .toMatchObject({ revision: 2, teachingRef: 'mixed', learningGoal: { title: '理解条件概率' }, temporaryInstructions: '先让我自己试', subjects: ['数学'] });
   const [thirdTurn] = await harness.ask(sessionId, '我们接着上一次继续。', { '我们接着上一次继续。': '继续。' });
-  expect(effectiveSystemText(thirdTurn!)).toContain('讲解—变式');
+  expect(effectiveSystemText(thirdTurn!)).toContain('混合教法');
   expect((await harness.turns(sessionId)).length).toBe(3);
   expect((await harness.sessions()).filter(row => row.sessionId === sessionId)).toHaveLength(1);
 
@@ -199,10 +208,10 @@ test('教学设置进入真实装配请求，同课切教法改变下一次请�
   expect(skillNames(plainTurn!).filter(name => name.startsWith('notara-'))).toEqual([]);
   // 普通编码预设不变：原生文本工具照旧挂载，只是没有课堂工具与教学技能。
   expect(toolNames(plainTurn!)).toEqual(expect.arrayContaining(['read', 'write', 'edit', 'glob', 'grep', process.platform === 'win32' ? 'pwsh' : 'bash', 'skill']));
-  for (const name of [...NOTARA_TOOL_NAMES, ...RETIRED_TOOL_NAMES]) expect(toolNames(plainTurn!)).not.toContain(name);
+  for (const name of [...NOTARA_TOOL_NAMES, ...VAULT_TOOL_NAMES, ...RETIRED_TOOL_NAMES]) expect(toolNames(plainTurn!)).not.toContain(name);
 }, 300_000);
 
-test('主教师用原生 Bash 组合 ls/grep/sed 读取检索，PDF 仍走命令行，且不整库注入', async () => {
+test('主教师用 Bash 做高级组合检索，PDF 仍走领域命令，且不整库注入', async () => {
   runtime = await startVaultIsolated({ testModel: true });
   harness = await connectVault(runtime);
   const sessionId = await harness.createSession();
@@ -270,7 +279,7 @@ test('主教师的原生文本工具被隐藏并拒绝：不落盘不注入，�
   expect(guarded.map(row => row.name)).toEqual(HIDDEN_NATIVE_TOOL_NAMES);
   expect(guarded.every(row => row.failed), guarded.map(row => `${row.name}: ${row.text}`).join('\n')).toBe(true);
   expect(new Set(guarded.map(row => row.text)).size).toBe(1);
-  expect(guarded[0]?.text).toContain('bash');
+  expect(guarded[0]?.text).toContain('vault_read');
   // 旧的 write/edit 批准通路已退役：被隐藏的调用不再进入原生批准面板。
   expect(harness.approvals.seen).toHaveLength(0);
   // 不落盘、不改写；被拒绝的读也没有把正文带进请求。
@@ -615,7 +624,7 @@ test('主教师用原生 read/write/edit 写代码文件：真实落盘并留下
   const outcomes = (await harness.outcomes(sessionId)).filter(row => ['write', 'read', 'edit'].includes(row.name ?? ''));
   expect(outcomes.map(row => `${row.name}:${row.failed}`)).toEqual(['write:false', 'read:false', 'edit:false', 'write:true', 'write:true']);
   expect(outcomes.at(-2)!.text).toContain('write-batch');
-  expect(outcomes.at(-1)!.text).toContain('heredoc');
+  expect(outcomes.at(-1)!.text).toContain('vault_command');
   await expect(readFile(outside, 'utf8')).rejects.toThrow();
   expect(await readFile(file, 'utf8')).toBe('def roll(n):\n    return n + 1\n');
   expect(await harness.vaultExists('卡片/代码.md')).toBe(false);

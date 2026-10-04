@@ -67,6 +67,12 @@ test('the student reviews, enables and revises teacher-written skills on the 技
 
     // Built-in teaching skills are listed read-only.
     const builtin = list.getByRole('region', { name: '内置 · 随包的教学技能' });
+    for (const title of ['头脑风暴与体系梳理', '备课与路线规划', '书籍拆解与资料整理', '高中数学备课与拆书', '高中物理备课与拆书', '高中化学备课与拆书']) {
+      await expect(builtin.getByRole('button', { name: title, exact: true })).toHaveCount(1);
+    }
+    for (const title of ['头脑风暴', '体系梳理', '备课', '路线规划', '讲义整理']) {
+      await expect(builtin.getByRole('button', { name: title, exact: true })).toHaveCount(0);
+    }
     await builtin.getByRole('button', { name: '板书', exact: true }).click();
     await expect(view.getByRole('heading', { name: '板书' })).toBeVisible();
     await expect(view.getByText('这里只能查看')).toBeVisible();

@@ -1,4 +1,4 @@
-import { teachingManifest,teachingResource } from './teaching-catalog.js';
+import { teachingManifest,teachingLegacyAliases,teachingResource,canonicalTeachingId } from './teaching-catalog.js';
 import { activeUserSkills,skillContentWithInsights,userSkillChanges } from './user-skills.js';
 import { resolveVaultRoot } from './vault.js';
 
@@ -17,13 +17,21 @@ export function apply(ctx) {
       async list(options){
         if(options.signal?.aborted)return [];
         const bundled=builtIn().map(item=>({name:`notara-${item.id}`,description:item.description,provider:'notara-teaching',source:'bundled',invocation:{modelInvocable:true,userInvocable:true},rank:600,locator:item.file}));
+        const aliases=Object.entries(teachingLegacyAliases).map(([alias,target])=>{
+          const item=builtIn().find(row=>row.id===target);
+          return {name:`notara-${alias}`,description:`兼容旧课堂调用；正文来自“${item.title}”。`,provider:'notara-teaching',source:'bundled-compat',invocation:{modelInvocable:true,userInvocable:false},rank:590,locator:item.file};
+        });
         const adopted=(await activeUserSkills({cwd:options.cwd}).catch(()=>[])).map(row=>({name:row.name,description:userDescription(row),provider:'notara-teaching',source:`notara-${row.scope}`,invocation:{modelInvocable:true,userInvocable:true},rank:610,locator:{scope:row.scope,id:row.id}}));
-        return [...bundled,...adopted];
+        return [...bundled,...aliases,...adopted];
       },
       async get(candidate,options={}){
         if(typeof candidate.locator==='string'){
           const item=builtIn().find(row=>row.file===candidate.locator);if(!item)return undefined;
-          return {name:candidate.name,description:item.description,provider:'notara-teaching',source:'bundled',invocation:candidate.invocation,content:teachingResource(item.file)};
+          const legacyId=candidate.name?.startsWith('notara-')?candidate.name.slice(7):'';
+          const targetId=canonicalTeachingId(legacyId);
+          const target=builtIn().find(row=>row.id===targetId);
+          if(!target||target.file!==candidate.locator)return undefined;
+          return {name:candidate.name,description:item.description,provider:'notara-teaching',source:candidate.source??'bundled',invocation:candidate.invocation,content:teachingResource(target.file)};
         }
         const row=(await activeUserSkills({cwd:options.cwd})).find(item=>item.scope===candidate.locator?.scope&&item.id===candidate.locator?.id);
         if(!row)return undefined;

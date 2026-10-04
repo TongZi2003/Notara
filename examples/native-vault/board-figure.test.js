@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { compileExpression, constantValue } from './math-expression.js';
 import { answerFigure, figureAnswerText, figureBounds, figureView, parseFigure } from './board-figure.js';
+import { createSpatialProjector, spatialConeRings, spatialPointMap, spatialRing, spatialTicks } from './board-spatial.js';
 import { answerFlow, flowAnswerText, layoutFlow, parseFlow, renderFlowSvg } from './board-flow.js';
 
 const special = () => undefined;
@@ -75,6 +76,41 @@ test('figure declarations parse with references checked in order', () => {
     ['axes x 4..-4 y -3..3\npoint A = (1, 1)', 1, /终点要大于起点/],
   ];
   for (const [source, line, pattern] of cases) assert.throws(() => parseFigure(source), error => { assert.equal(error.line, line, source); assert.match(error.message, pattern); return true; });
+});
+
+test('spatial figures parse supported solids and reject asks or mixed coordinate dimensions', () => {
+  const spec = parseFigure('axes x -4..4 y -3..3 z -2..6\nparam r = 1 in 0.5..2\npoint A = (0, 0, 0)\npoint B = (2, 0, 0)\npoint C = (2, 2, 0)\npoint D = (0, 2, 0)\npoint E = (0, 0, 3)\nmidpoint M = A B\nvector v = A -> (1, 2, 3) "方向"\nplane P = A B C\ncuboid Q = A B C D E B C D\ntetrahedron T = A B C E\nprism R = A B C by (0, 0, 2)\npyramid U = base A B C apex E\nsphere S = center A radius r\ncylinder C1 = center A axis (0, 0, 1) radius 1 height 2\ncone C2 = vertex A axis (0, 0, 1) radius 1 height 2\nfrustum F = center A axis (0, 0, 1) radius 2 top 1 height 3\ntext "空间" at (1, 1, 1)');
+  assert.equal(spec.space, true);
+  assert.deepEqual(figureBounds(spec), { xmin: -4, xmax: 4, ymin: -3, ymax: 3, zmin: -2, zmax: 6 });
+  assert.deepEqual(figureView(spec), figureBounds(spec));
+  assert.deepEqual(spec.objects.find(item => item.name === 'A'), { kind: 'point', name: 'A', x: '0', y: '0', z: '0', drag: false });
+  assert.throws(() => parseFigure('axes x -4..4 y -3..3 z -2..2\npoint A = (0, 0, 0)\nask point "点一下"'), /空间图暂时只用于展示/);
+  assert.throws(() => parseFigure('axes x -4..4 y -3..3 z -2..2\nfunction f(x) = x'), /function 只能用于平面坐标图/);
+  assert.throws(() => parseFigure('point A = (1, 2)\naxes x -4..4 y -3..3 z -2..2'), /空间坐标系要写在图形对象之前/);
+  assert.throws(() => parseFigure('axes x -4..4 y -3..3 z -2..2\npoint A = (1, 2)'), /空间坐标要写成/);
+  assert.throws(() => parseFigure('vector v = A -> (1, 2, 3)'), /vector 只能用于空间直角坐标系/);
+});
+
+test('spatial projection stays finite, rings reject a zero axis, and ticks are bounded', () => {
+  const project = createSpatialProjector({ xmin: -2, xmax: 2, ymin: -2, ymax: 2, zmin: -2, zmax: 2 }, { yaw: 0, pitch: 0, zoom: 1 });
+  assert.deepEqual(project([0, 0, 0]), [380, 260, 0]);
+  assert.ok(project([1, 2, 3]).every(Number.isFinite));
+  assert.ok(project([NaN, 0, 0]).every(Number.isNaN));
+  assert.equal(spatialRing([0, 0, 0], [0, 0, 0], 1).length, 0);
+  const ring = spatialRing([1, 2, 3], [0, 0, 2], 2, 1, 12);
+  assert.equal(ring.length, 12);
+  assert.ok(Math.abs(ring[0][2] - 4) < 1e-12);
+  const cone = spatialConeRings([1, 2, 3], [0, 0, 1], 2, 2, 12);
+  assert.ok(cone.apex.every(point => point.every((coordinate, index) => coordinate === [1, 2, 3][index])));
+  assert.ok(cone.base.every(point => Math.abs(point[2] - 5) < 1e-12 && Math.abs(Math.hypot(point[0] - 1, point[1] - 2) - 2) < 1e-12));
+  assert.deepEqual(spatialTicks(0, 1000).length <= 16, true);
+  assert.deepEqual(spatialTicks(4, 2), []);
+  const spec = parseFigure('axes x -2..2 y -2..2 z -2..2\nparam a = 1 in 0..2\npoint A = (a, 1, 2)\nmidpoint M = A A');
+  const scene = spatialPointMap(spec, { a: 2 }, compileExpression);
+  assert.deepEqual(scene.points.get('A'), [2, 1, 2]);
+  assert.deepEqual(scene.points.get('M'), [2, 1, 2]);
+  const invalidSolid = parseFigure('axes x -2..2 y -2..2 z -2..2\nparam a = 1 in 0..2\npoint A = (0, 0, 0)\nsphere S = center A radius 1/(a-1)');
+  assert.throws(() => spatialPointMap(invalidSolid, { a: 1 }, compileExpression), /spatial_expression_invalid/);
 });
 
 test('figure answers stay inside the frame and read naturally', () => {

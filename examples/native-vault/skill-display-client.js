@@ -6,6 +6,13 @@ import manifest from '../../resources/vault-teaching/manifest.json' with { type:
  * teaching manifest, the student's own skills by their layer.
  */
 const TITLES = new Map([...manifest.choices, ...manifest.skills].map(item => [`notara-${item.id}`, item.title]));
+for (const [alias, canonical] of Object.entries({
+  socratic: 'mixed', feynman: 'mixed', lecture: 'mixed', structural: 'mixed',
+  brainstorm: 'consolidation', 'markdown-handout': 'material-outline', 'route-planning': 'lesson-preparation',
+})) {
+  const target = [...manifest.choices, ...manifest.skills].find(item => item.id === canonical);
+  if (target) TITLES.set(`notara-${alias}`, target.title);
+}
 
 export function skillTitle(name) {
   if (typeof name !== 'string') return '教学技能';

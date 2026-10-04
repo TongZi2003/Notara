@@ -14,6 +14,8 @@ import { PERSONA_TEXT_LIMIT, personaText } from './persona.js';
 
 const MAX_SUBJECTS = 12;
 const MAX_SUBJECT_LENGTH = 80;
+const LEGACY_TEACHING_REFS = new Set(['socratic', 'feynman', 'lecture', 'structural']);
+const canonicalTeachingRef = value => LEGACY_TEACHING_REFS.has(value) ? 'mixed' : value;
 
 /** 科目 is a short list; 顿号、逗号与空格 all separate two subjects. */
 export function parseSubjects(text) {
@@ -30,7 +32,7 @@ export function parseSubjects(text) {
 export function settingsDraft(settings) {
   const goal = settings?.learningGoal ?? null;
   return {
-    teachingRef: settings?.teachingRef ?? '',
+    teachingRef: canonicalTeachingRef(settings?.teachingRef ?? ''),
     goalTitle: goal?.title ?? '',
     deadline: goal?.deadline ?? '',
     dailyMinutes: goal?.dailyMinutes === undefined || goal?.dailyMinutes === null ? '' : String(goal.dailyMinutes),
@@ -50,7 +52,8 @@ export function settingsDraft(settings) {
  */
 export function settingsPatch(settings, draft) {
   const base = settings ?? {}, patch = {};
-  if (draft.teachingRef && draft.teachingRef !== base.teachingRef) patch.teachingRef = draft.teachingRef;
+  const teachingRef = canonicalTeachingRef(draft.teachingRef);
+  if (teachingRef && teachingRef !== canonicalTeachingRef(base.teachingRef)) patch.teachingRef = teachingRef;
   const title = String(draft.goalTitle ?? '').trim();
   const deadline = String(draft.deadline ?? '').trim();
   const minutes = String(draft.dailyMinutes ?? '').trim();

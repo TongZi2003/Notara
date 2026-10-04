@@ -2,7 +2,6 @@ import { createVaultClient, visibleInterval } from './remote-client.js';
 import { createDraftStore } from './draft-client.js';
 import { SOLVER_MAX_TOKENS, SOLVER_MIN_TOKENS, SOLVER_TOKEN_LIMIT, preferredSolverEffort, validSolverBudget } from './solver-policy.js';
 import { workerPreset } from './worker-catalog.js';
-import { PERSONA_TEXT_LIMIT, personaText } from './persona.js';
 
 /**
  * 独立“教室”bench：一位主教师、五位后台工作员与它们各自的后台任务。
@@ -76,19 +75,20 @@ export function modelChoices(value) {
   return choices;
 }
 
-/** The one tool scope a worker may be given: no tools, or read-only material. */
+/** Current scopes plus the legacy `read` value, which stays unchanged until explicitly edited. */
 export function normalizeTools(value) {
-  return text(value) === 'read' ? 'read' : 'none';
+  return ['none', 'read', 'read-only', 'workspace'].includes(value) ? value : 'none';
 }
 
 /**
- * The teacher-facing wording for one worker's tool scope. `read` really lets
- * that worker open the scoped原文 with read/glob/grep/read_image; `none` only
- * receives what the teacher handed over — the two are never described the same.
+ * Teacher-facing wording for the worker's effective scope. Legacy `read` is
+ * identified as-is; newer read-only and workspace scopes are separate choices.
  */
 export function workerScopeLabel(worker) {
   const tools = text(worker?.tools);
-  if (tools === 'read') return '可读取原文、搜索资料和查看图片';
+  if (tools === 'read') return '旧版只读资料（原有范围）';
+  if (tools === 'read-only') return '只读沙箱：读取、检索与计算';
+  if (tools === 'workspace') return '工作区沙箱：可保存资料与运行代码';
   if (tools === 'none') return '不读文件，只用老师交付的材料';
   return '';
 }
@@ -131,8 +131,6 @@ export function workerRows(value) {
         // claims a model it did not get.
         reason: ready ? '' : text(row.reason).trim(),
         tools: normalizeTools(row.tools),
-        // 这一位工作员自己的独立人格；空串表示只用它的角色职责，不借别处的人格。
-        persona: text(row.persona).trim(),
       };
     })
     .filter(row => row.id);
@@ -234,6 +232,7 @@ export function taskRows(value) {
         status: Object.hasOwn(TASK_STATUS, row.status) ? row.status : 'interrupted',
         startedAt: text(row.startedAt),
         inspectable: row.inspectable === true,
+        progressLabel: taskProgressLabel(row.progress ?? row),
         failure: row.status === 'failed' ? FAILURE_REASONS[text(row.failureCode)] : undefined,
       };
     })
@@ -250,7 +249,18 @@ export function taskRows(value) {
       // 只有已经真的 spawn 出子会话、而且留下了内容的任务才能打开。
       inspectable: row.inspectable === true && !row.failure?.empty,
       inspectLabel: row.status === 'failed' ? '查看记录' : '查看分析（含完整解法）',
+      ...(row.progressLabel ? { progressLabel: row.progressLabel } : {}),
     }));
+}
+
+const TASK_PROGRESS_PHASES = Object.freeze({ starting: '正在启动', thinking: '正在分析', writing: '正在整理', tool: '正在使用工具', responding: '正在组织答复', completed: '已完成' });
+
+/** Only expose an allowlisted phase and a bounded character count from live progress. */
+export function taskProgressLabel(progress) {
+  const row = record(progress), phase = TASK_PROGRESS_PHASES[text(row?.phase)];
+  if (!phase) return '';
+  const chars = row.outputChars;
+  return `${phase}${Number.isSafeInteger(chars) && chars >= 0 && chars <= 1_000_000_000 ? ` · 已输出 ${chars} 字` : ''}`;
 }
 
 /** The classroom status line: how many workers are still running. */
@@ -362,8 +372,6 @@ export function workerDraft(worker, choices) {
     maxTokens: shown?.maxTokens ?? SOLVER_MAX_TOKENS,
     // The tool scope is the worker's own saved setting, defaulting to none.
     tools: normalizeTools(worker?.tools),
-    // 独立人格也是这一位的设置：空串只用角色职责，不回填老师的人格。
-    persona: text(worker?.persona).trim(),
     // A lesson override is edited in place; anything else opens on the shared default.
     scope: worker?.scope === 'lesson' ? 'lesson' : 'default',
   };
@@ -386,13 +394,9 @@ export function draftTools(draft) {
   return normalizeTools(draft?.tools);
 }
 
-/**
- * The independent persona one save sends. Whitespace means "role only"; a draft
- * written before this field existed carries no key at all, which means "leave the
- * already saved persona alone" instead of silently clearing it.
- */
-export function draftPersona(draft) {
-  return draft && typeof draft === 'object' && Object.hasOwn(draft, 'persona') ? personaText(draft.persona) : undefined;
+/** The worker form's complete write contract; legacy worker persona fields are deliberately ignored. */
+export function workerConfigInput({ preset, draft, route, scope, inherit = false, expectedRevision }) {
+  return { preset, tools: draftTools(draft), route, scope, ...(inherit ? { inherit: true } : {}), expectedRevision };
 }
 
 /** Whole minutes since a task started, for a status line that carries no id. */
@@ -437,6 +441,7 @@ export const CLASSROOM_CSS = `
 .nv-task[data-tone=done] .nv-task-dot{background:var(--dsw-alias-state-success-primary,var(--dsw-alias-state-business-primary))}
 .nv-task[data-tone=fail] .nv-task-dot{background:var(--dsw-alias-state-error-primary)}
 .nv-task-time{margin-left:auto;color:var(--dsw-alias-label-secondary);font-size:12px;white-space:nowrap}
+.nv-task-progress{color:var(--dsw-alias-label-secondary);font-size:11px;white-space:nowrap}
 .nv-classroom-empty{color:var(--dsw-alias-label-secondary);font-size:12px;padding:14px;border:1px dashed var(--dsw-alias-border-l2);border-radius:8px;line-height:1.8}
 .nv-classroom-error{padding:10px 12px;border:1px solid var(--dsw-alias-state-error-primary);border-radius:8px;font-size:12px;color:var(--dsw-alias-label-primary)}
 .nv-worker-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);font-size:12px}
@@ -512,14 +517,14 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
     const choiceValue = (choice) => `${choice.provider}\u0000${choice.model}`;
     const selectValue = savedMissing ? '__saved__' : draft.provider && draft.model ? `${draft.provider}\u0000${draft.model}` : '';
     const current = view.models.find(choice => choice.provider === draft.provider && choice.model === draft.model) ?? null;
-    const route = draftRoute(draft), persona = draftPersona(draft), personaTooLong = (persona ?? '').length > PERSONA_TEXT_LIMIT;
+    const route = draftRoute(draft);
     const scope = shared && draft.scope !== 'lesson' ? 'default' : 'lesson';
     const teacherLabel = view.teacherRoute?.label;
     const submit = async (value, inherit = false) => {
       // Polling can refresh the revisions while this draft still contains older
       // settings. Only the revision the draft was based on may authorize its save.
-      const saved = await onSave({ preset: presetId, tools: draftTools(draft), route: value, ...(persona === undefined ? {} : { persona }), scope, ...(inherit ? { inherit: true } : {}),
-        expectedRevision: scope === 'lesson' ? draft.expectedRevision : draft.defaultsRevision });
+      const saved = await onSave(workerConfigInput({ preset: presetId, draft, route: value, scope, inherit,
+        expectedRevision: scope === 'lesson' ? draft.expectedRevision : draft.defaultsRevision }));
       if (saved) { const next = classroomSummary(saved); setDraft({ ...workerDraft(next.workers.find(row => row.id === presetId), next.models), scope, expectedRevision: next.revision, defaultsRevision: next.defaultsRevision }); }
     };
     return h(Dialog, { title: '教室设置', onClose },
@@ -559,17 +564,15 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
         h('label', { style: { display: 'block', marginTop: 8 } }, '资料范围',
           h('select', { disabled: busy, 'aria-label': '资料范围', style: { ...STYLE.templateInput, width: '100%' }, value: draftTools(draft), onChange: event => edit({ ...draft, tools: event.target.value }) },
             h('option', { key: 'none', value: 'none' }, workerScopeLabel({ tools: 'none' })),
-            h('option', { key: 'read', value: 'read' }, workerScopeLabel({ tools: 'read' })))),
-        h('p', { style: { ...STYLE.notice, marginTop: 8 } }, '这里的选择只影响这位工作员，不改变老师使用的模型，也不影响其他工作员。'),
-        h('label', { style: { display: 'block', marginTop: 8 } }, '独立人格（可选）',
-          h('textarea', { disabled: busy, 'aria-label': '工作员人格', maxLength: PERSONA_TEXT_LIMIT, style: { ...STYLE.templateInput, width: '100%', minHeight: 72 }, value: draft.persona ?? '', placeholder: '留空只用这位工作员的角色职责', onChange: event => edit({ ...draft, persona: event.target.value }) })),
-        h('p', { style: { ...STYLE.notice, marginTop: 8 } }, '只影响这位工作员的称呼、语气和表达方式，不改变它的职责、资料范围与交付要求。'),
-        personaTooLong && h('p', { role: 'alert', style: { ...STYLE.notice, marginTop: 8, color: 'var(--dsw-alias-state-error-primary)' } }, `这位工作员的人格最多 ${PERSONA_TEXT_LIMIT} 字。`),
+            ...(draftTools(draft) === 'read' ? [h('option', { key: 'read', value: 'read' }, workerScopeLabel({ tools: 'read' }))] : []),
+            h('option', { key: 'read-only', value: 'read-only' }, workerScopeLabel({ tools: 'read-only' })),
+            h('option', { key: 'workspace', value: 'workspace' }, workerScopeLabel({ tools: 'workspace' })))),
+        h('p', { style: { ...STYLE.notice, marginTop: 8 } }, '只影响这位工作员。写入仍受本课权限限制；旧配置保留原有范围。联网取证只在检索服务可用时进行。'),
         worker?.reason && h('p', { role: 'status', style: { ...STYLE.notice, marginTop: 8 } }, worker.reason),
         error && h('p', { role: 'alert', style: { ...STYLE.notice, marginTop: 8, color: 'var(--dsw-alias-state-error-primary)' } }, error),
         (draft.expectedRevision !== view.revision || draft.defaultsRevision !== view.defaultsRevision) && h('button', { type: 'button', className: 'nv-quiet', disabled: busy, onClick: () => { drafts.delete(key(presetId)); setDraft(fresh(presetId)); onReload(); } }, '载入最新设置'),
         h('div', { style: { display: 'flex', gap: 8, marginTop: 18 } },
-          h('button', { type: 'submit', className: 'nv-quiet', disabled: busy || savedMissing || route === undefined || personaTooLong }, busy ? '正在保存…' : '保存'),
+          h('button', { type: 'submit', className: 'nv-quiet', disabled: busy || savedMissing || route === undefined }, busy ? '正在保存…' : '保存'),
           h('button', { type: 'button', className: 'nv-quiet', disabled: busy || (scope === 'lesson' && worker?.scope !== 'lesson') || (scope === 'default' && worker?.scope === 'none'), onClick: () => submit(null, true) }, scope === 'lesson' ? '改回所有课堂的默认' : '恢复为跟随老师'),
           // The shared Dialog already renders its own header 关闭 button, so the
           // footer keeps 取消 to stay a distinct, unambiguous control.
@@ -688,6 +691,7 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
           ? h('ul', { className: 'nv-tasks' }, rows.map(row => h('li', { className: 'nv-task', key: row.id, 'data-tone': row.tone, 'data-preset': row.preset || undefined },
               h('span', { className: 'nv-task-dot', 'aria-hidden': true }),
               h('span', null, `${row.name} · ${row.label}`),
+              row.progressLabel && h('span', { className: 'nv-task-progress', 'aria-label': '后台进度' }, row.progressLabel),
               showsInspectAction(row) && h('button', { type: 'button', className: 'nv-quiet', disabled: !!opening, onClick: () => { void openAnalysis(row); } }, opening === row.id ? '正在打开…' : row.inspectLabel ?? '查看分析（含完整解法）'),
               row.cancelable && h('button', { type: 'button', className: 'nv-quiet', disabled: !!stopping, onClick: () => { void stop(row); } }, stopping === row.id ? '正在停止…' : '停止'),
               h('span', { className: 'nv-task-time' }, taskElapsedLabel(state.value?.tasks?.find(task => task.id === row.id))))))

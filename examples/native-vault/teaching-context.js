@@ -21,9 +21,9 @@ export const CONTEXT_BUDGET = 1200;
 
 /** L0 只披露入口，不替教师决定查什么。 */
 export const CONTEXT_ENTRIES = Object.freeze({
-  memory: '先看技能目录里已启用的学习集层技能；再用 shell 的 "$DSH_NOTARA_RG"（缺省时 grep）检索画像、旧锦囊与卡片的学生理解，用 sed -n 读历史及后续修正；规范见 notara-material-search Skill',
-  lessonLog: '辅助脚本 lesson-log 查询，再用 shell 读对应小结',
-  material: 'shell 用 "$DSH_NOTARA_RG"（缺省时 grep）缩小候选，再用 sed -n 读原文；PDF 按页读取见 notara-material-outline Skill',
+  memory: '先看技能目录里已启用的学习集层技能；再用 vault_search 检索画像、旧锦囊与卡片的学生理解，用 vault_read 读完整历史及后续修正；范围较大时可用 Bash 高级检索，规范见 notara-material-search Skill',
+  lessonLog: '用 vault_command 查询 lesson-log 索引，再用 vault_read 读对应小结',
+  material: '用 vault_search 缩小候选，再用 vault_read 精读原文；需要组合条件时可用 Bash 高级检索，PDF 按页读取见 notara-material-outline Skill',
 });
 
 // When to recall is written once, in base.md「主动召回」; this only frames the entries.

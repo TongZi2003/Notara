@@ -1,6 +1,6 @@
 import { basename,join,resolve } from 'node:path';
 import { safeRelativePath,parseMarkdownDocument,revisionFor,resolveVaultRoot,deepFreeze,pathKey,portablePath } from './vault.js';
-import { isToolCacheDirectory, mediaForPath } from './media.js';
+import { isCodePath, isToolCacheDirectory, mediaForPath } from './media.js';
 
 const MAX_FILE_BYTES=50*1024*1024, MAX_TEXT_BYTES=2*1024*1024;
 const fail=code=>{throw new Error(code);};
@@ -43,10 +43,10 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
   const fs=ctx.fs,signal=exec.signal;
   const checkAbort=()=>signal?.throwIfAborted();
 
-  async function target(path) {
+  async function target(path,{readTemplate=false}={}) {
     checkAbort();
     const value=safeRelativePath(path);
-    if(value.split('/').some(part=>part.startsWith('.')||pathKey(part)==='node_modules')||pathKey(value.split('/')[0])==='_templates') fail('vault_path_invalid');
+    if(value.split('/').some(part=>part.startsWith('.')||pathKey(part)==='node_modules')||(!readTemplate&&pathKey(value.split('/')[0])==='_templates')) fail('vault_path_invalid');
     let absolute=rootPath;
     for(const part of value.split('/')){
       absolute=join(absolute,part);
@@ -59,8 +59,8 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
     return result;
   }
 
-  async function raw(path,maximum=MAX_FILE_BYTES) {
-    const t=await target(path),before=await fs.stat(t,signal);
+  async function raw(path,maximum=MAX_FILE_BYTES,options) {
+    const t=await target(path,options),before=await fs.stat(t,signal);
     if(!before) fail('vault_file_not_found');
     if(before.type!=='file') fail('vault_file_required');
     if(before.size!==undefined&&before.size>maximum) fail('vault_file_too_large');
@@ -73,9 +73,19 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
   async function read(path,expectedRevision) {
     const value=safeRelativePath(path);
     if(!value.toLowerCase().endsWith('.md')) fail('vault_markdown_required');
-    const data=await raw(value,MAX_TEXT_BYTES);
+    // Templates are reference material, but remain excluded from scans and writes.
+    const data=await raw(value,MAX_TEXT_BYTES,{readTemplate:true});
     if(expectedRevision!==undefined&&expectedRevision!==data.revision) fail('vault_reference_stale');
     return {...parseMarkdownDocument(value,Buffer.from(data.bytes).toString('utf8'),data.revision),workspaceId:workspace.id,ref:sourceRef(workspace.id,value,data.revision)};
+  }
+  async function readCode(path,expectedRevision) {
+    const value=safeRelativePath(path);
+    if(!isCodePath(value)) fail('vault_code_required');
+    const data=await raw(value,MAX_TEXT_BYTES);
+    if(expectedRevision!==undefined&&expectedRevision!==data.revision) fail('vault_reference_stale');
+    const content=Buffer.from(data.bytes).toString('utf8');
+    if(Buffer.from(content,'utf8').compare(Buffer.from(data.bytes))!==0) fail('vault_code_encoding_invalid');
+    return {path:value,title:basename(value),kind:'code',content,revision:data.revision,workspaceId:workspace.id,ref:sourceRef(workspace.id,value,data.revision)};
   }
   async function readJson(path,expectedRevision) {
     const value=safeRelativePath(path);
@@ -161,6 +171,14 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
   async function save(path,content,expectedRevision,onCommitted) {
     return saveText(path,content,expectedRevision,(targetPath,value)=>parseMarkdownDocument(targetPath,value),read,onCommitted);
   }
+  async function saveCode(path,content,expectedRevision,onCommitted) {
+    return saveText(path,content,expectedRevision,(targetPath,value)=>{
+      const normalized=safeRelativePath(targetPath);
+      if(!isCodePath(normalized)) fail('vault_code_required');
+      if(pathKey(normalized.split('/')[0])==='lesson-board') fail('board_path_reserved');
+      if(pathKey(normalized.split('/')[0])===pathKey('技能')) fail('skill_path_reserved');
+    },readCode,onCommitted);
+  }
   async function saveJson(path,content,expectedRevision,onCommitted) {
     return saveText(path,content,expectedRevision,(targetPath,value)=>{
       const normalized=safeRelativePath(targetPath);
@@ -168,7 +186,7 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
       try { JSON.parse(value); } catch { fail('vault_json_invalid'); }
     },readJson,onCommitted);
   }
-  return {workspace,rootPath,read,readJson,readAsset,scan,save,saveJson};
+  return {workspace,rootPath,read,readCode,readJson,readAsset,scan,save,saveCode,saveJson};
 }
 
 /** Authenticated editor actions carry their workspace from the Host, not from

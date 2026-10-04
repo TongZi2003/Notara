@@ -37,6 +37,18 @@ test('authorized reads use native filesystem and preserve the Vault content revi
   assert.equal(io.rootPath,join(root,'vault'));
 });
 
+test('Markdown templates can be read as references but cannot be written or indexed',async t=>{
+  const {root,ctx,exec}=await setup(t);
+  await mkdir(join(root,'vault','_templates'),{recursive:true});
+  await writeFile(join(root,'vault','_templates','learner-profile.md'),'# Profile template\n');
+  const io=module.createAgentVaultIO(ctx,exec,{writeApproved:true});
+  const template=await io.read('_templates/learner-profile.md');
+  assert.equal(template.content,'# Profile template\n');
+  await assert.rejects(io.save(template.path,'# overwritten',template.revision),/vault_path_invalid/);
+  await assert.rejects(io.save('_templates/new.md','# new',null),/vault_path_invalid/);
+  assert.equal((await io.scan()).files.some(file=>file.path.startsWith('_templates/')),false);
+});
+
 test('a selected Vault folder reads Markdown and media from its own root', async t => {
   const { root, ctx, exec } = await setup(t);
   // 用户选中的目录本身就是资料根：旧的空 vault/（含自动生成的 _templates）
@@ -72,6 +84,28 @@ test('structured JSON IO uses the same workspace boundary and CAS revision', asy
   await assert.rejects(writer.saveJson('lesson-interaction/demo.json', '{bad}', created.revision), /json_invalid/);
   await assert.rejects(writer.saveJson('lesson-interaction/demo.json', '{"type":"changed"}', 'a'.repeat(24)), /revision_conflict/);
   assert.equal(await readFile(join(root, 'vault/lesson-interaction/demo.json'), 'utf8'), '{"type":"lesson-interaction"}');
+});
+
+test('agent code files support full text reads and CAS saves without weakening Markdown validation', async t => {
+  const { root, ctx, exec } = await setup(t);
+  const source = 'print("before")\n';
+  await writeFile(join(root, 'vault', '代码.py'), source);
+  const reader = module.createAgentVaultIO(ctx, exec);
+  const first = await reader.readCode('代码.py');
+  assert.equal(first.kind, 'code');
+  assert.equal(first.content, source);
+  assert.equal(first.revision.length, 24);
+  await assert.rejects(reader.saveCode('代码.py', 'print("no")\n', first.revision), /approval_required/);
+  const writer = module.createAgentVaultIO(ctx, exec, { writeApproved: true });
+  const committed = [];
+  const saved = await writer.saveCode('代码.py', 'print("after")\n', first.revision, value => committed.push(value));
+  assert.equal(saved.content, 'print("after")\n');
+  assert.notEqual(saved.revision, first.revision);
+  assert.deepEqual(committed, [{ path: '代码.py', revision: saved.revision }]);
+  await assert.rejects(writer.saveCode('知识/x.md', '# Markdown', null), /code_required/);
+  await assert.rejects(writer.save('代码.py', 'print("wrong route")\n', saved.revision), /markdown_required/);
+  await assert.rejects(writer.saveCode('技能/lesson.py', 'pass\n', null), /skill_path_reserved/);
+  await assert.rejects(writer.saveCode('lesson-board/board.py', 'pass\n', null), /board_path_reserved/);
 });
 
 test('relative paths and directory links cannot escape the selected Vault',async t=>{

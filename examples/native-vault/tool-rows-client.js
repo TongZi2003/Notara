@@ -10,6 +10,10 @@ export const STATUS_ROWS = Object.freeze({
   save_lesson_summary: ['正在保存课堂小结…', '已保存课堂小结', '课堂小结没有保存成功'],
   set_teaching_settings: ['正在更新教学设置…', '已更新教学设置', '教学设置没有更新成功'],
   open_learning_lesson: ['正在打开这节课…', '已打开这节课', '这节课没有打开'],
+  vault_read: ['正在读取资料…', '已读取资料', '资料读取失败'],
+  vault_search: ['正在查找资料…', '已查找资料', '资料检索失败'],
+  vault_save: ['正在保存资料…', '已保存资料', '资料没有保存成功'],
+  vault_command: ['正在处理资料…', '已处理资料操作', '资料操作没有完成'],
 });
 
 /** The Host declining to rebind a lesson is a result, not an error; the teacher explains why. */
@@ -24,5 +28,8 @@ export function statusRowText(key, block) {
   if (block?.kind !== 'tool-result') return running;
   if (block.isError) return failed;
   if (key === 'open_learning_lesson' && /"bound"\s*:\s*false/.test(resultText(block))) return UNBOUND;
+  if (key === 'vault_command') {
+    try { if (JSON.parse(resultText(block)).failedCount > 0) return '部分资料未保存，原因见老师的说明'; } catch { /* Non-batch commands have their own receipts. */ }
+  }
   return done;
 }

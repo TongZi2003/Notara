@@ -205,6 +205,83 @@ export function findLearning(documents, { query = '', kind, offset = 0, limit = 
   return { hits, nextOffset: consumed < records.length ? consumed : null, total: records.length };
 }
 
+// Adapted from Notara-Desktop eda5d60 learning-data.js.
+const PROFILE_SECTIONS = Object.freeze([['观察', 'observed', 1000], ['教学偏好', 'preferences', 300]]);
+const PROFILE_ENTRIES = 6;
+const PROFILE_BUDGET = 4000;
+
+/** A section's own text up to the next heading of the same or a higher level,
+ * so dated sub-headings stay inside it. */
+function sectionBody(content, sections, title) {
+  const position = sections.findIndex(item => item.title === title);
+  if (position < 0) return '';
+  const section = sections[position];
+  const next = sections.slice(position + 1).find(item => item.level <= section.level);
+  const raw = content.slice(section.start, next ? next.start : content.length);
+  const breakIndex = raw.indexOf('\n');
+  return (breakIndex < 0 ? '' : raw.slice(breakIndex + 1)).trim();
+}
+
+/** Profile records are appended, so the newest are the last lines. */
+function latestLines(text, limit) {
+  const lines = text.split(/\r?\n/), kept = [];
+  let size = 0;
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const length = Array.from(lines[index]).length + (kept.length ? 1 : 0);
+    if (size + length > limit) break;
+    kept.unshift(lines[index]);
+    size += length;
+  }
+  if (!kept.length) return { text: Array.from(lines.at(-1)).slice(-limit).join(''), truncated: true };
+  return { text: kept.join('\n').trim(), truncated: kept.length < lines.length };
+}
+
+/**
+ * Bounded summary of this learning set's learner profiles: the title and the
+ * newest lines of 观察 and 教学偏好 (other sections stay in the file). Bounded by
+ * entry count and total size; `cut` names sections whose earlier lines were
+ * left out and `omitted` counts entries not shown, so the summary never passes
+ * for the whole file. Templates are skipped.
+ */
+function isProfile(document) {
+  return typeOf(document) === PROFILE_TYPE && Boolean(asText(document?.content)) && document?.frontmatter?.template !== true;
+}
+
+/** Path -> revision of every learner profile, to tell whether any changed since a snapshot. */
+export function profileRevisions(documents) {
+  if (!Array.isArray(documents)) fail('learning_documents_invalid');
+  return Object.fromEntries(documents.filter(isProfile).map(document => [asText(document.path), asText(document.revision)]));
+}
+
+export function profileOverview(documents, { entries = PROFILE_ENTRIES, budget = PROFILE_BUDGET, sectionLimits = {} } = {}) {
+  if (!Array.isArray(documents)) fail('learning_documents_invalid');
+  if (!Number.isSafeInteger(entries) || entries < 1 || entries > PROFILE_ENTRIES || !Number.isSafeInteger(budget) || budget < 64 || budget > PROFILE_BUDGET) fail('profile_budget_invalid');
+  for (const value of Object.values(sectionLimits)) if (!Number.isSafeInteger(value) || value < 1 || value > PROFILE_BUDGET) fail('profile_budget_invalid');
+  const records = documents
+    .filter(isProfile)
+    .sort((left, right) => compareText(asText(left.title), asText(right.title)) || compareText(asText(left.path), asText(right.path)));
+  const profiles = [];
+  for (const document of records) {
+    if (profiles.length >= entries) break;
+    const content = asText(document.content), sections = markdownSectionIndex(content);
+    const entry = { path: asText(document.path), title: asText(document.title) };
+    const cut = [];
+    for (const [title, key, limit] of PROFILE_SECTIONS) {
+      const body = sectionBody(content, sections, title);
+      if (!body) continue;
+      const latest = latestLines(body, sectionLimits[title] ?? limit);
+      entry[key] = latest.text;
+      if (latest.truncated) cut.push(title);
+    }
+    if (cut.length) entry.cut = cut;
+    const candidate = [...profiles, entry];
+    const summary = { total: records.length, profiles: candidate, omitted: records.length - candidate.length };
+    if (Array.from(JSON.stringify(summary)).length > budget) continue;
+    profiles.push(entry);
+  }
+  return { total: records.length, profiles, ...(profiles.length < records.length ? { omitted: records.length - profiles.length } : {}) };
+}
+
 /**
  * Bounded read of one real section of a Markdown file, with the section table
  * the caller used to get there. `content` is the original text of the selected

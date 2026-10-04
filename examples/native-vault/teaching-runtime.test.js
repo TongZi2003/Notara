@@ -39,6 +39,7 @@ async function installRuntime(t,{layout='legacy'}={}) {
   const ctx=new Context();new LocalFileSystem(ctx,{cwd:root,diffBasisMaxBytes:10*1024*1024});
   ctx.reflect.provide('workspaceRegistry',{list:()=>[{id:'install-workspace',path:root,title:'安装'}],archiveSession:async()=>{}});
   ctx.reflect.provide('sessionController',{inspect:async()=>({meta:{cwd:root}})});
+  ctx.reflect.provide('sessions',{flush:async()=>{}});
   // Runtime installation also owns the native creation seam; these context tests never spawn.
   ctx.reflect.provide('agents',{create:async()=>assert.fail('unexpected agent creation in teaching context fixture')});
   const sections=[],shellEnvs=[],handlers=[];
@@ -79,7 +80,8 @@ test('教学环境变量、提示构造与每轮上下文共用同一资料根',
   const section=unregistered.sections.find(item=>item.name==='notara:teaching');
   const text=section.text({agent:unregistered.agent});
   assert.ok(text.includes('教学共同规则'));
-  assert.ok(text.includes('$DSH_NOTARA_VAULT_ROOT'));
+  assert.ok(text.includes('vault_read'));
+  assert.ok(text.includes('vault_command'));
   assert.ok(!text.includes(unregistered.root));
 });
 

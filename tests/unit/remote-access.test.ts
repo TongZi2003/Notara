@@ -137,7 +137,9 @@ test('private config survives a path containing spaces and PowerShell metacharac
       expect(new Set(entries!.split(','))).toEqual(new Set([userSid, 'S-1-5-18']));
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
-});
+// Windows performs real ACL setup and verification in separate PowerShell
+// processes; cold starts can exceed Vitest's five-second default.
+}, process.platform === 'win32' ? 30_000 : 5_000);
 
 test('a controller for one runtime refuses a status request for a different --root', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'Notara controller ownership '));
@@ -168,7 +170,7 @@ test('a controller for one runtime refuses a status request for a different --ro
     expect(result.stderr).toContain('Refusing to reuse or stop it');
     expect(result.stderr).toContain(firstRoot);
   } finally { await rm(directory, { recursive: true, force: true }); }
-});
+}, process.platform === 'win32' ? 30_000 : 5_000);
 
 let upstreamPort: number;
 let proxyPort: number;

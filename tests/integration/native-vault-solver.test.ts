@@ -32,7 +32,7 @@ interface SolverRoute { provider: string; model: string; reasoningEffort?: strin
 interface SolverView { name: string; description: string; route: SolverRoute | null; follow: boolean; scope: 'lesson' | 'default' | 'none'; ready: boolean; reason?: string }
 interface ModelRow { provider: string; model: string; label: string; reasoningEfforts: string[] }
 interface TaskRow { id: string; status: string; startedAt?: string; finishedAt?: string; inspectable?: boolean }
-interface ClassroomView { revision: number; defaultsRevision: number | null; teacher: { name: string; description: string }; teacherRoute: (SolverRoute & { label: string }) | null; workers: (SolverView & {id: string; tools: string; persona: string})[]; models: ModelRow[]; tasks: TaskRow[] }
+interface ClassroomView { revision: number; defaultsRevision: number | null; teacher: { name: string; description: string }; teacherRoute: (SolverRoute & { label: string }) | null; workers: (SolverView & {id: string; tools: string})[]; models: ModelRow[]; tasks: TaskRow[] }
 interface SessionRowWithParent { sessionId: string; running?: boolean; origin?: string; parentSessionId?: string }
 interface SolverOutcome { taskId?: string; status?: string; analysis?: string }
 /** The Host's own parent/child binding for one solver task (查看分析). */
@@ -84,7 +84,41 @@ function unexpectedKeys(value: object, allowed: readonly string[]): string[] {
   return Object.keys(value).filter(key => !allowed.includes(key));
 }
 
-test('五预设真实请求使用独立人格与配置；只读工作员能读资料但不能写入或继续派工', async () => {
+test('new worker sandboxes bind before first request and cannot exceed a read-only parent', async () => {
+  runtime = await startVaultIsolated({testModel: true}); harness = await connectVault(runtime);
+  const session = await harness.createSession();
+  const permission = async (mode: string) => harness!.value(await harness!.rpc('commands/execute', {agentId: session, line: `/permission ${mode}`, submittedAttachments: []}));
+  await permission('workspace-write');
+  for (const [scope, parentReadOnly, path] of [['read-only', false, '知识/worker-read-only.md'], ['workspace', false, '知识/worker-workspace.md'], ['workspace', true, '知识/worker-parent-read-only.md']] as const) {
+    if (parentReadOnly) await permission('read-only');
+    const view = await classroomOf(harness, session);
+    harness.value(await harness.rpc('notaraVault/configureSolver', {input: {sessionId: session, expectedRevision: view.revision, route: {provider: VAULT_SOLVER_PROVIDER, model: VAULT_SOLVER_MODEL}, preset: 'problem', tools: scope}}));
+    const prompt = `检查工作员范围 ${path}`;
+    const bashPath = path.replace('.md', '-bash.txt');
+    await script(harness, {
+      [prompt]: {name: 'ask_worker', arguments: {preset: 'problem', goal: '核对已授权资料，并尝试保存一页草稿'}},
+      [VAULT_SOLVER_REPLY_KEY]: {calls: [{name: 'vault_read', arguments: {path: '知识/向量.md'}}, {name: 'vault_save', arguments: {path, content: '# worker draft\n', expectedRevision: null}}, {name: 'bash', arguments: {command: `printf 'worker sandbox' > 'vault/${bashPath}'`, description: '检查工作目录写入范围'}}], text: '范围检查完成。'},
+    });
+    const before = new Set((await childSessions(harness, session)).map(row => row.sessionId));
+    await harness.ask(session, prompt);
+    const child = (await childSessions(harness, session)).find(row => !before.has(row.sessionId));
+    expect(child, (await harness.outcomes(session)).at(-1)?.text).toBeDefined();
+    const requests = (await harness.requests()).filter(row => row.sessionId === child!.sessionId);
+    const allowedWrite = scope === 'workspace' && !parentReadOnly;
+    const offered = toolNames(requests[0]!);
+    expect(offered).toEqual(expect.arrayContaining(['vault_read', 'vault_search', 'bash', 'web_search', 'web_fetch']));
+    expect(offered.includes('vault_save')).toBe(allowedWrite);
+    expect(JSON.stringify(requests[0]?.messages)).toContain(allowedWrite ? 'workspace-write' : 'read-only');
+    expect(await harness.vaultExists(path)).toBe(allowedWrite);
+    expect(await harness.vaultExists(bashPath)).toBe(allowedWrite);
+    const read = toolResults(requests.at(-1)!).at(0);
+    expect(read?.isError, JSON.stringify(read)).toBe(false);
+    expect(JSON.stringify(read?.content)).toContain('知识/向量.md');
+    if (allowedWrite) expect(await harness.readVaultFile(path)).toBe('# worker draft\n');
+  }
+}, 300_000);
+
+test('五预设真实请求使用独立职责与配置；只读工作员能读资料但不能写入或继续派工', async () => {
   runtime = await startVaultIsolated({ testModel: true });
   harness = await connectVault(runtime);
   const session = await harness.createSession();
@@ -120,7 +154,9 @@ test('五预设真实请求使用独立人格与配置；只读工作员能读�
     expect(system).toContain(`# ${names[preset as keyof typeof names]}`);
     expect(system).not.toContain('你是教学者');
     expect(JSON.stringify(group)).not.toContain('PARENT_ONLY_BACKGROUND');
-    expect(system.includes('notara-subject-math')).toBe(preset === 'exercise');
+    // A concept may reference a skill by name without loading its body.
+    const mathBody = await readFile(join(process.cwd(), 'resources/vault-teaching/skills/subject-math.md'), 'utf8');
+    expect(system.includes(mathBody.trim())).toBe(preset === 'exercise');
     // A delegation child keeps the native read-only rows even though the main
     // classroom hides them; this boundary is deliberately not changed.
     expect(toolNames(group[0]!).sort()).toEqual(preset === 'general' ? ['glob', 'grep', 'read', 'read_image'] : []);
@@ -274,11 +310,11 @@ test('教室 RPC 只投影双角色、模型清单与任务状态；解题者工
   // The value is authority only: no answer, no child id, no internal path.
   expect(Object.keys(view).sort()).toEqual(['defaultsRevision', 'models', 'revision', 'tasks', 'teacher', 'teacherRoute', 'workers']);
   expect(unexpectedKeys(view.teacher, ['name', 'description'])).toEqual([]);
-  for (const worker of view.workers) expect(unexpectedKeys(worker, ['id', 'name', 'description', 'route', 'follow', 'scope', 'ready', 'reason', 'tools', 'persona'])).toEqual([]);
+  for (const worker of view.workers) expect(unexpectedKeys(worker, ['id', 'name', 'description', 'route', 'follow', 'scope', 'ready', 'reason', 'tools'])).toEqual([]);
   // 工作员人格的旧缺省是空串：没配置时只用角色职责，不凭空多出一段风格。
-  expect(view.workers.every(row => row.persona === '')).toBe(true);
+  expect(view.workers.every(row => !Object.hasOwn(row, 'persona'))).toBe(true);
   for (const task of view.tasks) {
-    expect(unexpectedKeys(task, ['id', 'preset', 'name', 'status', 'startedAt', 'finishedAt', 'inspectable', 'failureCode'])).toEqual([]);
+    expect(unexpectedKeys(task, ['id', 'preset', 'name', 'status', 'startedAt', 'finishedAt', 'inspectable', 'failureCode', 'progress'])).toEqual([]);
     expect(task.finishedAt, '未完成的任务不应带完成时间').toBeUndefined();
   }
   // The model list is the Host's own registered routes, not a client-side copy.

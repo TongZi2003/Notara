@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { CLASSROOM_VIEW, WORKER_MODEL_PLACEHOLDER, WORKER_STATUS, WORKER_TOOL_NAME, availableRoute, canInspectTask, candidateRouteFor, showsInspectAction, workerFootnote, classroomSummary, draftPersona, draftRoute, draftTools, elapsedLabel, hasRunningTask, isWorkerTool, modelChoices, normalizeRoute, normalizeTools, followLabel, presetLabel, taskRows, toolRowProjection, workerById, workerDraft, workerDraftKey, workerPresetLabel, workerRouteNotice, workerRowProjection, workerRows, workerScopeLabel } from './classroom-client.js';
+import { CLASSROOM_VIEW, WORKER_MODEL_PLACEHOLDER, WORKER_STATUS, WORKER_TOOL_NAME, availableRoute, canInspectTask, candidateRouteFor, showsInspectAction, workerFootnote, classroomSummary, draftRoute, draftTools, elapsedLabel, hasRunningTask, isWorkerTool, modelChoices, normalizeRoute, normalizeTools, followLabel, presetLabel, taskProgressLabel, taskRows, toolRowProjection, workerById, workerConfigInput, workerDraft, workerDraftKey, workerPresetLabel, workerRouteNotice, workerRowProjection, workerRows, workerScopeLabel } from './classroom-client.js';
 import { VAULT_REMOTE_METHODS } from './remote-client.js';
 import { WORKER_PRESETS, WORKER_TOOLS } from './worker-catalog.js';
-import { PERSONA_TEXT_LIMIT } from './persona.js';
 import { taskElapsedLabel } from './classroom-client.js';
 
 test('finished task durations stay fixed; interrupted tasks without an end time do not keep running', () => {
@@ -54,14 +53,16 @@ test('教室 value 投影 Host 给的五位工作员与真实模型列表，不�
   assert.deepEqual(WORKER_TOOLS.none, []);
 });
 
-test('权限文案分得清 none 与 read：read 是真的能读原文，不是“没有工具”', () => {
-  assert.equal(workerScopeLabel({ tools: 'read' }), '可读取原文、搜索资料和查看图片');
+test('旧 read 权限在原范围内保留，新沙箱选项的文案清楚', () => {
+  assert.equal(workerScopeLabel({ tools: 'read' }), '旧版只读资料（原有范围）');
+  assert.equal(workerScopeLabel({ tools: 'read-only' }), '只读沙箱：读取、检索与计算');
+  assert.equal(workerScopeLabel({ tools: 'workspace' }), '工作区沙箱：可保存资料与运行代码');
   assert.equal(workerScopeLabel({ tools: 'none' }), '不读文件，只用老师交付的材料');
   assert.equal(workerScopeLabel({}), '');
   assert.notEqual(workerScopeLabel({ tools: 'read' }), workerScopeLabel({ tools: 'none' }));
   // 两个工作员各自的资料范围不会互相覆盖：problem 可读，review 仍只用交付材料。
   const summary = view({ workers: WORKERS.map(row => row.id === 'problem' ? { ...row, tools: 'read' } : row) });
-  assert.equal(workerScopeLabel(workerById(summary, 'problem')), '可读取原文、搜索资料和查看图片');
+  assert.equal(workerScopeLabel(workerById(summary, 'problem')), '旧版只读资料（原有范围）');
   assert.equal(workerScopeLabel(workerById(summary, 'review')), '不读文件，只用老师交付的材料');
 });
 
@@ -82,25 +83,20 @@ test('一个 preset 的 route/ready/tools 不会串到其他 preset', () => {
   assert.equal(review.route, null);
   assert.equal(review.tools, 'none');
   // 草稿也是每位一份：配置 problem 的模型与工具范围不会改掉 review 的草稿。
-  assert.deepEqual(workerDraft(problem, summary.models), { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'high', maxTokens: 32768, tools: 'read', persona: '', scope: 'default' });
+  assert.deepEqual(workerDraft(problem, summary.models), { provider: 'test', model: 'gpt-5.6-sol', reasoningEffort: 'high', maxTokens: 32768, tools: 'read', scope: 'default' });
   assert.equal(workerDraft(review, summary.models).tools, 'none');
   assert.equal(workerDraft(review, summary.models).reasoningEffort, '', 'nothing saved: it follows the teacher, no model is preselected');
 });
 
-test('每位工作员的人格各自保存与回读，空白只用角色职责', () => {
-  assert.deepEqual(workerRows(payload()).map(row => row.persona), ['', '', '', '', ''], '旧配置缺 persona 时缺省空串');
-  const summary = view({ workers: WORKERS.map(row => row.id === 'problem' ? { ...row, persona: '说话简短，偶尔用比喻。' } : row) });
-  const problem = workerById(summary, 'problem'), review = workerById(summary, 'review');
-  assert.equal(problem.persona, '说话简短，偶尔用比喻。');
-  assert.equal(review.persona, '', '另一位工作员不会继承这一位的人格');
-  assert.equal(workerDraft(problem, summary.models).persona, '说话简短，偶尔用比喻。');
-  assert.equal(workerDraft(review, summary.models).persona, '');
-  assert.equal(draftPersona({ persona: '  你是一位严厉的助教。 ' }), '你是一位严厉的助教。');
-  assert.equal(draftPersona({ persona: '   ' }), '', '空白等于回到只用角色职责');
-  // 升级前保存的草稿没有这一项：这次保存不改已保存的人格，而不是静默清空。
-  assert.equal(draftPersona({}), undefined);
-  assert.equal(draftPersona(null), undefined);
-  assert.ok(draftPersona({ persona: '字'.repeat(PERSONA_TEXT_LIMIT + 1) }).length > PERSONA_TEXT_LIMIT);
+test('旧工作员 persona 只被忽略，新表单草稿和提交都不包含它', () => {
+  const summary = view({ workers: WORKERS.map(row => row.id === 'problem' ? { ...row, persona: 'PRIVATE_LEGACY_WORKER_PERSONA' } : row) });
+  const problem = workerById(summary, 'problem');
+  assert.equal(Object.hasOwn(problem, 'persona'), false);
+  const draft = workerDraft(problem, summary.models);
+  assert.equal(Object.hasOwn(draft, 'persona'), false);
+  const input = workerConfigInput({ preset: 'problem', draft: { ...draft, persona: 'PRIVATE_LEGACY_WORKER_PERSONA' }, route: null, scope: 'lesson', expectedRevision: 7 });
+  assert.deepEqual(input, { preset: 'problem', tools: 'none', route: null, scope: 'lesson', expectedRevision: 7 });
+  assert.doesNotMatch(JSON.stringify(input), /PRIVATE_LEGACY_WORKER_PERSONA|persona/);
 });
 
 test('路由只接受 provider+model，重复或残缺的模型不会进入选项', () => {
@@ -188,7 +184,7 @@ test('没有保存模型时草稿停在“跟随老师”，不预选任何模�
   const worker = workerById(noSol, 'problem');
   assert.equal(candidateRouteFor(worker, noSol.models), null);
   const draft = workerDraft(worker, noSol.models);
-  assert.deepEqual(draft, { provider: '', model: '', reasoningEffort: '', maxTokens: 32768, tools: 'none', persona: '', scope: 'default' });
+  assert.deepEqual(draft, { provider: '', model: '', reasoningEffort: '', maxTokens: 32768, tools: 'none', scope: 'default' });
   assert.equal(draftRoute(draft), null);
   assert.equal(WORKER_MODEL_PLACEHOLDER, '跟随老师');
   assert.equal(workerDraft(workerById(view({ worker: { scope: 'lesson' } }), 'problem'), []).scope, 'lesson', 'a lesson override is edited in place');
@@ -211,6 +207,18 @@ test('预算与工具范围独立保存，默认不取列表里的低等级', ()
   assert.equal(draftTools({ tools: 'read' }), 'read');
   assert.equal(draftTools({ tools: 'none' }), 'none');
   assert.equal(draftTools({}), 'none');
+  assert.equal(draftTools({ tools: 'read-only' }), 'read-only');
+  assert.equal(draftTools({ tools: 'workspace' }), 'workspace');
+});
+
+test('live progress exposes only a known phase and a safe character count', () => {
+  assert.equal(taskProgressLabel({ phase: 'starting', outputChars: 0, lastActivityAt: 'private-time' }), '正在启动 · 已输出 0 字');
+  assert.equal(taskProgressLabel({ phase: 'writing', outputChars: 128, completionNotification: 'PRIVATE_SOLUTION' }), '正在整理 · 已输出 128 字');
+  assert.equal(taskProgressLabel({ phase: 'tool', outputChars: 12.5 }), '正在使用工具');
+  assert.equal(taskProgressLabel({ phase: 'unknown', outputChars: 999 }), '');
+  const [row] = taskRows(payload({ tasks: [{ id: 'safe', preset: 'problem', status: 'running', progress: { phase: 'responding', outputChars: 34, lastActivityAt: 'PRIVATE_TIME', completionNotification: 'PRIVATE_SOLUTION', shouldPoll: false } }] }));
+  assert.equal(row.progressLabel, '正在组织答复 · 已输出 34 字');
+  assert.doesNotMatch(JSON.stringify(row), /PRIVATE_TIME|PRIVATE_SOLUTION|lastActivityAt|completionNotification/);
 });
 
 test('只有真的 spawn 出子会话的任务才给“查看分析”入口', () => {

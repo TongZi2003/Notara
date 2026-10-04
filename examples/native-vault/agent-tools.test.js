@@ -14,7 +14,7 @@ test('teaching tools register native validated schemas and require approval when
   const service={isTeaching:()=>true,executeTool:async(name,args)=>{calls.push({name,args});return {saved:true};}};
   module.installAgentTools(ctx,service);
   const names=ctx.tools.schemas().map(x=>x.name);
-  assert.deepEqual(names.sort(),['open_learning_lesson','save_lesson_summary','set_teaching_settings','write_lesson_board']);
+  assert.deepEqual(names.sort(),['open_learning_lesson','save_lesson_summary','set_teaching_settings','vault_command','vault_read','vault_save','vault_search','write_lesson_board']);
   const result=await ctx.tools.execute({name:'save_lesson_summary',callId:'write-denied-without-approval',arguments:{body:'已完成的真实课堂进度。'},signal:new AbortController().signal});
   assert.equal(result.isError,true);
   assert.equal(calls.length,0);
@@ -169,12 +169,12 @@ test('the teacher may use native read/write/edit on code files only; search stay
     refusals.push(JSON.stringify(result));
   }
   assert.equal(called, 3, 'nothing refused reached the native tool');
-  assert.ok(refusals.every(text => text.includes('bash') && text.includes('代码文件')));
+  assert.ok(refusals.every(text => text.includes('vault_read') && text.includes('代码文件')));
   // A code file outside the Vault would be listed to the student as this turn's work.
   for (const [name, args] of [['write', { file_path: '../scratch.json', content: '{}' }], ['write', { file_path: '/tmp/notara-reviews.json', content: '{}' }], ['edit', { file_path: '../lab.py', old_string: 'a', new_string: 'b' }]]) {
     const result = await run(name, args);
     assert.equal(result.isError, true, `${name} ${args.file_path}`);
-    assert.match(JSON.stringify(result), /heredoc/);
+    assert.match(JSON.stringify(result), /vault_command/);
   }
   assert.equal(called, 3, 'nothing outside the Vault reached the native tool');
   // The code tools are offered to the teacher; the search tools stay hidden.

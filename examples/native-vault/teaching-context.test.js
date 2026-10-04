@@ -119,9 +119,9 @@ test('a missing script and missing profile keep the entry points without inventi
   assert.match(result.text, /本课未绑定剧本/);
   assert.match(result.text, /本课未绑定前课小结/);
   assert.match(result.text, /本课没有显式指定的条目/);
-  assert.match(result.text, /DSH_NOTARA_RG/);
-  // 主教师没有原生 read/glob/grep：入口只写 shell 的做法。
-  assert.doesNotMatch(result.text, /\bglob\b|→ read/);
+  assert.match(result.text, /vault_search/);
+  assert.match(result.text, /vault_read/);
+  assert.match(result.text, /Bash 高级检索/);
   assert.match(result.text, /候选触发/);
   assert.equal(result.context.画像.已显式指定, false);
   assert.deepEqual(result.failures, []);
@@ -200,9 +200,9 @@ test('read failures are bounded and never abort the assembly', async () => {
   assert.equal(result.previous.error, 'read_failed');
   assert.match(result.text, /读取失败/);
   assert.doesNotMatch(result.text, /private/);
-  assert.match(result.text, /DSH_NOTARA_RG/);
-  // 主教师没有原生 read/glob/grep：入口只写 shell 的做法。
-  assert.doesNotMatch(result.text, /\bglob\b|→ read/);
+  assert.match(result.text, /vault_search/);
+  assert.match(result.text, /vault_read/);
+  assert.match(result.text, /Bash 高级检索/);
 
   // 仓库的 fail(code) 形状原样保留，方便教师按真实原因重试或重读。
   const coded = await assembleTeachingContext({

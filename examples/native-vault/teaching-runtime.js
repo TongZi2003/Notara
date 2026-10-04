@@ -23,6 +23,7 @@ import { packagedRipgrep } from './ripgrep-path.js';
 import { createPomodoroRuntime } from './pomodoro-runtime.js';
 import { createUserSkillRuntime } from './user-skill-runtime.js';
 import { activeUserSkills,learningSetOverview } from './user-skills.js';
+import { learnerProfileContext } from './profile-context.js';
 
 /** A path as the teacher's shell should see it. Git Bash, node and rg on
  * Windows all accept C:/... , while a backslash path breaks prefix stripping
@@ -36,7 +37,7 @@ export function lessonPinText(workspace,settings){
 }
 
 /** Built-in subject skills and the subject names they cover (the manifest is the one source). */
-const BUILTIN_SUBJECT_SKILLS=teachingManifest.skills.filter(item=>Array.isArray(item.subjects)).map(item=>({name:`notara-${item.id}`,subjects:item.subjects}));
+const BUILTIN_SUBJECT_SKILLS=teachingManifest.skills.filter(item=>Array.isArray(item.subjects)&&!item.prep).map(item=>({name:`notara-${item.id}`,subjects:item.subjects}));
 
 const fail=code=>{throw new Error(code);};
 /** One root for the Bash environment and the per-turn context. */
@@ -419,17 +420,18 @@ export function installTeachingRuntime(ctx,config={}) {
     // No workspace lookup here: this section must compose before any learning
     // set is registered. The concrete material root travels in the per-turn
     // context below, and the path rule itself lives in the teaching resources.
-    return teacherPersona(settings,teachingResource('persona.md'))+'\n\n'+teachingResource('base.md')+'\n\n'+currentTeachingBody(settings.teachingRef);
+    return teacherPersona(settings,teachingResource('persona.md'))+'\n\n'+teachingResource('base.md')+'\n\n'+teachingResource('concepts.md')+'\n\n'+currentTeachingBody(settings.teachingRef);
   }}));
   ctx.on('system-prompt/assemble',async(assembly,context,next)=>{
     const result=await next(),agent=context.agent;
     if(!service.isTeaching(agent)||agent.session.header.origin==='subagent') return result;
     const settings=readTeachingSettings(agent.session);
     service.prepared.set(agent,{revision:settings.revision,cutoff:teachingCutoff(agent.session)});
-    let memory,materialsRoot=null;
+    let memory,materialsRoot=null,profileContexts=[];
     try{
       const exec={agent,signal:context.signal},io=createAgentVaultIO(ctx,exec),readers=[{scope:io.workspace,read:io.read}];
       materialsRoot=materialRoot(io.workspace.path);
+      profileContexts=await learnerProfileContext({session:agent.session,workspaceId:io.workspace.id,scan:()=>io.scan({limit:10000}),signal:context.signal,flush:session=>service.flush(session)});
       // Explicitly bound cross-set scripts retain their scope. Never substitute
       // a same-named file from the current learning set.
       if(settings.scriptWorkspaceId&&settings.scriptWorkspaceId!==io.workspace.id){
@@ -457,7 +459,7 @@ export function installTeachingRuntime(ctx,config={}) {
     const lessonSubjects=Array.isArray(settings.subjects)&&settings.subjects.length?settings.subjects:null;
     const subjects=lessonSubjects??(learningSet?.status==='active'?learningSet.subjects:settings.subjects);
     const background={learningGoal:settings.learningGoal,temporaryInstructions:settings.temporaryInstructions,subjects,subjectsSource:lessonSubjects?'lesson':learningSet?.status==='active'?'learning-set':'none',learningSet,materialsRoot:materialsRoot?{env:'DSH_NOTARA_VAULT_ROOT',path:materialsRoot.path,legacyPrefix:materialsRoot.prefix}:null,course,script:settings.scriptPath?{...memory.script,path:settings.scriptPath,readPath,workspaceId:settings.scriptWorkspaceId,boundRevision:settings.scriptRevision,bodyRead:false}:null,previousLesson:settings.continuation,materials:settings.materials};
-    return {...result,contexts:[...result.contexts,{name:'notara:learning-context',text:memory.text},{name:'notara:lesson-background',text:JSON.stringify(background)}]};
+    return {...result,contexts:[...result.contexts,...profileContexts,{name:'notara:learning-context',text:memory.text},{name:'notara:lesson-background',text:JSON.stringify(background)}]};
   });
   ctx.on('session/event',(session,event)=>{if(event.type==='turn/end'){service.requests.delete(session.id);const cutoff=service.archiveAfterTurn.get(session.id);if(service.archiveAfterTurn.delete(session.id))service.archiveWhenIdle(session,cutoff);for(const key of service.operations.keys())if(key.startsWith(session.id+':'))service.operations.delete(key);}});
   // Native archival must resolve only after the registry persists it, and must

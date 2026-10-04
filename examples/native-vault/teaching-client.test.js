@@ -5,12 +5,9 @@ import { clearedPatch, parseSubjects, settingsDraft, settingsPatch } from './tea
 import { lessonLogTarget, routeProjection, routeRoleOf, summaryTarget } from './routes-client.js';
 
 const choices = [
-  { id: 'socratic', title: '苏格拉底', description: '先问' },
-  { id: 'feynman', title: '费曼', description: '先讲' },
-  { id: 'lecture', title: '讲解式', description: '先结构' },
-  { id: 'structural', title: '结构分析', description: '先条件' },
+  { id: 'mixed', title: '混合教法', description: '依据当前困难切换讲法' },
 ];
-const settings = (extra = {}) => ({ revision: 2, teachingRef: 'socratic', learningGoal: null, temporaryInstructions: '', subjects: [], scriptPath: null, routePath: null, choices, ...extra });
+const settings = (extra = {}) => ({ revision: 2, teachingRef: 'mixed', learningGoal: null, temporaryInstructions: '', subjects: [], scriptPath: null, routePath: null, choices, ...extra });
 
 test('科目 parses 顿号/逗号/空格 and never repeats a subject', () => {
   assert.deepEqual(parseSubjects('数学、物理'), ['数学', '物理']);
@@ -29,7 +26,7 @@ test('保存只发送改动过的字段，清空与恢复默认都有明确表�
   const base = settings({ learningGoal: { title: '理解条件概率' }, temporaryInstructions: '慢一点', subjects: ['数学'] });
   const draft = settingsDraft(base);
 
-  assert.deepEqual(settingsPatch(base, { ...draft, teachingRef: 'feynman' }), { patch: { teachingRef: 'feynman' }, error: '' });
+  assert.deepEqual(settingsPatch(base, { ...draft, teachingRef: 'mixed' }), { patch: {}, error: '' });
   assert.deepEqual(settingsPatch(base, { ...draft, goalTitle: '' }), { patch: { learningGoal: null }, error: '' });
   assert.deepEqual(settingsPatch(base, { ...draft, instructions: '' }), { patch: { temporaryInstructions: '' }, error: '' });
   assert.deepEqual(settingsPatch(base, { ...draft, subjects: '' }), { patch: { subjects: [] }, error: '' });
@@ -40,6 +37,13 @@ test('保存只发送改动过的字段，清空与恢复默认都有明确表�
   assert.match(settingsPatch(settings(), { ...settingsDraft(settings()), goalTitle: '导数', dailyMinutes: '1.5' }).error, /整数/);
   assert.match(settingsPatch(settings(), { ...settingsDraft(settings()), goalTitle: '导数', dailyMinutes: '2000' }).error, /1440/);
   assert.equal(settingsPatch(settings(), { ...settingsDraft(settings()), subjects: Array.from({ length: 13 }, (_, index) => `科目${index}`).join('、') }).patch, null);
+});
+
+test('旧课堂的四种教法在学生设置页归一为混合教法', () => {
+  const base = settings({ teachingRef: 'feynman' });
+  const draft = settingsDraft(base);
+  assert.equal(draft.teachingRef, 'mixed');
+  assert.deepEqual(settingsPatch(base, { ...draft, teachingRef: 'socratic' }), { patch: {}, error: '' });
 });
 
 test('老师人格留空用默认形象，只有真的改动才发送', () => {

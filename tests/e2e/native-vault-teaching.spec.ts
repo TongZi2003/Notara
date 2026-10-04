@@ -133,16 +133,18 @@ test('vault teaching keeps settings, routes and 锦囊 facts learner-facing', as
     await settingsButton.click();
     const dialog = page.getByRole('dialog', { name: '教学设置' });
     await expect(dialog).toBeVisible();
-    // 教法 comes from the Host's own catalog, not from a client-side list.
-    for (const title of ['苏格拉底', '费曼法', '讲解—变式', '结构分析']) await expect(dialog.getByRole('radio', { name: new RegExp(title) })).toBeVisible();
-    await dialog.getByRole('radio', { name: /费曼法/ }).check();
+    // The Host catalog exposes one merged method; retired choices are hidden.
+    await expect(dialog.getByRole('radio')).toHaveCount(1);
+    await expect(dialog.getByRole('radio', { name: /混合教法/ })).toBeVisible();
+    for (const title of ['苏格拉底', '费曼法', '讲解—变式', '结构分析']) await expect(dialog.getByRole('radio', { name: new RegExp(title) })).toHaveCount(0);
+    await dialog.getByRole('radio', { name: /混合教法/ }).check();
     await dialog.getByLabel('学习目标').fill('理解条件概率');
     await dialog.getByLabel('每天学习时长').fill('30');
     await dialog.getByLabel('本课临时要求').fill('先让我自己试');
     await dialog.getByLabel('科目').fill('数学');
     await dialog.getByRole('button', { name: '保存设置', exact: true }).click();
     await expect(page.getByText('已保存，下一次提问就会用上新设置。').first()).toBeVisible();
-    await expect(dialog.getByRole('radio', { name: /费曼法/ })).toBeChecked();
+    await expect(dialog.getByRole('radio', { name: /混合教法/ })).toBeChecked();
     await expect(dialog.getByLabel('学习目标')).toHaveValue('理解条件概率');
     // A learner-facing surface never shows the session, the model or a schema.
     await expect(dialog).not.toContainText(/session|run-|schema|vault_|notaraVault/);
@@ -155,7 +157,7 @@ test('vault teaching keeps settings, routes and 锦囊 facts learner-facing', as
     await expect(page.getByRole('button', { name: '教学设置', exact: true })).toBeVisible();
     await page.getByRole('button', { name: '教学设置', exact: true }).click();
     const restored = page.getByRole('dialog', { name: '教学设置' });
-    await expect(restored.getByRole('radio', { name: /费曼法/ })).toBeChecked();
+    await expect(restored.getByRole('radio', { name: /混合教法/ })).toBeChecked();
     await expect(restored.getByLabel('学习目标')).toHaveValue('理解条件概率');
     await expect(restored.getByLabel('每天学习时长')).toHaveValue('30');
     await expect(restored.getByLabel('本课临时要求')).toHaveValue('先让我自己试');
@@ -167,7 +169,7 @@ test('vault teaching keeps settings, routes and 锦囊 facts learner-facing', as
     await expect(restored.getByLabel('本课临时要求')).toHaveValue('这条草稿还没有保存');
     // 清空 restores the Host defaults instead of inventing a teaching method.
     await restored.getByRole('button', { name: '清空设置', exact: true }).click();
-    await expect(restored.getByRole('radio', { name: /苏格拉底/ })).toBeChecked();
+    await expect(restored.getByRole('radio', { name: /混合教法/ })).toBeChecked();
     await expect(restored.getByLabel('学习目标')).toHaveValue('');
     await expect(restored.getByLabel('科目')).toHaveValue('');
     await restored.getByRole('button', { name: '关闭', exact: true }).click();
@@ -177,20 +179,20 @@ test('vault teaching keeps settings, routes and 锦囊 facts learner-facing', as
     const entry = page.getByRole('region', { name: '开始一节新课' });
     await entry.getByText('课程选项', { exact: true }).click();
     const method = entry.getByRole('group', { name: '教法' });
-    for (const title of ['苏格拉底', '费曼法', '讲解—变式', '结构分析']) await expect(method.getByRole('radio', { name: new RegExp(title) })).toBeVisible();
-    await expect(method.getByRole('radio', { name: /苏格拉底/ })).toBeChecked();
-    await method.getByRole('radio', { name: /讲解—变式/ }).check();
-    await expect(method.getByRole('radio', { name: /讲解—变式/ })).toBeChecked();
+    await expect(method.getByRole('radio')).toHaveCount(1);
+    await expect(method.getByRole('radio', { name: /混合教法/ })).toBeVisible();
+    for (const title of ['苏格拉底', '费曼法', '讲解—变式', '结构分析']) await expect(method.getByRole('radio', { name: new RegExp(title) })).toHaveCount(0);
+    await expect(method.getByRole('radio', { name: /混合教法/ })).toBeChecked();
     await expect(method).not.toContainText(/session|schema|vault_|notaraVault|lecture/);
     await page.screenshot({ path: testInfo.outputPath('lesson-entry-method.png') });
     await page.getByRole('button', { name: '教学设置', exact: true }).click();
-    await expect(restored.getByRole('radio', { name: /讲解—变式/ })).toBeChecked();
+    await expect(restored.getByRole('radio', { name: /混合教法/ })).toBeChecked();
     await restored.getByRole('button', { name: '关闭', exact: true }).click();
     await expect(entry.getByRole('heading', { name: '新的一课', exact: true })).toBeVisible();
     await page.reload();
     await page.locator('.nv-panel').getByRole('button', { name: '新的一课', exact: true }).click();
     await page.getByRole('region', { name: '开始一节新课' }).getByText('课程选项', { exact: true }).click();
-    await expect(page.getByRole('region', { name: '开始一节新课' }).getByRole('group', { name: '教法' }).getByRole('radio', { name: /讲解—变式/ })).toBeChecked();
+    await expect(page.getByRole('region', { name: '开始一节新课' }).getByRole('group', { name: '教法' }).getByRole('radio', { name: /混合教法/ })).toBeChecked();
 
     // 总结本课 queues the real classroom intent and keeps the native session,
     // so the composer stays live instead of the class being archived away.

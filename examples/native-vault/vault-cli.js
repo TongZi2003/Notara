@@ -225,7 +225,7 @@ const overviewField=field('string','课程总述Markdown，0..24000字符：终�
 
 const COMMANDS = {
   'write-batch': {
-    summary: '在一次原生 Bash 调用中成批新建或精确修改 Markdown；逐文件原子保存与回执，部分失败不会撤销已成功项。普通读取搜索仍用 ls/rg/grep/sed。',
+    summary: '成批新建或精确修改 Markdown；逐文件原子保存与回执，部分失败不会撤销已成功项。普通资料用 vault_read/vault_search 读取检索，Bash 可用于高级组合检索。',
     write: true,
     fields: {
       files: field('list<object>', '1..50个不同路径，整批stdin最多2MiB。create仅新建(path/content)，edit精确替换(path/oldText/newText)，两分支不可混用；字段错误在整批写入前拒绝。', {
@@ -489,7 +489,7 @@ function usage() {
     },
     standalone: '没有绑定环境时，只允许用户显式执行 --workspace <绝对路径>；此时 actor=self、session 为空。没有根则失败，绝不猜测工作目录。',
     boundaries: [
-      '普通读取搜索直接组合原生 Bash 命令；write-batch只补成批保存与唯一原文匹配，不提供第二套读取搜索工具。',
+      'write-batch只处理Markdown成批保存与唯一原文匹配；课堂普通资料读取搜索可用vault_read/vault_search，Bash可用于高级组合检索。',
       '命令不接受 workspace/sessionId/actor/记录时间/id 等身份字段，新时间、日期与记录 ID 由程序生成。',
       '领域命令修改文件需expectedRevision；write-batch精确匹配已读原文后使用实际revision保存。新建拒绝重名，冲突不覆盖。',
     ],
@@ -610,7 +610,7 @@ function addRefs(hits, workspaceId) {
   return hits.map(hit => (hit.ref ? hit : { ...hit, ref: sourceRef(workspaceId, hit.path, hit.revision, hit.anchor ? { anchor: hit.anchor } : undefined) }));
 }
 
-async function runCommand(command, args, { fs, root, env, signal }) {
+async function runCommand(command, args, { fs, root, env, signal, io:providedIO, context:providedContext, exec:providedExec, inlineMedia=false }) {
   // `root` is already resolved and symlink-checked by the caller.
   const workspacePath = root;
   const bound = typeof env.DSH_NOTARA_WORKSPACE === 'string' && env.DSH_NOTARA_WORKSPACE.length > 0;
@@ -621,16 +621,16 @@ async function runCommand(command, args, { fs, root, env, signal }) {
 
   const workspace = { id: workspaceId, path: workspacePath, title: basename(workspacePath) || '学习笔记' };
   const registry = { list: () => [workspace] };
-  const ctx = contextFor(fs, registry);
-  const io = createEditorVaultIO(ctx, workspacePath, signal);
+  const ctx = providedContext??contextFor(fs, registry);
+  const io = providedIO??createEditorVaultIO(ctx, workspacePath, signal);
   const standalone = !bound;
   // A real Host session makes the write a teacher action whose source is bound
   // to this session and call. The workspace path is the Host-injected cwd, not a
   // model argument, so the scope guard cannot be redirected from stdin. Without
   // a session the same writer runs as the standalone actor `self`.
-  const exec = sessionId
+  const exec = providedExec??(sessionId
     ? { agent: { session: { id: sessionId, header: { cwd: workspacePath } } }, callId, signal: signal ?? new AbortController().signal }
-    : null;
+    : null);
   const review = createReviewRuntime({ ctx, editorFor: async () => io });
   if(command==='write-batch')return writeBatch(io,args.files);
   if(command.startsWith('skill-'))return skillCommand(command,args,{workspacePath,env});
@@ -660,7 +660,7 @@ async function runCommand(command, args, { fs, root, env, signal }) {
   }
 
   if (command === 'review-queue') {
-    const result = await review.queue(args);
+    const result = await review.queue(args,exec);
     return { ...result, hits: addRefs(result.hits, workspace.id), workspaceId: workspace.id, standalone };
   }
   if (command === 'record-review') {
@@ -672,7 +672,7 @@ async function runCommand(command, args, { fs, root, env, signal }) {
     return { ...result, workspaceId: workspace.id, standalone };
   }
   if (command === 'calendar') {
-    const result = await review.calendar(args);
+    const result = await review.calendar(args,exec);
     return { ...result, workspaceId: workspace.id, standalone };
   }
   if (command === 'lesson-log') {
@@ -694,11 +694,11 @@ async function runCommand(command, args, { fs, root, env, signal }) {
     return {...result,workspaceId:workspace.id,standalone};
   }
   if (command === 'schedule-lesson') {
-    const result = await review.schedule(args);
+    const result = await review.schedule(args,exec);
     return { ...result, workspaceId: workspace.id, standalone };
   }
   if (command === 'pdf-page') {
-    return await pdfPage(io, args, workspacePath, workspace.id, standalone);
+    return await pdfPage(io, args, workspacePath, workspace.id, standalone,inlineMedia);
   }
   if (command === 'source-cards') {
     return { ...(await sourceCards(io, args.path)), workspaceId: workspace.id, standalone };
@@ -905,7 +905,7 @@ async function writeMediaCache(root, name, bytes) {
   return real;
 }
 
-async function pdfPage(io, args, workspacePath, workspaceId, standalone) {
+async function pdfPage(io, args, workspacePath, workspaceId, standalone,inlineMedia=false) {
   // Heavy PDF/image decoders are only loaded for this command, never for the
   // text-only ones.
   const { readPdfPage } = await import('./agent-media.js');
@@ -915,7 +915,7 @@ async function pdfPage(io, args, workspacePath, workspaceId, standalone) {
   const embed=embedTarget(asset.path,locator);
   if(parseMediaTarget(embed.slice(3,-2)).invalidLocator)throw new CliError('pdf_region_invalid');
   const value = await readPdfPage(asset.bytes, { page: args.page, rect: args.rect });
-  const imagePath = await writeMediaCache(workspacePath, cacheName(args.path, value.page, args.rect, asset.revision), Buffer.from(value.image.data, 'base64'));
+  const imagePath = inlineMedia?undefined:await writeMediaCache(workspacePath, cacheName(args.path, value.page, args.rect, asset.revision), Buffer.from(value.image.data, 'base64'));
   return {
     ok: true,
     path: asset.path,
@@ -924,7 +924,7 @@ async function pdfPage(io, args, workspacePath, workspaceId, standalone) {
     pageCount: value.pageCount,
     text: value.text,
     revision: asset.revision,
-    imagePath,
+    ...(inlineMedia?{imageData:value.image.data,imageMimeType:value.image.mimeType??'image/png'}:{imagePath}),
     locator,
     embed,
     warnings: value.warnings,
@@ -1019,3 +1019,28 @@ const invokedDirectly = process.argv[1] ? pathToFileURL(resolve(process.argv[1])
 if (invokedDirectly) await main();
 
 export { COMMANDS, commandHelp, usage, validateArgs, describe, cacheName, resolveWorkspace, runCommand };
+
+/** Host-facing dispatcher: callers provide the already authorized native IO,
+ * real session exec and workspace root. Model input is only the command data;
+ * it cannot select a root or forge an identity through these parameters. */
+export async function dispatchVaultCommand(command,input,{fs,root,env,signal,io,context,exec,inlineMedia=false}={}) {
+  const data=input??{};
+  if(!data||typeof data!=='object'||Array.isArray(data))throw new CliError('cli_stdin_invalid');
+  if(command==='command-help') {
+    if(Object.keys(data).some(key=>key!=='command'))throw new CliError('cli_field_unknown');
+    if(typeof data.command!=='string'||!Object.hasOwn(COMMANDS,data.command)) throw new CliError('cli_command_unknown');
+    const {stdin,usage:cliUsage,example,...help}=commandHelp(data.command);
+    return {...help,input:stdin,
+      ...(inlineMedia&&data.command==='pdf-page'?{result:help.result.replace('imagePath','image attachment (returned with the tool result)')}:{}),
+      example:{command:data.command,input:JSON.parse(example)},
+      usage:{tool:'vault_command',arguments:{command:data.command,input:'按 input.fields 填写命令参数'}}};
+  }
+  if(command==='help') {
+    if(Object.keys(data).length)throw new CliError('cli_field_unknown');
+    return {program:'vault_command',commands:Object.fromEntries(COMMAND_NAMES.map(name=>[name,{summary:COMMANDS[name].summary,write:COMMANDS[name].write}]))};
+  }
+  if(typeof command!=='string'||!Object.hasOwn(COMMANDS,command)) throw new CliError('cli_command_unknown');
+  const args=validateArgs(command,data);
+  if(!root||!fs||!io||!context) throw new CliError('cli_context_missing');
+  return runCommand(command,args,{fs,root,env:env??{},signal,io,context,exec,inlineMedia});
+}

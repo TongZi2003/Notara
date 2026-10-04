@@ -12,7 +12,7 @@ export class FigureError extends Error {
   constructor(message, line) { super(message); this.name = 'FigureError'; this.line = line; }
 }
 const NAME = NAME_SOURCE;
-const RESERVED = new Set(['x', 'y', 't', 'pi', 'π', 'e', 'axes', 'view', 'param', 'function', 'curve', 'parametric', 'point', 'segment', 'line', 'circle', 'midpoint', 'intersection', 'polygon', 'angle', 'arrow', 'text', 'ask', 'drag', 'center', 'through', 'radius', 'in', 'at', 'step']);
+const RESERVED = new Set(['x', 'y', 'z', 't', 'pi', 'π', 'e', 'axes', 'view', 'param', 'function', 'curve', 'parametric', 'point', 'vector', 'segment', 'line', 'plane', 'circle', 'midpoint', 'intersection', 'polygon', 'angle', 'arrow', 'text', 'cuboid', 'prism', 'pyramid', 'tetrahedron', 'sphere', 'cylinder', 'cone', 'frustum', 'ask', 'drag', 'center', 'through', 'radius', 'axis', 'height', 'top', 'base', 'apex', 'by', 'in', 'at', 'step']);
 const POINTS = new Set(['point', 'midpoint', 'intersection']);
 const PATHS = new Set(['function', 'curve', 'parametric', 'line', 'segment', 'circle']);
 const LIMIT = { objects: 40, params: 6, label: 40, text: 80 };
@@ -23,7 +23,7 @@ const plainLabel = (value, max, error) => { if (value.length > max || /[<>]/.tes
 
 export function parseFigure(source) {
   const rows = String(source ?? '').replace(/\r/g, '').split('\n').map((raw, index) => ({ value: raw.trim(), line: index + 1 })).filter(row => row.value);
-  const spec = { axes: false, bounds: null, params: [], objects: [], ask: null };
+  const spec = { axes: false, space: false, bounds: null, params: [], objects: [], ask: null };
   const names = new Map();
   let row;
   const error = message => { throw new FigureError(message, row?.line); };
@@ -62,6 +62,16 @@ export function parseFigure(source) {
     if (!match) error('坐标要写成 (x, y)。');
     return [expr(match[1], []), expr(match[2], [])];
   };
+  const triple = text => {
+    const match = text.match(/^\(([^,]+),([^,]+),([^,]+)\)$/);
+    if (!match) error('空间坐标要写成 (x, y, z)。');
+    return [expr(match[1], []), expr(match[2], []), expr(match[3], [])];
+  };
+  const pointNames = (text, min, max, what = '点') => {
+    const namesList = text.trim().split(/\s+/).filter(Boolean);
+    if (namesList.length < min || namesList.length > max) error(`${what}需要 ${min} 到 ${max} 个点。`);
+    return namesList.map(name => refer(name, POINTS, '一个点'));
+  };
   let anonymous = 0, askRow;
   const auto = prefix => { let name; do name = `${prefix}${++anonymous}`; while (names.has(name)); return name; };
 
@@ -71,10 +81,13 @@ export function parseFigure(source) {
     switch (keyword) {
       case 'axes': case 'view': {
         if (spec.bounds) error('axes 或 view 只能写一行。');
-        match = text.match(/^(axes|view)\s+x\s+(\S+)\s+y\s+(\S+)$/);
+        match = text.match(/^(axes|view)\s+x\s+(\S+)\s+y\s+(\S+)(?:\s+z\s+(\S+))?$/);
         if (!match) error(`写成 ${keyword} x -4..4 y -3..3。`);
+        if (match[4] && spec.objects.length) error('空间坐标系要写在图形对象之前。');
         const [xmin, xmax] = range(match[2]), [ymin, ymax] = range(match[3]);
-        spec.axes = keyword === 'axes'; spec.bounds = { xmin, xmax, ymin, ymax };
+        spec.axes = keyword === 'axes'; spec.space = Boolean(match[4]);
+        if (spec.space) { const [zmin, zmax] = range(match[4]); spec.bounds = { xmin, xmax, ymin, ymax, zmin, zmax }; }
+        else spec.bounds = { xmin, xmax, ymin, ymax };
         break;
       }
       case 'param': {
@@ -88,18 +101,21 @@ export function parseFigure(source) {
         break;
       }
       case 'function': {
+        if (spec.space) error('function 只能用于平面坐标图。');
         match = text.match(new RegExp(`^function\\s+(${NAME})\\(x\\)\\s*=\\s*(.+)$`));
         if (!match) error('写成 function f(x) = x^2 - 1。');
         spec.objects.push({ kind: 'function', name: declare(match[1], 'function'), expr: expr(match[2], ['x']) });
         break;
       }
       case 'curve': {
+        if (spec.space) error('curve 只能用于平面坐标图。');
         match = text.match(new RegExp(`^curve\\s+(?:(${NAME})\\s*:\\s*)?(.+?)=(.+)$`));
         if (!match || match[2].includes('=') || match[3].includes('=')) error('写成 curve E: x^2/4 + y^2 = 1（左右两边各一个式子）。');
         spec.objects.push({ kind: 'curve', name: declare(match[1] ?? auto('curve'), 'curve'), lhs: expr(match[2], ['x', 'y']), rhs: expr(match[3], ['x', 'y']) });
         break;
       }
       case 'parametric': {
+        if (spec.space) error('parametric 只能用于平面坐标图。');
         match = text.match(new RegExp(`^parametric\\s+(?:(${NAME})\\s*:\\s*)?x\\s*=\\s*(.+?),\\s*y\\s*=\\s*(.+?),\\s*t\\s+in\\s+(\\S+)$`));
         if (!match) error('写成 parametric c: x = 2cos(t), y = sin(t), t in 0..2pi。');
         spec.objects.push({ kind: 'parametric', name: declare(match[1] ?? auto('curve'), 'parametric'), x: expr(match[2], ['t']), y: expr(match[3], ['t']), t: range(match[4]) });
@@ -107,10 +123,64 @@ export function parseFigure(source) {
       }
       case 'point': {
         match = text.match(new RegExp(`^point\\s+(${NAME})\\s*=\\s*(\\(.+\\))(\\s+drag)?$`));
-        if (!match) error('写成 point A = (2, 0)，可以拖动的点在后面加 drag。');
-        const [x, y] = pair(match[2]), drag = Boolean(match[3]);
-        if (drag) { try { constantValue(x); constantValue(y); } catch { error('可以拖动的点，坐标要是确定的数，不能含参数。'); } }
-        spec.objects.push({ kind: 'point', name: declare(match[1], 'point'), x, y, drag });
+        if (!match) error(spec.space ? '写成 point A = (2, 1, 3)，可以拖动的点在后面加 drag。' : '写成 point A = (2, 0)，可以拖动的点在后面加 drag。');
+        const coordinates = spec.space ? triple(match[2]) : pair(match[2]), drag = Boolean(match[3]);
+        if (drag) { try { coordinates.forEach(value => constantValue(value)); } catch { error('可以拖动的点，坐标要是确定的数，不能含参数。'); } }
+        spec.objects.push({ kind: 'point', name: declare(match[1], 'point'), x: coordinates[0], y: coordinates[1], ...(spec.space ? { z: coordinates[2] } : {}), drag });
+        break;
+      }
+      case 'vector': {
+        if (!spec.space) error('vector 只能用于空间直角坐标系。');
+        match = text.match(new RegExp(`^vector\\s+(${NAME})\\s*=\\s*(${NAME})\\s*->\\s*(\\(.+?\\))(?:\\s+("[^"]*"))?$`));
+        if (!match) error('写成 vector v = A -> (1, 0, 2) "方向"。');
+        const from = refer(match[2], POINTS, '起点（一个点）'), [dx, dy, dz] = triple(match[3]);
+        spec.objects.push({ kind: 'vector', name: declare(match[1], 'vector'), from, dx, dy, dz, label: plainLabel(match[4] ? quoted(match[4]) : match[1], LIMIT.label, error) });
+        break;
+      }
+      case 'plane': {
+        if (!spec.space) error('plane 只能用于空间直角坐标系。');
+        match = text.match(new RegExp(`^plane\\s+(${NAME})\\s*=\\s*(.+)$`));
+        if (!match) error('写成 plane P = A B C。');
+        spec.objects.push({ kind: 'plane', name: declare(match[1], 'plane'), points: pointNames(match[2], 3, 4, '平面') });
+        break;
+      }
+      case 'cuboid': case 'tetrahedron': {
+        if (!spec.space) error(`${keyword} 只能用于空间直角坐标系。`);
+        match = text.match(new RegExp(`^${keyword}\\s+(${NAME})\\s*=\\s*(.+)$`));
+        if (!match) error(keyword === 'cuboid' ? '写成 cuboid C = A B C D E F G H。' : '写成 tetrahedron T = A B C D。');
+        const count = keyword === 'cuboid' ? 8 : 4;
+        spec.objects.push({ kind: keyword, name: declare(match[1], keyword), points: pointNames(match[2], count, count, keyword === 'cuboid' ? '长方体' : '四面体') });
+        break;
+      }
+      case 'prism': {
+        if (!spec.space) error('prism 只能用于空间直角坐标系。');
+        match = text.match(new RegExp(`^prism\\s+(${NAME})\\s*=\\s*(.+?)\\s+by\\s+(\\(.+\\))$`));
+        if (!match) error('写成 prism P = A B C by (0, 0, 2)。');
+        const [dx, dy, dz] = triple(match[3]);
+        spec.objects.push({ kind: 'prism', name: declare(match[1], 'prism'), points: pointNames(match[2], 3, 6, '棱柱底面'), dx, dy, dz });
+        break;
+      }
+      case 'pyramid': {
+        if (!spec.space) error('pyramid 只能用于空间直角坐标系。');
+        match = text.match(new RegExp(`^pyramid\\s+(${NAME})\\s*=\\s*base\\s+(.+?)\\s+apex\\s+(${NAME})$`));
+        if (!match) error('写成 pyramid P = base A B C D apex E。');
+        spec.objects.push({ kind: 'pyramid', name: declare(match[1], 'pyramid'), points: pointNames(match[2], 3, 6, '棱锥底面'), apex: refer(match[3], POINTS, '顶点') });
+        break;
+      }
+      case 'sphere': case 'cylinder': case 'cone': case 'frustum': {
+        if (!spec.space) error(`${keyword} 只能用于空间直角坐标系。`);
+        const centerWord = keyword === 'cone' ? 'vertex' : 'center';
+        if (keyword === 'sphere') match = text.match(new RegExp(`^sphere\\s+(${NAME})\\s*=\\s*center\\s+(${NAME})\\s+radius\\s+(.+)$`));
+        else if (keyword === 'frustum') match = text.match(new RegExp(`^frustum\\s+(${NAME})\\s*=\\s*center\\s+(${NAME})\\s+axis\\s+(\\(.+?\\))\\s+radius\\s+(.+?)\\s+top\\s+(.+?)\\s+height\\s+(.+)$`));
+        else match = text.match(new RegExp(`^${keyword}\\s+(${NAME})\\s*=\\s*${centerWord}\\s+(${NAME})\\s+axis\\s+(\\(.+?\\))\\s+radius\\s+(.+?)\\s+height\\s+(.+)$`));
+        if (!match) error(keyword === 'sphere' ? '写成 sphere S = center O radius 2。' : keyword === 'frustum' ? '写成 frustum F = center O axis (0, 0, 1) radius 2 top 1 height 3。' : `写成 ${keyword} S = ${centerWord} O axis (0, 0, 1) radius 1 height 2。`);
+        const center = refer(match[2], POINTS, `${centerWord === 'vertex' ? '顶点' : '中心'}（一个点）`);
+        if (keyword === 'sphere') spec.objects.push({ kind: keyword, name: declare(match[1], keyword), center, radius: expr(match[3], []) });
+        else {
+          const [dx, dy, dz] = triple(match[3]);
+          spec.objects.push({ kind: keyword, name: declare(match[1], keyword), center, dx, dy, dz, radius: expr(match[4], []), ...(keyword === 'frustum' ? { top: expr(match[5], []), height: expr(match[6], []) } : { height: expr(match[5], []) }) });
+        }
+        break;
         break;
       }
       case 'segment': case 'line': {
@@ -121,6 +191,7 @@ export function parseFigure(source) {
         break;
       }
       case 'circle': {
+        if (spec.space) error('circle 只能用于平面坐标图。');
         match = text.match(new RegExp(`^circle\\s+(${NAME})\\s*=\\s*center\\s+(${NAME})\\s+(through|radius)\\s+(.+)$`));
         if (!match) error('写成 circle c = center A through B，或 circle c = center A radius 2。');
         const center = refer(match[2], POINTS, '圆心（一个点）');
@@ -136,12 +207,14 @@ export function parseFigure(source) {
         break;
       }
       case 'intersection': {
+        if (spec.space) error('intersection 只能用于平面坐标图。');
         match = text.match(new RegExp(`^intersection\\s+(${NAME})\\s*=\\s*(${NAME})\\s+(${NAME})(?:\\s+([12]))?$`));
         if (!match) error('写成 intersection P = f c，两条线有两个交点时在后面写 1 或 2。');
         spec.objects.push({ kind: 'intersection', of: [refer(match[2], PATHS, '一条线、圆或曲线'), refer(match[3], PATHS, '一条线、圆或曲线')], index: Number(match[4] ?? 1), name: declare(match[1], 'intersection') });
         break;
       }
       case 'polygon': case 'angle': {
+        if (spec.space && keyword === 'angle') error('angle 只能用于平面坐标图。');
         const parts = text.split(/\s+/).slice(1);
         const need = keyword === 'angle' ? 3 : undefined;
         if ((need && parts.length !== need) || (!need && (parts.length < 3 || parts.length > 12))) error(keyword === 'angle' ? '写成 angle A B C（角的顶点是 B）。' : '写成 polygon A B C（3 到 12 个点）。');
@@ -151,19 +224,20 @@ export function parseFigure(source) {
       }
       case 'arrow': {
         match = text.match(new RegExp(`^arrow\\s+(${NAME})\\s*=\\s*(${NAME})\\s*->\\s*(\\(.+?\\))(?:\\s+("[^"]*"))?$`));
-        if (!match) error('写成 arrow F = M -> (0, -1.5) "mg"：从点 M 出发，按 (dx, dy) 画箭头。');
-        const from = refer(match[2], POINTS, '起点（一个点）'), [dx, dy] = pair(match[3]);
-        spec.objects.push({ kind: 'arrow', name: declare(match[1], 'arrow'), from, dx, dy, label: plainLabel(match[4] ? quoted(match[4]) : match[1], LIMIT.label, error) });
+        if (!match) error(spec.space ? '写成 arrow F = M -> (0, -1.5, 1) "方向"。' : '写成 arrow F = M -> (0, -1.5) "mg"：从点 M 出发，按 (dx, dy) 画箭头。');
+        const from = refer(match[2], POINTS, '起点（一个点）'), deltas = spec.space ? triple(match[3]) : pair(match[3]);
+        spec.objects.push({ kind: 'arrow', name: declare(match[1], 'arrow'), from, dx: deltas[0], dy: deltas[1], ...(spec.space ? { dz: deltas[2] } : {}), label: plainLabel(match[4] ? quoted(match[4]) : match[1], LIMIT.label, error) });
         break;
       }
       case 'text': {
         match = text.match(/^text\s+("[^"]*")\s+at\s+(\(.+\))$/);
-        if (!match) error('写成 text "说明" at (1, 2)。');
-        const [x, y] = pair(match[2]);
-        spec.objects.push({ kind: 'text', name: declare(auto('text'), 'text'), content: plainLabel(quoted(match[1]), LIMIT.text, error), x, y });
+        if (!match) error(spec.space ? '写成 text "说明" at (1, 2, 3)。' : '写成 text "说明" at (1, 2)。');
+        const coordinates = spec.space ? triple(match[2]) : pair(match[2]);
+        spec.objects.push({ kind: 'text', name: declare(auto('text'), 'text'), content: plainLabel(quoted(match[1]), LIMIT.text, error), x: coordinates[0], y: coordinates[1], ...(spec.space ? { z: coordinates[2] } : {}) });
         break;
       }
       case 'ask': {
+        if (spec.space) error('空间图暂时只用于展示，不能加 ask。');
         if (spec.ask) error('一张图只能有一个 ask。');
         match = text.match(new RegExp(`^ask\\s+(point|drag|param)(?:\\s+(${NAME}))?\\s+("[^"]*")$`));
         if (!match) error('写成 ask point "问题"、ask drag A "问题" 或 ask param a "问题"。');
@@ -187,20 +261,20 @@ export function parseFigure(source) {
 }
 
 /** Everything the student sees and is asked counts as the question. */
-export const figureIdentity = spec => JSON.stringify(['figure', spec.axes, spec.bounds, spec.params, spec.objects, spec.ask]);
+export const figureIdentity = spec => JSON.stringify(['figure', spec.axes, spec.space, spec.bounds, spec.params, spec.objects, spec.ask]);
 
 const round = value => Number(value.toFixed(2));
 const finite = value => typeof value === 'number' && Number.isFinite(value);
 export function figureBounds(spec) {
   if (spec.bounds) return spec.bounds;
-  const xs = [], ys = [];
+  const xs = [], ys = [], zs = [];
   for (const item of spec.objects) {
     if (item.kind !== 'point' && item.kind !== 'text') continue;
-    try { xs.push(constantValue(item.x)); ys.push(constantValue(item.y)); } catch { /* a moving point does not set the frame */ }
+    try { xs.push(constantValue(item.x)); ys.push(constantValue(item.y)); if (spec.space) zs.push(constantValue(item.z)); } catch { /* a moving point does not set the frame */ }
   }
-  if (!xs.length) return { xmin: -5, xmax: 5, ymin: -5, ymax: 5 };
-  const pad = Math.max(1, (Math.max(...xs) - Math.min(...xs)) * .2, (Math.max(...ys) - Math.min(...ys)) * .2);
-  return { xmin: Math.min(...xs) - pad, xmax: Math.max(...xs) + pad, ymin: Math.min(...ys) - pad, ymax: Math.max(...ys) + pad };
+  if (!xs.length) return spec.space ? { xmin: -5, xmax: 5, ymin: -5, ymax: 5, zmin: -5, zmax: 5 } : { xmin: -5, xmax: 5, ymin: -5, ymax: 5 };
+  const pad = Math.max(1, (Math.max(...xs) - Math.min(...xs)) * .2, (Math.max(...ys) - Math.min(...ys)) * .2, ...(spec.space ? [(Math.max(...zs) - Math.min(...zs)) * .2] : []));
+  return { xmin: Math.min(...xs) - pad, xmax: Math.max(...xs) + pad, ymin: Math.min(...ys) - pad, ymax: Math.max(...ys) + pad, ...(spec.space ? { zmin: Math.min(...zs) - pad, zmax: Math.max(...zs) + pad } : {}) };
 }
 
 /**
@@ -211,6 +285,7 @@ export function figureBounds(spec) {
  */
 export function figureView(spec) {
   const box = figureBounds(spec);
+  if (spec.space) return box;
   if (!spec.axes) return box;
   const dx = (box.xmax - box.xmin) * .1, dy = (box.ymax - box.ymin) * .1;
   return { xmin: box.xmin <= 0 && -box.xmin < dx ? box.xmin - dx : box.xmin, xmax: box.xmax, ymin: box.ymin <= 0 && -box.ymin < dy ? box.ymin - dy : box.ymin, ymax: box.ymax };
@@ -247,4 +322,4 @@ export function figureAnswerText(spec, answer) {
   return undefined;
 }
 
-export const FIGURE_SYNTAX = '```figure\naxes x -4..4 y -3..3\nparam a = 1 in -3..3\nfunction f(x) = a*(x-1)^2 - 2\ncurve E: x^2/4 + y^2 = 1\npoint A = (2, 0) drag\npoint B = (0, 1)\nsegment A B\nmidpoint M = A B\narrow F = M -> (0, -1.5) "mg"\nask point "在图上点出弦 AB 的中点"\n```\n每行一个对象：axes/view（坐标范围，axes 画坐标轴）、param（滑块）、function f(x) = …、curve 名: 左 = 右、parametric 名: x = …, y = …, t in a..b、point 名 = (x, y) [drag]、segment/line A B、circle c = center A through B 或 radius r、midpoint M = A B、intersection P = f c [1|2]、polygon A B C、angle A B C、arrow F = A -> (dx, dy) "标注"、text "说明" at (x, y)。公式用 x^2、2cos(t)、sqrt(x) 这样的写法。要学生在图上作答再加一行 ask point "问题"、ask drag A "问题" 或 ask param a "问题"。';
+export const FIGURE_SYNTAX = '```figure\naxes x -4..4 y -3..3\nparam a = 1 in -3..3\nfunction f(x) = a*(x-1)^2 - 2\ncurve E: x^2/4 + y^2 = 1\npoint A = (2, 0) drag\npoint B = (0, 1)\nsegment A B\nmidpoint M = A B\narrow F = M -> (0, -1.5) "mg"\nask point "在图上点出弦 AB 的中点"\n```\n每行一个对象：axes/view（坐标范围，axes 画坐标轴）、param（滑块）、function f(x) = …、curve 名: 左 = 右、parametric 名: x = …, y = …, t in a..b、point 名 = (x, y) [drag]、segment/line A B、circle c = center A through B 或 radius r、midpoint M = A B、intersection P = f c [1|2]、polygon A B C、angle A B C、arrow F = A -> (dx, dy) "标注"、text "说明" at (x, y)。公式用 x^2、2cos(t)、sqrt(x) 这样的写法。空间直角坐标系：axes x -4..4 y -3..3 z -3..3；point A = (x, y, z)；vector v = A -> (dx, dy, dz)；plane P = A B C；cuboid C = A B C D E F G H；tetrahedron T = A B C D；prism P = A B C by (0, 0, 2)；pyramid P = base A B C D apex E；sphere S = center O radius 2；cylinder/cone S = center/vertex O axis (0, 0, 1) radius 1 height 2；frustum F = center O axis (0, 0, 1) radius 2 top 1 height 3；text "说明" at (x, y, z)。空间图暂不支持 ask。';

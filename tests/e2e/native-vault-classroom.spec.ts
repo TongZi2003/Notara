@@ -50,6 +50,9 @@ test('五种工作预设独立保存配置，列表与像素共用真实出题�
   const errors: string[] = [];
   watch(page, errors);
   try {
+    // An existing installation may still have the legacy read scope. Preserve
+    // it on load; only an explicit new selection grants the expanded tools.
+    await writeFile(join(runtime.root, 'home', 'notara-workers.json'), JSON.stringify({revision: 1, presets: {exercise: {tools: 'read', route: null, persona: 'LEGACY_WORKER_PERSONA'}}}));
     await openVault(page, runtime);
     // The classroom belongs to a lesson: open one from Home first.
     await script(runtime, { '__session-title': '教室设置验收', '开始上课。': '好，我们开始。' });
@@ -74,10 +77,14 @@ test('五种工作预设独立保存配置，列表与像素共用真实出题�
     await expect(bench(page).locator('.nv-members')).toContainText('跟随老师 · Vault 测试模型');
     await bench(page).getByRole('button', { name: '教室设置', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: '教室设置' });
+    await expect(dialog.getByLabel(/人格/)).toHaveCount(0);
+    await expect(dialog.getByRole('textbox')).toHaveCount(0);
     await expect(dialog.getByLabel('后台模型', { exact: true })).toHaveValue('');
     await expect(dialog.getByRole('option', { name: /^跟随老师（现在是 Vault 测试模型/ })).toHaveCount(1);
     // A save goes to the shared default unless the student picks 只改本课.
     await expect(dialog.getByRole('button', { name: '所有课堂的默认', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(dialog.getByLabel('资料范围', { exact: true }).locator('option[value="read-only"]')).toHaveCount(1);
+    await expect(dialog.getByLabel('资料范围', { exact: true }).locator('option[value="workspace"]')).toHaveCount(1);
     await dialog.getByRole('button', { name: '出题员', exact: true }).click();
     await dialog.getByLabel('后台模型', { exact: true }).selectOption(SOLVER_ROUTE_VALUE);
     await dialog.getByLabel('推理等级', { exact: true }).selectOption('low');
@@ -93,6 +100,10 @@ test('五种工作预设独立保存配置，列表与像素共用真实出题�
     await expect(page.getByText('已保存，下一次后台分析会用这个模型。').first()).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('worker-settings.png') });
     await dialog.getByRole('button', { name: '关闭', exact: true }).click();
+    await page.getByRole('button', { name: '教学设置', exact: true }).click();
+    const teaching = page.getByRole('dialog', { name: '教学设置' });
+    await expect(teaching.getByLabel('老师人格', { exact: true })).toBeVisible();
+    await teaching.getByRole('button', { name: '关闭', exact: true }).click();
     await page.reload();
     await tab(page, '教室').click();
     await bench(page).getByRole('button', { name: '教室设置', exact: true }).click();
@@ -102,7 +113,25 @@ test('五种工作预设独立保存配置，列表与像素共用真实出题�
     await expect(restored.getByLabel('推理等级', { exact: true })).toHaveValue('low');
     await expect(restored.getByLabel('每次分析的生成上限')).toHaveValue('8192');
     await expect(restored.getByLabel('资料范围', { exact: true })).toHaveValue('read');
+    // The legacy `read` scope remains selected and may be kept as-is. New
+    // choices can be saved per preset without inheriting a worker persona.
+    await restored.getByLabel('资料范围', { exact: true }).selectOption('read-only');
+    await restored.getByRole('button', { name: '保存', exact: true }).click();
+    await expect(page.getByText('已保存，下一次后台分析会用这个模型。').first()).toBeVisible();
+    await restored.getByRole('button', { name: '题目研究员', exact: true }).click();
+    await restored.getByLabel('资料范围', { exact: true }).selectOption('workspace');
+    await restored.getByRole('button', { name: '保存', exact: true }).click();
+    await expect(page.getByText('已保存：这位工作员跟随老师的模型。').first()).toBeVisible();
     await restored.getByRole('button', { name: '关闭', exact: true }).click();
+    await page.reload();
+    await tab(page, '教室').click();
+    await bench(page).getByRole('button', { name: '教室设置', exact: true }).click();
+    const scopes = page.getByRole('dialog', { name: '教室设置' });
+    await scopes.getByRole('button', { name: '出题员', exact: true }).click();
+    await expect(scopes.getByLabel('资料范围', { exact: true })).toHaveValue('read-only');
+    await scopes.getByRole('button', { name: '题目研究员', exact: true }).click();
+    await expect(scopes.getByLabel('资料范围', { exact: true })).toHaveValue('workspace');
+    await scopes.getByRole('button', { name: '关闭', exact: true }).click();
 
     const request = '给我准备一道检查向量加法的小测。';
     await script(runtime, { [request]: [{ name: 'ask_worker', arguments: { preset: 'exercise', goal: '准备一道向量加法小测。' } }], '__worker:exercise': { text: ANSWER_MARKER, pauseMs: 12_000 } });
@@ -281,6 +310,13 @@ test('解题默认不内联解答：任务可查看分析并打开原生一次�
     await expect(page.getByText('已保存课堂小结', { exact: true })).toBeVisible();
     await expect(page.getByText('已更新教学设置', { exact: true })).toBeVisible();
     await expect(page.getByText('这节课没有打开', { exact: true })).toBeVisible();
+    // The legacy feynman tool input is accepted but normalized to the sole
+    // current method in the learner-facing settings dialog.
+    await page.getByRole('button', { name: '教学设置', exact: true }).click();
+    const methodSettings = page.getByRole('dialog', { name: '教学设置' });
+    await expect(methodSettings.getByRole('radio')).toHaveCount(1);
+    await expect(methodSettings.getByRole('radio', { name: /混合教法/ })).toBeChecked();
+    await methodSettings.getByRole('button', { name: '关闭', exact: true }).click();
     await expect(page.locator('body')).not.toContainText(/save_lesson_summary|set_teaching_settings|open_learning_lesson/);
     await page.screenshot({ path: testInfo.outputPath('teacher-tool-rows.png') });
   } finally {

@@ -259,7 +259,11 @@ test('seeding upgrades an untouched built-in template and never overwrites an ed
     await writeFile(join(templates, 'card.md'), await bundled('card.md'));
     await writeFile(join(templates, 'topic.md'), await bundled('topic.md'));
     await writeFile(join(templates, 'insight.md'), await bundled('insight.md'));
+    await writeFile(join(templates, 'learner-profile.md'), await bundled('learner-profile.md'));
     const store = createVaultStore(root, templates);
+    await mkdir(join(root, '学情'), { recursive: true });
+    const existingProfile = '---\ntype: learner-profile\ntitle: 数学\n---\n## 何时想起\n旧画像内容必须保留。\n';
+    await writeFile(join(root, '学情', '数学.md'), existingProfile);
     const shipped = (await store.templates()).find(item => item.path === 'card.md');
     assert.match(shipped.content, /## 内容/);
 
@@ -280,6 +284,18 @@ test('seeding upgrades an untouched built-in template and never overwrites an ed
     const upgradedInsight = (await store.templates()).find(item => item.path === 'insight.md');
     assert.match(upgradedInsight.content, /## 参考理解/);
     assert.doesNotMatch(upgradedInsight.content, /^## 方法$/m);
+
+    // 画像模板不再要求每条都带“何时想起”；只精确升级未编辑的旧内置模板。
+    const legacyProfile = '---\ntemplate: true\nname: 学情条目\ntype: learner-profile\nstatus: draft\ntags: []\n---\n# {{title}}\n\n## 何时想起\n\n- [ ] 哪个主题、哪种表现出现时需要先看这条学情\n\n## 观察\n\n写下具体主题里的实际表现，不用笼统水平结论。\n\n## 学生原话\n\n## 教学偏好\n';
+    await writeFile(join(root, '_templates', 'learner-profile.md'), legacyProfile);
+    const upgradedProfile = (await store.templates()).find(item => item.path === 'learner-profile.md');
+    assert.match(upgradedProfile.content, /按日期往后追加具体主题里的实际表现与判断/);
+    assert.doesNotMatch(upgradedProfile.content, /^## 何时想起$/m);
+    assert.equal(await readFile(join(root, '学情', '数学.md'), 'utf8'), existingProfile);
+
+    const customProfile = `${legacyProfile}\n## 自定义内容\n`;
+    await writeFile(join(root, '_templates', 'learner-profile.md'), customProfile);
+    assert.equal((await store.templates()).find(item => item.path === 'learner-profile.md').content.trimEnd(), customProfile.trimEnd());
 
     // 学生自己改过的模板：一个字的差别就不动它。
     const edited = `${legacy}\n## 我的补充\n`;

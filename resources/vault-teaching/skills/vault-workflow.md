@@ -12,6 +12,15 @@ cat "$DSH_NOTARA_TEACHING/manifest.json"
 
 此类调用的 `description` 使用 `[notara:lesson-read] 查阅教学资源`。只给工作员实际需要的正文与来源说明；无工具工作员不会因为获得索引就读到正文。
 
+## 原生资料工具
+
+- `vault_read` 读取授权资料根内的 Markdown，并返回真实 revision；长文可按行读取。路径始终是资料根内相对路径。
+- `vault_search` 按标题、路径和正文检索已登记资料。结果只是候选和片段，不替代 `vault_read` 精读，也不保证不同措辞都能命中。
+- `vault_save` 保存授权资料内的 Markdown 或代码文件。新建传空的 `expectedRevision`，修改时先读取并照抄真实 revision；不要用它维护白板、复习字段或技能启用状态。
+- `vault_command` 执行确定性 Vault 领域命令；通过 `help` 列出命令，再用 `command-help` 查询参数。`write-batch` 仅处理 Markdown，最多逐项回执，不是代码文件保存入口。
+- Bash 用于当前清单提供的命令、高级组合检索、运行与测试；它不能替代带版本的资料保存。联网能力只按实际提供的网页工具判断，不从 Bash 推断。
+- 教学技能通过原生 `notara-*` 技能名按需调用；没有 `load_skill` 或 `load_teaching_resource` 工具。工作员是否有资料、Bash 或网页工具由本次实际工具清单与权限决定。
+
 ## 文件类型
 
 文件类型由 frontmatter 的 `type` 决定，落地目录按用途区分：
@@ -31,12 +40,12 @@ cat "$DSH_NOTARA_TEACHING/manifest.json"
 | `技能/` | `skill` | 本学习集的学习集层技能；只用 `skill-save` 写，新建为草稿，启用与采用修订由学生在技能页确认 |
 | `lesson-board/` | — | 课堂白板，只由 `write_lesson_board` 维护；可以读，不用 `write-batch` 或 shell 直接改 |
 
-frontmatter 只支持扁平子集：单行标量、`[a, b]` 列表或单行 JSON。`title` 写真实标题；`tags`、`subjects` 按需。新建笔记先读 `_templates/` 里同类模板，照它的结构写正文；保存的正文去掉 `template: true`、`name` 和 `{{title}}`、`{{date}}` 这类占位，标题写真实标题，日期行没有真实来源就删掉，不自己填今天的日期；卡片、共性父节点（以及旧锦囊）使用“内容/参考理解/学生理解”三段，旧模板仍是旧标题时按此规范新建，不自动重写已有笔记。学情仍保留何时想起/观察/学生原话/教学偏好，不改成题卡。
+frontmatter 只支持扁平子集：单行标量、`[a, b]` 列表或单行 JSON。`title` 写真实标题；`tags`、`subjects` 按需。新建笔记先读 `_templates/` 里同类模板，照它的结构写正文；保存的正文去掉 `template: true`、`name` 和 `{{title}}`、`{{date}}` 这类占位，标题写真实标题，日期行没有真实来源就删掉，不自己填今天的日期；卡片、共性父节点（以及旧锦囊）使用“内容/参考理解/学生理解”三段，旧模板仍是旧标题时按此规范新建，不自动重写已有笔记。学情模板按日期追加具体表现与判断，最后一段保留“当前判断”；学情正文不另设“何时想起”，需要画像时按教学任务和主题检索。
 
 ## 读写文件
 
-- 普通读写都用原生 Bash：找文件用 `ls`、`rg --files`，搜正文用 `rg`／`grep`，读原文用 `sed -n`、`cat`，看图用 `read_image`。这里的 `rg` 都指随包的 `"$DSH_NOTARA_RG"`（参数与 rg 相同，不依赖系统是否装了 rg；变量不存在时改用 `grep -r` 与 `find`）。多步可以接管道，例如先 `"$DSH_NOTARA_RG" -l 不变区间 "$DSH_NOTARA_VAULT_ROOT/知识"` 缩小候选，再 `sed -n '1,80p'` 读候选正文。资料路径相对于 `$DSH_NOTARA_VAULT_ROOT`，例如 `"$DSH_NOTARA_VAULT_ROOT/知识/向量.md"`、`"$DSH_NOTARA_VAULT_ROOT/媒体/向量讲义.pdf"`。
-- Vault 里的 Markdown 不用原生 read／write／edit（这三个只对代码文件开放，见“代码文件”），也没有 glob／grep 工具：普通读取直接用 shell，写 Vault Markdown 用 `write-batch` 命令（见“本地命令行”），新建用 `op: "create"`、局部精确替换用 `op: "edit"`。`echo >`、`cat >`、`sed -i` 这类直接改文件不经过 `write-batch` 的路径校验与 CAS，也不套用 write/edit 工具那种写保护，别当作等价写法；普通 shell 读取同样不记进原生 read 的读取记录。改已有文件前先读原文，保留不应改动的部分，尤其是程序写入的 frontmatter 字段。
+- 普通 Vault 资料优先用 `vault_read`、`vault_search` 和 `vault_save`；需要多条件管道、枚举文件、查看未登记的项目文件或运行程序时，才使用当前清单提供的 Bash。随包 `"$DSH_NOTARA_RG"` 可用于高级全文检索，缺失时可用 grep/find。Bash 文件路径相对于 `$DSH_NOTARA_VAULT_ROOT`，例如 `"$DSH_NOTARA_VAULT_ROOT/知识/向量.md"`、`"$DSH_NOTARA_VAULT_ROOT/媒体/向量讲义.pdf"`。
+- Markdown 的新增与修改用 `vault_save`，或在需要同一领域命令合同的批次中用 `vault_command` 的 `write-batch`；后者仅限 Markdown。按 revision 做 CAS，冲突时重新读取并合并，不得用 `echo >`、`cat >`、`sed -i` 绕过。改已有文件前先读原文，保留不应改动的部分，尤其是程序写入的 frontmatter 字段。
 - 更新学生理解按 `notara-method-distillation` 的“学生理解：保留认知演变”：先读完整小节，在原有经历之后补充新的理解与证据。
 - 引用资料给真实标题；图片、PDF 放在 `媒体/` 下，用资料根相对路径（`媒体/...`）在 Markdown 里引用。
 - 耗时长、又不影响眼前这一步的命令（大范围检索、批量处理 PDF）可以用 Bash 的 `run_in_background: true` 放到后台，结束时会话里会有通知，再用 `job_output` 读取结果；需要马上用结果的命令照常同步执行。后台命令同样服从原生沙箱与审批。
@@ -50,73 +59,71 @@ frontmatter 只支持扁平子集：单行标量、`[a, b]` 列表或单行 JSON
 
 ## 代码文件
 
-- 编程课的代码放在 `代码/<课程或项目>/` 下，一门课一个目录；学生在图标列的 Vault 里用代码编辑器打开、修改、保存。
-- 代码文件用原生 `read`、`edit`、`write`：改已有文件前先用 `read` 读一遍（原生写保护要求先读后写），再用 `edit` 精确替换或 `write` 整体写入。对话里会出现改动对比，学生据此看你改了什么。Markdown 不能用这三个工具，仍按上文用 `write-batch`；检索仍用 shell。
+- 编程课的代码放在 `代码/<课程或项目>/` 下，一门课一个目录；学生在 Vault 里用代码编辑器打开、修改、保存。
+- 代码文件先用 `vault_read` 读当前版本，再用 `vault_save` 按真实 `expectedRevision` 保存；`write-batch` 只接受 Markdown。运行与测试用当前清单实际提供的 Bash 和本机已有工具链，不能把保存成功说成程序运行通过。
 - 学生正在编辑同一个文件时，先请学生保存；你改完后，学生的编辑器会自动载入新内容，未保存的改动不会被覆盖。
 - 运行与测试用 Bash 调用本机已有的工具链（如 `python3 -m doctest`、`python3 -m pytest`、`gcc`），在代码所在目录执行，读完整输出与退出码。Windows 上 Python 常叫 `python` 或 `py`，先用 `command -v python3 python py` 看有哪个。缺少解释器或依赖时如实说明，不自动安装系统依赖；耗时长的命令可以放后台。
 - 目录用 git 管理时，可以用 `git diff` 给学生看一段时间内的改动；是否初始化 git 由学生决定。
 
-## 本地命令行
+## Vault 领域命令
 
-Host 注入入口与身份，老师用原生 bash 在当前工作区执行；只使用这些环境变量，不自己拼 Node 路径、脚本位置或身份：
+优先用原生 `vault_command`，直接传 `command` 与 `input`，不启动 shell。`command: "help"` 列出命令；`command: "command-help", input: {command: "命令名"}` 返回该命令的准确字段。只传内容参数，Host 绑定资料根、会话身份、调用身份与记录时间。
 
-- `DSH_NOTARA_NODE`、`DSH_NOTARA_CLI`：命令入口。
-- `DSH_NOTARA_WORKSPACE`：真实工作区根。
-- `DSH_NOTARA_VAULT_ROOT`：当前资料根；Markdown、PDF、图片和其他资料都从这里读写。
-- `DSH_NOTARA_VAULT_PREFIX`：兼容旧布局的相对前缀，旧布局为 `vault/`，直接选择 Vault 文件夹时为空；不要自行猜测。
-- `DSH_NOTARA_WORKSPACE_ID`：这个工作区的注册 id。
-- `DSH_SESSION_ID`：本次原生课堂身份，由 Host 内建。
-- `DSH_NOTARA_CALL_ID`：本次调用的身份，用于幂等。
-- `DSH_NOTARA_LESSON`：Host 给出的本课绑定剧本位置与版本，读剧本的两个命令用它核对绑定；不由你填写或修改。
+命令一览：
 
-```sh
-"$DSH_NOTARA_NODE" "$DSH_NOTARA_CLI" <command>            # 内容参数按 JSON 从 stdin 传入
-"$DSH_NOTARA_NODE" "$DSH_NOTARA_CLI" <command> --help     # 每条命令自描述的精确 schema
-```
+- `write-batch`：成批保存 Markdown，用法见下。
+- `review-queue`、`record-review`、`undo-review`、`calendar`：复习与评估，见 `notara-method-distillation`。
+- `route-outline`、`create-route`、`revise-route`、`schedule-lesson`：路线与排课，见 `notara-lesson-preparation`。
+- `lesson-outline`、`lesson-section`：按阶段读本课剧本，见 `notara-lesson-preparation`。
+- `lesson-log`：课堂小结索引，见 `notara-material-search`。
+- `pdf-page`、`source-cards`：按页读 PDF、按引用查已拆卡片，见 `notara-material-outline`。
+- `skill-list`、`skill-read`、`skill-save`：两层技能，见 `notara-skill-authoring`。
 
-命令一览（每条命令的 JSON stdin 字段以它自己的 `--help` 为准，照那份 schema 传参）：
+`write-batch` 的 `input` 是 `{files:[...]}`，每项 `{op,path,...}`：
 
-- `write-batch`：写 Vault 里的 Markdown，用法见下。
-- `review-queue`、`record-review`、`undo-review`、`calendar`：复习与评估，用法见 `notara-method-distillation`。
-- `route-outline`、`create-route`、`revise-route`、`schedule-lesson`：路线与排课，用法见 `notara-route-planning`。
-- `lesson-outline`、`lesson-section`：按阶段读本课剧本，用法见 `notara-lesson-preparation`。
-- `lesson-log`：查课堂小结索引，用法见 `notara-material-search`。
-- `pdf-page`、`source-cards`：按页读 PDF、按引用位置查已拆出的卡，用法见 `notara-material-outline`。
-- `skill-list`、`skill-read`、`skill-save`：学科层与学习集层技能，用法见 `notara-skill-authoring`。
+- `op: "create"` 新建，`content` 是完整 Markdown，文件已存在时拒绝。
+- `op: "edit"` 的 `oldText` 必须非空且恰好匹配一次，替换为 `newText`，其余原样保留；程序用当前 revision 做 CAS。
+- 一批最多 50 个不同路径，逐文件返回 `saved` 或 `error`。检查 `failedCount` 与每项回执，部分失败不撤销已成功项，只重试失败项；不要把外层调用完成当作每一项保存成功。
+- 单文件全文保存优先 `vault_save`；代码文件不使用 write-batch。字段与上限以 command-help 为准。
 
-- `write-batch`：一次写当前 Vault 里的 Markdown，stdin 是 `{files:[...]}`，每项 `{op, path, ...}`。
-  - `op: "create"`：新建，`content` 是完整 Markdown；文件已存在时拒绝。
-  - `op: "edit"`：`oldText` 必须非空且在该文件里恰好匹配一次，只替换这一处，其余内容原样保留；命令用实际文件 revision 做 CAS。
-  - 一批最多 50 个文件，`path` 互不重复；逐文件返回 `saved` 或 `error`，有失败时整批返回非零，只重试失败项；字段与上限以 `write-batch --help` 为准。
-  它是命令行命令，不是模型工具；`description` 用 `[notara:note-write]` 或 `[notara:memory-write]`。用单引号 heredoc 传 JSON，避免 LaTeX 反斜杠、反引号和 `$` 被 shell 展开：
+`vault_command` 参数示例：
 
-```sh
-"$DSH_NOTARA_NODE" "$DSH_NOTARA_CLI" write-batch <<'JSON'
-{"files":[
+```json
+{"command":"write-batch","input":{"files":[
   {"op":"create","path":"卡片/例.md","content":"# 例\n\n完整 Markdown"},
   {"op":"edit","path":"卡片/旧.md","oldText":"精确原文","newText":"替换文"}
-]}
+]}}
+```
+
+- `path` 是资料根内相对路径，不带 `vault/`；跨集剧本只按 Host 回执中的真实 `readPath` 使用。
+- 领域命令要求 `expectedRevision` 时，照抄读取或保存回执的真实 revision；冲突先重新读取并合并。write-batch 不收该字段，由程序核对原文后提交 CAS。
+- create-route 是新建，不传 expectedRevision；第一次 record-review 缺少 revision 时先用 review-queue 的 all/pending 取得已有卡片版本。
+- 日期、记录 ID、执行身份和 revision 都照真实回执，不编造。用户明确给出的排课日期是内容参数，与 Host 记录时间区分。
+- PDF 图像通过原生持久附件返回；`imageAvailable: false` 表示只拿到了文字层，不能声称看过原页。
+
+## 兼容 Bash 命令行
+
+旧脚本或确有需要时仍可通过 Bash 调用同一领域命令。原生资料工具不需要这层包装。Host 注入 `DSH_NOTARA_NODE`、`DSH_NOTARA_CLI`、`DSH_NOTARA_WORKSPACE`、`DSH_NOTARA_VAULT_ROOT`、`DSH_NOTARA_VAULT_PREFIX`、`DSH_NOTARA_WORKSPACE_ID`、`DSH_SESSION_ID`、`DSH_NOTARA_CALL_ID`、`DSH_NOTARA_LESSON`；不自己拼执行身份或脚本位置。shell 资料路径使用 `"$DSH_NOTARA_VAULT_ROOT"`，不要固定假定 vault/ 布局。
+
+```sh
+"$DSH_NOTARA_NODE" "$DSH_NOTARA_CLI" <command> --help
+"$DSH_NOTARA_NODE" "$DSH_NOTARA_CLI" write-batch <<'JSON'
+{"files":[{"op":"create","path":"卡片/例.md","content":"# 例\n\n完整 Markdown"}]}
 JSON
 ```
-命令行约定补充：
 
-- 只传内容参数：要读的路径与页码、卡片的能力评估与说明、目标标题，以及用户明确说出的排课日期这类教学内容。记录日期、记录 ID、会话与调用身份由命令和环境变量补齐，不由你传；命令拒绝某个字段就如实说明，不绕过也不编造。
-- 命令行的 `path` 是资料根内相对路径（不带 `vault/` 前缀），如 `知识/向量.md`、`媒体/向量讲义.pdf`；换成 shell 路径时拼接到 `"$DSH_NOTARA_VAULT_ROOT"`，不要固定写 `vault/`。工具参数同理：`open_learning_lesson` 的 `path` 如 `路线/学习路线.md`，`set_teaching_settings` 的 `scriptPath` 如 `备课/剧本.md`。
-- `record-review`、`undo-review`、`revise-route`、`schedule-lesson` 等要求 `expectedRevision` 的领域命令，用 `review-queue`、`calendar`、`route-outline`、`create-route`、`revise-route`、`lesson-outline` 返回的真实 `revision`，照抄，不自己算也不猜。过期就重新读取再试。`write-batch` 不收这个字段：edit核对已读原文唯一匹配后，由程序取当前revision提交保存；它的逐文件回执带保存后的 `revision`，紧接着记评估时直接照抄。
-- `create-route` 是新建路线，不传 `expectedRevision`。卡片的第一次 `record-review` 若手里没有 `expectedRevision`，先用 `review-queue` 的 `status: all` 或 `pending` 取到这张已有卡的 `revision`。
-- 返回的路径、日期、记录 ID、`revision` 都是真实值，照抄引用；不自行拼路径、编日期或编号。
-- 命令失败时如实说明失败原因与影响，不说成已经保存。
+CLI 从 stdin 接收 JSON；单引号 heredoc 保留 LaTeX、反引号与美元符号。退出码非零表示失败或部分失败，仍须逐项核对。不要用重定向、sed -i 等绕过 CAS。
 
 ## Bash 意图标记
 
-每次 bash 调用的 `description` 以 `[notara:<intent>] 简短中文说明` 开头，例如 `[notara:review-record] 记录这次作答并安排复习`。说明只写学习目的，不带路径、ID 或命令，也不出现 `vault/`、Node、CLI 这类内部词；标识只放在 `description`，不写进 command、不 echo、不出现在学生看到的正文里。一次调用只标一个主意图：命令可以多 step，但不要把不同目的藏在同一次调用里，无法归类就用 `other`。普通文本读取与写入也都是 bash 调用（shell 或 `write-batch`），同样要标记。
+使用 Bash 时，`description` 以 `[notara:<intent>] 简短中文说明` 开头，例如 `[notara:review-record] 记录这次作答并安排复习`。说明只写学习目的，不带路径、ID 或命令，也不出现 `vault/`、Node、CLI 这类内部词；标识只放在 `description`，不写进 command、不 echo、不出现在学生看到的正文里。一次调用只标一个主意图：命令可以多 step，但不要把不同目的藏在同一次调用里，无法归类就用 `other`。原生 `vault_read`、`vault_search`、`vault_save` 与 `vault_command` 不经 Bash，因此不使用 Bash 意图标记。
 
 | intent | 用途 | 当前命令 |
 | --- | --- | --- |
-| `material-read` | 读资料正文、检索候选、看 PDF 或图片、查资料已拆出的卡 | `pdf-page`、`source-cards`，以及 shell 的 `ls`／`rg`／`grep`／`sed` |
-| `note-write` | 写普通资料、讲义、笔记 | `write-batch` |
-| `memory-read` | 查学情、方法要点与旧锦囊 | shell 的 `ls`／`rg`／`grep`／`sed` |
-| `memory-write` | 写学情画像（方法要点用 `skill-save`） | `write-batch` |
+| `material-read` | 高级检索、看 PDF 或图片、查资料已拆出的卡 | `pdf-page`、`source-cards`，以及 Bash 的 `ls`／`rg`／`grep`／`sed` |
+| `note-write` | 运行旧的 Markdown 批量保存命令 | `write-batch` |
+| `memory-read` | 用高级检索查学情、方法要点与旧锦囊 | Bash 的 `ls`／`rg`／`grep`／`sed` |
+| `memory-write` | 运行旧的画像批量保存命令 | `write-batch`（方法要点用 `skill-save`） |
 | `review-read` | 看复习队列与到期卡片 | `review-queue` |
 | `review-record` | 记录一次实际评估 | `record-review` |
 | `review-undo` | 撤销最近一次评估 | `undo-review` |

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { teachingManifest, teachingResource } from './teaching-catalog.js';
+import { teachingManifest, teachingLegacyAliases, teachingResource } from './teaching-catalog.js';
 import { apply } from './teacher.js';
 
 const sourceRoot = new URL('../../resources/vault-teaching/', import.meta.url);
@@ -31,8 +31,8 @@ test('the real teacher Skill provider lists distinct locators and retrieves each
   apply({ effect: fn => fn(), skills: { registerProvider: create => { provider = create(); } } });
   const listed = await provider.list({});
   const rows = [...teachingManifest.choices, ...teachingManifest.skills];
-  assert.equal(new Set(listed.map(row => row.name)).size, rows.length);
-  assert.equal(new Set(listed.map(row => row.locator)).size, rows.length);
+  assert.equal(new Set(listed.map(row => row.name)).size, rows.length + Object.keys(teachingLegacyAliases).length);
+  assert.equal(new Set(listed.filter(row => row.source === 'bundled').map(row => row.locator)).size, rows.length);
   for (const item of rows) {
     const entry = listed.find(row => row.name === `notara-${item.id}`);
     assert.ok(entry, item.id);
@@ -52,13 +52,21 @@ test('the real teacher Skill provider lists distinct locators and retrieves each
   }
   assert.equal(teachingManifest.skills.find(row => row.id === 'teaching-reflection').menu, 'more');
   assert.notEqual(teachingManifest.skills.find(row => row.id === 'learning-review').menu, 'more');
-  assert.deepEqual(teachingManifest.choices.map(row => row.id), ['socratic', 'feynman', 'lecture', 'structural']);
-  for (const [id, title] of [['brainstorm', '头脑风暴'], ['consolidation', '体系梳理']]) {
+  assert.deepEqual(teachingManifest.choices.map(row => row.id), ['mixed']);
+  for (const [id, title] of [['consolidation', '头脑风暴与体系梳理']]) {
     const item = teachingManifest.skills.find(row => row.id === id);
     assert.ok(item, `${id} is registered`);
     assert.equal(item.title, title);
-    assert.notEqual(item.menu, 'more', `${id} stays in the common menu`);
+    assert.equal(item.menu, 'more', `${id} is grouped in the expanded skills menu`);
     assert.ok(listed.some(row => row.name === `notara-${id}`), `${id} is offered to the teacher`);
+  }
+  for (const [alias, target] of Object.entries(teachingLegacyAliases)) {
+    const entry = listed.find(row => row.name === `notara-${alias}`);
+    assert.ok(entry, alias);
+    assert.equal(entry.invocation.modelInvocable, true);
+    assert.equal(entry.invocation.userInvocable, false);
+    const targetItem = [...teachingManifest.choices, ...teachingManifest.skills].find(row => row.id === target);
+    assert.equal((await provider.get(entry)).content, teachingResource(targetItem.file), alias);
   }
   assert.deepEqual(await provider.list({ signal: AbortSignal.abort() }), []);
 });

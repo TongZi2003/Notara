@@ -23,6 +23,10 @@ test('the command menu discovers teaching Skills and picks through the native in
     await page.getByRole('button', { name: /^(指令|Commands|Add files or run commands|添加文件或调用指令)$/ }).click();
     const menu = page.locator('[data-trigger-menu]');
     const manifest = JSON.parse(await readFile(new URL('../../resources/vault-teaching/manifest.json', import.meta.url), 'utf8'));
+    expect(manifest.choices.map((row: { id: string }) => row.id)).toEqual(['mixed']);
+    const builtinIds = manifest.skills.map((row: { id: string }) => row.id);
+    for (const retired of ['brainstorm', 'markdown-handout', 'route-planning']) expect(builtinIds).not.toContain(retired);
+    for (const canonical of ['consolidation', 'material-outline', 'lesson-preparation']) expect(builtinIds).toContain(canonical);
     for (const row of [...manifest.choices, ...manifest.skills]) {
       const title = row.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       await expect(menu.getByRole('option', { name: new RegExp('^' + title) })).toHaveCount(row.menu === 'more' ? 0 : 1);
@@ -36,10 +40,10 @@ test('the command menu discovers teaching Skills and picks through the native in
     await expect(composer).toHaveText('请帮我回顾这道错题的理解变化');
     expect(await harness.turns(session)).toHaveLength(0);
     await menu.getByRole('option', { name: /^收起更多技能/ }).click();
-    await expect(menu.getByRole('option', { name: /^数学关注/ })).toHaveCount(0);
+    await expect(menu.getByRole('option', { name: /^高中数学关注/ })).toHaveCount(0);
     await menu.getByRole('option', { name: /^更多技能/ }).hover();
     await composer.press('Enter');
-    await expect(menu.getByRole('option', { name: /^数学关注/ })).toHaveCount(1);
+    await expect(menu.getByRole('option', { name: /^高中数学关注/ })).toHaveCount(1);
     await expect(composer).toHaveText('请帮我回顾这道错题的理解变化');
     await menu.getByRole('option', { name: /^收起更多技能/ }).click();
     await menu.getByRole('option', { name: /^学习经历与方法整理/ }).click();
@@ -63,7 +67,7 @@ test('the command menu discovers teaching Skills and picks through the native in
     await composer.fill('/notara-subject-computing');
     await expect(menu.getByRole('option', { name: /^计算机关注/ })).toBeVisible();
     await composer.fill('/数学');
-    await expect(menu.getByRole('option', { name: /^数学关注/ })).toBeVisible();
+    await expect(menu.getByRole('option', { name: /^高中数学关注/ })).toBeVisible();
     await composer.press('Escape');
     await composer.fill('');
 

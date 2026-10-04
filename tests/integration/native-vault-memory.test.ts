@@ -145,13 +145,15 @@ test('教学记忆：L0 只给入口，Bash 的 ls/grep/sed 逐步读正文，�
     const skills = (await host.outcomes(session)).filter(row => row.name === 'skill');
     expect(skills).toHaveLength(3);
     expect(skills.every(row => !row.failed)).toBe(true);
+    expect(JSON.stringify(skills)).toContain('资料整理');
 
     // 设置与压缩：教法、临时要求仍按 in-history 生效，压缩不吞掉它们。
-    host.value(await host.rpc('notaraVault/updateTeachingSettings', { input: { sessionId: session, expectedRevision: 0, patch: { teachingRef: 'lecture', temporaryInstructions: '保留我的选路理由' } } }));
+    const legacySettings = host.value(await host.rpc<{ teachingRef: string }>('notaraVault/updateTeachingSettings', { input: { sessionId: session, expectedRevision: 0, patch: { teachingRef: 'lecture', temporaryInstructions: '保留我的选路理由' } } }));
+    expect(legacySettings.teachingRef).toBe('mixed');
     const compact = host.value(await host.rpc<{ result?: { kind: string; text: string } }>('commands/execute', { agentId: session, line: '/compact', submittedAttachments: [] }));
     expect(JSON.stringify(compact)).toContain('Compacted');
     const [afterCompact] = await host.ask(session, '压缩以后继续比较表示。', { '压缩以后继续比较表示。': '继续比较表示。' });
-    expect(effectiveSystemText(afterCompact!)).toContain('讲解—变式');
+    expect(effectiveSystemText(afterCompact!)).toContain('混合教法');
     expect(JSON.stringify(afterCompact)).toContain('保留我的选路理由');
 
     await mkdir('.runtime/teaching-implementation', { recursive: true });

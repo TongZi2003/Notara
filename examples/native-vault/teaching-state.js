@@ -1,7 +1,7 @@
 import { pluginEventType } from './plugin-events.js';
 import { parseSourceRef } from './agent-io.js';
 import { safeRelativePath } from './vault.js';
-import { defaultTeachingRef, teachingChoices } from './teaching-catalog.js';
+import { canonicalTeachingId, defaultTeachingRef, teachingChoices } from './teaching-catalog.js';
 import { PERSONA_TEXT_LIMIT, personaText } from './persona.js';
 
 /**
@@ -145,6 +145,9 @@ export function readTeachingSettings(session) {
     if (type===SETTINGS_EVENT) Object.assign(result,event.data);
     if (type===LESSON_EVENT) Object.assign(result,event.data);
   }
+  // Old classrooms keep their original event history, but all current views and prompts
+  // use the single merged teaching method.
+  result.teachingRef = canonicalTeachingId(result.teachingRef);
   const snapshot=scriptSnapshotValue(result.scriptSnapshot);
   return {...result,scriptSnapshot:snapshot.value,scriptSnapshotTruncated:snapshot.truncated,continuation:projectContinuation(result.continuation),choices:teachingChoices};
 }
@@ -155,7 +158,7 @@ export function validateTeachingPatch(patch) {
   for (const key of Object.keys(patch)) if (!allowed.includes(key)) fail('teaching_settings_invalid');
   const result={};
   if (Object.hasOwn(patch,'teachingRef')) {
-    const value=patch.teachingRef??defaultTeachingRef;
+    const value=canonicalTeachingId(patch.teachingRef??defaultTeachingRef);
     if (!teachingChoices.some(item=>item.id===value)) fail('teaching_choice_invalid');
     result.teachingRef=value;
   }

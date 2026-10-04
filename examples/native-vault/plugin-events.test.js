@@ -21,7 +21,7 @@ test('settings, bindings and pomodoro written before the format migration still 
   session.append(`plugin:${SETTINGS_EVENT}`, { revision: 1, teachingRef: 'feynman' }, { ignorable: true });
   session.append(`plugin:${LESSON_EVENT}`, { scriptPath: '备课/第一课.md' }, { ignorable: true });
   const settings = readTeachingSettings(session);
-  assert.equal(settings.teachingRef, 'feynman');
+  assert.equal(settings.teachingRef, 'mixed');
   assert.equal(settings.scriptPath, '备课/第一课.md');
   const events = [{ type: `plugin:${POMODORO_EVENT}`, seq: 1, data: { op: 'start', id: 'p1', phase: 'focus', minutes: 25, startedAt: '2026-09-28T08:00:00.000Z', endsAt: '2026-09-28T08:25:00.000Z' } }];
   assert.equal(foldPomodoro(events).current?.id, 'p1');

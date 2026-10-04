@@ -19,7 +19,7 @@ test('teaching settings persist in the native log before the first user message'
   assert.equal(next.revision, 1);
   assert.equal(session.snapshotEvents().filter(event => event.type === 'user/message').length, 0);
   const resumed = Session.create(session.id, session.snapshotEvents());
-  assert.equal(state.readTeachingSettings(resumed).teachingRef, 'feynman');
+  assert.equal(state.readTeachingSettings(resumed).teachingRef, 'mixed');
   assert.equal(state.readTeachingSettings(resumed).learningGoal.title, '理解条件概率');
 });
 
@@ -28,7 +28,7 @@ test('clearing goals and reverting a teaching method preserve unrelated settings
   const session = Session.create('settings-clear');
   state.updateTeachingSettings(session, {teachingRef:'lecture',learningGoal:{title:'导数'},temporaryInstructions:'慢一点',subjects:['数学']}, 0);
   const cleared = state.updateTeachingSettings(session, {teachingRef:null,learningGoal:null}, 1);
-  assert.equal(cleared.teachingRef,'socratic');
+  assert.equal(cleared.teachingRef,'mixed');
   assert.equal(cleared.learningGoal,null);
   assert.equal(cleared.temporaryInstructions,'慢一点');
   assert.deepEqual(cleared.subjects,['数学']);
@@ -117,7 +117,7 @@ test('teaching events round-trip through the real JSONL log beside the native co
   assert.equal(conversation.surfaceOp, 'append');
 
   const settings = state.readTeachingSettings(Session.create(id, events));
-  assert.equal(settings.teachingRef, 'feynman');
+  assert.equal(settings.teachingRef, 'mixed');
   assert.equal(settings.learningGoal.title, '条件概率');
   assert.equal(settings.persona, '你是一位严格的数学老师，叫我小周。');
   assert.equal(settings.scriptPath, '备课/第一课.md');

@@ -2,6 +2,7 @@ import { compileExpression } from './math-expression.js';
 import { figureBounds, figureView } from './board-figure.js';
 import { flowBlanks, layoutFlow, renderFlowSvg } from './board-flow.js';
 import { loadLazyModule } from './lazy-assets.js';
+import { createSpatialProjector, spatialConeRings, spatialPointMap, spatialRing, spatialTicks } from './board-spatial.js';
 
 /**
  * Board figures and flow diagrams on the page. JSXGraph is fetched from the
@@ -22,7 +23,7 @@ export const figureSnapshots = new Map();
 export function snapshotFigures() {
   return Object.fromEntries([...figureSnapshots].map(([key, read]) => [key, read()]).filter(([, svg]) => svg));
 }
-const cleanSvg = svg => svg.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '').replace(/\son[a-z]+="[^"]*"/gi, '');
+const cleanSvg = svg => svg.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '').replace(/<foreignObject\b[^>]*>[\s\S]*?<\/foreignObject\s*>/gi, '').replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '').replace(/\s+(?:href|xlink:href)\s*=\s*(["'])\s*(?:javascript|data):[\s\S]*?\1/gi, '').replace(/url\(\s*(["']?)\s*(?:javascript|data):[^)]*\)/gi, 'none');
 
 export function createBoardVisuals(React) {
   const h = React.createElement, { useEffect, useMemo, useRef, useState } = React;
@@ -112,8 +113,75 @@ export function createBoardVisuals(React) {
   }
   const initialValues = spec => Object.fromEntries(spec.params.map(param => [param.name, param.value]));
 
+  function SpaceFigureCanvas({ spec, values, snapshotKey }) {
+    const host = useRef(null), gesture = useRef(null);
+    const [camera, setCamera] = useState({ yaw: -.72, pitch: .52, zoom: 1 });
+    const sceneResult = useMemo(() => {
+      try { return { scene: spatialPointMap(spec, values, compileExpression), error: false }; }
+      catch { return { scene: null, error: true }; }
+    }, [spec, JSON.stringify(values)]);
+    const scene = sceneResult.scene;
+    useEffect(() => { if (!snapshotKey) return undefined; const snapshot = () => { const svg = host.current; return svg?.tagName?.toLowerCase() === 'svg' ? cleanSvg(svg.outerHTML) : ''; }; figureSnapshots.set(snapshotKey,snapshot); return () => { if (figureSnapshots.get(snapshotKey)===snapshot) figureSnapshots.delete(snapshotKey); }; }, [snapshotKey]);
+    useEffect(() => {
+      const svg = host.current;
+      if (!svg) return undefined;
+      const wheel = event => {
+        event.preventDefault(); event.stopPropagation();
+        setCamera(previous => ({ ...previous, zoom: Math.max(.35,Math.min(3,previous.zoom * (event.deltaY>0?.92:1.08))) }));
+      };
+      // React delegates wheel as passive; the local listener must consume the
+      // scroll so zooming the figure does not also move the surrounding board.
+      svg.addEventListener('wheel',wheel,{passive:false});
+      return () => svg.removeEventListener('wheel',wheel);
+    }, [sceneResult.error]);
+    if (sceneResult.error) return h('div', { className: 'nb-space-error', role: 'alert' }, '空间表达式无效，请检查参数范围或坐标表达式。');
+    const box = figureBounds(spec), project = createSpatialProjector(box, camera);
+    const coord = point => project(point).slice(0, 2).map(value => value.toFixed(1)).join(',');
+    const edge = (a, b, key, className = 'nb-space-edge') => a && b && h('line', { key, x1: project(a)[0], y1: project(a)[1], x2: project(b)[0], y2: project(b)[1], className, stroke: className === 'nb-space-grid' ? '#e8edf2' : className === 'nb-space-axis' ? '#7992a8' : className === 'nb-space-vector' ? '#c0663c' : '#91a7bb', strokeWidth: className === 'nb-space-axis' ? 1.8 : className === 'nb-space-vector' ? 2.2 : 1.4, vectorEffect: 'non-scaling-stroke' });
+    const polygon = (points, key, className = 'nb-space-face') => points.length >= 3 && points.every(point => point && point.every(Number.isFinite)) && h('polygon', { key, points: points.map(coord).join(' '), className, fill: '#b8d2e5', fillOpacity: .18, stroke: '#7797b1', strokeWidth: 1.2, vectorEffect: 'non-scaling-stroke' });
+    const label = (text, point, key) => { if (!point || !point.every(Number.isFinite)) return null; const [x, y] = project(point); return h('text', { key, x: x + 7, y: y - 7, className: 'nb-space-label', fill: '#50677d', fontSize: 13, fontFamily: '-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif', paintOrder: 'stroke', stroke: '#fff', strokeWidth: 3, strokeLinejoin: 'round' }, text); };
+    const add = (a, b) => a.map((value, index) => value + b[index]);
+    const multiply = (a, scalar) => a.map(value => value * scalar);
+    const subtract = (a, b) => a.map((value, index) => value - b[index]);
+    const objectNodes = scene.objects.map((item, index) => {
+      const key = `${item.kind}-${item.name ?? index}`;
+      if (item.kind === 'point') { const point = scene.points.get(item.name); if (!point) return null; const [x, y] = project(point); return h(React.Fragment, { key }, h('circle', { cx: x, cy: y, r: 4, className: 'nb-space-point', fill: '#c0663c', stroke: '#fff', strokeWidth: 1.5 }), label(item.name, point, `${key}-label`)); }
+      if (item.kind === 'text') return label(item.content, [scene.evaluate(item.x), scene.evaluate(item.y), scene.evaluate(item.z)], key);
+      if (item.kind === 'vector' || item.kind === 'arrow') { const from = scene.points.get(item.from), to = from && add(from, [scene.evaluate(item.dx), scene.evaluate(item.dy), scene.evaluate(item.dz)]); return from && to ? h(React.Fragment, { key }, edge(from, to, `${key}-edge`, 'nb-space-vector'), label(item.label, to, `${key}-label`)) : null; }
+      if (item.kind === 'segment' || item.kind === 'line') { const [a, b] = item.points.map(name => scene.points.get(name)); if (!a || !b) return null; const vector = subtract(b, a), from = item.kind === 'line' ? subtract(a, multiply(vector, 1.5)) : a, to = item.kind === 'line' ? add(b, multiply(vector, 1.5)) : b; return edge(from, to, key); }
+      if (item.kind === 'plane' || item.kind === 'polygon') return polygon(item.points.map(name => scene.points.get(name)), key);
+      if (item.kind === 'cuboid') { const points = item.points.map(name => scene.points.get(name)); const faces = [[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]], edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]]; return h(React.Fragment, { key }, faces.map((face,n) => polygon(face.map(i => points[i]), `${key}-face-${n}`)), edges.map(([a,b],n) => edge(points[a],points[b],`${key}-edge-${n}`)), label(item.name, points[6], `${key}-label`)); }
+      if (item.kind === 'tetrahedron') { const points = item.points.map(name => scene.points.get(name)), edges = []; for (let a=0;a<points.length;a++) for (let b=a+1;b<points.length;b++) edges.push(edge(points[a],points[b],`${key}-${a}-${b}`)); return h(React.Fragment, { key }, edges, label(item.name,points[3],`${key}-label`)); }
+      if (item.kind === 'prism') { const base = item.points.map(name => scene.points.get(name)), delta = [scene.evaluate(item.dx),scene.evaluate(item.dy),scene.evaluate(item.dz)], top = base.map(point => add(point,delta)); return h(React.Fragment, { key }, polygon(base,`${key}-base`),polygon(top,`${key}-top`),base.map((point,n)=>edge(point,top[n],`${key}-vertical-${n}`)),base.map((point,n)=>edge(point,base[(n+1)%base.length],`${key}-base-${n}`)),top.map((point,n)=>edge(point,top[(n+1)%top.length],`${key}-top-${n}`)),label(item.name,top[0],`${key}-label`)); }
+      if (item.kind === 'pyramid') { const base = item.points.map(name => scene.points.get(name)), apex = scene.points.get(item.apex); return h(React.Fragment, { key }, polygon(base,`${key}-base`),base.map((point,n)=>edge(point,apex,`${key}-side-${n}`)),base.map((point,n)=>edge(point,base[(n+1)%base.length],`${key}-base-${n}`)),label(item.name,apex,`${key}-label`)); }
+      if (['sphere','cylinder','cone','frustum'].includes(item.kind)) { const center = scene.points.get(item.center), radius = scene.evaluate(item.radius); if (!center || radius < 0) return null; if (item.kind === 'sphere') { const [x,y] = project(center), r = Math.abs(radius * .62 * Math.min(760,520) / Math.max(box.xmax-box.xmin,box.ymax-box.ymin,box.zmax-box.zmin,1) * camera.zoom); return h(React.Fragment,{key},h('ellipse',{cx:x,cy:y,rx:r,ry:r*.58,className:'nb-space-surface',fill:'#a6c6dd',fillOpacity:.13,stroke:'#7193ae',strokeWidth:1.3}),h('ellipse',{cx:x,cy:y,rx:r*.58,ry:r,className:'nb-space-surface nb-space-dashed',fill:'none',stroke:'#7193ae',strokeWidth:1.3,strokeDasharray:'4 4'}),label(item.name,center,`${key}-label`)); }
+        const axis = [scene.evaluate(item.dx),scene.evaluate(item.dy),scene.evaluate(item.dz)], height = scene.evaluate(item.height), topRadius = item.kind === 'frustum' ? scene.evaluate(item.top) : item.kind === 'cone' ? 0 : radius;
+        if (height < 0 || topRadius < 0) return null;
+        const { bottom, top } = item.kind === 'cone'
+          ? (() => { const rings = spatialConeRings(center, axis, radius, height); return { bottom: rings.base, top: rings.apex }; })()
+          : { bottom: spatialRing(center,axis,radius,0), top: spatialRing(center,axis,topRadius,height) };
+        return h('g',{key,'data-spatial-object':`${item.kind}-${item.name}`},polygon(bottom,`${key}-bottom`),item.kind === 'cone' ? null : polygon(top,`${key}-top`),bottom.map((point,n)=>edge(point,top[n],`${key}-side-${n}`)),label(item.name,item.kind === 'cone' ? center : top[0],`${key}-label`)); }
+      return null;
+    });
+    const grid = [];
+    for (const x of spatialTicks(box.xmin, box.xmax)) grid.push(edge([x,box.ymin,0],[x,box.ymax,0],`grid-x-${x}`,'nb-space-grid'));
+    for (const y of spatialTicks(box.ymin, box.ymax)) grid.push(edge([box.xmin,y,0],[box.xmax,y,0],`grid-y-${y}`,'nb-space-grid'));
+    grid.push(edge([box.xmin,0,0],[box.xmax,0,0],'axis-x','nb-space-axis'),edge([0,box.ymin,0],[0,box.ymax,0],'axis-y','nb-space-axis'),edge([0,0,box.zmin],[0,0,box.zmax],'axis-z','nb-space-axis'));
+    const endGesture = event => { if (gesture.current?.pointerId === event.pointerId) gesture.current = null; if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); };
+    const pointerDown = event => { if (event.button !== 0) return; event.currentTarget.setPointerCapture?.(event.pointerId); gesture.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, yaw: camera.yaw, pitch: camera.pitch }; };
+    const pointerMove = event => { const start = gesture.current; if (!start || start.pointerId !== event.pointerId) return; setCamera(previous => ({ ...previous, yaw: start.yaw + (event.clientX-start.x)*.01, pitch: Math.max(-1.35,Math.min(1.35,start.pitch+(event.clientY-start.y)*.01)) })); };
+    return h('div',{className:'nb-space-figure'},h('svg',{ref:host,className:'nb-space-svg',viewBox:'0 0 760 520',style:{display:'block',width:'100%',height:'auto'},role:'img','aria-label':'空间直角坐标系',onPointerDown:pointerDown,onPointerMove:pointerMove,onPointerUp:endGesture,onPointerCancel:endGesture,onLostPointerCapture:endGesture},grid,objectNodes),h('div',{className:'nb-space-controls'},h('button',{type:'button',onClick:()=>{gesture.current=null;setCamera({yaw:-.72,pitch:.52,zoom:1});}},'重置视角'),h('span',null,'拖动旋转 · 滚轮缩放')));
+  }
+
+  function SpaceFigureView({ component, snapshotKey, onDiscuss, prefix }) {
+    const { spec } = component, [values, setValues] = useState(() => initialValues(spec));
+    useEffect(() => setValues(initialValues(spec)), [component.fingerprint]);
+    const bring = () => onDiscuss?.(`${prefix}空间图${spec.params.length ? '：' + spec.params.map(param => `${param.name} = ${number(values[param.name])}`).join('；') : ''}`);
+    return h('section',{className:'nb-figure-view', 'aria-label':'空间直角坐标系'},h(SpaceFigureCanvas,{spec,values,snapshotKey}),h(Params,{spec,values,onChange:(name,value)=>setValues(previous=>({...previous,[name]:value}))}),spec.params.length>0&&h('div',{className:'nb-q-actions'},h('button',{type:'button',onClick:bring},'带入对话')));
+  }
+
   /** A figure to explore (no ask): sliders and draggable points, then 带入对话. */
-  function FigureView({ component, snapshotKey, onDiscuss, prefix }) {
+  function PlanarFigureView({ component, snapshotKey, onDiscuss, prefix }) {
     const { spec } = component;
     const [values, setValues] = useState(() => initialValues(spec));
     const drags = useRef({});
@@ -127,6 +195,8 @@ export function createBoardVisuals(React) {
       h(Params, { spec, values, onChange: (name, value) => setValues(previous => ({ ...previous, [name]: value })) }),
       (spec.params.length > 0 || spec.objects.some(item => item.drag)) && h('div', { className: 'nb-q-actions' }, h('button', { type: 'button', onClick: bring }, '带入对话')));
   }
+
+  function FigureView(props) { return props.component.spec.space ? h(SpaceFigureView, props) : h(PlanarFigureView, props); }
 
   const figureInput = {
     initial(component) {

@@ -1,6 +1,6 @@
 {
   "name": "@notara/vault-native",
-  "version": "0.23.11",
+  "version": "0.23.12",
   "license": "MIT",
   "type": "module",
   "main": "index.js",
@@ -83,7 +83,12 @@
     "user-skill-runtime.js",
     "git-bash-executor.js",
     "script-binding.js",
-    "plugin-events.js"
+    "plugin-events.js",
+    "profile-context.js",
+    "worker-policy.js",
+    "worker-progress.js",
+    "vault-tools.js",
+    "board-spatial.js"
   ],
   "exports": {
     ".": "./index.js",

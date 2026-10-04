@@ -122,7 +122,7 @@ for (const subject of subjects) {
 
 test('cross-subject work composes only explicit principles and rejects workflow skills before spawn', async () => {
   const { solver, exec, calls } = setup();
-  const ids = ['notara-subject-math', 'notara-subject-computing', 'notara-socratic'];
+  const ids = ['notara-subject-math', 'notara-subject-computing', 'notara-mixed'];
   await solver.ask({ preset: 'lesson', goal: '将数学问题离散化', skills: ids }, exec);
   for (const id of ids) {
     const selected = [...teachingManifest.skills, ...teachingManifest.choices].find(item => `notara-${item.id}` === id);
