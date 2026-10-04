@@ -32,12 +32,18 @@ async function expectRetainedPrefix(before: AssembledRequest, after: AssembledRe
   const previousSystem = systemMessages(before), nextSystem = systemMessages(after);
   if (restarted) {
     // A fresh native request series may append a new system snapshot. The
-    // isolated restart chooses another GUI port; only that environment value
+    // isolated restart may choose another GUI port; only that environment value
     // may differ, and none of the previous system history may be rewritten.
     expect(nextSystem.slice(0, previousSystem.length)).toEqual(previousSystem);
-    expect(nextSystem).toHaveLength(previousSystem.length + 1);
-    const contentAt = (message: AssembledMessage, origin: string) => message.content.map(block => ({ ...block, ...(block.text === undefined ? {} : { text: block.text.split(origin).join('<isolated-gui-origin>') }) }));
-    expect(contentAt(nextSystem.at(-1)!, restarted.afterOrigin)).toEqual(contentAt(previousSystem.at(-1)!, restarted.beforeOrigin));
+    const added = nextSystem.length - previousSystem.length;
+    expect([0, 1]).toContain(added);
+    if (added === 0) {
+      expect(restarted.afterOrigin).toBe(restarted.beforeOrigin);
+      expect(nextSystem).toEqual(previousSystem);
+    } else {
+      const contentAt = (message: AssembledMessage, origin: string) => message.content.map(block => ({ ...block, ...(block.text === undefined ? {} : { text: block.text.split(origin).join('<isolated-gui-origin>') }) }));
+      expect(contentAt(nextSystem.at(-1)!, restarted.afterOrigin)).toEqual(contentAt(previousSystem.at(-1)!, restarted.beforeOrigin));
+    }
   } else expect(nextSystem).toEqual(previousSystem);
   expect(after.toolSchemas).toEqual(before.toolSchemas);
   // The existing history keeps its selected route, including when the isolated
