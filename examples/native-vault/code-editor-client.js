@@ -20,6 +20,7 @@ import { yaml } from '@codemirror/legacy-modes/mode/yaml';
 import { Annotation, EditorState } from '@codemirror/state';
 import { EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
 import { CODE_LANGUAGES } from './media.js';
+import { createDraftStore } from './draft-client.js';
 
 /**
  * The Vault's lightweight code editor: highlighting, language-aware indentation,
@@ -70,7 +71,42 @@ export function encodeCodeText(text) {
   return btoa(binary);
 }
 
+/** Serialize concurrent saves and report whether edits made during a save remain. */
+export function createCodeSaveHandler({ isDirty, getText, getRevision, saveSnapshot, onSaving, onResult, pendingRef }) {
+  const pending = pendingRef ?? { current: null };
+  return () => {
+    if (pending.current) return pending.current;
+    if (!isDirty()) return Promise.resolve(true);
+    const snapshot = getText();
+    if (typeof snapshot !== 'string') return Promise.resolve(false);
+    const expectedRevision = getRevision();
+    onSaving?.(true);
+    const task = Promise.resolve().then(async () => {
+      try {
+        const result = await saveSnapshot(snapshot, expectedRevision);
+        if (!result?.ok) {
+          onResult?.({ status: 'conflict' });
+          return false;
+        }
+        const currentText = getText() ?? snapshot;
+        const dirty = currentText !== snapshot;
+        onResult?.({ status: 'saved', value: result.value, snapshot, currentText, dirty });
+        return !dirty;
+      } catch {
+        onResult?.({ status: 'failed' });
+        return false;
+      } finally {
+        pending.current = null;
+        onSaving?.(false);
+      }
+    });
+    pending.current = task;
+    return task;
+  };
+}
+
 const EXTERNAL = Annotation.define();
+const codeDrafts = createDraftStore('code-editor-draft');
 const CSS = `
 .nv-code{display:grid;grid-template-rows:auto 1fr;min-height:0;height:100%;gap:8px}
 .nv-code-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--dsw-alias-label-secondary)}
@@ -91,36 +127,70 @@ export function createCodeEditor(React) {
    * buffer and never a dirty one; 放弃修改 loads the latest text. `onDirty` tells
    * the page, which refuses to switch files while there are unsaved edits.
    */
-  function CodeEditor({ vault, asset, onSaved, onDirty }) {
-    const host = useRef(null), view = useRef(null), revision = useRef(asset.revision), save = useRef(null);
+  function CodeEditor({ vault, asset, onSaved, onDirty, onFlush, draftKey }) {
+    const host = useRef(null), view = useRef(null), revision = useRef(asset.revision), save = useRef(null), pendingSave = useRef(null);
     const [dirty, setDirty] = useState(false), [notice, setNotice] = useState(''), [saving, setSaving] = useState(false), [broken, setBroken] = useState('');
     const dirtyRef = useRef(false), report = useRef(onDirty);
     report.current = onDirty;
-    const markDirty = value => { dirtyRef.current = value; setDirty(value); report.current?.(value); };
-    const language = asset.language ?? 'text', label = CODE_LANGUAGES[language]?.label ?? '纯文本';
-    save.current = async () => {
-      if (!view.current || saving) return;
-      setSaving(true);
-      try {
-        const result = await vault.saveAsset({ path: asset.path, dataBase64: encodeCodeText(view.current.state.doc.toString()), mime: asset.mime, expectedRevision: revision.current });
-        if (result?.ok) { revision.current = result.value.revision; markDirty(false); setNotice('已保存'); onSaved?.(result.value); }
-        else setNotice('文件在你打开之后被改过（可能是老师刚修改），这次没有保存。先复制你的改动，再点“放弃修改”载入最新内容。');
-      } catch { setNotice('暂时没有保存，请稍后再试。'); }
-      finally { setSaving(false); }
+    const markDirty = value => {
+      dirtyRef.current = value;
+      setDirty(value);
+      report.current?.(value);
+      if (draftKey) {
+        if (value && view.current) codeDrafts.set(draftKey, { path: asset.path, revision: revision.current, text: view.current.state.doc.toString() });
+        else if (!value) codeDrafts.delete(draftKey);
+      }
     };
+    const language = asset.language ?? 'text', label = CODE_LANGUAGES[language]?.label ?? '纯文本';
+    save.current = createCodeSaveHandler({
+      isDirty: () => dirtyRef.current,
+      getText: () => view.current?.state.doc.toString() ?? (draftKey ? codeDrafts.get(draftKey)?.text : null) ?? null,
+      getRevision: () => revision.current,
+      saveSnapshot: (text, expectedRevision) => vault.saveAsset({ path: asset.path, dataBase64: encodeCodeText(text), mime: asset.mime, expectedRevision }),
+      pendingRef: pendingSave,
+      onSaving: setSaving,
+      onResult: outcome => {
+        if (outcome.status === 'saved') {
+          revision.current = outcome.value.revision;
+          markDirty(outcome.dirty);
+          if (draftKey && outcome.dirty) codeDrafts.set(draftKey, { path: asset.path, revision: revision.current, text: outcome.currentText });
+          setNotice(outcome.dirty ? '有新修改未保存' : '已保存');
+          onSaved?.(outcome.value);
+        } else if (outcome.status === 'conflict') {
+          setNotice('文件在你打开之后被改过（可能是老师刚修改），这次没有保存。先复制你的改动，再点“放弃修改”载入最新内容。');
+        } else {
+          setNotice('暂时没有保存，请稍后再试。');
+        }
+      },
+    });
+    useEffect(() => {
+      onFlush?.(() => save.current?.() ?? Promise.resolve(false));
+      return () => onFlush?.(null);
+    }, [asset.path, onFlush]);
     useEffect(() => {
       let text;
       try { text = decodeCodeText(asset.dataUrl); } catch { setBroken('这个文件不是 UTF-8 文本，不能在这里编辑。'); return undefined; }
-      revision.current = asset.revision;
+      const retained = draftKey ? codeDrafts.get(draftKey) : null;
+      const restored = retained?.path === asset.path && typeof retained.text === 'string' && typeof retained.revision === 'string';
+      revision.current = restored ? retained.revision : asset.revision;
+      if (restored) text = retained.text;
       view.current = new EditorView({ parent: host.current, state: EditorState.create({ doc: text, extensions: [
         ...codeExtensions(language, { onSave: () => { void save.current?.(); } }),
         EditorView.contentAttributes.of({ 'aria-label': `${asset.path} 代码` }),
         EditorView.updateListener.of(update => {
-          if (update.transactions.some(tr => tr.docChanged && !tr.annotation(EXTERNAL)) && !dirtyRef.current) { markDirty(true); setNotice(''); }
+          if (update.transactions.some(tr => tr.docChanged && !tr.annotation(EXTERNAL))) {
+            if (!dirtyRef.current) { markDirty(true); setNotice(''); }
+            if (draftKey) codeDrafts.set(draftKey, { path: asset.path, revision: revision.current, text: update.state.doc.toString() });
+          }
         }),
       ] }) });
-      return () => { view.current?.destroy(); view.current = null; if (dirtyRef.current) report.current?.(false); };
-    }, [asset.path]);
+      if (restored) { markDirty(true); setNotice('已恢复未保存的代码草稿'); }
+      return () => {
+        view.current?.destroy();
+        view.current = null;
+        if (dirtyRef.current) { dirtyRef.current = false; setDirty(false); report.current?.(false); }
+      };
+    }, [asset.path, draftKey]);
     useEffect(() => {
       if (!view.current || asset.revision === revision.current) return;
       if (dirtyRef.current) { setNotice('文件在别处被改过（可能是老师刚修改）。你的改动还在编辑器里，保存会被拒绝；先复制改动，再点“放弃修改”载入最新内容。'); return; }

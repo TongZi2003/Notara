@@ -6,6 +6,31 @@ import { renderBoard } from './board-data.js';
 import { interactionPath, readInteractionDocument, saveInteractionDocument } from './interactive-runtime.js';
 import { TEACHER_PRESET_ID } from './teacher-preset.js';
 import { createVaultStore } from './vault.js';
+import { createBoardObjectStore } from './board-storage.js';
+
+/** Validate and enumerate each immutable scene, image and contribution entry. */
+async function boardObjectGraph(store, sessionId, board) {
+  const refs = [], seen = new Set();
+  async function visit(ref) {
+    if (!ref || seen.has(ref)) return;
+    const value = await store.read(sessionId, ref);
+    if (!value || !['scene', 'asset', 'commit'].includes(value.kind)) throw new Error('board_content_corrupt');
+    seen.add(ref); refs.push(ref);
+    if (value.kind === 'scene') {
+      if (!value.scene || typeof value.scene !== 'object' || !value.scene.files || typeof value.scene.files !== 'object') throw new Error('board_content_corrupt');
+      for (const file of Object.values(value.scene.files)) if (file?.assetRef) await visit(file.assetRef);
+    } else if (value.kind === 'commit') {
+      if (!Array.isArray(value.changes)) throw new Error('board_content_corrupt');
+      for (const change of value.changes) {
+        if (change.field === 'contentRef') { await visit(change.before); await visit(change.after); }
+        else if (!change.field) { await visit(change.before?.contentRef); await visit(change.after?.contentRef); }
+      }
+    }
+  }
+  for (const block of board.blocks) await visit(block.contentRef);
+  for (const ref of board.historyRefs ?? []) await visit(ref);
+  return refs;
+}
 
 /** Capture the complete board at fork time, even when the conversation cut is older. */
 export async function captureForkBoard(io, sessionId) {
@@ -13,6 +38,7 @@ export async function captureForkBoard(io, sessionId) {
     const state = await readBoardDocument(io, sessionId);
     if (state.revision === null) return null;
     const board = structuredClone(state.board), interactions = new Map();
+    const objectRefs = await boardObjectGraph(createBoardObjectStore(io.rootPath), sessionId, board);
     for (const block of board.blocks) {
       const id = block.interactive?.interactionId;
       if (!id || interactions.has(id)) continue;
@@ -24,7 +50,7 @@ export async function captureForkBoard(io, sessionId) {
     }
     const consistent = board.blocks.every(block => !interactions.has(block.interactive?.interactionId)
       || interactions.get(block.interactive.interactionId).revision === block.interactive.revision);
-    if (consistent && (await readBoardDocument(io, sessionId)).revision === state.revision) return { board, interactions };
+    if (consistent && (await readBoardDocument(io, sessionId)).revision === state.revision) return { board, interactions, objectRefs };
   }
   throw new Error('vault_revision_conflict');
 }
@@ -45,10 +71,21 @@ export async function inheritForkBoard(io, snapshot, sessionId, signal) {
   signal?.throwIfAborted();
   if (!snapshot) return [];
   const board = structuredClone(snapshot.board);
+  const sourceSessionId = board.sessionId;
   board.sessionId = sessionId;
   const refs = new Map(), created = [];
   const record = receipt => { if (!created.some(file => file.path === receipt.path)) created.push(receipt); };
   try {
+    const refsToCopy = snapshot.objectRefs ?? [];
+    const hasObjects = refsToCopy.length || board.blocks.some(block => block.contentRef) || board.historyRefs?.length;
+    if (hasObjects) {
+      if (!io.rootPath) throw new Error('board_store_unavailable');
+      const objects = createBoardObjectStore(io.rootPath);
+      for (const ref of snapshot.objectRefs ?? await boardObjectGraph(objects, sourceSessionId, snapshot.board)) {
+        signal?.throwIfAborted();
+        await objects.copy(sourceSessionId, sessionId, ref);
+      }
+    }
     for (const [id, current] of snapshot.interactions) {
       signal?.throwIfAborted();
       const saved = await saveInteractionDocument(io, sessionId, id, current.scene, null, record);

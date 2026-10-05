@@ -1,4 +1,5 @@
 import { pluginEventType } from './plugin-events.js';
+import {createBoardReferences} from './board-references.js';
 import { Service } from '@deepseek-ai/cordis';
 import { createHash,randomUUID } from 'node:crypto';
 import { isAbsolute,relative,resolve } from 'node:path';
@@ -72,12 +73,16 @@ export class NotaraTeaching extends Service {
     this.archiveAfterTurn=new Map();
     this.review=createReviewRuntime(this);
     this.lessonBoard=createBoardRuntime(this);
+    this.boardReferences=createBoardReferences({read:input=>this.lessonBoard.content(input),bind:(references,scope)=>this.lessonBoard.bindSelection(references,scope)});
     this.pomodoroTimer=createPomodoroRuntime(this,internals.pomodoro);
     this.userSkillStore=createUserSkillRuntime(this,internals.userSkills);
     ctx.effect(()=>()=>this.pomodoroTimer.dispose());
   }
   isTeaching(agent) {return agent?.session?.header?.agentPreset===TEACHING_PRESET;}
   async board(input) {return this.lessonBoard.read(input);}
+  async commitBoard(input) {return this.lessonBoard.commit(input);}
+  async contentBoard(input) {return this.lessonBoard.content(input);}
+  async boardReference(input) {return this.boardReferences.issue(input);}
   async pomodoro(input) {return this.pomodoroTimer.status(input);}
   async startPomodoro(input) {return this.pomodoroTimer.start(input);}
   async stopPomodoro(input) {return this.pomodoroTimer.stop(input);}
@@ -360,7 +365,16 @@ export class NotaraTeaching extends Service {
     return {queued:true};
   }
   async executeTool(name,args,exec) {
-    if(name==='write_lesson_board')return this.lessonBoard.write(exec,args);
+    if(name==='write_lesson_board'){
+      const {action='write',...input}=args,sessionId=exec.agent.session.id;
+      const options={operationId:exec.callId,signal:exec.signal};
+      if(action==='write')return this.lessonBoard.write(exec,input);
+      if(action==='list')return this.lessonBoard.list({sessionId});
+      if(action==='read')return this.lessonBoard.readForTeacher({sessionId,blockId:input.blockId});
+      if(action==='apply')return this.lessonBoard.apply({...input,sessionId},options);
+      if(action==='undo')return this.lessonBoard.undo({...input,sessionId},options);
+      fail('board_action_invalid');
+    }
     if(name==='save_lesson_summary')return this.saveSummary(exec,args);
     if(name==='open_learning_lesson'){
       const path=safeRelativePath(args.path?.startsWith('vault/')?args.path.slice(6):args.path);
@@ -430,6 +444,7 @@ export function installTeachingRuntime(ctx,config={}) {
     let memory,materialsRoot=null,profileContexts=[];
     try{
       const exec={agent,signal:context.signal},io=createAgentVaultIO(ctx,exec),readers=[{scope:io.workspace,read:io.read}];
+      await service.boardReferences.prepare(agent.session);
       materialsRoot=materialRoot(io.workspace.path);
       profileContexts=await learnerProfileContext({session:agent.session,workspaceId:io.workspace.id,scan:()=>io.scan({limit:10000}),signal:context.signal,flush:session=>service.flush(session)});
       // Explicitly bound cross-set scripts retain their scope. Never substitute

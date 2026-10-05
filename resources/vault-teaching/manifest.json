@@ -1,7 +1,7 @@
 {
   "default": "mixed",
   "choices": [
-    { "id": "mixed", "menu": "more", "title": "混合教法", "description": "先判断这一步缺什么、错什么，再在提问引导、让学生讲、先讲再练、先看结构四种讲法之间切换；学生要求某种讲法时以它为基调。", "file": "presets/mixed.md" }
+    { "id": "mixed", "menu": "more", "title": "混合教法", "description": "按任务作用（引入、讲述、攻坚、复盘）定默认基调，再判断这一步缺什么、错什么，在提问引导、让学生讲、先讲再练、先看结构四种讲法之间切换；学生要求某种讲法时以它为基调。", "file": "presets/mixed.md" }
   ],
   "skills": [
     { "id": "worker-orchestration", "menu": "more", "title": "后台任务编排", "description": "需要独立研究知识单元或题目、完善课时、出题、核验或整理证据时使用；按本次任务选择工作员及学科关注。", "file": "skills/worker-orchestration.md" },
@@ -16,7 +16,7 @@
     { "id": "lesson-preparation", "title": "备课与路线规划", "description": "要按学习目标或资料准备一节课（写本课剧本），或从学习目标规划多节课、专题训练、复习安排、调整未来课程（规划路线）时使用；两者共用学情判断，不要求预先拥有教材。", "file": "skills/lesson-preparation.md" },
     { "id": "research", "title": "调研", "description": "需要外部证据时使用：学科与课程的结构和难点、公开课复刻、大纲与版本事实；分级取证、读原文、交叉核对，读不到的如实写明。", "file": "skills/research.md" },
     { "id": "skill-authoring", "title": "编写技能", "description": "为内置学科关注没覆盖的学科（如模电、操作系统）写学科层技能，或为本学习集写梗概与按主题的方法要点；写成草稿，由学生在技能页启用。", "file": "skills/skill-authoring.md" },
-    { "id": "board", "menu": "more", "title": "板书", "description": "组织白板板块、出作答题（选择与判断、补一步、排序与归类）、画图（函数与几何作图、关系与流程图、逐帧演示）或回应学生在白板上的作答时使用：什么内容上板、每种作答题与图的用途和写法、元方法与阶段怎样落到板上。", "file": "skills/board.md" },
+    { "id": "board", "menu": "more", "title": "板书", "description": "组织白板板块、出作答题（选择与判断、补一步、排序与归类）、画图（函数与几何作图、关系与流程图、逐帧演示）或回应学生在白板上的作答时使用：什么内容上板、各类任务作用怎样落到板上、作答题与图的用途和写法。", "file": "skills/board.md" },
     { "id": "exam-prep", "title": "备考", "description": "目标是高考、高考模考、考研或公务员考试等具体考试时使用：确认考试身份，按来源等级查考纲与真题，区分官方文件与机构分析，按分值与差距安排，讲评模考错因。", "file": "skills/exam-prep.md" },
     { "id": "subject-math", "subjects": ["高中数学"], "menu": "more", "title": "高中数学关注", "description": "高中数学课上讲题、判对错、诊断错因时用：开头是高中数学的宪法（演绎、常规题与两种难度、换表征、按目的存、检查前提、失分与复盘），后面是课上讲题、元方法与退与进、诊断与深度检验。拆书、备课和出题另读高中数学备课与拆书。", "file": "skills/subject-math.md" },
     { "id": "subject-math-prep", "prep": true, "menu": "more", "title": "高中数学备课与拆书", "description": "拆高中数学资料、写题卡、备课、规划路线和出题时用：拆题写出关键一步与搜索过程、按目的标方法，按结构归类与组课，按最缺环节定侧重，对比题组与易错触发题，易错雷达例子与资料核对。课上讲题读高中数学关注。", "file": "skills/subject-math-prep.md" },

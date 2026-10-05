@@ -1,10 +1,11 @@
 import { createHash,randomUUID } from 'node:crypto';
 import { BOARD_RESIZE_LIMITS } from './board-layout.js';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
-import { createAgentVaultIO } from './agent-io.js';
+import { createAgentVaultIO,parseSourceRef } from './agent-io.js';
 import { BOARD_DIRECTORY,parseBoard,renderBoard,upsertBoard,projectBoard,validateBoardBody,validateLayout } from './board-data.js';
 import { BOARD_COMPONENTS,appendBoardAnswer,boardAnswerMessage,boardComponents,fingerprint,validateBoardAnswer } from './board-components.js';
 import { createInteractionRuntime } from './interactive-runtime.js';
+import { createBoardEditing } from './board-editing-runtime.js';
 const fail=code=>{throw new Error(code);};
 export const boardPath=sessionId=>BOARD_DIRECTORY+'/'+createHash('sha256').update(sessionId).digest('hex').slice(0,32)+'.md';
 export async function readBoardDocument(io,sessionId){
@@ -19,13 +20,35 @@ export const boardBodyView=board=>new Map(board.blocks.map(block=>[block.id,fing
 
 export function createBoardRuntime(service){
   const interactions=createInteractionRuntime(service);
+  const editing=createBoardEditing(service,{
+    readState:(io,sessionId)=>readBoardDocument(io,sessionId),
+    project:(io,state,sessionId)=>projection(io,state,sessionId),
+    pathFor:boardPath,
+  });
   async function editor(sessionId){const agent=await service.agentFor(sessionId);if(agent.session.header.origin==='subagent')fail('teaching_session_required');return service.editorFor({sessionId});}
   async function projection(io,state,sessionId){
     const scan=await io.scan(),value=projectBoard(state.board,state.revision,[...scan.files.filter(file=>file.kind!=='page'),...scan.documents]);
+    for(const block of value.blocks)if(block.contentType==='source'&&block.sourceRef){
+      let source;
+      try{source=parseSourceRef(block.sourceRef);}catch{block.sourceState='unavailable';continue;}
+      // A reference is meaningful only in the workspace that issued it. Do
+      // not probe a same-named path in the current workspace for foreign refs.
+      if(source.workspaceId!==io.workspace.id){block.sourceState='unavailable';continue;}
+      try{
+        const current=source.path.toLowerCase().endsWith('.md')?await io.read(source.path):await io.readAsset(source.path);
+        block.sourceState=current.revision===source.revision?'current':'changed';
+      }catch(error){
+        // A missing source is a known condition; permission, cancellation,
+        // races, and other IO failures all remain unavailable.
+        block.sourceState=error?.message==='vault_file_not_found'?'missing':'unavailable';
+      }
+    }
     for(const block of value.blocks)if(block.interactive){
       try{const current=await interactions.read({sessionId,interactionId:block.interactive.interactionId});block.interactive={...current.ref};block.interactiveScene=current.scene;}
       catch(error){if(error.message==='interaction_missing'||error.message==='interaction_binding_invalid')block.interactiveState='unavailable';else throw error;}
     }
+    value.workspaceId=io.workspace.id;
+    value.contributions=await editing.contributionView({sessionId});
     return value;
   }
   function deliver(agent,board,block,component,answer){
@@ -36,6 +59,15 @@ export function createBoardRuntime(service){
     catch{return {sent:false,queued:false};}
   }
   return {
+    commit:(input,options)=>editing.commit(input,{actor:'student',...options}),
+    content:input=>editing.content(input),
+    list:input=>editing.list(input),
+    readForTeacher:input=>editing.readForTeacher(input),
+    contributions:input=>editing.contributionView(input),
+    apply:(input,options)=>editing.apply(input,options),
+    undo:(input,options)=>editing.undo(input,options),
+    bindSelection:(references,options)=>editing.bindSelection(references,options),
+    forgetRead:(blockId,options)=>editing.forgetRead(blockId,options),
     async read({sessionId}){const io=await editor(sessionId);return projection(io,await readBoardDocument(io,sessionId),sessionId);},
     async mutate({sessionId,expectedRevision,blockId,sourcePath,patch}){
       const io=await editor(sessionId),state=await readBoardDocument(io,sessionId);
@@ -104,7 +136,8 @@ export function createBoardRuntime(service){
     },
     async write(exec,args){
       if(!service.isTeaching(exec.agent)||exec.agent.session.header.origin==='subagent')fail('teaching_session_required');
-      const io=createAgentVaultIO(service.ctx,exec,{writeApproved:true}),sessionId=exec.agent.session.id,state=await readBoardDocument(io,sessionId);
+      const sessionId=exec.agent.session.id;editing.assertLegacyWriteScope(sessionId);
+      const io=createAgentVaultIO(service.ctx,exec,{writeApproved:true}),state=await readBoardDocument(io,sessionId);
       const prepared=service.prepared.get(exec.agent);
       // Answers, drags and highlights elsewhere never block the teacher; only a
       // block whose body changed since the teacher last saw it must be re-read.

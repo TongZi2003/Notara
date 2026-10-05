@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {readFigureFunction,replaceFigureFunction,updateFigureParameter,updateFigurePoint} from './figure-editing.js';
+import {boardComponents} from '../board-components.js';
+const body='```figure\naxes x -5..5 y -5..5\nparam α = 1 in -3..3\nfunction β(x) = α*x^2\npoint P = (1, 2) drag\n```';
+test('natural function editing retains Greek identity and incomplete draft text until it is valid',()=>{assert.deepEqual(readFigureFunction(body),{name:'β',expression:'α*x^2'});const incomplete=replaceFigureFunction(body,'α*');assert.equal(readFigureFunction(incomplete).name,'β');assert.equal(readFigureFunction(incomplete).expression,'α*');const saved=replaceFigureFunction(incomplete,'α*x+1');assert.equal(boardComponents(saved)[0].spec.objects.find(o=>o.kind==='function').name,'β');});
+test('parameter and draggable-point changes update the existing declared source and survive parser reload',()=>{const changed=updateFigurePoint(updateFigureParameter(body,'α',2),'P',{x:3,y:-1}),spec=boardComponents(changed)[0].spec;assert.equal(spec.params[0].value,2);assert(changed.includes('point P = (3, -1) drag'));assert.throws(()=>updateFigureParameter(body,'α',Infinity));assert.throws(()=>updateFigurePoint(body,'P',{x:NaN,y:2}));});

@@ -28,6 +28,8 @@ export const VAULT_SOLVER_AMBIGUOUS_ENV = 'NOTARA_VAULT_TEST_AMBIGUOUS_SOLVER';
  * attempt tools so tests exercise the real scoped restrictions, including denial.
  */
 export const VAULT_SOLVER_REPLY_KEY = '__solver';
+/** Reserved scripted reply for a real, client-issued Native Vault board receipt. */
+export const VAULT_BOARD_REFERENCE_REPLY_KEY = '__board-reference';
 
 type RequestMessage = { readonly role: string; readonly content: readonly { readonly type: string; readonly text?: string }[] };
 /**
@@ -70,6 +72,22 @@ export interface ScriptedCall {
 export type ScriptedReply = string | ScriptedCall | ScriptedCall[] | { text?: string; calls?: ScriptedCall[]; pauseMs?: number; fail?: { message: string; code: string } };
 
 type Replies = Record<string, ScriptedReply>;
+
+/**
+ * Select a reply for one request. Board-reference fallback is deliberately
+ * limited to real serialized receipt text and sits below exact user-text keys.
+ */
+export function scriptedReplyEntry(replies: Readonly<Record<string, ScriptedReply>>, userText: string, { workerPreset, solverRoute, hasPurpose }: {
+  workerPreset?: string | undefined;
+  solverRoute: boolean;
+  hasPurpose: boolean;
+}): unknown {
+  if (workerPreset && replies[`__worker:${workerPreset}`] !== undefined) return replies[`__worker:${workerPreset}`];
+  if (solverRoute) return replies[VAULT_SOLVER_REPLY_KEY];
+  if (replies[userText] !== undefined) return replies[userText];
+  if (!hasPurpose && /〔白板选区:[a-f0-9-]{36}〕/.test(userText)) return replies[VAULT_BOARD_REFERENCE_REPLY_KEY];
+  return undefined;
+}
 
 /** Reserved key returning the session title for `purpose: 'session-title'` calls. */
 const TITLE_KEY = '__session-title';
@@ -171,7 +189,7 @@ export function apply(ctx: Context, config: VaultTestModelConfig): void {
       const workerPreset = workerPresetOf(options.messages);
       const solverRoute = workerPreset !== undefined || options.provider !== VAULT_TEST_PROVIDER;
       const replies = await readReplies(config.repliesPath);
-      const scripted = normalize(workerPreset && replies[`__worker:${workerPreset}`] !== undefined ? replies[`__worker:${workerPreset}`] : replies[solverRoute ? VAULT_SOLVER_REPLY_KEY : userText]);
+      const scripted = normalize(scriptedReplyEntry(replies, userText, { workerPreset, solverRoute, hasPurpose: Boolean(options.purpose) }));
       // A scripted provider refusal, e.g. a route whose credential was never set up.
       if (scripted.fail && !options.purpose) throw new LlmError(scripted.fail.message, scripted.fail.code);
       const calls = scripted.calls;

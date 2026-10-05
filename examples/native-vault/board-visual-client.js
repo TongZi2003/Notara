@@ -1,8 +1,9 @@
+import { createSpatialProjector, spatialConeRings, spatialPointMap, spatialRing, spatialTicks } from './board-spatial.js';
 import { compileExpression } from './math-expression.js';
 import { figureBounds, figureView } from './board-figure.js';
 import { flowBlanks, layoutFlow, renderFlowSvg } from './board-flow.js';
 import { loadLazyModule } from './lazy-assets.js';
-import { createSpatialProjector, spatialConeRings, spatialPointMap, spatialRing, spatialTicks } from './board-spatial.js';
+import {navigationPreferenceFor,wheelCamera,bindWheelBoundary} from './board/board-navigation.js';
 
 /**
  * Board figures and flow diagrams on the page. JSXGraph is fetched from the
@@ -12,6 +13,9 @@ import { createSpatialProjector, spatialConeRings, spatialPointMap, spatialRing,
  */
 export const loadFigureEngine = () => loadLazyModule('jsxgraph.mjs', module => {
   const JXG = module.default ?? module.JXG;
+  // JessieCode compilation uses eval even for internal axis identities. The
+  // interpreter keeps JSXGraph on the existing strict script-src self policy.
+  JXG.Options.jc.compile=false;
   for (const key of ['text', 'label']) if (JXG.Options[key]) Object.assign(JXG.Options[key], { display: 'internal', parse: false, useMathJax: false, useKatex: false });
   return JXG;
 });
@@ -29,14 +33,15 @@ export function createBoardVisuals(React) {
   const h = React.createElement, { useEffect, useMemo, useRef, useState } = React;
 
   /** The JSXGraph board of one figure. Params are read live through `scope`. */
-  function FigureCanvas({ spec, specKey, values, answer, disabled, snapshotKey, onDrags }) {
+  function FigureCanvas({ spec, specKey, values, answer, disabled, snapshotKey, onDrags, onDragEnd,navigationActive=false }) {
     const host = useRef(null), engine = useRef(null), board = useRef(null), marker = useRef(null), scope = useRef({});
-    const latest = useRef({ answer, disabled, onDrags });
-    latest.current = { answer, disabled, onDrags };
+    const latest = useRef({ answer, disabled, onDrags, onDragEnd,navigationActive });
+    latest.current = { answer, disabled, onDrags, onDragEnd,navigationActive };
     Object.assign(scope.current, values);
     const [status, setStatus] = useState('loading');
     useEffect(() => {
       let alive = true;
+      setStatus('loading');
       // An answered figure is redrawn read-only under the same key; each canvas removes only its own reader.
       const snapshot = () => { const svg = host.current?.querySelector('svg'); return svg ? cleanSvg(svg.outerHTML) : ''; };
       loadFigureEngine().then(JXG => {
@@ -44,11 +49,11 @@ export function createBoardVisuals(React) {
         engine.current = JXG;
         host.current.id ||= 'nb-figure-' + Math.random().toString(36).slice(2);
         const bounds = figureView(spec), frame = figureBounds(spec);
-        const created = JXG.JSXGraph.initBoard(host.current.id, { boundingbox: [bounds.xmin, bounds.ymax, bounds.xmax, bounds.ymin], axis: spec.axes, keepAspectRatio: !spec.axes, showNavigation: false, showCopyright: false, showFullscreen: false, showScreenshot: false, pan: { enabled: false }, zoom: { enabled: false, wheel: false }, resize: { enabled: true, throttle: 100 } });
+        const created = JXG.JSXGraph.initBoard(host.current.id, { boundingbox: [bounds.xmin, bounds.ymax, bounds.xmax, bounds.ymin], axis: spec.axes, keepAspectRatio: !spec.axes, showNavigation: false, showCopyright: false, showFullscreen: false, showScreenshot: false, pan: { enabled: latest.current.navigationActive,needShift:false }, zoom: { enabled: false, wheel: false }, resize: { enabled: true, throttle: 100 } });
         board.current = created;
         const S = scope.current, names = spec.params.map(param => param.name);
         const compiled = (source, variables) => compileExpression(source, [...variables, ...names]).evaluate;
-        const elements = new Map(), drags = new Map();
+        const elements = new Map(), drags = new Map(),pendingDrags=new Map();
         const pointStyle = drag => ({ size: drag ? 4 : 3, fillColor: drag ? COLOR.accent : COLOR.point, strokeColor: drag ? COLOR.accent : COLOR.point, label: { offset: [6, 6], fontSize: 13 } });
         for (const item of spec.objects) {
           if (item.kind === 'function') { const f = compiled(item.expr, ['x']); elements.set(item.name, created.create('functiongraph', [x => { S.x = x; return f(S); }], { strokeColor: COLOR.line, strokeWidth: 2 })); }
@@ -57,7 +62,7 @@ export function createBoardVisuals(React) {
           else if (item.kind === 'point') {
             const X = compiled(item.x, []), Y = compiled(item.y, []);
             const point = created.create('point', item.drag ? [X(S), Y(S)] : [() => X(S), () => Y(S)], { name: item.name, fixed: !item.drag, ...pointStyle(item.drag) });
-            if (item.drag) { drags.set(item.name, point); point.on('drag', () => { if (!latest.current.disabled) latest.current.onDrags?.(item.name, { x: point.X(), y: point.Y() }); }); }
+            if (item.drag) { drags.set(item.name, point); point.on('drag', () => { if (!latest.current.disabled){const position={x:point.X(),y:point.Y()};pendingDrags.set(item.name,position);latest.current.onDrags?.(item.name,position);} }); }
             elements.set(item.name, point);
           }
           else if (item.kind === 'segment' || item.kind === 'line') elements.set(item.name, created.create(item.kind, item.points.map(name => elements.get(name)), { strokeColor: COLOR.soft, strokeWidth: 1.6 }));
@@ -87,6 +92,7 @@ export function createBoardVisuals(React) {
           const point = { x: Math.min(frame.xmax, Math.max(frame.xmin, x)), y: Math.min(frame.ymax, Math.max(frame.ymin, y)) };
           place(point); now.answer.onPoint(point);
         });
+        created.on('up',()=>{for(const [name,position]of pendingDrags)latest.current.onDragEnd?.(name,position);pendingDrags.clear();});
         if (snapshotKey) figureSnapshots.set(snapshotKey, snapshot);
         setStatus('ready');
       }, () => { if (alive) setStatus('failed'); });
@@ -97,6 +103,23 @@ export function createBoardVisuals(React) {
         board.current = null;
       };
     }, [specKey]);
+    // Navigation changes event ownership, never the figure instance. Local
+    // zoom, dragged points and the conversation projection remain aligned.
+    useEffect(()=>{
+      const created=board.current,element=host.current;
+      if(!created||status!=='ready')return;
+      created.setAttribute({pan:{...created.attr.pan,enabled:navigationActive,needshift:false}});
+      if(!navigationActive)return;
+      const wheel=event=>{
+        event.preventDefault();event.stopPropagation();
+        const rect=element.getBoundingClientRect(),[left,top,right,bottom]=created.getBoundingBox();
+        const next=wheelCamera({x:0,y:0,z:1},event,navigationPreferenceFor(element),{x:event.clientX-rect.left,y:event.clientY-rect.top},rect.height);
+        const width=(right-left)/next.z,height=(top-bottom)/next.z,x=left-next.x/rect.width*width,y=top+next.y/rect.height*height;
+        created.setBoundingBox([x,y,x+width,y-height],!spec.axes);
+      };
+      element.addEventListener('wheel',wheel,{passive:false,capture:true});
+      return()=>element.removeEventListener('wheel',wheel,true);
+    },[navigationActive,status,specKey]);
     useEffect(() => { board.current?.fullUpdate?.(); }, [JSON.stringify(values)]);
     return h('div', { className: 'nb-figure', 'data-status': status },
       h('div', { ref: host, className: 'nb-figure-board', role: 'img', 'aria-label': spec.ask?.prompt ?? '图' }),
@@ -104,15 +127,17 @@ export function createBoardVisuals(React) {
       status === 'failed' && h('div', { className: 'nb-figure-note', role: 'status' }, '作图工具暂时没有加载出来，请刷新页面再试。'));
   }
 
-  function Params({ spec, values, onChange, disabled, only }) {
+  function Params({ spec, values, onChange, onCommit, disabled, only }) {
     const params = only ? spec.params.filter(param => param.name === only) : spec.params;
     if (!params.length) return null;
     return h('div', { className: 'nb-figure-params' }, params.map(param => h('label', { key: param.name },
-      h('span', null, param.name), h('input', { type: 'range', min: param.min, max: param.max, step: param.step, value: values[param.name], disabled, 'aria-label': `参数 ${param.name}`, onChange: event => onChange(param.name, Number(event.target.value)) }),
+      h('span', null, param.name), h('input', { type: 'range', min: param.min, max: param.max, step: param.step, value: values[param.name], disabled, 'aria-label': `参数 ${param.name}`, onChange: event => onChange(param.name, Number(event.target.value)),onPointerUp:event=>onCommit?.(param.name,Number(event.currentTarget.value)),onKeyUp:event=>onCommit?.(param.name,Number(event.currentTarget.value)) }),
       h('b', null, number(values[param.name])))));
   }
   const initialValues = spec => Object.fromEntries(spec.params.map(param => [param.name, param.value]));
 
+  /** A lightweight SVG projection for space-coordinate figures. It keeps the
+   * declarative figure contract while avoiding a second WebGL/persistence path. */
   function SpaceFigureCanvas({ spec, values, snapshotKey }) {
     const host = useRef(null), gesture = useRef(null);
     const [camera, setCamera] = useState({ yaw: -.72, pitch: .52, zoom: 1 });
@@ -173,30 +198,33 @@ export function createBoardVisuals(React) {
     return h('div',{className:'nb-space-figure'},h('svg',{ref:host,className:'nb-space-svg',viewBox:'0 0 760 520',style:{display:'block',width:'100%',height:'auto'},role:'img','aria-label':'空间直角坐标系',onPointerDown:pointerDown,onPointerMove:pointerMove,onPointerUp:endGesture,onPointerCancel:endGesture,onLostPointerCapture:endGesture},grid,objectNodes),h('div',{className:'nb-space-controls'},h('button',{type:'button',onClick:()=>{gesture.current=null;setCamera({yaw:-.72,pitch:.52,zoom:1});}},'重置视角'),h('span',null,'拖动旋转 · 滚轮缩放')));
   }
 
-  function SpaceFigureView({ component, snapshotKey, onDiscuss, prefix }) {
+  function SpaceFigureView({ component, snapshotKey, onDiscuss, prefix, onValueChange,navigationActive,navigationProps,navigationControl }) {
     const { spec } = component, [values, setValues] = useState(() => initialValues(spec));
     useEffect(() => setValues(initialValues(spec)), [component.fingerprint]);
     const bring = () => onDiscuss?.(`${prefix}空间图${spec.params.length ? '：' + spec.params.map(param => `${param.name} = ${number(values[param.name])}`).join('；') : ''}`);
-    return h('section',{className:'nb-figure-view', 'aria-label':'空间直角坐标系'},h(SpaceFigureCanvas,{spec,values,snapshotKey}),h(Params,{spec,values,onChange:(name,value)=>setValues(previous=>({...previous,[name]:value}))}),spec.params.length>0&&h('div',{className:'nb-q-actions'},h('button',{type:'button',onClick:bring},'带入对话')));
+    return h('section', { className: 'nb-figure-view', 'aria-label': '空间直角坐标系',...navigationProps },navigationControl, h(SpaceFigureCanvas, { spec, values, snapshotKey,navigationActive }), h(Params, { spec, values,onCommit:onValueChange, onChange: (name, value) => setValues(previous => ({ ...previous, [name]: value })) }), spec.params.length > 0&&onDiscuss && h('div', { className: 'nb-q-actions' }, h('button', { type: 'button', onClick: bring }, '带入对话')));
   }
 
   /** A figure to explore (no ask): sliders and draggable points, then 带入对话. */
-  function PlanarFigureView({ component, snapshotKey, onDiscuss, prefix }) {
+  function FigureView({ component, snapshotKey, onDiscuss, prefix, onValueChange, onPointChange,navigationActive=false }) {
     const { spec } = component;
     const [values, setValues] = useState(() => initialValues(spec));
     const drags = useRef({});
+    const [localNavigation,setLocalNavigation]=useState(false),navigationHost=useRef(),active=navigationActive||localNavigation;
+    useEffect(()=>{if(active)return bindWheelBoundary(navigationHost.current);},[active]);
+    const navigationProps={ref:navigationHost,'data-board-editing':active?'true':undefined,tabIndex:active?0:undefined,onPointerDown:event=>{if(active)event.stopPropagation();},onKeyDown:event=>{if(active&&event.key==='Escape'&&!event.defaultPrevented&&!navigationActive){event.preventDefault();event.stopPropagation();setLocalNavigation(false);}}};
+    const navigationControl=!navigationActive&&h('button',{className:'nb-figure-navigation',type:'button','aria-pressed':localNavigation,onClick:()=>{setLocalNavigation(value=>!value);navigationHost.current?.focus({preventScroll:true});}},localNavigation?'结束操作':'操作图形');
     useEffect(() => { setValues(initialValues(spec)); drags.current = {}; }, [component.fingerprint]);
+    if (spec.space) return h(SpaceFigureView, { component, snapshotKey, onDiscuss, prefix, onValueChange,navigationActive:active,navigationProps,navigationControl });
     const bring = () => {
       const parts = [...spec.params.map(param => `${param.name} = ${number(values[param.name])}`), ...Object.entries(drags.current).map(([name, point]) => `${name} = (${number(point.x)}, ${number(point.y)})`)];
       onDiscuss?.(`${prefix}图${parts.length ? '：' + parts.join('；') : ''}`);
     };
-    return h('section', { className: 'nb-figure-view', 'aria-label': '图' },
-      h(FigureCanvas, { spec, specKey: component.fingerprint, values, snapshotKey, onDrags: (name, point) => { drags.current[name] = point; } }),
-      h(Params, { spec, values, onChange: (name, value) => setValues(previous => ({ ...previous, [name]: value })) }),
-      (spec.params.length > 0 || spec.objects.some(item => item.drag)) && h('div', { className: 'nb-q-actions' }, h('button', { type: 'button', onClick: bring }, '带入对话')));
+    return h('section', { className: 'nb-figure-view', 'aria-label': '图',...navigationProps },navigationControl,
+      h(FigureCanvas, { spec, specKey: component.fingerprint, values, snapshotKey,navigationActive:active, onDragEnd:onPointChange,onDrags: (name, point) => { drags.current[name] = point; } }),
+      h(Params, { spec, values,onCommit:onValueChange, onChange: (name, value) => setValues(previous => ({ ...previous, [name]: value })) }),
+      onDiscuss&&(spec.params.length > 0 || spec.objects.some(item => item.drag)) && h('div', { className: 'nb-q-actions' }, h('button', { type: 'button', onClick: bring }, '带入对话')));
   }
-
-  function FigureView(props) { return props.component.spec.space ? h(SpaceFigureView, props) : h(PlanarFigureView, props); }
 
   const figureInput = {
     initial(component) {

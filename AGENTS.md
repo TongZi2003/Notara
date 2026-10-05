@@ -4,6 +4,9 @@
 
 ## 当前事实源
 
+- Native Vault 0.23.13-dev.5 的自由白板与教学资源融合来源为 Notara-Desktop `9f50c26`；Web 基线为 `f22c8605173d294f917684b4d856b2741cc6cf75`，其中 PDF 范围读取/资源、摘要缓存、课堂分组与分屏行为保留。学生可新增文字、绘图、思维导图、真实资料容器、链接和独立函数图；绘图及图片保存在按课堂隔离的不可变对象中，Markdown CAS 是提交点。文件容器编辑真实原文件，布局与文件 revision 分离；自由内容草稿保留、保存期间新输入不被旧回执清除。Excalidraw 和编辑器走本地 lazy route，复用原生 React，字体有精确资源清单。
+- Native Vault 0.23.13-dev.5 沿用 `write_lesson_board`，默认 title/body 兼容旧写入；新增 `action=list/read/apply/undo`。patch 前必须 read，字段及场景冲突保留学生新输入，贡献原稿与撤销回执持久化。学生白板选区通过原生输入引用提交 Host 随机回执，仅真实学生消息激活，绑定时核对签发 revision，下一条消息清除或重新绑定；元素选区仅允许受限 sceneOps，不允许 addElement 或改整块正文/布局，有选区时旧 write 拒绝；容量不足拒绝新 scope，不驱逐既有 scope。旧六类教学组件、作答身份与重发、双面知识视图、流式板书、DOM Range 高亮保护、三维图及分支隔离继续保留。
+
 - Native Vault 0.23.12 本地教学迁移基于 Notara-Desktop 的 `codex/p0-runtime-probes` 分支 `eda5d60f39352f0cc4ae2bbd74d419b7d8cfc55f`。教法统一为 `mixed`，常驻层包含共同规则、共用概念与混合教法；数理化分课堂关注和备课/拆书技能。头脑风暴合入梳理、路线合入备课、讲义合入资料整理；七个旧调用名仍能加载合并正文，但不在用户菜单重复展示，旧课堂事件不重写。
 - Native Vault 0.23.12 的 `profile-context.js` 以 ignorable 事件持久化本课堂首次完整扫描的学情摘要（最多六条、合计 4,000 Unicode 字符）。后续只在尾部上下文提示变化路径，实际提交到原生历史才消耗提醒；扫描不完整不能据此宣称画像删除。分支建立自己的快照，系统提示与工具声明不随画像文件更新。模板只精确升级旧内置正文，不替换自定义模板或已有画像。
 - Native Vault 0.23.12 新增 `vault_read/vault_search/vault_save/vault_command`，分别用于当前 Vault 读取、文本检索、全文 CAS 保存与领域命令。代码文件也支持 CAS，`_templates/*.md` 仅允许参考读取，扫描和写入仍排除模板；未播种的模板可只读回退到随包模板，标明 bundled 来源和内容 revision，不伪造 Vault ref 或写入文件，自定义文件始终优先。白板、技能保留专用写入口。领域命令复用 CLI 的校验、IO 与计算，不启动 shell；PDF 在模型声明图像能力时返回原生持久附件，否则返回文字及未看图提示。权限继续经过原生 deny/ask/allow，单次批准仅授权对应执行对象，参数不能指定根目录或伪造身份。

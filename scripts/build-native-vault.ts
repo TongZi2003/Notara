@@ -5,6 +5,7 @@ import { outputNamed } from './package-bin.ts';
 import { ACADEMY_FILES } from '../examples/native-vault/academy.js';
 import { PDF_RESOURCE_FILES } from '../examples/native-vault/pdf-resources.js';
 import { withVaultBuild } from './vault-build-lock.ts';
+import {boardReact,excalidrawLocalAssets} from './board-editor-build.ts';
 
 await withVaultBuild(resolve('.'), 'native-vault', async () => {
 // Patches also read/write shared dependencies, so run only after acquiring the
@@ -83,12 +84,16 @@ await cp(resolve('resources/fonts/wenkai.woff2'), resolve('examples/native-vault
 const { LAZY_FILES } = await import('../examples/native-vault/lazy-assets.js');
 const LAZY_SOURCES: Record<string, string> = { 'pdf.min.mjs': 'node_modules/pdfjs-dist/build/pdf.min.mjs', 'pdf.worker.min.mjs': 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs' };
 // Modules without a shipped browser ES build are bundled from their ES source.
-const LAZY_BUILDS: Record<string, string> = { 'jsxgraph.mjs': 'node_modules/jsxgraph/src/index.js' };
+const LAZY_BUILDS: Record<string, string> = { 'jsxgraph.mjs': 'node_modules/jsxgraph/src/index.js', 'board-editors.mjs':'examples/native-vault/board/editors.jsx', 'free-drawing-editor.mjs':'examples/native-vault/board/free-drawing-editor.jsx' };
+const excalidrawFontRoot=resolve('node_modules/@excalidraw/excalidraw/dist/prod/fonts');
+const installedDrawingFonts=(await readdir(excalidrawFontRoot,{recursive:true,withFileTypes:true})).filter(entry=>entry.isFile()).map(entry=>'excalidraw/fonts/'+entry.parentPath.slice(excalidrawFontRoot.length+1).replaceAll('\\','/')+'/'+entry.name).sort();
+const reviewedDrawingFonts=Object.keys(LAZY_FILES).filter(name=>name.startsWith('excalidraw/fonts/')).sort();
+if(JSON.stringify(installedDrawingFonts)!==JSON.stringify(reviewedDrawingFonts))throw Error('Excalidraw font manifest differs from locked dependency; review it before building');
 await rm(resolve('examples/native-vault/lazy'), { recursive: true, force: true });
 for (const name of Object.keys(LAZY_FILES)) {
-  const source = LAZY_SOURCES[name], entry = LAZY_BUILDS[name];
+  const source = LAZY_SOURCES[name] ?? (name.startsWith('excalidraw/fonts/') ? 'node_modules/@excalidraw/excalidraw/dist/prod/'+name.slice('excalidraw/'.length) : name==='excalidraw/LICENSE.txt' ? 'resources/licenses/excalidraw-MIT.txt' : undefined), entry = LAZY_BUILDS[name];
   if (source) await cp(resolve(source), resolve('examples/native-vault/lazy', name));
-  else if (entry) await build({ entryPoints: [resolve(entry)], outfile: resolve('examples/native-vault/lazy', name), bundle: true, format: 'esm', platform: 'browser', target: 'es2022', minify: true, legalComments: 'eof', logLevel: 'error' });
+  else if (entry) await build({ entryPoints: [resolve(entry)], outfile: resolve('examples/native-vault/lazy', name), bundle: true, format: 'esm', platform: 'browser', target: 'es2022', minify: true, legalComments: 'eof', logLevel: 'error', conditions:['production'], define:{'process.env.NODE_ENV':'"production"'},plugins:[boardReact,excalidrawLocalAssets,{name:'editor-styles',setup(builder){builder.onLoad({filter:/\.css$/},async args=>({contents:await readFile(args.path,'utf8'),loader:'text'}));}}] });
   else throw new Error(`native-vault lazy module ${name} has no build source`);
 }
 // JSXGraph is dual MIT/LGPL; its notice ships beside the module it is built into.

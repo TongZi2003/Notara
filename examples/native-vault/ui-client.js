@@ -21,7 +21,7 @@ export const UI_CSS = `
 .nv-panes[data-nv-axis=stacked] .nv-split-resize{cursor:row-resize}
 .nv-panes[data-nv-axis=stacked] .nv-pane-swap{bottom:auto;left:auto;right:12px;top:50%;transform:translateY(-50%)}
 .nv-panes[data-nv-axis=stacked] .nv-pane-swap svg{transform:rotate(90deg)}
-@media(max-width:760px){.nv-workspace-tabs button{padding:6px 8px}}
+@media(max-width:760px){.nv-panes[data-nv-split]{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr) 5px minmax(0,1fr)!important}.nv-panes[data-nv-split]>.nv-pane{grid-column:1!important;grid-row:var(--nv-row)!important}.nv-panes[data-nv-split]>.nv-split-handle{grid-column:1!important;grid-row:2!important;cursor:row-resize}.nv-workspace-tabs button{padding:6px 8px}}
 `;
 
 const paths = {

@@ -102,6 +102,10 @@ test('a reloaded tab reopens its lesson with the same panes instead of preparing
   assert.deepEqual(nav.takeLayout('old'),{left:'board',right:'chat',ratio:68});
   assert.equal(nav.takeLayout('old'),undefined,'the panes are handed out once');
 });
+test('a reloaded tab restores the swapped physical seats',()=>{
+  const nav=createVaultNavigation({storage:tabStore({sessionId:'old',layout:{left:'board',right:'chat',ratio:54,swapped:true}})});
+  assert.deepEqual(nav.takeLayout('old'),{left:'board',right:'chat',ratio:54,swapped:true});
+});
 test('a reload waits for DSH to restore its own selection before reopening the lesson',async()=>{
   const r=runtime(async()=> 'fresh'),listeners=new Set(),storage=tabStore({sessionId:'old',layout:{left:'chat',right:null,ratio:62}});
   r.state.current=undefined;
@@ -268,6 +272,8 @@ test('a lesson is remembered with its panes, any other section as itself; never 
   assert.deepEqual(JSON.parse(storage.map.get('notara-vault-view')),{section:'home',plan:'calendar',vault:'files'},'Home is not a lesson');
   nav.show('lesson');nav.rememberLesson('old',{left:'board',right:'chat',ratio:68,extra:1});
   assert.deepEqual(JSON.parse(storage.map.get('notara-vault-view')),{section:'lesson',sessionId:'old',layout:{left:'board',right:'chat',ratio:68}});
+  nav.rememberLesson('old',{left:'board',right:'files',ratio:54,swapped:true,fileFocus:'引用资料.pdf#page=4&rect=0.1,0.2,0.3,0.4'});
+  assert.deepEqual(JSON.parse(storage.map.get('notara-vault-view')),{section:'lesson',sessionId:'old',layout:{left:'board',right:'files',ratio:54,swapped:true,fileFocus:'引用资料.pdf#page=4&rect=0.1,0.2,0.3,0.4'}},'physical order and only the last focused file target are restored with the layout');
   nav.show('vault','graph');
   assert.deepEqual(JSON.parse(storage.map.get('notara-vault-view')),{section:'vault',plan:'calendar',vault:'graph'});
   const r=runtime(async()=> 'fresh'),again=createVaultNavigation({storage:tabStore({sessionId:'old',layout:{left:'chat',right:null,ratio:62}})});

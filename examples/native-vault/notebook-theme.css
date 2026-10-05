@@ -184,9 +184,9 @@ body[data-notara-style=notebook] .nv-review-history :is(summary,li){font-size:14
 /* ---- 白板：一张浅色暖纸，两种深浅色下都保持浅色（板书墨色是固定的） ---- */
 body[data-notara-style=notebook] .nb-board{background:#fbf7ee;color:#2e3548;font-family:"Notara WenKai","LXGW WenKai","Kaiti SC","STKaiti","KaiTi",serif;font-size:15px;letter-spacing:.02em}
 body[data-notara-style=notebook] .nb-head{border-bottom-color:#e4dbc6}
-body[data-notara-style=notebook] .nb-board button{background:#efe7d4;color:#5b5f70;border-radius:4px;font-size:15px}
-body[data-notara-style=notebook] .nb-board button:hover{background:#e6dcc5}
-body[data-notara-style=notebook] .nb-board button:focus-visible{outline-color:#c0392b}
+body[data-notara-style=notebook] .nb-board button:not(.excalidraw button){background:#efe7d4;color:#5b5f70;border-radius:4px;font-size:15px}
+body[data-notara-style=notebook] .nb-board button:not(.excalidraw button):hover{background:#e6dcc5}
+body[data-notara-style=notebook] .nb-board button:not(.excalidraw button):focus-visible{outline-color:#c0392b}
 body[data-notara-style=notebook] .nb-tabs{background:transparent;padding:0;gap:4px}
 body[data-notara-style=notebook] .nb-tabs button{background:transparent;border-radius:3px;height:30px}
 body[data-notara-style=notebook] .nb-tabs button[aria-selected=true]{background:rgba(252,214,92,.5);color:#2e3548;box-shadow:none;border-radius:var(--nb-scribble)}

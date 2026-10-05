@@ -1,6 +1,6 @@
 {
   "name": "@notara/vault-native",
-  "version": "0.23.13-dev.4",
+  "version": "0.23.13-dev.5",
   "license": "MIT",
   "type": "module",
   "main": "index.js",
@@ -91,7 +91,14 @@
     "worker-policy.js",
     "worker-progress.js",
     "vault-tools.js",
-    "board-spatial.js"
+    "board-spatial.js",
+    "board-editing-runtime.js",
+    "board-mindmap.js",
+    "board-references.js",
+    "board-scene.js",
+    "board-storage.js",
+    "excalidraw-assets.js",
+    "workspace-split-layout.js"
   ],
   "exports": {
     ".": "./index.js",

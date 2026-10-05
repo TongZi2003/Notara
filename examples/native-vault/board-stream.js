@@ -16,9 +16,13 @@ export function partialBoardArgs(raw='') {
   function string(){let token='"';i++;while(i<raw.length){const c=raw[i++];if(c==='"'){try{return {value:JSON.parse(token+'"'),closed:true};}catch{return {value:'',closed:false};}}
     if(c==='\\'){const escape=raw[i];if(escape===undefined)break;if(escape==='u'){if(!/^[0-9a-f]{4}$/i.test(raw.slice(i+1,i+5)))break;token+='\\'+raw.slice(i,i+5);i+=5;}else{token+='\\'+escape;i++;}}else token+=c;
   }try{return {value:JSON.parse(token+'"'),closed:false};}catch{return {value:'',closed:false};}}
-  while(i<raw.length){const c=raw[i];if(c==='{'){depth++;i++;}else if(c==='}'){depth--;i++;}else if(c==='"'){const key=string();while(/\s/.test(raw[i]??'')&&i<raw.length)i++;if(depth===1&&key.closed&&raw[i]===':'){i++;while(/\s/.test(raw[i]??'')&&i<raw.length)i++;if(raw[i]==='"'){const value=string();if(['title','body','kind','section','size'].includes(key.value)&&(value.closed||key.value==='body'))values[key.value]=value.value;}}}else i++;}
+  while(i<raw.length){const c=raw[i];if(c==='{'){depth++;i++;}else if(c==='}'){depth--;i++;}else if(c==='"'){const key=string();while(/\s/.test(raw[i]??'')&&i<raw.length)i++;if(depth===1&&key.closed&&raw[i]===':'){i++;while(/\s/.test(raw[i]??'')&&i<raw.length)i++;if(raw[i]==='"'){const value=string();if(['action','blockId','title','body','kind','section','size'].includes(key.value)&&(value.closed||key.value==='body'))values[key.value]=value.value;}}}else i++;}
+  if(values.action==='apply'){
+    try{const input=JSON.parse(raw),patch=input.ops?.find(op=>op.type==='patch');if(patch){values.blockId=patch.blockId;values.operation='patch';}}catch{/* Complete operations alone identify a stable target. */}
+  }
   return values;
 }
+const previewArgs=raw=>{const values=partialBoardArgs(raw);return ['list','read','undo'].includes(values.action)||!values.title&&values.action!=='apply'?null:values;};
 export function createBoardEventTracker(){
   let events=new Map(),parts=new Map(),revision=-1;
   function accept(entry){const event=entry.event,d=event.data;
@@ -27,10 +31,10 @@ export function createBoardEventTracker(){
       if(c.type==='tool-call-delta'){const p=parts.get(key)??{callId:'',name:'',argsRaw:'',parsed:-1};p.callId=p.callId||c.id;p.name=c.name??p.name;p.argsRaw+=c.argumentsDelta;parts.set(key,p);
         // Short arguments re-decode on every delta; a long body streamed in small
         // deltas re-decodes once it grew by 2%, so streaming never turns quadratic.
-        if(p.name==='write_lesson_board'&&(p.argsRaw.length<4000||p.argsRaw.length-p.parsed>=p.parsed*.02)){p.parsed=p.argsRaw.length;events.set(p.callId,{callId:p.callId,status:'streaming',...partialBoardArgs(p.argsRaw)});}}
+        if(p.name==='write_lesson_board'&&(p.argsRaw.length<4000||p.argsRaw.length-p.parsed>=p.parsed*.02)){p.parsed=p.argsRaw.length;const args=previewArgs(p.argsRaw);if(args)events.set(p.callId,{callId:p.callId,status:'streaming',...args});}}
     }else if(event.type==='assistant/message'){
-      for(const block of d.message?.content??[])if(block.type==='tool-call'&&block.name==='write_lesson_board')events.set(block.id,{callId:block.id,status:d.interrupted?'error':'pending',...partialBoardArgs(block.arguments)});
-    }else if(event.type==='tool/call'&&d.name==='write_lesson_board')events.set(d.callId,{callId:d.callId,status:'pending',...partialBoardArgs(d.arguments)});
+      for(const block of d.message?.content??[])if(block.type==='tool-call'&&block.name==='write_lesson_board'){const args=previewArgs(block.arguments);if(args)events.set(block.id,{callId:block.id,status:d.interrupted?'error':'pending',...args});}
+    }else if(event.type==='tool/call'&&d.name==='write_lesson_board'){const args=previewArgs(d.arguments);if(args)events.set(d.callId,{callId:d.callId,status:'pending',...args});}
     else if(event.type==='tool/result'){const id=d.message?.source?.callId,previous=events.get(id);if(previous)events.set(id,{...previous,status:(d.message?.isError??d.message?.content?.[0]?.isError)?'error':'completed'});}
     else if(event.type==='turn/end')for(const [id,value] of events)if(['streaming','pending'].includes(value.status))events.set(id,{...value,status:'error'});
   }

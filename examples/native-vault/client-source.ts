@@ -322,10 +322,37 @@ window.__ModuleLoader__.load({
     }
 
     function insertBoardObservation(ctx, sessionId, text, openView) {
+      if(text && typeof text==='object' && text.reference?.kind==='board'){
+        const scope=ctx.sessions.scope(sessionId);
+        if(!scope || currentSessionId(ctx.sessions.list.getSnapshot())!==sessionId || ctx.conversation.blocks.storeFor(sessionId).getSnapshot())return false;
+        const input=ctx.conversation.input.for(scope),state=input.state.getSnapshot();
+        if(state.phase!=='plain')return false;
+        const reference={...text.reference,sessionId},end=state.draft.length-state.occurrences.reduce((sum,item)=>sum+item.length-1,0);
+        if(!input.insertReference({source:'notara-board',ref:JSON.stringify(reference),label:reference.title,appearance:'file',clipboardText:`【${reference.title}】`},{start:end,end,draftRev:state.draftRev}))return false;
+        if(!insertComposerText(ctx,sessionId,text.text))return false;
+        openView('chat','');
+        requestAnimationFrame(()=>document.querySelector('[data-composer-input]')?.focus({preventScroll:true}));
+        return true;
+      }
       if (!insertComposerText(ctx, sessionId, text)) return false;
       openView('chat', '');
       requestAnimationFrame(() => document.querySelector('[data-composer-input]')?.focus({ preventScroll: true }));
       return true;
+    }
+
+    function registerBoardReference(ctx){
+      return ctx.inputTriggers.registerSource({trigger:'@',name:'notara-board',order:16,showGroupTitle:false,async candidates(){return [];},onPick(){},codec:{
+        clipboardText:ref=>{try{return `【${JSON.parse(ref).title}】`;}catch{return '【白板】';}},
+        async serialize(ref){
+          const reference=JSON.parse(ref),client=createVaultClient(ctx,reference.sessionId);
+          if(reference.kind!=='board'||typeof reference.blockId!=='string'||!Array.isArray(reference.elementIds))throw Error('白板引用不可用，请重新选取。');
+          const current=await client.contentBoard({blockId:reference.blockId});
+          if(!current.ok || reference.revision && reference.revision!==current.value.revision)throw Error('白板已经更新，请重新带入。');
+          const result=await client.boardReference({blockId:reference.blockId,elementIds:reference.elementIds,expectedRevision:current.value.revision});
+          if(!result.ok)throw Error('白板选区已经更新，请重新选取。');
+          return `\n〔白板选区:${result.value.token}〕\n学生指定的白板目标：${JSON.stringify({...result.value.reference,revision:result.value.revision})}。先用write_lesson_board action=read读取该blockId；仅完善指定范围，保留原稿并核对保存回执。\n`;
+        },
+      }});
     }
 
     /**
@@ -631,7 +658,7 @@ window.__ModuleLoader__.load({
     const { TeachingEntry, SummaryEntry } = createTeachingPanel(React, { STYLE, IconButton, Dialog });
     const { PomodoroEntry } = createPomodoroEntry(React, { Icon });
     const { ClassroomView, WorkerToolRow } = createVaultClassroom(React, { STYLE, IconButton, Dialog, resolveSlotLabel });
-    const Board = createLessonBoard(React), BoardStream = createBoardStream(React);
+    const Board = createLessonBoard(React,{CodeMirrorMarkdown,CodeEditor,loadPdf,pdfDocumentOptions}), BoardStream = createBoardStream(React);
     const Workspace = createVaultWorkspace(React, { ScheduledView, SkillsView, EMPTY_STATES, App, GraphView, CardsView, RoutesView, CalendarView, ClassroomView, Board, BoardStream, TeachingEntry, SummaryEntry, PomodoroEntry, IconButton,
       navigation, Today,
       ensureSession: ctx => ensureTeachingSession(ctx),
@@ -676,6 +703,7 @@ window.__ModuleLoader__.load({
               name: 'conversation.session.header.lineage', priority: -1,
             }, props => React.createElement(WorkerCrumb, { ...props, sessions: scope.sessions.list }))), 'notara-vault-native: lineage');
             scope.effect(() => registerVaultReference(scope), 'notara-vault-native: conversation reference');
+            scope.effect(() => registerBoardReference(scope), 'notara-vault-native: board reference');
             scope.effect(() => installBashDisplay(scope.slots, React), 'notara-vault-native: bash learning steps');
             scope.effect(() => scope.slots.inject('tool.call.toolview', () => scope.slots.register({
               name: 'tool.call.toolview', key: 'write_lesson_board', priority: -1,

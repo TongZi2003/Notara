@@ -164,7 +164,7 @@ export function createVaultNavigation({storage}={}) {
       if(value.resuming)return;
       if(value.section!=='lesson'){rememberSection();return;}
       if(!sessionId){forget();return;}
-      write({section:'lesson',sessionId,layout:{left:layout.left,right:layout.right,ratio:layout.ratio,...(layout.swapped?{swapped:true}:{})}});
+      write({section:'lesson',sessionId,layout:{left:layout.left,right:layout.right,ratio:layout.ratio,...(layout.swapped?{swapped:true}:{}),...(typeof layout.fileFocus==='string'&&layout.fileFocus?{fileFocus:layout.fileFocus}:{})}});
     },
     /** The panes a reloaded lesson had, handed out once. */
     takeLayout(sessionId){

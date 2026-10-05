@@ -95,6 +95,7 @@
     "@deepseek-ai/dsh-web": "0.2.0-rc.1",
     "@deepseek-ai/dsh-web-fetch-http": "0.2.0-rc.1",
     "@deepseek-ai/dsh-web-search-deepseek": "0.2.0-rc.1",
+    "@excalidraw/excalidraw": "0.18.1",
     "@lezer/highlight": "1.2.3",
     "@lezer/python": "1.1.19",
     "@playwright/test": "1.63.0",
