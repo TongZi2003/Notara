@@ -1,8 +1,9 @@
 import { build } from 'esbuild';
-import { readFile, writeFile, cp, rm } from 'node:fs/promises';
+import { readFile, writeFile, cp, rm, readdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { outputNamed } from './package-bin.ts';
 import { ACADEMY_FILES } from '../examples/native-vault/academy.js';
+import { PDF_RESOURCE_FILES } from '../examples/native-vault/pdf-resources.js';
 import { withVaultBuild } from './vault-build-lock.ts';
 
 await withVaultBuild(resolve('.'), 'native-vault', async () => {
@@ -92,6 +93,16 @@ for (const name of Object.keys(LAZY_FILES)) {
 }
 // JSXGraph is dual MIT/LGPL; its notice ships beside the module it is built into.
 await cp(resolve('node_modules/jsxgraph/LICENSE.MIT'), resolve('examples/native-vault/lazy/LICENSE-JSXGraph.txt'));
+// CMaps, fonts and image decoders are needed only when reading a PDF. Ship
+// exactly the reviewed dependency manifest, including its license notices.
+const pdfResourcesRoot = resolve('examples/native-vault/pdf-resources');
+const pdfResourceNames = Object.keys(PDF_RESOURCE_FILES).sort();
+const installedPdfResources = (await Promise.all(['cmaps', 'standard_fonts', 'wasm'].map(async directory =>
+  (await readdir(resolve('node_modules/pdfjs-dist', directory), { withFileTypes: true })).filter(entry => entry.isFile()).map(entry => `${directory}/${entry.name}`),
+))).flat().sort();
+if (JSON.stringify(pdfResourceNames) !== JSON.stringify(installedPdfResources)) throw new Error('PDF resource manifest differs from locked dependency; review it before building');
+await rm(pdfResourcesRoot, { recursive: true, force: true });
+for (const name of pdfResourceNames) await cp(resolve('node_modules/pdfjs-dist', name), resolve(pdfResourcesRoot, name));
 // This directory is generated. Retired prompts must not survive a rebuild.
 await rm(resolve('examples/native-vault/teaching'), { recursive: true, force: true });
 await cp(resolve('resources/vault-teaching'),resolve('examples/native-vault/teaching'),{recursive:true});

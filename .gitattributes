@@ -3,3 +3,5 @@
 * text=auto eol=lf
 # Windows Explorer launchers keep native batch line endings.
 *.cmd text eol=crlf
+# Keep the bundled PDF.js license notices byte-for-byte; upstream uses trailing spaces.
+examples/native-vault/pdf-resources/**/LICENSE* -whitespace

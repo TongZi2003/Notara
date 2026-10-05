@@ -12,6 +12,7 @@ import { installUpdateBridge } from './update-runtime.js';
 import { installChatgpt } from './chatgpt-runtime.js';
 import { installSessionDeletion } from './session-deletion-runtime.js';
 import { installRemoteSettings } from './remote-settings-runtime.js';
+import { installSessionGroups } from './session-groups-runtime.js';
 
 const REMOTE_METHOD_DESCRIPTOR = '@deepseek-ai/dsh-typert-protocol/remote-methods';
 const MAX_CONTENT_LENGTH = 2_000_000;
@@ -142,6 +143,18 @@ export class NotaraVaultRemote extends TypertRemoteService {
   }
 
   async teachingSettings(input) {return this.teachingCall('settings',exactInput(input,['sessionId']));}
+  async sessionGroups(input) {
+    const data = exactInput(input, ['workspaceId'], ['sessionId']);
+    const service = this.ctx.get('notaraSessionGroups');
+    if (!service) fail('session_groups_unavailable');
+    return service.list(data);
+  }
+  async mutateSessionGroups(input) {
+    const data = exactInput(input, ['workspaceId', 'expectedRevision', 'patch'], ['sessionId']);
+    const service = this.ctx.get('notaraSessionGroups');
+    if (!service) fail('session_groups_unavailable');
+    return service.mutate(data);
+  }
   async updateStatus(input) { exactInput(input, [], ['sessionId']); return this.ctx.notaraUpdates.status(); }
   async checkUpdate(input) { exactInput(input, [], ['sessionId']); return this.ctx.notaraUpdates.check(); }
   async applyUpdate(input) { exactInput(input, [], ['sessionId']); return this.ctx.notaraUpdates.apply(); }
@@ -323,6 +336,7 @@ export function apply(ctx) {
   installChatgpt(ctx);
   installSessionDeletion(ctx);
   installRemoteSettings(ctx);
+  installSessionGroups(ctx);
   // A Cordis plugin body must not return the service instance as a disposable.
   ctx.inject(['agents','tools','systemPrompt','fs','sessions','sessionController','skills','workspaceRegistry','llm','subagents'],scope=>{installTeachingRuntime(scope);});
 }

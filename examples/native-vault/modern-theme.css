@@ -255,6 +255,7 @@ body[data-notara-ui=modern] :is(.nv-route-views,.nv-class-views) button:is([aria
 [data-notara-ui=modern] :is(.nv-workspace,.nv-sidebar) button:focus-visible{outline:2px solid var(--dsw-alias-label-tertiary);outline-offset:2px}
 .nv-session-row-wrap{display:flex;align-items:center;gap:2px;min-width:0}
 .nv-session-row-wrap>.nv-session-row{width:auto;min-width:0;flex:1 1 0}
+.nv-lesson-folder{margin-top:8px}.nv-folder-toggle{font-weight:500;color:var(--dsw-alias-label-primary)!important}.nv-folder-toggle small{flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary)}.nv-folder-lessons{margin-left:16px;padding-left:6px;border-left:1px solid var(--dsw-alias-border-l1)}.nv-folder-lessons>.nv-panel-note{margin-left:10px}
 .nv-session-actions{flex:none;margin-right:4px}
 .nv-session-more{width:30px;height:30px;color:var(--dsw-alias-label-tertiary)}
 .nv-session-menu{z-index:95;min-width:160px;max-width:calc(100vw - 16px);box-sizing:border-box;color:var(--dsw-alias-label-primary);font:13px var(--dsw-font-family,system-ui)}

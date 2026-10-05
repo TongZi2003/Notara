@@ -18,6 +18,7 @@
 /** Every method the wrapper mirrors, in protocol order (see the Remote marker). */
 export const VAULT_REMOTE_METHODS = Object.freeze([
   'updateStatus', 'checkUpdate', 'applyUpdate', 'shutdown',
+  'sessionGroups', 'mutateSessionGroups',
   'pdfAnnotations', 'updatePdfAnnotations',
   'board', 'mutateBoard', 'mutateBoardInteraction', 'answerBoard', 'resendBoardAnswer',
   'list', 'read', 'readAsset', 'save', 'saveAsset', 'search', 'query', 'links', 'graph', 'learningStars', 'templates', 'createFromTemplate', 'tasks', 'toggleTask',

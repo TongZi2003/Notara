@@ -24,10 +24,10 @@ export function createVaultWorkspace(React,{ScheduledView,SkillsView,EMPTY_STATE
     const teaching=current?.projectionValues?.agentPreset==='notara-teacher'&&current?.origin!=='subagent';
     // A worker's record opened from 教室 leads back to that lesson's classroom.
     const parentLesson=current?.origin==='subagent'&&sessionState.byId[current.parentId]?.projectionValues?.agentPreset==='notara-teacher'?current.parentId:null;
-    const initialLayout=id=>{const resumed=navigation.takeLayout?.(id);return layouts.get(id)??(resumed?{...resumed,sessionId:id}:{sessionId:id,left:'chat',right:null,ratio:62});};
+    const initialLayout=id=>{const resumed=navigation.takeLayout?.(id);return layouts.get(id)??(resumed?{...resumed,swapped:resumed.swapped===true,sessionId:id}:{sessionId:id,left:'chat',right:null,ratio:62,swapped:false});};
     const [layout,setLayout]=useState(()=>initialLayout(sessionId));
     const [requests,setRequests]=useState({}),[visited,setVisited]=useState(new Set(['chat']));
-    const [narrow,setNarrow]=useState(()=>window.innerWidth<800),[narrowFace,setNarrowFace]=useState('board');
+    const [narrow,setNarrow]=useState(()=>window.innerWidth<700),[narrowFace,setNarrowFace]=useState('board');
     useEffect(()=>{const observer=new ResizeObserver(entries=>setNarrow(entries[0].contentRect.width<700));if(root.current)observer.observe(root.current);return()=>observer.disconnect();},[]);
     const root=useRef(null),drag=useRef(false),serial=useRef(0),previous=useRef(sessionId);
     // 显示调试记录 brings back the native view tabs, so the conversation can switch to
@@ -109,11 +109,13 @@ export function createVaultWorkspace(React,{ScheduledView,SkillsView,EMPTY_STATE
         h(TeachingEntry,{ctx,sessionId,ensureSession:()=>ensureSession(ctx)}),
         h(SummaryEntry,{ctx,sessionId}),
         !(narrow&&layout.left==='board')&&h(IconButton,{icon:layout.left==='board'?'chat':'split',label:secondaryLabel,'aria-pressed':!!layout.right,onClick:toggleSecondary})));
+    const split=!globalView&&!!layout.right&&!(narrow&&layout.left==='board');
+    const stacked=split&&narrow;
     return h('div',{className:'nv-workspace','data-section':nav.section},
       teaching&&BoardStream&&h(BoardStream,{ctx,sessionId}),
       h('style',null,UI_CSS),!globalView&&(teaching?lessonHeader:nativeHeader),
-      h('div',{ref:root,className:'nv-panes','data-nv-board':layout.left==='board'?'true':undefined,'data-nv-split':!globalView&&layout.right&&!(narrow&&layout.left==='board')?'true':undefined,
-        style:{gridTemplateColumns:!globalView&&layout.right&&!(narrow&&layout.left==='board')?'minmax(0,'+layout.ratio+'fr) 5px minmax(0,'+(100-layout.ratio)+'fr)':'minmax(0,1fr)',gridTemplateRows:'minmax(0,1fr)'}},
+      h('div',{ref:root,className:'nv-panes','data-nv-board':layout.left==='board'?'true':undefined,'data-nv-split':split?'true':undefined,'data-nv-axis':stacked?'stacked':'columns',
+        style:{gridTemplateColumns:split&&!stacked?'minmax(0,'+layout.ratio+'fr) 5px minmax(0,'+(100-layout.ratio)+'fr)':'minmax(0,1fr)',gridTemplateRows:stacked?'minmax(0,'+layout.ratio+'fr) 5px minmax(0,'+(100-layout.ratio)+'fr)':'minmax(0,1fr)'}},
         choices.map(([id,label])=>{
           const side=globalView?(id===(globalView==='home'?'chat':globalView)?'left':null):narrow&&layout.left==='board'?(id===narrowFace?'left':null):layout.left===id?'left':layout.right===id?'right':null;
           if(id==='board'&&!teaching)return null;
@@ -125,18 +127,23 @@ export function createVaultWorkspace(React,{ScheduledView,SkillsView,EMPTY_STATE
             ...(id===VIEW_IDS.routes?{routePath:globalView?nav.routePath:undefined,onRouteChange:globalView?navigation.selectRoute:undefined,
               onPlanInConversation:()=>globalView?navigation.queueDraft(EMPTY_STATES.routes.draft):onDiscuss?.(ctx,sessionId,EMPTY_STATES.routes.draft,(target,focus)=>openView(side??'left',target,focus))}:{}),
             openView:(target,focus)=>openView(side??'left',target,focus),onDiscuss:(text)=>onDiscuss?.(ctx,sessionId,text,(target,focus)=>openView(side??'left',target,focus)),onBring:(file,selection,page,intent)=>onBring(ctx,sessionId,file,selection,page,intent,(target,focus)=>openView(side??'left',target,focus)),onBringMany:(pins,intent)=>onBringMany?.(ctx,sessionId,pins,intent,(target,focus)=>openView(side??'left',target,focus))};
-          return h('section',{key:id,className:'nv-pane','aria-label':label+'区域','aria-hidden':!side,...(!side?{inert:''}:{}),
-            style:{display:side?'flex':'none',gridColumn:side==='right'?3:1,gridRow:1,'--nv-row':side==='right'?3:1}},
+          // left/right identify the primary/secondary view. Swapping changes
+          // only its physical seat, preserving the board and the one composer.
+          const physicalSide=split&&layout.swapped?(side==='left'?'right':side==='right'?'left':null):side;
+          return h('section',{key:id,className:'nv-pane','aria-label':label+'区域','aria-hidden':!side,'data-nv-side':physicalSide,...(!side?{inert:''}:{}),
+            style:{display:side?'flex':'none',gridColumn:stacked?1:physicalSide==='right'?3:1,gridRow:stacked&&physicalSide==='right'?3:1}},
             side&&!globalView&&!(narrow&&layout.left==='board')&&(!teaching||side==='right')&&bar(side),
             h('div',{className:'nv-pane-content',ref:id==='chat'?bindChatNavigation:undefined},
               id==='chat'?h(Today,{ctx,sessionId,visible:globalView==='home',onView:globalOpen},nativeConversationBody):
               (side||visited.has(id))&&h(components[id],childProps)));
         }),
-        !globalView&&layout.right&&!(narrow&&layout.left==='board')&&h('div',{className:'nv-split-handle',role:'separator','aria-label':'调整资料面板宽度','aria-orientation':'vertical','aria-valuemin':25,'aria-valuemax':75,'aria-valuenow':layout.ratio,tabIndex:0,style:{gridColumn:2,gridRow:1},
-          onKeyDown:e=>{if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();setLayout(prev=>({...prev,ratio:Math.max(25,Math.min(75,prev.ratio+(e.key==='ArrowRight'?5:-5)))}));}},
-          onPointerDown:e=>{drag.current=true;e.currentTarget.setPointerCapture(e.pointerId);},
-          onPointerMove:e=>{if(!drag.current)return;const rect=root.current.getBoundingClientRect();const ratio=innerWidth<=760?(e.clientY-rect.top)/rect.height:(e.clientX-rect.left)/rect.width;setLayout(prev=>({...prev,ratio:Math.max(25,Math.min(75,ratio*100))}));},
-          onPointerUp:e=>{drag.current=false;e.currentTarget.releasePointerCapture(e.pointerId);},onPointerCancel:()=>{drag.current=false;}})));
+        split&&h('div',{className:'nv-split-handle',style:{gridColumn:stacked?1:2,gridRow:stacked?2:1}},
+          h('div',{className:'nv-split-resize',role:'separator','aria-label':stacked?'调整窗格高度':'调整资料面板宽度','aria-orientation':stacked?'horizontal':'vertical','aria-valuemin':25,'aria-valuemax':75,'aria-valuenow':layout.ratio,tabIndex:0,
+            onKeyDown:e=>{const decrease=stacked?'ArrowUp':'ArrowLeft',increase=stacked?'ArrowDown':'ArrowRight';if([decrease,increase].includes(e.key)){e.preventDefault();setLayout(prev=>({...prev,ratio:Math.max(25,Math.min(75,prev.ratio+(e.key===increase?5:-5)))}));}},
+            onPointerDown:e=>{if(e.button!==0)return;e.preventDefault();drag.current=true;e.currentTarget.setPointerCapture(e.pointerId);},
+            onPointerMove:e=>{if(!drag.current)return;const rect=root.current.getBoundingClientRect(),ratio=stacked?(e.clientY-rect.top)/rect.height:(e.clientX-rect.left)/rect.width;setLayout(prev=>({...prev,ratio:Math.max(25,Math.min(75,ratio*100))}));},
+            onPointerUp:e=>{drag.current=false;if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);},onPointerCancel:()=>{drag.current=false;}}),
+          h(IconButton,{icon:'swap',label:'调换窗格',title:stacked?'调换上下窗格':'调换左右窗格',className:'nv-icon nv-pane-swap','aria-pressed':layout.swapped===true,onPointerDown:e=>e.stopPropagation(),onClick:()=>setLayout(prev=>({...prev,swapped:!prev.swapped}))}))));
   }
   return Workspace;
 }

@@ -90,6 +90,12 @@ const ERROR_HELP = {
   vault_file_not_found: ['找不到对应资料。', '确认路径，或先读取资料列表。'],
   vault_file_required: ['该路径不是普通文件。', '改成真实文件路径。'],
   vault_file_too_large: ['文件超过读取上限。', '改用更小的资料或按页读取。'],
+  vault_pdf_too_large: ['这份 PDF 超过 512 MiB，当前无法使用。', '请先拆成较小的文件再打开。'],
+  vault_pdf_size_unavailable: ['无法确认这份 PDF 的大小。', '检查文件状态后重试。'],
+  vault_pdf_range_unavailable: ['当前文件系统不能分段读取 PDF。', '请检查运行时的文件读取能力。'],
+  vault_pdf_version_unavailable: ['当前文件系统无法确认 PDF 的稳定版本。', '请使用支持文件版本校验的运行时重试。'],
+  pdf_range_too_large: ['这份 PDF 需要读取超过 32 MiB 的连续对象，暂时无法按页处理。', '文件可能损坏或含过大的单页对象，请修复或拆分后重试。'],
+  pdf_page_range_required: ['这份 PDF 超过 10,000 页，需要先选定查询范围。', '提供 pageRange，每次最多检查 10,000 页。'],
   vault_markdown_required: ['该操作只接受 Markdown 资料。', '改成 .md 路径。'],
   vault_asset_required: ['该操作只接受二进制资料。', '改成真实 PDF/图片路径。'],
   vault_media_not_supported: ['这种资料不能按页读取。', 'pdf-page 只接受 PDF。'],
@@ -423,15 +429,23 @@ const COMMANDS = {
     result: '{path, title, revision, ref, saved}',
     example: '{"path":"路线/向量学习路线.md","expectedRevision":"0123456789abcdef01234567","nodeId":"真实节点","date":"2026-09-25"}',
   },
+  'pdf-outline': {
+    summary: '只读 PDF 书签目录与印刷页标签，将直接或命名目标解析成真实的物理页；无书签时明确提示，不假造章节。文件上限 512 MiB。',
+    write: false,
+    fields: { path: { ...pathField('PDF 的 Vault 相对路径。'), required: true } },
+    result: '{path,title,revision,ref,pageCount,pageLabels?,items[{title,page:number|null,pageLabel?,items[]}],truncated,warnings[]}; page从1起，pageLabel只是印刷标签；未能解析的目标为null',
+    example: '{"path":"媒体/向量讲义.pdf"}',
+  },
   'pdf-page': {
-    summary: '读 PDF 的某一页，返回文字层、页数、真实 revision 与工作区内部临时图片路径。',
+    summary: '按物理页读 PDF（上限 512 MiB），返回文字层、页数、真实 revision 和页图；小字或公式优先裁剪区域，图像长边最多 2048 像素。',
     write: false,
     fields: {
       path: { ...pathField('PDF 的 Vault 相对路径，如 媒体/向量讲义.pdf。'), required: true },
-      page: field('number', '1 起的真实页码。', { required: true, check: integer({ min: 1, max: 10000 }) }),
+      page: field('number', '1 起的真实页码。', { required: true, check: integer({ min: 1, max: 1000000 }) }),
       rect: field('number[4]', '可选的归一化区域 [x, y, width, height]，0..1，左上原点，区域不能超出页面。', { check: value => Array.isArray(value) && value.length === 4 && value.every(item => Number.isFinite(item) && item >= 0 && item <= 1) && value[2] > 0 && value[3] > 0 && value[0]+value[2] <= 1+1e-9 && value[1]+value[3] <= 1+1e-9 }),
+      scale: field('number', '可选渲染比例 0.2..3（像素/PDF单位）；默认按长边2048自动计算，指定比例仍受长边上限约束。', { check: value=>Number.isFinite(value)&&value>=0.2&&value<=3 }),
     },
-    result: '{path, page, pageCount, text, revision, imagePath, locator, embed}; embed可直接写入资料节点，区域仍需看裁切图核对',
+    result: '{path, page, pageCount, text, revision, imagePath, imageWidth, imageHeight, renderScale, locator, embed, warnings}; embed可直接写入资料节点，区域仍需看裁切图核对，实际模型尺寸取决于图像路线',
     example: '{"path":"媒体/向量讲义.pdf","page":2}',
   },
   'source-cards': {
@@ -439,6 +453,7 @@ const COMMANDS = {
     write: false,
     fields: {
       path: { ...pathField('资料的 Vault 相对路径：PDF、视频、图片等原件（如 媒体/向量讲义.pdf），或资料页（如 知识/向量讲义.md，同时核对它嵌入的原件）。'), required: true },
+      pageRange: field('number[2]', 'PDF的物理页范围 [起页,止页]，两端包含，每次最多10,000页；不改变全书页数，未给出则检查全书（全书超过10,000页时须指定范围）。', { check: value=>Array.isArray(value)&&value.length===2&&value.every(integer({min:1,max:1000000}))&&value[0]<=value[1]&&value[1]-value[0]<10000 }),
     },
     result: '{path, targets[{path,kind,revision?,pageCount?,pages?[{page,cards[{path,rect?,annotationId?,otherRevision?}]}],uncoveredPages?,ranges?,regions?,anchors?,wholeFile[],invalid[]}], cards[{path,title,type,parent,state,stateError?}], materials[{path,title,type,uncitedCards[]}], truncated, unreadable}; uncitedCards 是专题/源目录名下没带这份资料出处的卡，要读正文核对；一页有卡不等于这页每道题都有卡，整页引用要看标题或题干对上；otherRevision 是引用了旧版本，不算空缺',
     example: '{"path":"知识/向量讲义.md"}',
@@ -700,8 +715,14 @@ async function runCommand(command, args, { fs, root, env, signal, io:providedIO,
   if (command === 'pdf-page') {
     return await pdfPage(io, args, workspacePath, workspace.id, standalone,inlineMedia);
   }
+  if (command === 'pdf-outline') {
+    const asset=await io.readAsset(args.path);
+    if(asset.assetKind!=='pdf')throw new CliError('vault_media_not_supported');
+    const {readPdfOutline}=await import('./agent-media.js');
+    return {path:asset.path,title:asset.title,revision:asset.revision,ref:asset.ref,...await readPdfOutline(asset.pdfSource??asset.bytes,{signal:io.signal}),workspaceId:workspace.id,standalone};
+  }
   if (command === 'source-cards') {
-    return { ...(await sourceCards(io, args.path)), workspaceId: workspace.id, standalone };
+    return { ...(await sourceCards(io, args.path,args.pageRange)), workspaceId: workspace.id, standalone };
   }
   throw new CliError('cli_command_unknown');
 }
@@ -715,7 +736,7 @@ const SOURCE_TARGET_LIMIT = 10;
 const LOCATOR_KINDS = { pdf: ['pdf-page', 'pdf-region'], video: ['video-time'], audio: ['video-time'], image: ['image-region'], html: ['html-range'], page: ['html-range'], file: [] };
 const byText = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
 
-async function sourceCards(io, rawPath) {
+async function sourceCards(io, rawPath,pageRange) {
   let path;
   try { path = safeRelativePath(rawPath); } catch { throw new CliError('vault_path_invalid', 'path'); }
   const scan = await io.scan();
@@ -730,7 +751,8 @@ async function sourceCards(io, rawPath) {
   const embedded = page ? [...new Set((nodes.get(path)?.sources ?? []).map(source => source.path))].filter(target => target !== path && known.has(target) && !documents.has(target)) : [];
   const targets = [path, ...embedded].slice(0, SOURCE_TARGET_LIMIT);
   const cardNodes = graph.nodes.filter(node => node.kind === 'page' && KNOWLEDGE_CARD_TYPES.has(node.type));
-  const used = new Set();
+  const used = new Set(),allCited=new Set();
+  if(pageRange&&!targets.some(target=>mediaForPath(target).kind==='pdf'))throw new CliError('vault_media_not_supported','pageRange');
 
   const results = [];
   for (const target of targets) {
@@ -742,16 +764,19 @@ async function sourceCards(io, rawPath) {
       const refs = node.sources.filter(source => source.path === target);
       const linked = documents.get(node.path)?.links.includes(target) ?? false;
       if (!refs.length && !linked) continue;
+      allCited.add(node.path);
+      if(kind==='pdf'&&pageRange&&refs.length&&refs.every(ref=>!ref.invalidLocator&&allowed.has(ref.locator?.kind)&&(ref.locator.page<pageRange[0]||ref.locator.page>pageRange[1])))continue;
       used.add(node.path);
       let placed = false;
       for (const ref of refs) {
         if (ref.invalidLocator || (ref.locator && !allowed.has(ref.locator.kind))) { invalid.add(node.path); continue; }
+        if(kind==='pdf'&&pageRange&&ref.locator&&(ref.locator.page<pageRange[0]||ref.locator.page>pageRange[1]))continue;
         if (ref.locator) { located.push({ card: node.path, locator: ref.locator }); placed = true; }
       }
       if (!placed && !invalid.has(node.path)) wholeFile.add(node.path);
     }
     const entry = { path: target, kind };
-    if (kind === 'pdf') Object.assign(entry, await pdfCoverage(io, target, located));
+    if (kind === 'pdf') Object.assign(entry, await pdfCoverage(io, target, located,pageRange));
     else if (kind === 'video' || kind === 'audio') entry.ranges = located.map(({ card, locator }) => ({ path: card, startMs: locator.startMs, ...(locator.endMs === undefined ? {} : { endMs: locator.endMs }) })).sort((left, right) => left.startMs - right.startMs || byText(left.path, right.path));
     else if (kind === 'image') entry.regions = located.map(({ card, locator }) => ({ path: card, rect: locator.rect }));
     else if (kind === 'page' || kind === 'html') {
@@ -776,7 +801,7 @@ async function sourceCards(io, rawPath) {
   const targetSet = new Set(targets);
   const materials = graph.nodes
     .filter(node => node.kind === 'page' && MATERIAL_TYPES.has(node.type) && !targetSet.has(node.path) && (node.sources.some(source => targetSet.has(source.path)) || (documents.get(node.path)?.links ?? []).some(link => targetSet.has(link))))
-    .map(node => ({ path: node.path, title: node.title, type: node.type, uncitedCards: childCardsOf(graph, node.path).map(child => child.path).filter(child => !used.has(child)).sort(byText) }))
+    .map(node => ({ path: node.path, title: node.title, type: node.type, uncitedCards: childCardsOf(graph, node.path).map(child => child.path).filter(child => !allCited.has(child)).sort(byText) }))
     .sort((left, right) => byText(left.path, right.path));
   return { path, targets: results, cards, materials, truncated: scan.truncated, unreadable: scan.errors.length };
 }
@@ -784,13 +809,15 @@ async function sourceCards(io, rawPath) {
 /** Every page of the PDF that a card cites, and the pages none does. A citation
  * pinned to another revision still names this material: it is marked, never
  * counted as a gap, and never taken as a position in the current version. */
-async function pdfCoverage(io, path, located) {
+async function pdfCoverage(io, path, located,pageRange) {
   const asset = await io.readAsset(path);
   let pageCount = null, pageCountError;
   try {
     const { readPdfPageCount } = await import('./agent-media.js');
-    pageCount = await readPdfPageCount(asset.bytes);
+    pageCount = await readPdfPageCount(asset.pdfSource??asset.bytes,{signal:io.signal});
   } catch (error) { pageCountError = error.message; }
+  if(!pageRange&&pageCount>10000)throw new CliError('pdf_page_range_required','pageRange');
+  if(pageRange&&(pageCount===null||pageRange[1]>pageCount))throw new CliError(pageCountError??'pdf_page_invalid','pageRange');
   const pages = new Map();
   for (const { card, locator } of located) {
     const list = pages.get(locator.page) ?? [];
@@ -806,9 +833,10 @@ async function pdfCoverage(io, path, located) {
   return {
     revision: asset.revision,
     pageCount,
+    ...(pageRange?{pageRange}:{}),
     ...(pageCountError ? { pageCountError } : {}),
     pages: covered.map(number => ({ page: number, cards: pages.get(number).sort((left, right) => byText(left.path, right.path)) })),
-    ...(pageCount === null ? {} : { uncoveredPages: Array.from({ length: pageCount }, (_, index) => index + 1).filter(number => !pages.has(number)) }),
+    ...(pageCount === null ? {} : { uncoveredPages: Array.from({ length: pageRange?pageRange[1]-pageRange[0]+1:pageCount }, (_, index) => index+(pageRange?.[0]??1)).filter(number => !pages.has(number)) }),
   };
 }
 
@@ -869,8 +897,8 @@ async function writeBatch(io,files) {
 const MEDIA_CACHE_DIR = '.notara-cache';
 const MEDIA_CACHE_FILES = 'media';
 
-function cacheName(path, page, rect, revision) {
-  const key = `${path}\u0000${revision}\u0000${page}\u0000${rect ? rect.join(',') : ''}`;
+function cacheName(path, page, rect, revision,scale) {
+  const key = `${path}\u0000${revision}\u0000${page}\u0000${rect ? rect.join(',') : ''}\u0000edge2048:${scale??'auto'}`;
   const digest = createHash('sha256').update(key).digest('hex').slice(0, 16);
   const stem = (basename(path).replace(/\.pdf$/i, '') || 'page').replace(/[^0-9A-Za-z\u4e00-\u9fff_-]/g, '-').slice(0, 40) || 'page';
   return `${stem}-${digest}-p${page}.png`;
@@ -914,8 +942,8 @@ async function pdfPage(io, args, workspacePath, workspaceId, standalone,inlineMe
   const locator={kind:args.rect?'pdf-region':'pdf-page',page:args.page,...(args.rect?{rect:args.rect.map(number=>Math.round(number*1_000_000)/1_000_000)}:{}),revision:asset.revision};
   const embed=embedTarget(asset.path,locator);
   if(parseMediaTarget(embed.slice(3,-2)).invalidLocator)throw new CliError('pdf_region_invalid');
-  const value = await readPdfPage(asset.bytes, { page: args.page, rect: args.rect });
-  const imagePath = inlineMedia?undefined:await writeMediaCache(workspacePath, cacheName(args.path, value.page, args.rect, asset.revision), Buffer.from(value.image.data, 'base64'));
+  const value = await readPdfPage(asset.pdfSource??asset.bytes, { page: args.page, rect: args.rect,scale:args.scale,signal:io.signal });
+  const imagePath = inlineMedia?undefined:await writeMediaCache(workspacePath, cacheName(args.path, value.page, args.rect, asset.revision,args.scale), Buffer.from(value.image.data, 'base64'));
   return {
     ok: true,
     path: asset.path,
@@ -924,6 +952,7 @@ async function pdfPage(io, args, workspacePath, workspaceId, standalone,inlineMe
     pageCount: value.pageCount,
     text: value.text,
     revision: asset.revision,
+    imageWidth:value.image.width,imageHeight:value.image.height,renderScale:value.image.scale,
     ...(inlineMedia?{imageData:value.image.data,imageMimeType:value.image.mimeType??'image/png'}:{imagePath}),
     locator,
     embed,

@@ -21,15 +21,19 @@ const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('更新信息格式不正确。');
   return value as Record<string, unknown>;
 };
-const stable = (version: string): number[] => {
-  const parts = version.split('.').map(Number);
-  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version) || parts.some(part => !Number.isSafeInteger(part))) throw new Error('更新版本格式不正确。');
-  return parts;
+const parsedVersion = (version: string): { parts: number[]; dev: number | undefined } => {
+  const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-dev\.(0|[1-9]\d*))?$/.exec(version);
+  if (!match) throw new Error('更新版本格式不正确。');
+  const parts = match.slice(1, 4).map(Number);
+  const dev = match[4] === undefined ? undefined : Number(match[4]);
+  if (parts.some(part => !Number.isSafeInteger(part)) || (dev !== undefined && !Number.isSafeInteger(dev))) throw new Error('更新版本格式不正确。');
+  return { parts, dev };
 };
 export function compareVersions(a: string, b: string): number {
-  const left = stable(a), right = stable(b);
-  for (let i = 0; i < 3; i++) if (left[i] !== right[i]) return left[i]! > right[i]! ? 1 : -1;
-  return 0;
+  const left = parsedVersion(a), right = parsedVersion(b);
+  for (let i = 0; i < 3; i++) if (left.parts[i] !== right.parts[i]) return left.parts[i]! > right.parts[i]! ? 1 : -1;
+  if (left.dev === undefined || right.dev === undefined) return left.dev === right.dev ? 0 : left.dev === undefined ? 1 : -1;
+  return Math.sign(left.dev - right.dev);
 }
 export function runtimeContract(value: unknown): RuntimeContract {
   const row = object(value);
@@ -121,7 +125,7 @@ export async function codeContract(code: string): Promise<{ version: string; run
   const deps = object(pkg.devDependencies);
   if (Object.entries(deps).some(([name, version]) => name.startsWith('@deepseek-ai/dsh') && version !== deps['@deepseek-ai/dsh'])) throw new Error('发布包的 DSH 依赖版本不一致。');
   const data = object(JSON.parse(await readFile(join(code, 'docs/runtime/update-contract.json'), 'utf8')));
-  if (typeof manifest.version !== 'string') throw new Error('插件版本缺失。'); stable(manifest.version);
+  if (typeof manifest.version !== 'string') throw new Error('插件版本缺失。'); parsedVersion(manifest.version);
   return { version: manifest.version, runtime: runtimeContract({ dsh: deps['@deepseek-ai/dsh'], cordis: deps['@deepseek-ai/cordis'], dataVersion: data.dataVersion }) };
 }
 export async function runPackageScript(code: string, script: string, args: string[] = [], signal?: AbortSignal): Promise<void> {

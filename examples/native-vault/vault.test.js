@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { VAULT_REMOTE_METHODS } from './remote-client.js';
 
@@ -22,6 +23,9 @@ import {
 } from './vault.js';
 import { embedTarget, mediaForPath, parseMediaTarget } from './media.js';
 import { buildPdfCardContent, cardPathFor, quoteFromItems } from './pdf.js';
+import { parseFrontmatter } from './frontmatter.js';
+import { profileOverview, profileRevisions } from './learning-data.js';
+import { reviewQueue } from './review-data.js';
 
 const lesson = `---
 type: lesson
@@ -129,6 +133,29 @@ test('the legacy vault wins until material is already visible in the selected di
   }
 });
 
+test('scaffolding aliases cannot hide material in the selected workspace root', async t => {
+  const base = await mkdtemp(join(tmpdir(), 'notara-vault-root-alias-'));
+  t.after(() => rm(base, { recursive: true, force: true }));
+  for (const name of ['_Templates', '_Ｔｅｍｐｌａｔｅｓ', 'Node_Modules', 'Ｎｏｄｅ＿Ｍｏｄｕｌｅｓ']) {
+    const workspace = join(base, String(name.length) + '-' + name);
+    await mkdir(join(workspace, 'vault', name), { recursive: true });
+    await mkdir(join(workspace, '知识'));
+    await writeFile(join(workspace, '知识', 'lesson.md'), '# Lesson\n');
+    assert.equal(resolveVaultRoot(workspace), workspace, name);
+  }
+  const legacy = join(base, 'real-legacy');
+  await mkdir(join(legacy, 'vault', '_Templates'), { recursive: true });
+  await writeFile(join(legacy, 'vault', 'real.md'), '# Real legacy material\n');
+  await mkdir(join(legacy, '知识'));
+  await writeFile(join(legacy, '知识', 'lesson.md'), '# Direct material\n');
+  assert.equal(resolveVaultRoot(legacy), join(legacy, 'vault'));
+  const ordinary = join(base, 'ordinary-directory');
+  await mkdir(join(ordinary, 'vault', '_templates-notes'), { recursive: true });
+  await mkdir(join(ordinary, '知识'));
+  await writeFile(join(ordinary, '知识', 'lesson.md'), '# Direct material\n');
+  assert.equal(resolveVaultRoot(ordinary), join(ordinary, 'vault'));
+});
+
 test('projects a sorted tree and query/search results from documents', () => {
   assert.deepEqual(projectTree(documents), {
     name: '',
@@ -162,6 +189,68 @@ test('toggles one task without changing unrelated lines', () => {
 
 test('renders a template with explicit values and preserves unknown placeholders', () => {
   assert.equal(renderTemplate('# {{title}}\n\n创建于 {{date}}\n{{unknown}}', { title: '新课', date: '2026-09-20' }), '# 新课\n\n创建于 2026-09-20\n{{unknown}}');
+});
+
+test('creating from the bundled card template keeps card fields and body without template metadata', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-card-instance-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const templates = fileURLToPath(new URL('./templates/', import.meta.url));
+  const source = await readFile(join(templates, 'card.md'), 'utf8');
+  const store = createVaultStore(root, templates);
+  const created = await store.createFromTemplate('card.md', '知识/合成卡片.md', { title: '合成卡片' }, null);
+  assert.deepEqual(created.frontmatter, {
+    type: 'card', status: 'draft', tags: [], learned: false, mastery: 0,
+    interval: null, last_review: null, next_review: null,
+  });
+  assert.equal(parseFrontmatter(created.content).body, '# 合成卡片\n\n## 内容\n\n## 参考理解\n\n## 学生理解\n');
+  assert.equal(await readFile(join(root, '知识/合成卡片.md'), 'utf8'), created.content);
+  assert.equal(await readFile(join(templates, 'card.md'), 'utf8'), source);
+  assert((await store.search('合成卡片', 10)).some(row => row.path === created.path));
+  assert((await store.graph()).nodes.some(row => row.path === created.path && row.type === 'card'));
+  assert(reviewQueue(await store.scan(), { today: '2026-10-05', status: 'all' }).hits.some(row => row.path === created.path));
+});
+
+test('creating from the learner-profile template makes the real page visible to profile context', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-profile-instance-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const store = createVaultStore(root, fileURLToPath(new URL('./templates/', import.meta.url)));
+  const created = await store.createFromTemplate('learner-profile.md', '学情/合成画像.md', { title: '合成画像' }, null);
+  assert.equal(created.frontmatter.type, 'learner-profile');
+  assert.equal(Object.hasOwn(created.frontmatter, 'template'), false);
+  assert.equal(Object.hasOwn(created.frontmatter, 'name'), false);
+  await store.save(created.path, created.content.replace('## 观察\n', '## 观察\n\n合成观察结论。\n'), created.revision);
+  const documents = await store.scan();
+  assert.deepEqual(profileOverview(documents).profiles.map(row => row.path), [created.path]);
+  assert.deepEqual(Object.keys(profileRevisions(documents)), [created.path]);
+});
+
+test('a custom template keeps domain fields and rendered body but drops selector metadata', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-custom-instance-'));
+  const templates = await mkdtemp(join(tmpdir(), 'notara-custom-templates-'));
+  t.after(() => Promise.all([rm(root, { recursive: true, force: true }), rm(templates, { recursive: true, force: true })]));
+  const source = '---\ntemplate: true\nname: 我的学情模板\ntype: learner-profile\ntags: [合成, 教学]\nmeta: {"level":2}\n---\n# {{title}}\n\n## 观察\n\n自定义正文：{{title}}\n';
+  await writeFile(join(templates, 'custom.md'), source);
+  const store = createVaultStore(root, templates);
+  assert.equal((await store.templates()).find(row => row.path === 'custom.md')?.title, '我的学情模板');
+  const created = await store.createFromTemplate('custom.md', '学情/自定义.md', { title: '自定义实例' }, null);
+  assert.deepEqual(created.frontmatter, { type: 'learner-profile', tags: ['合成', '教学'], meta: { level: 2 } });
+  assert.equal(parseFrontmatter(created.content).body, '# 自定义实例\n\n## 观察\n\n自定义正文：自定义实例\n');
+  assert.equal(await readFile(join(root, created.path), 'utf8'), created.content);
+  assert.equal(await readFile(join(templates, 'custom.md'), 'utf8'), source);
+});
+
+test('unmarked and headerless templates keep their exact rendering', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-unmarked-instance-'));
+  const templates = await mkdtemp(join(tmpdir(), 'notara-unmarked-templates-'));
+  t.after(() => Promise.all([rm(root, { recursive: true, force: true }), rm(templates, { recursive: true, force: true })]));
+  await writeFile(join(templates, 'unmarked.md'), '---\n# 学生自定义注释\ntype: card\n---\n# {{title}}\n');
+  await writeFile(join(templates, 'plain.md'), '# {{title}}\n');
+  const store = createVaultStore(root, templates);
+  const unmarked = await store.createFromTemplate('unmarked.md', '知识/无标记.md', { title: '无标记' }, null);
+  const plain = await store.createFromTemplate('plain.md', '知识/纯正文.md', { title: '纯正文' }, null);
+  assert.equal(unmarked.content, '---\n# 学生自定义注释\ntype: card\n---\n# 无标记\n');
+  assert.equal(plain.content, '# 纯正文\n');
+  assert.equal(await readFile(join(root, plain.path), 'utf8'), plain.content);
 });
 
 test('one page with a header the Vault cannot read is listed and opens, and the rest of the Vault keeps working', async () => {
@@ -263,6 +352,51 @@ test('seeds missing built-in templates into _templates without indexing them as 
       rm(bundled, { recursive: true, force: true }),
     ]);
   }
+});
+
+test('Vault file scans exclude reserved template aliases but retain ordinary similarly named folders', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-vault-template-alias-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const name of ['_Templates', '_Ｔｅｍｐｌａｔｅｓ']) {
+    await mkdir(join(root, name));
+    await writeFile(join(root, name, 'private.md'), '# Reserved\n');
+  }
+  for (const name of ['Node_Modules', 'Ｎｏｄｅ＿Ｍｏｄｕｌｅｓ']) {
+    await mkdir(join(root, name));
+    await writeFile(join(root, name, 'private.md'), '# Cache\n');
+  }
+  await mkdir(join(root, '_templates-notes'));
+  await writeFile(join(root, '_templates-notes', 'visible.md'), '# Visible\n');
+  const store = createVaultStore(root);
+  assert.deepEqual((await store.list()).files.map(file => file.path), ['_templates-notes/visible.md']);
+  for (const name of ['Node_Modules', 'Ｎｏｄｅ＿Ｍｏｄｕｌｅｓ']) {
+    await assert.rejects(store.trashFile(`${name}/private.md`, revisionFor('# Cache\n')), /vault_path_invalid/);
+    assert.equal(await readFile(join(root, name, 'private.md'), 'utf8'), '# Cache\n');
+  }
+});
+
+test('templates remain selectable through the canonical directory on Windows', { skip: process.platform !== 'win32' }, async t => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-vault-template-case-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, '_Templates'));
+  await writeFile(join(root, '_Templates', 'custom.md'), '---\nname: 我的模板\ntype: card\n---\n# {{title}}\n');
+  const store = createVaultStore(root);
+  const templates = await store.templates();
+  assert.deepEqual(templates.map(item => ({ path: item.path, title: item.title })), [{ path: 'custom.md', title: '我的模板' }]);
+  const created = await store.createFromTemplate(templates[0].path, '测试.md', { title: '自定义模板' }, null);
+  assert.match(created.content, /# 自定义模板/);
+});
+
+test('templates list only selectable Markdown files and allow an empty template directory', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-vault-template-content-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const store = createVaultStore(root);
+  assert.deepEqual(await store.templates(), []);
+  await mkdir(join(root, '_templates'));
+  await writeFile(join(root, '_templates', 'preview.png'), Buffer.from([137, 80, 78, 71]));
+  await writeFile(join(root, '_templates', 'notes.txt'), 'Not a selectable template');
+  await writeFile(join(root, '_templates', 'custom.MD'), '# {{title}}\n');
+  assert.deepEqual((await store.templates()).map(item => item.path), ['custom.MD']);
 });
 
 test('uses an inline Live Preview editor instead of a split textarea preview', async () => {

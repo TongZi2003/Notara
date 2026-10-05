@@ -9,8 +9,9 @@ import type { Release } from '../../scripts/vault-updates.ts';
 /** A synthetic next release with the real installation layout and dependencies. */
 export async function futureRelease(base: string, { brokenStartup = false } = {}): Promise<{ release: Release; prepare(): Promise<string> }> {
   const project = resolve('.'), contract = await codeContract(project);
-  const components = contract.version.split('.').map(Number); components[2] = components[2]! + 1;
-  const version = components.join('.');
+  const current = /^(\d+)\.(\d+)\.(\d+)(-dev\.\d+)?$/.exec(contract.version);
+  if (!current) throw new Error('Unexpected source version for synthetic release');
+  const version = `${current[1]}.${current[2]}.${Number(current[3]) + (current[4] ? 0 : 1)}`;
   const built = await buildRelease(join(base, 'bundle'));
   const files = unzipSync(new Uint8Array(await readFile(built.archive)));
   const pkg = JSON.parse(strFromU8(files['notara/examples/native-vault/package.json']!));

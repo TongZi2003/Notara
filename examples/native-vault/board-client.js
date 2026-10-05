@@ -19,6 +19,18 @@ const colorNames={blue:'蓝色',green:'绿色',orange:'橙色',pink:'粉色'};
 const READING_WIDTH=600;
 const BLOCK_WIDTH={min:BOARD_RESIZE_LIMITS.minWidth,max:BOARD_RESIZE_LIMITS.maxWidth},BLOCK_HEIGHT={min:BOARD_RESIZE_LIMITS.minHeight,max:BOARD_RESIZE_LIMITS.maxHeight};
 const bounded=(value,range)=>Math.max(range.min,Math.min(range.max,Math.round(value)));
+const editableTarget=element=>element instanceof Element&&!!element.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]');
+const interactiveTarget=element=>element instanceof Element&&!!element.closest('.nb-space-figure,.nb-interactive');
+function localWheelTarget(element,viewport){
+  if(!(element instanceof Element))return false;
+  if(editableTarget(element)||interactiveTarget(element))return true;
+  // A scrollable card keeps its wheel at both ends, without jumping to canvas zoom.
+  for(let node=element;node&&node!==viewport;node=node.parentElement){
+    const style=getComputedStyle(node);
+    if((['auto','scroll'].includes(style.overflowY)&&node.scrollHeight>node.clientHeight+1)||(['auto','scroll'].includes(style.overflowX)&&node.scrollWidth>node.clientWidth+1))return true;
+  }
+  return false;
+}
 
 // One rendered HTML per Markdown text: a poll or a drag never re-renders prose.
 const markdownCache=new Map();
@@ -127,6 +139,7 @@ export function createLessonBoard(React) {
       return()=>{alive=false;};
     },[imagePaths,client]);
     const current=useRef(board),mounted=useRef(true),saving=useRef(false),root=useRef(null),viewport=useRef(null),gesture=useRef(null),selection=useRef(null),focusedCall=useRef(null),focusedSection=useRef(null),request=useRef(0),observed=useRef(false),expandedId=useRef(null),boardKey=useRef('');
+    const spacePan=useRef(false);
     current.current=board;const cam=camera[face];
     const accept=value=>{const key=JSON.stringify(value);if(key===boardKey.current)return;boardKey.current=key;setBoard(value);};
     async function refresh(){const serial=++request.current;try{const value=unwrap(await client.board());if(mounted.current&&serial===request.current&&!saving.current){accept(value);if(!observed.current){observed.current=true;setNotice('');}}}catch(error){if(mounted.current)setNotice(error.message);}}
@@ -166,6 +179,24 @@ export function createLessonBoard(React) {
     const landed=useRef(false);
     useEffect(()=>{if(!visible){landed.current=false;return;}if(landed.current||face!=='board'||reading||stream||!merged.blocks.length||!heights.size)return;if(land())landed.current=true;},[visible,face,reading,stream,merged.blocks.length,heights.size>0,layout]);
     const zoom=delta=>{setFollow(false);const rect=viewport.current.getBoundingClientRect(),z=Math.max(.3,Math.min(2,cam.z+delta));moveCamera({z,x:rect.width/2-(rect.width/2-cam.x)*z/cam.z,y:rect.height/2-(rect.height/2-cam.y)*z/cam.z});};
+    useEffect(()=>{
+      const element=viewport.current;if(!visible||!element||face==='board'&&reading)return;
+      const wheel=event=>{
+        if(event.defaultPrevented||localWheelTarget(event.target,element))return;
+        const amount=(event.deltaY||event.deltaX)*(event.deltaMode===1?16:event.deltaMode===2?element.clientHeight:1);
+        if(!Number.isFinite(amount)||amount===0)return;
+        event.preventDefault();event.stopPropagation();setFollow(false);
+        const box=element.getBoundingClientRect(),x=event.clientX-box.left,y=event.clientY-box.top;
+        setCamera(previous=>{const old=previous[face],z=Math.max(.3,Math.min(2,old.z*Math.exp(-amount*.0015)));
+          return {...previous,[face]:{z,x:x-(x-old.x)*z/old.z,y:y-(y-old.y)*z/old.z}};
+        });
+      };
+      const clear=()=>{spacePan.current=false;const g=gesture.current;if(g?.type==='pan'){gesture.current=null;if(element.hasPointerCapture(g.pointerId))element.releasePointerCapture(g.pointerId);}};
+      const down=event=>{if((event.code==='Space'||event.key===' ')&&!event.repeat&&!editableTarget(event.target)&&!interactiveTarget(event.target)&&!(event.target instanceof Element&&event.target.closest('button,a[href],summary,[role="button"]'))){spacePan.current=true;event.preventDefault();}};
+      const up=event=>{if(event.code==='Space'||event.key===' ')spacePan.current=false;};
+      element.addEventListener('wheel',wheel,{passive:false});window.addEventListener('keydown',down);window.addEventListener('keyup',up);window.addEventListener('blur',clear);
+      return()=>{element.removeEventListener('wheel',wheel);window.removeEventListener('keydown',down);window.removeEventListener('keyup',up);window.removeEventListener('blur',clear);clear();};
+    },[visible,face,reading]);
     const fitRect=rect=>{const box=viewport.current.getBoundingClientRect(),z=Math.max(.3,Math.min(1,(box.width-60)/rect.width,(box.height-110)/rect.height));moveCamera({z,x:(box.width-rect.width*z)/2-rect.x*z,y:30-rect.y*z});};
     // The latest block the teacher wrote (writing order) and the section it is in.
     const latest=()=>{const block=[...merged.blocks].reverse().find(item=>!isPinned(item)&&layout.positions.get(item.id));return block?{block,position:layout.positions.get(block.id),frame:layout.frames.find(item=>item.id===block.section)}:null;};
@@ -199,7 +230,14 @@ export function createLessonBoard(React) {
     const sourceMap=new Map(board.sources.map(s=>[s.path,s]));
     const writing=stream&&['streaming','pending'].includes(stream.status);
     const blockProps=block=>({key:block.id??block.path,block,sessionId,assetUrls,actions:stableActions,source:face==='sources',measure:face==='board'&&!reading?measure:undefined,reading:face==='board'&&reading,cameraScale:cam.z});
-    const canvas=h('div',{className:'nb-viewport',ref:viewport,'aria-label':face==='board'?'课堂板书画布':'本课资料关系画布',onPointerDown:event=>{if(event.target.closest('.nb-block,.nb-toolbar,.nb-outline'))return;setFollow(false);gesture.current={type:'pan',startX:event.clientX,startY:event.clientY,x:cam.x,y:cam.y};event.currentTarget.setPointerCapture(event.pointerId);},onPointerMove:pointerMove,onPointerUp:endGesture,onPointerCancel:endGesture,onWheel:event=>{if(event.ctrlKey||event.metaKey){zoom(event.deltaY>0?-.05:.05);}else{setFollow(false);moveCamera({x:cam.x-event.deltaX,y:cam.y-event.deltaY});}}},
+    const startPan=(event,forced=false)=>{
+      if(event.button!==0&&event.button!==1||editableTarget(event.target)||interactiveTarget(event.target))return;
+      if(!forced&&event.target.closest('.nb-block,.nb-toolbar,.nb-outline'))return;
+      if(forced&&event.button!==1&&!spacePan.current)return;
+      event.preventDefault();event.stopPropagation();setFollow(false);event.currentTarget.focus({preventScroll:true});
+      gesture.current={type:'pan',pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,x:cam.x,y:cam.y};event.currentTarget.setPointerCapture(event.pointerId);
+    };
+    const canvas=h('div',{className:'nb-viewport',ref:viewport,tabIndex:0,'aria-label':face==='board'?'课堂板书画布':'本课资料关系画布',onPointerDownCapture:event=>{if(event.button===1||spacePan.current)startPan(event,true);},onPointerDown:event=>startPan(event),onAuxClick:event=>{if(event.button===1)event.preventDefault();},onPointerMove:pointerMove,onPointerUp:endGesture,onPointerCancel:endGesture},
       h('div',{className:'nb-world',style:{transform:`translate(${cam.x}px,${cam.y}px) scale(${cam.z})`}},
         face==='sources'&&h('svg',{className:'nb-edges'},board.edges.map((edge,index)=>{const a=sourceMap.get(edge.from),b=sourceMap.get(edge.to);if(!a||!b)return null;const x=a.x+a.width,y=a.y+80;return h('g',{key:index},h('path',{d:`M ${x} ${y} C ${x+50} ${y},${b.x-50} ${b.y+80},${b.x} ${b.y+80}`}),h('text',{x:(x+b.x)/2,y:(y+b.y+80)/2-8},edge.label));})),
         face==='board'&&layout.frames.map(item=>h('h1',{key:item.id,className:'nb-section-title',title:item.title,style:{left:item.x,top:item.y,maxWidth:item.titleWidth??item.width},dangerouslySetInnerHTML:{__html:renderBoardInline(item.title)}})),
