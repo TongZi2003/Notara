@@ -3,7 +3,7 @@ import test from 'node:test';
 import { EditorState } from '@codemirror/state';
 import { CompletionContext } from '@codemirror/autocomplete';
 import { insertNewlineAndIndent } from '@codemirror/commands';
-import { ensureSyntaxTree } from '@codemirror/language';
+import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import { CODE_LANGUAGES } from './media.js';
 import { codeExtensions, createCodeSaveHandler, decodeCodeText, encodeCodeText, languageSupport } from './code-editor-client.js';
 
@@ -20,10 +20,18 @@ test('text round-trips through the asset bytes as UTF-8, and non-UTF-8 bytes are
 });
 
 test('Python completes names defined in the file and indents after a colon', async () => {
-  const doc = 'def roll_dice(count):\n    total = 0\n    return tot';
-  const state = EditorState.create({ doc, extensions: codeExtensions('python') });
+  // Put the function beyond CodeMirror's initial parse viewport so this always
+  // exercises background parsing, independent of runner speed.
+  const prefix = Array.from({ length: 300 }, (_, i) => `value_${i} = ${i}\n`).join('');
+  const doc = `${prefix}def roll_dice(count):\n    total = 0\n    return tot`;
+  let state = EditorState.create({ doc, extensions: codeExtensions('python') });
+  assert.ok(syntaxTree(state).length < doc.length, 'exercise an incomplete initial parse');
   const tree = ensureSyntaxTree(state, doc.length, 1000);
   assert.ok(tree && tree.length >= doc.length, 'wait for Python local-name completion to have a complete syntax tree');
+  // Like forceParsing's view.dispatch({}), publish the completed parse into a
+  // new EditorState before completion sources read syntaxTree(context.state).
+  state = state.update({}).state;
+  assert.equal(syntaxTree(state), tree, 'completion reads the completed state tree');
   const sources = state.languageDataAt('autocomplete', doc.length);
   const context = new CompletionContext(state, doc.length, true);
   const labels = [];
@@ -38,6 +46,7 @@ test('Python completes names defined in the file and indents after a colon', asy
   let indented = EditorState.create({ doc: header, selection: { anchor: header.length }, extensions: codeExtensions('python') });
   const indentationTree = ensureSyntaxTree(indented, header.length, 1000);
   assert.ok(indentationTree && indentationTree.length >= header.length, 'wait for Python indentation parsing');
+  indented = indented.update({}).state;
   assert.equal(insertNewlineAndIndent({ state: indented, dispatch: transaction => { indented = transaction.state; } }), true);
   assert.equal(indented.doc.toString(), `${header}\n    `, 'Enter after a Python colon inserts one four-space indent');
 });
