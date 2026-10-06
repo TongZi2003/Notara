@@ -103,10 +103,13 @@ try {
 } finally { await client?.close(); await runtime.stop(); }
 if (await lstat(runtime.root).catch(() => undefined)) throw new Error('isolated runtime was not removed');
 `);
-    const outcomes = await Promise.allSettled([0, 1].map(() => execFileAsync(process.execPath, [packageBin(project, 'tsx', 'tsx'), worker], { cwd: project, windowsHide: true, timeout: 25_000, maxBuffer: 100_000 })));
+    // Both sources serialize their build/snapshot work before booting a Host,
+    // whose own bounded startup window is 45 seconds. Do not kill that valid
+    // path at 25 seconds merely because the second source queued behind it.
+    const outcomes = await Promise.allSettled([0, 1].map(() => execFileAsync(process.execPath, [packageBin(project, 'tsx', 'tsx'), worker], { cwd: project, windowsHide: true, timeout: 65_000, maxBuffer: 100_000 })));
     for (const outcome of outcomes) {
       if (outcome.status === 'rejected') throw outcome.reason;
       expect(outcome.value.stdout).toContain('COMPLETE_CLASSROOM_SNAPSHOT');
     }
   } finally { await rm(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); }
-});
+}, 75_000);
