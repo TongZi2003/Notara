@@ -1,15 +1,63 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp,mkdir,readFile,rm,writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdtemp,mkdir,readFile,rm,writeFile,readdir,unlink } from 'node:fs/promises';
+import { join,relative,isAbsolute } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Context } from '@deepseek-ai/cordis';
 import { LocalFileSystem } from '@deepseek-ai/dsh-fs-local';
 import { Session } from '@deepseek-ai/dsh-session';
+import { createUserMessage, offloadedImageText, projectOffloadedImages } from '@deepseek-ai/dsh-llm';
+import { imageOffloadProjection } from '@deepseek-ai/dsh-compaction-image-offload/projection';
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt';
 import ToolRuntime from '@deepseek-ai/dsh-tools';
 import { installAgentTools } from './agent-tools.js';
 import { vaultToolMedia } from './vault-tools.js';
+import { LocalAttachmentStore } from '@deepseek-ai/dsh-attachment-local';
+import sharp from 'sharp';
+
+test('historical images survive removal of derived request caches, while a missing durable object is reported explicitly',async t=>{
+  const root=await mkdtemp(join(tmpdir(),'notara-history-image-'));t.after(()=>rm(root,{recursive:true,force:true}));
+  const store=new LocalAttachmentStore(new Context(),{dshHome:root});
+  const data=await sharp({create:{width:240,height:160,channels:3,background:'#3478c8'}}).png().toBuffer();
+  const attachment=await store.saveImage({data,mediaType:'image/png',name:'page.png'}),target={width:80,height:80,maxBytes:100000};
+  const first=await store.readImageRequest(attachment,target),original=await readFile(store.imageHostPath(attachment));
+  const cacheRelative=relative(root,store.cacheRoot);
+  assert.ok(cacheRelative&&!cacheRelative.startsWith('..')&&!isAbsolute(cacheRelative),'all deletion stays in this test home');
+  assert.ok((await readdir(store.cacheRoot)).includes('request-images'));
+  await rm(store.cacheRoot,{recursive:true,force:true});
+  const restarted=new LocalAttachmentStore(new Context(),{dshHome:root}),rebuilt=await restarted.readImageRequest(attachment,target);
+  assert.equal(rebuilt.variantId,first.variantId);assert.deepEqual(rebuilt.data,first.data);
+  assert.ok((await readdir(store.cacheRoot)).includes('request-images'));
+  assert.deepEqual(await readFile(store.imageHostPath(attachment)),original);
+  await unlink(restarted.imageHostPath(attachment));
+  await assert.rejects(restarted.readImageRequest(attachment,target),error=>error.code==='ATTACHMENT_NOT_FOUND');
+  const regenerated=await restarted.saveImage({data,mediaType:'image/png',name:'page.png'});
+  assert.equal(regenerated.attachmentId,attachment.attachmentId,'rereading the same real page can recreate its content-addressed image');
+});
+
+test('offloading an old image changes its request occurrence, preserves stored history and leaves a reread image visible',async t=>{
+  const root=await mkdtemp(join(tmpdir(),'notara-image-offload-'));t.after(()=>rm(root,{recursive:true,force:true}));
+  const store=new LocalAttachmentStore(new Context(),{dshHome:root});
+  const data=await sharp({create:{width:32,height:24,channels:3,background:'#3478c8'}}).png().toBuffer();
+  const attachment=await store.saveImage({data,mediaType:'image/png',name:'synthetic-page.png'});
+  const session=Session.create('isolated-image-offload',[],undefined,0,[imageOffloadProjection]);
+  session.append('user/message',createUserMessage({source:{kind:'user'},content:[{type:'image',attachment}]}),{surfaceOp:'append'});
+  const original=session.snapshotEvents(),oldEvent=original.find(event=>event.type==='user/message');
+  session.append('image/offload',{targets:[{seq:oldEvent.seq,imageIndexes:[0]}]});
+  assert.deepEqual(session.snapshotEvents().slice(0,original.length),original,'offload must not rewrite the stored image event');
+  const oldRequest=projectOffloadedImages(session.deriveMessages(),offloadedImageText);
+  assert.ok(oldRequest.flatMap(message=>message.content).every(block=>block.type!=='image'));
+  assert.ok(oldRequest.flatMap(message=>message.content).some(block=>block.type==='text'&&block.text.includes(attachment.attachmentId)));
+  assert.deepEqual(Buffer.from((await store.readImage(attachment)).data),data,'offloading the occurrence must not remove the durable image');
+
+  session.append('user/message',createUserMessage({source:{kind:'user'},content:[{type:'image',attachment}]}),{surfaceOp:'append'});
+  const request=projectOffloadedImages(session.deriveMessages(),offloadedImageText);
+  const images=request.flatMap(message=>message.content).filter(block=>block.type==='image');
+  assert.equal(images.length,1);assert.equal(images[0].attachment.attachmentId,attachment.attachmentId);
+  const seed=JSON.parse(JSON.stringify(session.snapshotEvents()));
+  const restored=Session.create(session.id,seed,session.header,0,[imageOffloadProjection]);
+  assert.deepEqual(projectOffloadedImages(restored.deriveMessages(),offloadedImageText),request,'cold replay must preserve the occurrence selection');
+});
 
 test('PDF results commit native attachments only for image-capable routes and keep text-only limitations explicit',async()=>{
   const exec={agent:{options:{provider:'fixture',model:'fixture'}},signal:new AbortController().signal};
@@ -73,6 +121,23 @@ test('vault_search reports an incomplete scan instead of claiming there were no 
   const result=await run('vault_search',{query:'absent'},'incomplete-search');
   assert.equal(result.isError,true);
   assert.match(result.content[0].text,/vault_scan_incomplete/);
+});
+
+test('vault_search excludes reserved template aliases while keeping ordinary similarly named folders',async t=>{
+  const {root,run}=await setup(t);
+  for(const name of ['_Templates','_Ｔｅｍｐｌａｔｅｓ']) {
+    await mkdir(join(root,'vault',name));
+    await writeFile(join(root,'vault',name,'private.md'),'# Reserved\nneedle\n');
+  }
+  for(const name of ['Node_Modules','Ｎｏｄｅ＿Ｍｏｄｕｌｅｓ']) {
+    await mkdir(join(root,'vault',name));
+    await writeFile(join(root,'vault',name,'private.md'),'# Cache\nneedle\n');
+  }
+  await mkdir(join(root,'vault','_templates-notes'));
+  await writeFile(join(root,'vault','_templates-notes','visible.md'),'# Visible\nneedle\n');
+  const result=await run('vault_search',{query:'needle'},'template-alias-search');
+  assert.equal(result.isError,false,result.content?.[0]?.text);
+  assert.deepEqual(JSON.parse(result.content[0].text).hits.map(hit=>hit.path).sort(),['_templates-notes/visible.md','one.md']);
 });
 
 test('new classrooms read bundled templates without seeding; a custom Vault template takes priority',async t=>{

@@ -25,6 +25,10 @@
 - Native Vault 0.23.7 新增独立角色画廊：首页「书院画廊」在新标签页打开 `/notara/vault/academy/gallery.html`。`resources/academy` 保留提供的素材；画廊只展示九张完整角色设定图与文档；`academy-data.json` 仅作展示，`font-route.js` 白名单服务页面、脚本和图片。此批角色不接入教学人格、课堂头像或像素角色。应用 favicon 与新建桌面快捷方式改用书页 N 图标；不改变既有默认教学人格。
 
 - DSH 依赖版本以 `package-lock.json` 和 `docs/runtime/upstream-lock.json` 为准，所有 `@deepseek-ai/dsh-*` 必须保持同一 `0.2.0-rc.1` 系列，`@deepseek-ai/cordis` 为 `4.0.4`。
+- Vitest 固定为 `4.1.11`；`@deepseek-ai/libreoffice-kit` 的 `fflate` 通过定向 override 复用根依赖 `0.8.3`，避免嵌套旧版的 ZIP64 解析循环。`http-cache-semantics` 的上游缓存告警仍保留；不能仅用未修复行为的版本覆盖来消除审计记录。
+- Vault 保留目录的识别统一使用 `pathKey`（NFKC 加小写）：扫描排除模板与工具缓存的别名，回收站拒绝 `node_modules` 别名，旧 `vault/` 的脚手架别名不能遮住父目录已有学习资料。模板列表直接读取与创建操作相同的 `_templates/`，仅列出 Markdown；目录中的图片或文本附件不能让整个列表失败。
+- `createFromTemplate` 生成页面时移除模板选择器的 `template/name` 元信息，保留其他 frontmatter 字段与渲染后的正文；否则新建学情条目会被画像汇总视为模板而排除。模板源和既有用户文件不自动改写，纯 `renderTemplate` 仍仅替换占位符。
+- `patch-storage-json.ts` 对锁定 DSH JSON 后端应用摘要校验的 Windows 原子 rename 重试：仅 `EPERM/EACCES`，同一已 fsync 临时文件最多六次发布尝试，计划退避合计 540 ms。不能删除目标文件、重写 payload 或重放归档 RPC；持续占用仍失败并沿用上游回滚。真实 Windows 句柄回归在 `tests/unit/storage-json-patch.test.ts`。
 - Node 下限为 `>=24.0.0`；本机验证使用 Node `v24.13.0`。
 - Native Vault 0.15.0 使用现代白灰主题与全局导航（0.18.0 起为图标列「首页 / 计划 / Vault / 技能」，见 0.18.0 与 0.18.1 条）；课堂沿用原生 session 与唯一输入框，切页只切换视图可见性。今日开课以当前课堂所属的已登记 workspace 为目标，未选定时只接受唯一 workspace，不向当前旧课堂直接发送。系统上下文与轨迹默认隐藏，可在设置的「学习界面」显式开启调试。路线的课程列表和图谱共用同一文件投影；双面白板接线以本文 0.16.6 规则为准。
 - Native Vault 0.15.1 起可选择学习目录（0.18.0 起在首页面板标题下），课堂列表仅显示原生目录登记中的会话，排除 blank、subagent 和 archived。目录身份优先从当前原生 session 反查；清空会话后可保留仍已登记的目录。选择目录沿用原生 workspaces/UI API，不重建 session 生命周期。极窄分屏按 `notara-pane` 容器适配字号；原生 HeroShell/Composer 的哈希类选择器在上游升级时须重新核对。
@@ -306,6 +310,10 @@
 - 探测、独立审查与大规模取证派只读子 Agent；主 Agent 保留用户目标、取舍与最终编辑权，核对子 Agent 的证据与冲突后采纳，不把原始长输出倾倒给用户。至少两个可独立完成、结果可清楚合并的工作流才并行。
 
 ## 代码边界
+
+- 未发布开发版的一层对话分组仅存于 `notara_session_groups` Host domain，按原生 Workspace 归类课堂。分组移动或解散不调用 native attach/detach，不修改 cwd、板书、教学设置或记忆；不是新增学习集或共享记忆实体。客户端迟到请求按目录加载世代隔离，即使 A → B → A 也不能改动新弹窗或保存状态。
+- PDF 的 Node 读取与三处浏览器读取都须配置锁定 `pdfjs-dist` 的 CMaps、标准字体与 WASM 资源，不能把空白页图或丢字当成功。浏览器资源清单只在 `pdf-resources.js`；构建校验与依赖目录一致，Host 仅提供其中的精确路径。`pdf-page` 默认长边 2048、自动倍率上限 6，显式 `scale` 输入仍为 0.2–3；不要把 PDF 单位倍率与浏览器缩放倍率混为一谈。
+- `vault-updates.ts` 的本地代码版本接受稳定三段号及 `-dev.N` 开发后缀，正式同核版本应高于开发版；公开更新发现与 Release 标签仍只接受稳定三段号。更新集成测试的合成下一版要先处理开发后缀，不能按点拆成 `NaN` 版本。
 
 - `examples/native-vault`：Vault 插件（`@notara/vault-native`）。Host 入口是 `index.js` 与 `teacher.js`（工具、权限、持久化接线与学习领域规则），浏览器包由 `client-source.ts` 打成 `client.js`（页面、Slots 和学生可见投影）；两边都引用的纯数据模块不能引用 Node 模块。单元测试与模块同目录（`*.test.js`）。
 - `examples/pixel-classroom`：可选的教室像素视图插件。

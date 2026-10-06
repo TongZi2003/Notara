@@ -3,6 +3,7 @@ import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { EditorState, Transaction } from '@codemirror/state';
 import { EditorView, drawSelection, keymap } from '@codemirror/view';
 import { lazyUrl, loadLazyModule } from './lazy-assets.js';
+import { pdfDocumentOptions } from './pdf-resources.js';
 import { previewFrontmatter, vaultPreview } from './live-preview.js';
 import { createVaultViews } from './views-client.js';
 import { findAnchorLine, findSummaryBlockLine } from './graph.js';
@@ -136,7 +137,7 @@ window.__ModuleLoader__.load({
     async function renderPdfPreview(asset, locator, canvas, signal) {
       const { getDocument } = await loadPdf();
       signal.throwIfAborted();
-      const task=getDocument({data:decodeAssetBytes(asset.dataUrl)});
+      const task=getDocument(pdfDocumentOptions(decodeAssetBytes(asset.dataUrl)));
       let render;
       const cancel=()=>{render?.cancel();void task.destroy();};
       signal.addEventListener('abort',cancel,{once:true});
@@ -193,7 +194,7 @@ window.__ModuleLoader__.load({
 
     async function pdfReferenceText(asset, pin) {
       const { getDocument } = await loadPdf();
-      const task = getDocument({ data: decodeAssetBytes(asset.dataUrl) });
+      const task = getDocument(pdfDocumentOptions(decodeAssetBytes(asset.dataUrl)));
       try {
         const pdf = await task.promise;
         const pageNumber = Math.max(1, Math.min(pdf.numPages, pin.locator?.page ?? 1));
@@ -451,7 +452,7 @@ window.__ModuleLoader__.load({
         setRegion(undefined);
         loadPdf().then(({ getDocument }) => {
           if (!live) return;
-          const task = getDocument({ data: bytes.slice() });
+          const task = getDocument(pdfDocumentOptions(bytes.slice()));
           taskRef.current = task;
           return task.promise.then(loaded => {
             if (!live) { void task.destroy(); return; }

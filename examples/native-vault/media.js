@@ -1,3 +1,7 @@
+/** Existing PDF files may be read up to this size; upload limits are separate. */
+export const PDF_FILE_MAX_BYTES = 512 * 1024 * 1024;
+export const PDF_FILE_LIMIT_NOTICE = '这份 PDF 超过 512 MiB，当前无法使用。请先拆成较小的文件再打开。';
+
 /**
  * Code the Vault edits as plain text (no toolchain here: running and testing use
  * the learner's own system). One table drives the file tree, the editor's
@@ -59,7 +63,7 @@ function extensionOf(path) {
 /** Directories that running code leaves behind. Like dot directories they are
  * never Vault content: not in the file tree, search, assets or the graph. */
 const TOOL_CACHE_DIRECTORIES = new Set(['__pycache__', 'node_modules']);
-export const isToolCacheDirectory = name => TOOL_CACHE_DIRECTORIES.has(name);
+export const isToolCacheDirectory = name => TOOL_CACHE_DIRECTORIES.has(String(name).normalize('NFKC').toLowerCase());
 
 /** Whether a path names a code file: the only files the teacher's native read/write/edit may touch. */
 export function isCodePath(path) {

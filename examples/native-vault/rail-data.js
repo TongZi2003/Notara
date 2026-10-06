@@ -27,6 +27,20 @@ export function filterByTitle(rows, query, titleOf = row => row.title) {
   return needle ? rows.filter(row => String(titleOf(row) ?? '').toLocaleLowerCase().includes(needle)) : rows;
 }
 
+/** Virtual folders only partition the caller's already scoped, visible native sessions. */
+export function folderLessons(rows, folders, query = '') {
+  const needle = String(query).trim().toLocaleLowerCase(), names = new Map(folders?.groups?.map(group => [group.id, group]) ?? []);
+  const membership = new Map((folders?.members ?? []).filter(member => names.has(member.groupId)).map(member => [member.sessionId, member.groupId]));
+  const result = [...names.values()].map(group => ({ ...group, rows: [] })), byId = new Map(result.map(group => [group.id, group]));
+  const ungrouped = [];
+  for (const row of rows) {
+    const group = byId.get(membership.get(row.id));
+    const matched = !needle || String(row.title || '未命名课堂').toLocaleLowerCase().includes(needle) || !!group?.title.toLocaleLowerCase().includes(needle);
+    if (matched) (group ? group.rows : ungrouped).push(row);
+  }
+  return { folders: needle ? result.filter(group => group.rows.length || group.title.toLocaleLowerCase().includes(needle)) : result, ungrouped };
+}
+
 /**
  * The board wants width: entering it folds an open panel, and leaving it
  * unfolds the panel only when the board was what folded it. `pending` tells the

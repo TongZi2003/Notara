@@ -53,6 +53,10 @@ test('dedicated Vault tools execute without shell, preserve CAS, and honor nativ
   harness = await connectVault(runtime);
   const [restored] = await harness.ask(session,'重启后保留原页',{'重启后保留原页':'继续。'});
   expect(restored!.messages.flatMap(message=>message.content).filter(block=>block.type==='image').at(-1)?.attachment?.attachmentId).toBe(images.at(-1)?.attachment?.attachmentId);
+  const forked = harness.value(await harness.rpc<{sessionId: string}>('session/fork', {request: {sessionId: session}}));
+  const [forkRequest] = await harness.ask(forked.sessionId, '分支核对历史原页', {'分支核对历史原页': '继续核对同一页。'});
+  const forkImages = forkRequest!.messages.flatMap(message => message.content).filter(block => block.type === 'image');
+  expect(forkImages.map(block => block.attachment?.attachmentId)).toContain(images.at(-1)?.attachment?.attachmentId);
   const forged = await call(session, 'vault_command', {command: 'write-batch', input: {root: 'elsewhere', files: []}}, '拒绝资料根覆盖');
   expect(forged.failed).toBe(true);
   for (const path of ['lesson-board/fake.md', '技能/direct.md', '_templates/overwrite.md']) {

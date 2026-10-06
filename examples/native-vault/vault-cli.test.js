@@ -46,7 +46,7 @@ test('help is self-describing and never needs a workspace or stdin', async () =>
   const top = await run(['help']);
   assert.equal(top.code, 0);
   assert.equal(top.json.program, 'DSH_NOTARA_CLI');
-  assert.deepEqual(Object.keys(top.json.commands).sort(), ['calendar', 'create-route', 'lesson-log', 'lesson-outline', 'lesson-section', 'pdf-page', 'record-review', 'review-queue', 'revise-route', 'route-outline', 'schedule-lesson', 'skill-list', 'skill-read', 'skill-save', 'source-cards', 'undo-review', 'write-batch']);
+  assert.deepEqual(Object.keys(top.json.commands).sort(), ['calendar', 'create-route', 'lesson-log', 'lesson-outline', 'lesson-section', 'pdf-outline', 'pdf-page', 'record-review', 'review-queue', 'revise-route', 'route-outline', 'schedule-lesson', 'skill-list', 'skill-read', 'skill-save', 'source-cards', 'undo-review', 'write-batch']);
 
   const command = await run(['record-review', '--help']);
   assert.equal(command.code, 0);
@@ -408,6 +408,23 @@ test('source-cards finds the cards lifted from a material by where they cite it,
   assert.deepEqual(result.cards.find(item => item.path === '卡片/摸球-区域引用.md').state, { learned: true, mastery: 1, interval: 1, last_review: '2026-09-27', next_review: '2026-09-28' });
   // The topic citing this material lists a child with no citation: read that one.
   assert.deepEqual(result.materials, [{ path: '卡片/专题.md', title: '专题', type: 'topic', uncitedCards: ['卡片/没出处.md'] }]);
+
+  const selected=await run(['source-cards','--workspace',root],{input:JSON.stringify({path:'知识/讲义.md',pageRange:[2,3]})});
+  assert.equal(selected.code,0,selected.err);
+  const selectedPdf=selected.json.result.targets.find(target=>target.kind==='pdf');
+  assert.equal(selectedPdf.pageCount,4);
+  assert.deepEqual(selectedPdf.pageRange,[2,3]);
+  assert.deepEqual(selectedPdf.pages,[book.pages[1]]);
+  assert.deepEqual(selectedPdf.uncoveredPages,[3]);
+  assert.equal(selected.json.result.cards.some(card=>card.path==='卡片/摸球-区域引用.md'),false);
+  assert.deepEqual(selected.json.result.materials,result.materials,'a citation outside this range is not a missing citation');
+  const badRange=await run(['source-cards','--workspace',root],{input:JSON.stringify({path:'媒体/讲义.pdf',pageRange:[2,5]})});
+  assert.equal(badRange.errorJson.error.code,'pdf_page_invalid');
+  const noOutline=await run(['pdf-outline','--workspace',root],{input:JSON.stringify({path:'媒体/讲义.pdf'})});
+  assert.equal(noOutline.code,0,noOutline.err);
+  assert.equal(noOutline.json.result.pageCount,4);
+  assert.deepEqual(noOutline.json.result.items,[]);
+  assert.deepEqual(noOutline.json.result.warnings,['pdf_outline_missing']);
 
   const video = await run(['source-cards', '--workspace', root], { input: JSON.stringify({ path: '媒体/课.mp4' }) });
   assert.deepEqual(video.json.result.targets, [{ path: '媒体/课.mp4', kind: 'video', ranges: [{ path: '卡片/开头.md', startMs: 0, endMs: 30000 }, { path: '卡片/中段.md', startMs: 60000, endMs: 120000 }], wholeFile: [], invalid: [] }]);

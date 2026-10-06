@@ -15,7 +15,12 @@ afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {
 
 test('only a newer stable version with a matching release manifest is offered', () => {
   expect(compareVersions('0.21.10', '0.21.9')).toBe(1);
+  expect(compareVersions('0.23.13-dev.4', '0.23.12')).toBe(1);
+  expect(compareVersions('0.23.13-dev.4', '0.23.13-dev.5')).toBe(-1);
+  expect(compareVersions('0.23.13', '0.23.13-dev.4')).toBe(1);
+  expect(compareVersions('0.23.13-dev.4', '0.23.13-dev.4')).toBe(0);
   expect(parseRelease(release, manifest, '0.21.4', runtime)?.version).toBe('0.21.5');
+  expect(parseRelease(release, manifest, '0.21.5-dev.4', runtime)?.version).toBe('0.21.5');
   expect(parseRelease({ ...release, prerelease: true }, manifest, '0.21.4', runtime)).toBeNull();
   expect(parseRelease(release, manifest, '0.21.5', runtime)).toBeNull();
   expect(() => parseRelease(release, { ...manifest, version: '0.21.6' }, '0.21.4', runtime)).toThrow();
@@ -23,6 +28,7 @@ test('only a newer stable version with a matching release manifest is offered', 
   expect(parseRelease(release, { ...manifest, runtime: { ...runtime, dataVersion: 5 } }, '0.21.4', runtime)?.compatible).toBe(false);
   expect(() => compareVersions('01.2.3', '1.2.3')).toThrow(/格式/);
   expect(() => compareVersions('9007199254740993.0.0', '1.0.0')).toThrow(/格式/);
+  expect(() => compareVersions('0.23.13-dev.01', '0.23.13')).toThrow(/格式/);
 });
 
 test('partial stop failures restore the old Host and repeated recovery failure is reported honestly', async () => {

@@ -1,6 +1,6 @@
 import { buildMarkdownCardContent, markdownSections } from './graph.js';
 import { buildPdfCardContent, cardPathFor } from './pdf.js';
-import { embedTarget, isCodePath, mediaForPath, parseMediaTarget } from './media.js';
+import { embedTarget, isCodePath, mediaForPath, parseMediaTarget, PDF_FILE_LIMIT_NOTICE } from './media.js';
 import { VIEW_IDS } from './views-client.js';
 import { createVaultClient, visibleInterval } from './remote-client.js';
 import { createDraftStore } from './draft-client.js';
@@ -12,6 +12,9 @@ import { exportBoard } from './board-render.js';
 import { mathStyleText } from './math-latex.js';
 
 const USER_SKILL_DIRECTORY = '技能';
+export function assetFailureNotice(error){
+  return `${error?.code??''} ${error?.message??''}`.includes('vault_pdf_too_large')?PDF_FILE_LIMIT_NOTICE:'无法打开这个文件，可能已被移动或删除。';
+}
 /** Why a page did not save, in the student's words; the Host's reason code decides. */
 export function saveFailureNotice(error) {
   const reason = `${error?.code ?? ''} ${error?.message ?? ''}`;
@@ -124,11 +127,11 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
         }
         let media;
         try { media = await vault.readAsset({ path }); }
-        catch { media = undefined; }
+        catch(error) { media = {ok:false,error}; }
         if (!media?.ok) {
           if (sequence !== openSequence.current) return;
           openedRef.current = path; setSelected(path); setDocument(undefined); setAsset(undefined); setNotice('');
-          setError('无法打开这个文件，可能已被移动或删除。'); return;
+          setError(assetFailureNotice(media?.error)); return;
         }
         if (sequence !== openSequence.current) return;
         openedRef.current = path;

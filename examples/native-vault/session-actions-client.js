@@ -6,7 +6,7 @@ const titleOf = row => row.title || '未命名课堂';
 export function createSessionActionsUI(React, { Dialog, IconButton, Icon, NativeMenu }) {
   const h = React.createElement, { useState, useRef, useEffect } = React;
 
-  function SessionMenu({ session, disabled, onRename, onArchive, onDelete }) {
+  function SessionMenu({ session, disabled, onRename, onArchive, onDelete, onMove }) {
     const [open, setOpen] = useState(false), [autoFocus, setAutoFocus] = useState(false);
     useEffect(() => {
       setAutoFocus(false);
@@ -21,8 +21,9 @@ export function createSessionActionsUI(React, { Dialog, IconButton, Icon, Native
       items: [
         { id: 'rename', label: '重命名', icon: h(Icon, { name: 'edit' }) },
         { id: 'archive', label: '归档对话', icon: h(Icon, { name: 'archive' }) },
+        ...(onMove ? [{ id: 'move', label: '移动到分组', icon: h(Icon, { name: 'folder' }) }] : []),
         { id: 'delete', label: '删除对话', icon: h(Icon, { name: 'trash' }), danger: true, disabled: !!session.running },
-      ], onClose: () => setOpen(false), onSelect: id => { setOpen(false); ({ rename: onRename, archive: onArchive, delete: onDelete })[id]?.(session); } });
+      ], onClose: () => setOpen(false), onSelect: id => { setOpen(false); ({ rename: onRename, archive: onArchive, delete: onDelete, move: onMove })[id]?.(session); } });
   }
 
   function RenameDialog({ ctx, session, onClose }) {

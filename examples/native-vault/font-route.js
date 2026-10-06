@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { LAZY_FILES, LAZY_PATH } from './lazy-assets.js';
 import { ACADEMY_FILES, ACADEMY_PATH } from './academy.js';
+import { PDF_RESOURCE_FILES, PDF_RESOURCE_PATH } from './pdf-resources.js';
 
 /**
  * Files the client fetches only when a feature needs them, each on its own Host
@@ -18,6 +19,7 @@ const FONT_ROOT = fileURLToPath(new URL('./fonts/', import.meta.url));
 
 const LAZY_ROOT = fileURLToPath(new URL('./lazy/', import.meta.url));
 const ACADEMY_ROOT = fileURLToPath(new URL('./academy/', import.meta.url));
+const PDF_RESOURCE_ROOT = fileURLToPath(new URL('./pdf-resources/', import.meta.url));
 
 function createStaticHandler(prefix, files, root) {
   return async (req, res) => {
@@ -46,6 +48,11 @@ export function createAcademyHandler(root = ACADEMY_ROOT) {
   return createStaticHandler(ACADEMY_PATH, ACADEMY_FILES, root);
 }
 
+/** PDF.js can fetch only the exact dependency assets shipped by this build. */
+export function createPdfResourceHandler(root = PDF_RESOURCE_ROOT) {
+  return createStaticHandler(PDF_RESOURCE_PATH, PDF_RESOURCE_FILES, root);
+}
+
 /** The routes wait for the web carrier only; other carriers load the plugin without them. */
 export function installFontRoute(ctx) {
   ctx.plugin({
@@ -54,6 +61,7 @@ export function installFontRoute(ctx) {
       scope.effect(() => scope.webServer.register({ kind: 'prefix', path: FONT_PATH, handler: createFontHandler() }));
       scope.effect(() => scope.webServer.register({ kind: 'prefix', path: LAZY_PATH, handler: createLazyHandler() }));
       scope.effect(() => scope.webServer.register({ kind: 'prefix', path: ACADEMY_PATH, handler: createAcademyHandler() }));
+      scope.effect(() => scope.webServer.register({ kind: 'prefix', path: PDF_RESOURCE_PATH, handler: createPdfResourceHandler() }));
     },
   });
 }

@@ -1,6 +1,8 @@
 import { basename,join,resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { symbols } from '@deepseek-ai/cordis';
 import { safeRelativePath,parseMarkdownDocument,revisionFor,resolveVaultRoot,deepFreeze,pathKey,portablePath } from './vault.js';
-import { isCodePath, isToolCacheDirectory, mediaForPath } from './media.js';
+import { isCodePath, isToolCacheDirectory, mediaForPath, PDF_FILE_MAX_BYTES } from './media.js';
 
 const MAX_FILE_BYTES=50*1024*1024, MAX_TEXT_BYTES=2*1024*1024;
 const fail=code=>{throw new Error(code);};
@@ -9,6 +11,49 @@ const fail=code=>{throw new Error(code);};
 // records the observation; only files whose version changed are read again.
 const SCAN_CACHE_LIMIT=50000;
 const scanCache=new Map();
+// Only content hashes are retained, scoped to the native filesystem instance.
+// The first observation hashes the whole file in bounded windows; subsequent
+// page reads reuse the hash only while the native file version is unchanged.
+const pdfRevisions=new WeakMap(),PDF_HASH_CACHE_LIMIT=64,PDF_READ_CHUNK_BYTES=1024*1024,PDF_RANGE_MAX_BYTES=32*1024*1024;
+const pdfRevisionJobs=new WeakMap();
+
+// Concurrent callers share only the hash work. Each keeps its own cancellation,
+// file-version validation and observation; cancelling one does not cancel another.
+function waitForPdfHash(job,signal) {
+  signal?.throwIfAborted();job.users++;
+  return new Promise((resolve,reject)=>{
+    let finished=false;
+    const finish=()=>{if(finished)return false;finished=true;signal?.removeEventListener('abort',abort);job.users--;if(!job.done&&job.users===0)job.controller.abort();return true;};
+    const abort=()=>{if(finish())reject(signal.reason);};
+    signal?.addEventListener('abort',abort,{once:true});
+    job.promise.then(value=>{if(finish())resolve(value);},error=>{if(finish())reject(error);});
+    if(signal?.aborted)abort();
+  });
+}
+
+function pdfHashJob(fs,identity,key,target,before,cache) {
+  let jobs=pdfRevisionJobs.get(identity);if(!jobs){jobs=new Map();pdfRevisionJobs.set(identity,jobs);}
+  let job=jobs.get(key);
+  if(job&&!job.controller.signal.aborted&&job.version===before.version&&job.size===before.size)return job;
+  job={controller:new AbortController(),users:0,done:false,version:before.version,size:before.size};
+  jobs.set(key,job);
+  job.promise=Promise.resolve().then(async()=>{
+    const signal=job.controller.signal,hash=createHash('sha256');
+    for(let offset=0;offset<before.size;offset+=PDF_READ_CHUNK_BYTES){
+      signal.throwIfAborted();const length=Math.min(PDF_READ_CHUNK_BYTES,before.size-offset);
+      const bytes=await fs.readByteRange(target,{offset,length},signal);
+      if(!(bytes instanceof Uint8Array)||bytes.length!==length)fail('vault_revision_conflict');
+      hash.update(bytes);
+    }
+    signal.throwIfAborted();const after=await fs.stat(target,signal);signal.throwIfAborted();
+    if(!after||after.type!=='file'||after.size!==before.size||after.version!==before.version)fail('vault_revision_conflict');
+    const revision=hash.digest('hex').slice(0,24);
+    cache.delete(key);cache.set(key,{version:before.version,size:before.size,revision});
+    if(cache.size>PDF_HASH_CACHE_LIMIT)cache.delete(cache.keys().next().value);
+    return revision;
+  }).finally(()=>{job.done=true;if(jobs.get(key)===job)jobs.delete(key);});
+  return job;
+}
 
 export function vaultScopes(ctx,exec,scope='current') {
   const cwd=exec.agent?.session?.header?.cwd;
@@ -41,6 +86,9 @@ export function parseSourceRef(ref) {
 export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false,editorWorkspace,boundWrite}={}) {
   const workspace=editorWorkspace??vaultScopes(ctx,exec,scope)[0],rootPath=resolveVaultRoot(workspace.path);
   const fs=ctx.fs,signal=exec.signal;
+  // Cordis creates a fresh tracing proxy at each service access. Its public
+  // original symbol supplies stable cache identity only; every IO still uses fs.
+  const fsIdentity=fs[symbols.original]??fs;
   const checkAbort=()=>signal?.throwIfAborted();
 
   async function target(path,{readTemplate=false}={}) {
@@ -97,10 +145,52 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
   }
 
   async function readAsset(path,expectedRevision) {
-    const data=await raw(path);
-    if(expectedRevision!==undefined&&expectedRevision!==data.revision) fail('vault_reference_stale');
     const media=mediaForPath(path);
-    return {path,title:basename(path),kind:'asset',assetKind:media.kind,mime:media.mime,revision:data.revision,bytes:data.bytes,workspaceId:workspace.id,ref:sourceRef(workspace.id,path,data.revision)};
+    const data=media.kind==='pdf'?await pdfSource(path):await raw(path);
+    if(expectedRevision!==undefined&&expectedRevision!==data.revision) fail('vault_reference_stale');
+    return {path,title:basename(path),kind:'asset',assetKind:media.kind,mime:media.mime,revision:data.revision,...(data.pdfSource?{pdfSource:data.pdfSource}:{bytes:data.bytes}),workspaceId:workspace.id,ref:sourceRef(workspace.id,path,data.revision)};
+  }
+
+  async function pdfSource(path) {
+    const t=await target(path),before=await fs.stat(t,signal);
+    if(!before) fail('vault_file_not_found');
+    if(before.type!=='file') fail('vault_file_required');
+    if(!Number.isSafeInteger(before.size)||before.size<0) fail('vault_pdf_size_unavailable');
+    if(before.size>PDF_FILE_MAX_BYTES) fail('vault_pdf_too_large');
+    if(typeof before.version!=='string'||!before.version) fail('vault_pdf_version_unavailable');
+    if(typeof fs.readByteRange!=='function') fail('vault_pdf_range_unavailable');
+    let cache=pdfRevisions.get(fsIdentity);if(!cache){cache=new Map();pdfRevisions.set(fsIdentity,cache);}
+    const key=t.targetKey??t,hit=cache.get(key);
+    let revision=before.version!==undefined&&hit?.version===before.version&&hit.size===before.size?hit.revision:undefined;
+    const readWindow=async(offset,length,requestedSignal=signal)=>{
+      checkAbort();requestedSignal?.throwIfAborted();
+      const bytes=await fs.readByteRange(t,{offset,length},requestedSignal);
+      if(!(bytes instanceof Uint8Array)||bytes.length!==length) fail('vault_revision_conflict');
+      return bytes;
+    };
+    const unchanged=async(observe=false)=>{
+      const after=await fs.stat(t,signal);
+      if(!after||after.type!=='file'||after.size!==before.size||after.version!==before.version) fail('vault_revision_conflict');
+      if(observe)ctx.emit?.('fs/observed',t,{kind:'present',version:after.version},exec);
+    };
+    if(revision===undefined){
+      checkAbort();
+      revision=await waitForPdfHash(pdfHashJob(fs,fsIdentity,key,t,before,cache),signal);
+    }
+    await unchanged(true);
+    const recent=cache.get(key);
+    if(recent?.version===before.version&&recent.size===before.size){cache.delete(key);cache.set(key,recent);}
+    return {revision,pdfSource:{length:before.size,readRange:async(begin,end,requestedSignal)=>{
+      if(!Number.isSafeInteger(begin)||!Number.isSafeInteger(end)||begin<0||end<begin||end>before.size) fail('pdf_range_invalid');
+      // A corrupt cross-reference table can ask pdf.js to recover the entire
+      // file. Reject that allocation rather than assembling 512 MiB at once.
+      if(end-begin>PDF_RANGE_MAX_BYTES) fail('pdf_range_too_large');
+      const combined=signal&&requestedSignal?AbortSignal.any([signal,requestedSignal]):requestedSignal??signal;
+      await unchanged();
+      const result=new Uint8Array(end-begin);
+      for(let offset=begin;offset<end;offset+=PDF_READ_CHUNK_BYTES)result.set(await readWindow(offset,Math.min(PDF_READ_CHUNK_BYTES,end-offset),combined),offset-begin);
+      await unchanged();return result;
+    }}};
   }
 
   async function cachedRead(path,t,info) {
@@ -128,7 +218,7 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
       for(const entry of await fs.listDir(directory,signal)) {
         checkAbort();
         if(files.length>=limit){truncated=true;return;}
-        if(entry.name.startsWith('.')||entry.name==='_templates'||isToolCacheDirectory(entry.name)) continue;
+        if(entry.name.startsWith('.')||pathKey(entry.name)==='_templates'||isToolCacheDirectory(entry.name)) continue;
         const path=prefix?`${prefix}/${entry.name}`:entry.name;
         try{
           const t=await target(path),info=await fs.stat(t,signal);
@@ -186,7 +276,7 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
       try { JSON.parse(value); } catch { fail('vault_json_invalid'); }
     },readJson,onCommitted);
   }
-  return {workspace,rootPath,read,readCode,readJson,readAsset,scan,save,saveCode,saveJson};
+  return {workspace,rootPath,signal,read,readCode,readJson,readAsset,scan,save,saveCode,saveJson};
 }
 
 /** Authenticated editor actions carry their workspace from the Host, not from

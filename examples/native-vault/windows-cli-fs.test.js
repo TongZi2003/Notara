@@ -51,6 +51,18 @@ test('Windows broker rejects root changes and stale native versions before publi
   assert.equal(await readFile(outside,'utf8'),'OUTSIDE');assert.equal(await readFile(join(root,'知识','向量.md'),'utf8'),'# 向量\n原文。\n');
   assert.deepEqual(await readdir(root),['知识']);
 });
+
+test('Windows broker byte-range reads retain native offsets and reject junction escapes',windows,async t=>{
+  const {base,root}=await fixture(t),path=join(root,'page.pdf');await writeFile(path,Buffer.from('%PDF-byte-range-proof'));
+  const outside=join(base,'outside');await mkdir(outside);await writeFile(join(outside,'private.pdf'),'OUTSIDE');
+  await symlink(outside,join(root,'escape'),'junction');
+  await withWindowsCliFileSystem(root,new AbortController().signal,async fs=>{
+    const target=await fs.resolve(path,{cwd:root});
+    assert.equal(Buffer.from(await fs.readByteRange(target,{offset:5,length:4})).toString(),'byte');
+    await assert.rejects(fs.resolve(join(root,'escape','private.pdf'),{cwd:root}),error=>error.code==='FS_SANDBOX_DENIED');
+  });
+  assert.equal(await readFile(join(outside,'private.pdf'),'utf8'),'OUTSIDE');
+});
 test('Windows broker cancellation revokes pending publication and releases every owned guard',windows,async t=>{
   const {root,policy}=await fixture(t),controller=new AbortController();
   await assert.rejects(withWindowsCliFileSystem(root,controller.signal,async fs=>{

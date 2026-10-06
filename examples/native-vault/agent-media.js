@@ -2,7 +2,7 @@
  * Node-only media reader for the vault teaching runtime.
  *
  * The Host owns path authorization and the tool shell; this module only turns
- * already-authorized bytes into model-readable content:
+ * already-authorized bytes or bounded byte-range readers into model-readable content:
  *
  * - `readPdfPage(bytes, {page, rect, signal})` renders a real page (or a real
  *   normalized region of it) through pdf.js and returns the page text plus a
@@ -12,8 +12,8 @@
  * - `readImageBytes(bytes, {mime, signal})` downsizes a raster image to a
  *   model-usable PNG/JPEG/WebP through sharp.
  *
- * Both readers accept an `AbortSignal` and never touch the file system: the
- * caller passes bytes it has already authorized. A page without a text layer
+ * Both readers accept an `AbortSignal` and never open document paths: the caller passes
+ * bytes or a range reader it has already authorized. A page without a text layer
  * still returns the real page image and says so through `warnings`
  * (`pdf_page_has_no_text_layer`, or `pdf_region_has_no_text` for a region).
  *
@@ -22,15 +22,31 @@
  * `sharp` are Node entry points.
  */
 import { createCanvas } from '@napi-rs/canvas';
-import { getDocument, Util } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { getDocument, PDFDataRangeTransport, PDFWorker, Util } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import sharp from 'sharp';
 
 import { quoteFromItems } from './pdf.js';
 
+// These are trusted resources from the locked dependency, never document paths
+// or a remote URL. Named CMaps and JPX/JBIG2 decoders are required by real books.
+const pdfjsRoot = dirname(fileURLToPath(import.meta.resolve('pdfjs-dist/package.json')));
+const resourceDirectory = name => join(pdfjsRoot, name).replaceAll('\\', '/') + '/';
+const PDF_RESOURCES = Object.freeze({
+  cMapUrl: resourceDirectory('cmaps'), cMapPacked: true,
+  standardFontDataUrl: resourceDirectory('standard_fonts'),
+  wasmUrl: resourceDirectory('wasm'),
+  useWorkerFetch: false,
+});
+
 /** Longest side of a rendered PDF page/region, in pixels. */
-export const PDF_PAGE_MAX_EDGE = 1400;
+export const PDF_PAGE_MAX_EDGE = 2048;
 /** Rendering scale bounds, matching the vault PDF reader (`clampScale`). */
 export const PDF_PAGE_MAX_SCALE = 3;
+/** Small MediaBoxes in real scans need about 5.6x to reach a 2048 px edge.
+ * Explicit user scale remains 0.2..3; automatic sizing is separately bounded. */
+export const PDF_PAGE_AUTO_MAX_SCALE = 6;
 export const PDF_PAGE_MIN_SCALE = 0.2;
 /** Longest side of an image handed to a model. */
 export const IMAGE_MAX_EDGE = 1568;
@@ -100,17 +116,17 @@ function textItemsOf(content, viewport) {
   return items;
 }
 
-function renderScale(targetWidth, targetHeight) {
-  const scale = PDF_PAGE_MAX_EDGE / Math.max(targetWidth, targetHeight);
-  return Math.min(PDF_PAGE_MAX_SCALE, Math.max(PDF_PAGE_MIN_SCALE, scale));
+function renderScale(targetWidth, targetHeight, requested) {
+  const bounded = PDF_PAGE_MAX_EDGE / Math.max(targetWidth, targetHeight);
+  return Math.min(requested === undefined ? PDF_PAGE_AUTO_MAX_SCALE : PDF_PAGE_MAX_SCALE, bounded, requested ?? bounded);
 }
 
-async function renderRegion(pdfPage, region, signal) {
+async function renderRegion(pdfPage, region, signal, requestedScale) {
   const page = pdfPage.getViewport({ scale: 1 });
   const target = region === undefined
     ? { x: 0, y: 0, width: page.width, height: page.height }
     : { x: region[0] * page.width, y: region[1] * page.height, width: region[2] * page.width, height: region[3] * page.height };
-  const scale = renderScale(target.width, target.height);
+  const scale = renderScale(target.width, target.height, requestedScale);
   const viewport = pdfPage.getViewport({ scale, offsetX: -target.x * scale, offsetY: -target.y * scale });
   const width = Math.max(1, Math.round(target.width * scale)), height = Math.max(1, Math.round(target.height * scale));
   const canvas = createCanvas(width, height);
@@ -127,36 +143,93 @@ async function renderRegion(pdfPage, region, signal) {
   }
   throwIfAborted(signal);
   const png = await canvas.encode('png');
-  return { mimeType: 'image/png', data: png.toString('base64'), width, height };
+  return { mimeType: 'image/png', data: png.toString('base64'), width, height, scale };
+}
+
+/** One document lifetime, with explicit abort/range failures. No URLs or paths
+ * are accepted; range reads still belong to the Host's authorized IO seam. */
+async function withPdf(source, signal, operation) {
+  const ranged = !(source instanceof Uint8Array);
+  if (ranged) {
+    if (!Number.isSafeInteger(source?.length) || source.length <= 0 || typeof source.readRange !== 'function') throw new Error('pdf_bytes_invalid');
+  } else assertBytes(source, 'pdf_bytes_invalid');
+  throwIfAborted(signal);
+  const controller = new AbortController(), failure = Promise.withResolvers();
+  const rangeSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
+  let worker, loadingTask, cleanup, closed = false, failed = false;
+  const disposeDocument = () => cleanup ??= loadingTask ? loadingTask.destroy().catch(() => {}) : Promise.resolve();
+  const reject = error => {
+    if (closed) return;
+    failed = true;
+    failure.reject(error);
+    controller.abort();
+    void disposeDocument();
+    worker?.destroy();
+  };
+  const abort = () => reject(abortError());
+  signal?.addEventListener('abort', abort, {once: true});
+  const checkedBytes = (bytes, length) => {
+    if (!(bytes instanceof Uint8Array) || bytes.length !== length) throw new Error('pdf_range_invalid');
+    return new Uint8Array(bytes);
+  };
+  try {
+    return await Promise.race([failure.promise, (async () => {
+      let input;
+      if (ranged) {
+        const initialLength = Math.min(65536, source.length);
+        const initial = checkedBytes(await source.readRange(0, initialLength, rangeSignal), initialLength);
+        throwIfAborted(rangeSignal);
+        const transport = new PDFDataRangeTransport(source.length, initial, true);
+        transport.requestDataRange = (begin, end) => {
+          if (closed || rangeSignal.aborted) return;
+          Promise.resolve().then(() => source.readRange(begin, end, rangeSignal)).then(bytes => {
+            if (!closed && !rangeSignal.aborted) transport.onDataRange(begin, checkedBytes(bytes, end - begin));
+          }).catch(reject);
+        };
+        transport.abort = () => controller.abort();
+        input = {range: transport, length: source.length, rangeChunkSize: 65536, disableStream: true, disableAutoFetch: true};
+      } else input = {data: new Uint8Array(source)};
+      // Own the public worker handle so range failures can stop it without
+      // waiting for a Terminate reply from a page task awaiting missing bytes.
+      worker = PDFWorker.create({});
+      loadingTask = getDocument({...input, ...PDF_RESOURCES, worker, isEvalSupported: false, verbosity: 0, stopAtErrors: true});
+      const pdf = await loadingTask.promise;
+      throwIfAborted(rangeSignal);
+      return await operation(pdf);
+    })()]);
+  } catch (error) {
+    failed = true;
+    if (signal?.aborted) throw abortError();
+    throw isAbort(error) ? abortError() : documentError(error);
+  } finally {
+    closed = true;
+    signal?.removeEventListener('abort', abort);
+    controller.abort();
+    const finishing = disposeDocument();
+    // A failed range can leave pdf.js's graceful destroy pending. Preserve
+    // the original error and stop our worker; never await that failed RPC.
+    try { if (!failed) await finishing; }
+    finally { worker?.destroy(); }
+  }
 }
 
 /**
  * Read one page of an authorized PDF.
  *
- * @param {Uint8Array} bytes authorized PDF bytes; never read from disk here.
- * @param {{page?: number, rect?: number[], signal?: AbortSignal}} [options]
+ * @param {Uint8Array | {length: number, readRange: Function}} bytes
+ *   authorized PDF bytes or a Host-owned range reader; never open paths here.
+ * @param {{page?: number, rect?: number[], signal?: AbortSignal, scale?: number}} [options]
  *   `page` is 1-based and must exist; an out-of-range page throws
  *   `pdf_page_invalid` instead of clamping. `rect` is the normalized
  *   `[x, y, width, height]` vault locator described above.
  * @returns {Promise<{page: number, pageCount: number, text: string,
- *   image: {mimeType: 'image/png', data: string, width: number, height: number},
+ *   image: {mimeType: 'image/png', data: string, width: number, height: number, scale: number},
  *   warnings: string[]}>}
  */
-export async function readPdfPage(bytes, { page = 1, rect, signal } = {}) {
-  assertBytes(bytes, 'pdf_bytes_invalid');
+export async function readPdfPage(bytes, { page = 1, rect, signal, scale } = {}) {
+  if(scale!==undefined&&(!Number.isFinite(scale)||scale<PDF_PAGE_MIN_SCALE||scale>PDF_PAGE_MAX_SCALE))throw new Error('pdf_render_scale_invalid');
   const region = normalizeRegion(rect);
-  throwIfAborted(signal);
-  // pdf.js may transfer the buffer it is handed, so give it a private copy:
-  // caller-owned bytes must survive a read.
-  const loadingTask = getDocument({
-    data: new Uint8Array(bytes),
-    isEvalSupported: false,
-    // pdf.js logs benign "standardFontDataUrl" warnings in Node; real failures
-    // still surface as rejections.
-    verbosity: 0,
-  });
-  try {
-    const pdf = await loadingTask.promise;
+  return withPdf(bytes,signal,async pdf=>{
     throwIfAborted(signal);
     const pageCount = pdf.numPages;
     if (!Number.isInteger(page) || page < 1 || page > pageCount) throw new Error('pdf_page_invalid');
@@ -167,32 +240,46 @@ export async function readPdfPage(bytes, { page = 1, rect, signal } = {}) {
     const text = quoteFromItems(items, region ?? [0, 0, 1, 1]);
     const warnings = [];
     if (text === '') warnings.push(region === undefined ? 'pdf_page_has_no_text_layer' : 'pdf_region_has_no_text');
-    const image = await renderRegion(pdfPage, region, signal);
+    const image = await renderRegion(pdfPage, region, signal, scale);
+    if(scale!==undefined&&image.scale<scale)warnings.push('pdf_render_scale_limited');
     throwIfAborted(signal);
     return { page, pageCount, text, image, warnings };
-  } catch (error) {
-    if (signal?.aborted) throw abortError();
-    throw isAbort(error) ? abortError() : documentError(error);
-  } finally {
-    await loadingTask.destroy().catch(() => {});
-  }
+  });
 }
 
 /** Only the number of pages: nothing is rendered and no text is extracted. */
 export async function readPdfPageCount(bytes, { signal } = {}) {
-  assertBytes(bytes, 'pdf_bytes_invalid');
-  throwIfAborted(signal);
-  const loadingTask = getDocument({ data: new Uint8Array(bytes), isEvalSupported: false, verbosity: 0 });
-  try {
-    const pdf = await loadingTask.promise;
-    throwIfAborted(signal);
-    return pdf.numPages;
-  } catch (error) {
-    if (signal?.aborted) throw abortError();
-    throw isAbort(error) ? abortError() : documentError(error);
-  } finally {
-    await loadingTask.destroy().catch(() => {});
-  }
+  return withPdf(bytes,signal,async pdf=>pdf.numPages);
+}
+
+/** Bookmarks resolve to physical (1-based) pages. Printed labels remain labels;
+ * unresolved/external destinations never silently become page 1. */
+export async function readPdfOutline(bytes,{signal}={}) {
+  return withPdf(bytes,signal,async pdf=>{
+    const warnings=new Set(),labels=pdf.numPages<=10000?await pdf.getPageLabels():null;
+    if(pdf.numPages>10000)warnings.add('pdf_page_labels_omitted');
+    let count=0,truncated=false;
+    const visit=async(rows,depth=0)=>{
+      const result=[];
+      for(const row of rows??[]){
+        throwIfAborted(signal);
+        if(count>=500||depth>=20){truncated=true;break;}count++;
+        let page=null;
+        try{
+          const dest=typeof row.dest==='string'?await pdf.getDestination(row.dest):row.dest;
+          if(Array.isArray(dest)){
+            const index=Number.isInteger(dest[0])?dest[0]:dest[0]&&typeof dest[0]==='object'?await pdf.getPageIndex(dest[0]):null;
+            if(Number.isInteger(index)&&index>=0&&index<pdf.numPages)page=index+1;
+          }
+        }catch{warnings.add('pdf_outline_destination_unresolved');}
+        if(page===null)warnings.add('pdf_outline_destination_unresolved');
+        result.push({title:String(row.title??'').slice(0,1000),page,...(page!==null&&labels?{pageLabel:labels[page-1]}:{}),items:await visit(row.items,depth+1)});
+      }return result;
+    };
+    const items=await visit(await pdf.getOutline());
+    if(!items.length)warnings.add('pdf_outline_missing');
+    return {pageCount:pdf.numPages,...(labels?{pageLabels:labels}:{}),items,truncated,warnings:[...warnings]};
+  });
 }
 
 function outputFormat(mime, detected) {

@@ -1,6 +1,6 @@
 {
   "name": "@notara/vault-native",
-  "version": "0.23.12",
+  "version": "0.23.13-dev.4",
   "license": "MIT",
   "type": "module",
   "main": "index.js",
@@ -9,6 +9,8 @@
     "board-fork.js",
     "client.js",
     "font-route.js",
+    "pdf-resources.js",
+    "pdf-resources",
     "academy.js",
     "academy-data.json",
     "academy",
@@ -19,6 +21,7 @@
     "chatgpt-provider.js",
     "chatgpt-runtime.js",
     "session-deletion-runtime.js",
+    "session-groups-runtime.js",
     "remote-settings-contract.js",
     "remote-settings-runtime.js",
     "update-runtime.js",
@@ -116,6 +119,7 @@
     "@deepseek-ai/cordis": "4.0.4",
     "@deepseek-ai/dsh-fs-local": "0.2.0-rc.1",
     "@deepseek-ai/dsh-llm": "0.2.0-rc.1",
+    "@deepseek-ai/dsh-storage-domain": "0.2.0-rc.1",
     "pdfjs-dist": "6.3.289",
     "sharp": "0.35.4",
     "@napi-rs/canvas": "1.0.9"

@@ -5,8 +5,8 @@ import { mkdir, readdir, readFile, rename, lstat, realpath, unlink, writeFile, l
 import { lstatSync, readdirSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
-import { parseFrontmatter } from './frontmatter.js';
-import { isToolCacheDirectory, mediaForPath } from './media.js';
+import { parseFrontmatter, serializeFrontmatter } from './frontmatter.js';
+import { isToolCacheDirectory, mediaForPath, PDF_FILE_MAX_BYTES } from './media.js';
 import { buildVaultGraph } from './graph.js';
 import { learningStars } from './mastery-data.js';
 
@@ -71,7 +71,7 @@ export function resolveVaultRoot(workspacePath) {
   } catch {
     return workspace;
   }
-  if (entries.some(entry => !LEGACY_ROOT_SCAFFOLDING.has(entry.name))) return legacy;
+  if (entries.some(entry => !LEGACY_ROOT_SCAFFOLDING.has(pathKey(entry.name)))) return legacy;
   const direct = holdsMaterial(workspace) || MATERIAL_DIRECTORIES.some(name => holdsMaterial(join(workspace, name)));
   return direct ? workspace : legacy;
 }
@@ -390,7 +390,7 @@ export function createVaultStore(root, templateRoot) {
       // skipped them, and `vault/.trash` must never come back through the file
       // tree, search, asset listing or graph as if it were a page or asset.
       // Tool caches such as __pycache__ are skipped the same way.
-      if (entry.isSymbolicLink() || entry.name.startsWith('.') || (entry.isDirectory() && isToolCacheDirectory(entry.name)) || (!includeTemplates && prefix === '' && entry.name === '_templates')) continue;
+      if (entry.isSymbolicLink() || entry.name.startsWith('.') || (entry.isDirectory() && isToolCacheDirectory(entry.name)) || (!includeTemplates && prefix === '' && pathKey(entry.name) === '_templates')) continue;
       const absolute = join(directory, entry.name), path = prefix ? `${prefix}/${entry.name}` : entry.name;
       if (entry.isDirectory()) result.push(...await walk(absolute, path, includeTemplates));
       else if (entry.isFile()) result.push(path);
@@ -452,8 +452,10 @@ export function createVaultStore(root, templateRoot) {
     const value = safeRelativePath(path);
     if (value.toLowerCase().endsWith('.md') || pathKey(value.split('/')[0]) === '_templates') fail('vault_asset_required');
     try {
-      const bytes = await readFile(await target(value));
-      const media = mediaForPath(value);
+      const absolute=await target(value),media=mediaForPath(value);
+      if(media.kind==='pdf'&&(await lstat(absolute)).size>PDF_FILE_MAX_BYTES)fail('vault_pdf_too_large');
+      const bytes = await readFile(absolute);
+      if(media.kind==='pdf'&&bytes.byteLength>PDF_FILE_MAX_BYTES)fail('vault_pdf_too_large');
       return { path: value, title: basename(value), kind: 'asset', assetKind: media.kind, mime: media.mime, extension: media.extension, ...(media.language ? { language: media.language } : {}), size: bytes.byteLength, revision: revisionForBytes(bytes) };
     } catch (error) {
       if (error instanceof Error && error.code === 'ENOENT') fail('vault_file_not_found');
@@ -462,7 +464,13 @@ export function createVaultStore(root, templateRoot) {
   }
 
   async function readAsset(path) {
-    const summary = await assetSummary(path), bytes = await readFile(await target(summary.path));
+    const summary = await assetSummary(path),absolute=await target(summary.path);
+    if(summary.assetKind==='pdf'&&(await lstat(absolute)).size>PDF_FILE_MAX_BYTES)fail('vault_pdf_too_large');
+    const bytes = await readFile(absolute);
+    if(summary.assetKind==='pdf'){
+      if(bytes.byteLength>PDF_FILE_MAX_BYTES)fail('vault_pdf_too_large');
+      if(revisionForBytes(bytes)!==summary.revision)fail('vault_revision_conflict');
+    }
     return { ...summary, dataUrl: `data:${summary.mime};base64,${bytes.toString('base64')}` };
   }
 
@@ -571,7 +579,7 @@ export function createVaultStore(root, templateRoot) {
    * empty segments and backslashes, so this is the whole traversal boundary. */
   function trashable(value) {
     const parts = value.split('/');
-    if (parts.some(part => part.startsWith('.')) || parts.includes('node_modules')) fail('vault_path_invalid');
+    if (parts.some(part => part.startsWith('.') || pathKey(part) === 'node_modules')) fail('vault_path_invalid');
     if (pathKey(value.split('/')[0]) === '_templates') fail('vault_path_invalid');
     return value;
   }
@@ -766,8 +774,15 @@ export function createVaultStore(root, templateRoot) {
     },
     async templates() {
       await seedTemplates();
-      const paths = await files(true), result = [];
-      for (const path of paths.filter(item => item.startsWith('_templates/'))) {
+      // Resolve the same directory createFromTemplate reads. On Windows a
+      // directory created as _Templates still resolves through _templates,
+      // while a whole-Vault walk preserves the spelling and hid every entry.
+      const directory = await target('_templates');
+      const paths = await walk(directory, '_templates', true).catch(error => {
+        if (error.code === 'ENOENT') return [];
+        throw error;
+      }), result = [];
+      for (const path of paths.filter(item => item.toLowerCase().endsWith('.md'))) {
         const content = await readFile(await target(path), 'utf8');
         const document = parseMarkdownDocument(path.slice('_templates/'.length), content, revisionFor(content));
         const title = typeof document.frontmatter.name === 'string' && document.frontmatter.name.trim()
@@ -788,7 +803,18 @@ export function createVaultStore(root, templateRoot) {
         const value = safeRelativePath(path), absolute = resolve(rootPath, value);
         try { await lstat(absolute); fail('vault_revision_conflict'); } catch (error) { if (!(error instanceof Error) || error.code !== 'ENOENT') throw error; }
       }
-      return saveDocument(path, renderTemplate(content, values), expectedRevision);
+      const rendered = renderTemplate(content, values);
+      const { frontmatter, body, range } = parseFrontmatter(rendered);
+      // `name` labels the template selector and `template` marks its source.
+      // Neither describes the page created from it. Preserve every other field
+      // and the fully rendered body, including a student's custom sections.
+      if (range && (Object.hasOwn(frontmatter, 'template') || Object.hasOwn(frontmatter, 'name'))) {
+        const fields = { ...frontmatter };
+        delete fields.template;
+        delete fields.name;
+        return saveDocument(path, serializeFrontmatter(fields) + body, expectedRevision);
+      }
+      return saveDocument(path, rendered, expectedRevision);
     },
     async tasks(path) { return (await readDocument(path)).tasks; },
     async toggleTask(path, line, checked, expectedRevision) {

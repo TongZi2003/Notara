@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FONT_PATH, NOTEBOOK_FONT_URL, createFontHandler, createLazyHandler } from './font-route.js';
+import { FONT_PATH, NOTEBOOK_FONT_URL, createFontHandler, createLazyHandler, createPdfResourceHandler } from './font-route.js';
+import { PDF_RESOURCE_FILES, PDF_RESOURCE_PATH } from './pdf-resources.js';
 import { LAZY_FILES, LAZY_PATH, lazyUrl } from './lazy-assets.js';
 import { access, readFile } from 'node:fs/promises';
 
@@ -77,4 +78,26 @@ test('the build ships every lazy module and the bundle no longer carries pdfjs',
   const bundle = await readFile(new URL('./client.js', import.meta.url), 'utf8');
   assert.ok(Buffer.byteLength(bundle) < 3_000_000, 'the startup bundle stays well under the old 6 MB');
   assert.doesNotMatch(bundle, /pdfjsVersion|PDFWorker\b.*WorkerMessageHandler/);
+});
+
+test('PDF resources serve only exact packaged names and preserve WASM and font MIME types', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'notara-pdf-resources-'));
+  await mkdir(join(dir, 'cmaps')); await mkdir(join(dir, 'wasm')); await mkdir(join(dir, 'standard_fonts'));
+  const files = ['cmaps/Adobe-GB1-UCS2.bcmap', 'wasm/openjpeg.wasm', 'standard_fonts/LiberationSans-Regular.ttf'];
+  for (const name of files) await writeFile(join(dir, name), 'trusted test resource');
+  const handler = createPdfResourceHandler(dir);
+  for (const name of files) {
+    const got = await call(handler, 'GET', `${PDF_RESOURCE_PATH}/${name}`);
+    assert.equal(got.status, 200); assert.equal(got.headers['content-type'], PDF_RESOURCE_FILES[name]);
+    assert.equal(got.headers['x-content-type-options'], 'nosniff');
+    assert.equal((await call(handler, 'HEAD', `${PDF_RESOURCE_PATH}/${name}`)).body, undefined);
+  }
+  for (const name of ['cmaps/unknown.bcmap','../index.js','cmaps/%2e%2e/index.js','cmaps%2fAdobe-GB1-UCS2.bcmap','wasm/openjpeg.wasm/extra',''])
+    assert.equal((await call(handler, 'GET', `${PDF_RESOURCE_PATH}/${name}`)).status, 404, name);
+  assert.equal((await call(handler, 'POST', `${PDF_RESOURCE_PATH}/wasm/openjpeg.wasm`)).status, 405);
+  assert.equal((await call(handler, 'GET', `${PDF_RESOURCE_PATH}/wasm/jbig2.wasm`)).status, 404, 'missing build resources must fail clearly');
+});
+
+test('every reviewed PDF resource including decoder licenses is shipped by the build', async () => {
+  for (const name of Object.keys(PDF_RESOURCE_FILES)) await access(new URL(`./pdf-resources/${name}`, import.meta.url));
 });

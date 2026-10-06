@@ -1,6 +1,6 @@
 import { createVaultClient, visibleInterval } from './remote-client.js';
 import { directoryLessons, selectedVaultDirectory } from './shell-client.js';
-import { PLAN_VIEWS, RAIL_SECTIONS, VAULT_VIEWS, boardCollapse, filterByTitle, lessonGroups, railSectionOf } from './rail-data.js';
+import { PLAN_VIEWS, RAIL_SECTIONS, VAULT_VIEWS, boardCollapse, folderLessons, lessonGroups, railSectionOf } from './rail-data.js';
 import { createPanelSearch } from './panel-search-client.js';
 import { EMPTY_STATES } from './empty-state-client.js';
 import { routeRailSummary } from './routes-client.js';
@@ -8,6 +8,7 @@ import { createFileTree } from './file-tree-client.js';
 import { currentSessionId, mainViewSettled } from './session-current.js';
 import { createSessionDeletionUI } from './session-deletion-client.js';
 import { createSessionActionsUI } from './session-actions-client.js';
+import { createSessionGroupsUI } from './session-groups-client.js';
 import { createShutdownUI } from './shutdown-client.js';
 
 /** Below this width the native sidebar folds itself and an opened panel covers the content. */
@@ -27,6 +28,7 @@ export function createVaultRail(React, { navigation, Icon, IconButton, Menu, Nat
   const Tree = createFileTree(React, { STYLE });
   const { DeleteSessionDialog } = createSessionDeletionUI(React, { Dialog, IconButton });
   const { useSessionActions } = createSessionActionsUI(React, { Dialog, IconButton, Icon, NativeMenu });
+  const { useSessionGroups } = createSessionGroupsUI(React, { Dialog, IconButton, Icon, NativeMenu });
   const { useVaultShutdown } = createShutdownUI(React, { Dialog, IconButton });
   const { usePanelSearch, SearchButton, SearchInput } = createPanelSearch(React, { IconButton });
   const fmtDay = new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' });
@@ -118,7 +120,22 @@ export function createVaultRail(React, { navigation, Icon, IconButton, Menu, Nat
     const directory = selectedVaultDirectory(spaces, sessions, nav.directoryId, nav);
     const search = usePanelSearch(), lessons = directoryLessons(directory, spaces, sessions);
     const sessionActions = useSessionActions(ctx, navigation);
-    const groups = lessonGroups(filterByTitle(lessons, search.query, row => row.title || '未命名课堂'), new Date());
+    const folderActions = useSessionGroups(ctx, directory?.workspaceId);
+    const grouped = folderLessons(lessons, folderActions.data, search.query), groups = lessonGroups(grouped.ungrouped, new Date());
+    const [collapsed, setCollapsed] = useState(new Set());
+    const collapseKey = directory ? `notara-vault-folders:${directory.workspaceId}` : null;
+    useEffect(() => {
+      try { const saved = JSON.parse(collapseKey ? sessionStorage.getItem(collapseKey) ?? '[]' : '[]'); setCollapsed(new Set(Array.isArray(saved) ? saved.filter(id => typeof id === 'string') : [])); }
+      catch { setCollapsed(new Set()); }
+    }, [collapseKey]);
+    const toggleFolder = id => {
+      if (search.query.trim()) return;
+      setCollapsed(previous => {
+        const next = new Set(previous); next.has(id) ? next.delete(id) : next.add(id);
+        try { if (collapseKey) sessionStorage.setItem(collapseKey, JSON.stringify([...next])); } catch { /* folding still works if tab storage is full */ }
+        return next;
+      });
+    };
     const [deleteTarget, setDeleteTarget] = useState(null), [deleteNotice, setDeleteNotice] = useState('');
     const open = row => { navigation.show('lesson'); ctx.uiWorkspace.openSession(row.id); dismiss(); };
     const start = () => { if (!directory) { navigation.requestDirectoryPicker(); return; } if (navigation.startLesson(ctx, directory.workspaceId)) dismiss(); };
@@ -138,8 +155,17 @@ export function createVaultRail(React, { navigation, Icon, IconButton, Menu, Nat
       }
       setDeleteTarget(row);
     };
+    const sessionRow = row => h('div', { key: row.id, className: 'nv-session-row-wrap' },
+      h('button', { type: 'button', className: 'nv-session-row',
+        'aria-current': nav.section === 'lesson' && currentSessionId(sessions) === row.id ? 'page' : undefined,
+        title: row.title || '未命名课堂', onClick: () => open(row) },
+        h('i', { className: 'nv-session-dot', 'data-running': !!row.running }), h('span', null, row.title || '未命名课堂'),
+        h('time', null, row.running ? '进行中' : fmtDay.format(new Date(row.updatedAt)))),
+      h(sessionActions.SessionMenu, { session: row, disabled: !!sessionActions.busyId || folderActions.busy, onRename: sessionActions.rename, onArchive: sessionActions.archive,
+        onDelete: row => { void requestDelete(row); }, onMove: folderActions.ready ? folderActions.move : undefined }));
     return h(React.Fragment, null,
       h('div', { className: 'nv-panel-head' }, h('h2', null, '课堂'), h(SearchButton, { search }),
+        h(IconButton, { icon: 'folder', label: '新建分组', disabled: !folderActions.ready || folderActions.busy, onClick: folderActions.create }),
         h(IconButton, { icon: 'more', label: '管理课堂', 'aria-haspopup': 'dialog', 'aria-expanded': manage, onClick: () => setManage(true) })),
       h(SearchInput, { search, label: '搜索课堂', placeholder: '按标题找课堂…' }),
       h('div', { className: 'nv-directory' },
@@ -148,27 +174,29 @@ export function createVaultRail(React, { navigation, Icon, IconButton, Menu, Nat
       h('button', { type: 'button', className: 'nv-new-lesson', 'aria-label': '新的一课', disabled: state.switching || nav.resuming || spaces.phase !== 'ready' || sessions.phase !== 'ready' || (!!directory && !mainViewSettled(sessions)), onClick: start }, h(Icon, { name: 'plus' }), '新的一课'),
       deleteNotice && h('p', { role: 'status', className: 'nv-delete-status' }, deleteNotice),
       sessionActions.status,
+      folderActions.status,
       h('div', { className: 'nv-panel-scroll' },
+        grouped.folders.map(group => {
+          const expanded = !!search.query.trim() || !collapsed.has(group.id);
+          return h('section', { key: group.id, className: 'nv-lesson-folder', 'aria-label': `对话分组：${group.title}` },
+            h('div', { className: 'nv-session-row-wrap' },
+              h('button', { type: 'button', className: 'nv-session-row nv-folder-toggle', 'aria-label': `分组：${group.title}`, 'aria-expanded': expanded,
+                onClick: () => toggleFolder(group.id) },
+                h(Icon, { name: 'folder' }), h('span', null, group.title), h('small', null, group.rows.length), h('small', { 'aria-hidden': true }, expanded ? '⌄' : '›')),
+              h(folderActions.FolderMenu, { group, disabled: folderActions.busy, onRename: folderActions.rename, onDissolve: folderActions.dissolve })),
+            expanded && h('div', { className: 'nv-folder-lessons' }, group.rows.length ? group.rows.map(sessionRow) : h('p', { className: 'nv-panel-note' }, '暂无对话')));
+        }),
         groups.length
           ? groups.map(group => h('section', { key: group.key, className: 'nv-panel-group', 'aria-label': group.label },
             h('h3', null, group.label),
-            group.rows.map(row => h('div', { key: row.id, className: 'nv-session-row-wrap' },
-              h('button', {
-                type: 'button', className: 'nv-session-row',
-                'aria-current': nav.section === 'lesson' && currentSessionId(sessions) === row.id ? 'page' : undefined,
-                title: row.title || '未命名课堂', onClick: () => open(row),
-              },
-              h('i', { className: 'nv-session-dot', 'data-running': !!row.running }),
-              h('span', null, row.title || '未命名课堂'),
-              h('time', null, row.running ? '进行中' : fmtDay.format(new Date(row.updatedAt)))),
-              h(sessionActions.SessionMenu, { session: row, disabled: !!sessionActions.busyId, onRename: sessionActions.rename, onArchive: sessionActions.archive, onDelete: row => { void requestDelete(row); } }),
-            )),
+            group.rows.map(sessionRow),
           ))
-          : h('p', { className: 'nv-panel-note' }, search.query.trim() && lessons.length ? '没有找到这节课' : directory ? EMPTY_STATES.homeNoLessons.text : mainViewSettled(sessions) ? '选择目录后查看课堂' : '正在读取…')),
+          : !grouped.folders.length && h('p', { className: 'nv-panel-note' }, search.query.trim() && lessons.length ? '没有找到这节课' : directory ? EMPTY_STATES.homeNoLessons.text : mainViewSettled(sessions) ? '选择目录后查看课堂' : '正在读取…')),
       manage && h(Dialog, { title: '管理课堂', onClose: () => setManage(false) },
         h('p', { className: 'nv-panel-note' }, '在课堂旁归档；在列表选项中显示已归档课堂后，可以取消归档。'),
         h('div', { className: 'nv-session-manager' }, renderSidebarSlot('sidebar.workspaces', { wide: true }))),
       sessionActions.overlay,
+      folderActions.overlay,
       deleteTarget && h(DeleteSessionDialog, { ctx, session: deleteTarget, onClose: () => setDeleteTarget(null), onDeleted: result => {
         setDeleteTarget(null);
         if (result?.cleanupPending) setDeleteNotice('课堂记录已移除，少量磁盘清理会在下次启动时重试。');

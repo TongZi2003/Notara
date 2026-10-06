@@ -254,6 +254,9 @@ export async function withWindowsCliFileSystem(workspaceRoot,signal,run) {
       async readBytes(target,requestedSignal,maximum) {
         return readPinned(base.processPath(target),()=>base.readBytes(target,requestedSignal??signal,maximum));
       },
+      async readByteRange(target,range,requestedSignal) {
+        return readPinned(base.processPath(target),()=>base.readByteRange(target,range,requestedSignal??signal));
+      },
       async listDir(target,requestedSignal) {
         return readPinned(base.processPath(target),()=>base.listDir(target,requestedSignal??signal));
       },
