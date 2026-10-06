@@ -109,7 +109,11 @@ async function holdTarget(root: string, target: string, label: string): Promise<
     windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'],
   });
   let stderr = ''; child.stderr?.on('data', bytes => { stderr += String(bytes); });
-  for (let attempt = 0; attempt < 150; attempt++) {
+  // A cold hosted Windows runner may spend several seconds starting PowerShell.
+  // This bounds helper startup only; the production rename retry budget stays
+  // unchanged and is still asserted below.
+  const readyDeadline = Date.now() + 10_000;
+  while (Date.now() < readyDeadline) {
     if (await stat(ready).then(() => true, () => false)) break;
     if (child.exitCode !== null) throw new Error(`Handle helper exited early: ${stderr}`);
     await new Promise(done => setTimeout(done, 20));
@@ -167,4 +171,4 @@ test.skipIf(process.platform !== 'win32')('real Windows sharing conflicts retry 
     if (held) await held.release();
     await unit.close(); await backend.close(); await cleanFlatTemp(root);
   }
-}, 20_000);
+}, 35_000);
