@@ -12,7 +12,12 @@ export async function futureRelease(base: string, { brokenStartup = false } = {}
   const current = /^(\d+)\.(\d+)\.(\d+)(-dev\.\d+)?$/.exec(contract.version);
   if (!current) throw new Error('Unexpected source version for synthetic release');
   const version = `${current[1]}.${current[2]}.${Number(current[3]) + (current[4] ? 0 : 1)}`;
-  const built = await buildRelease(join(base, 'bundle'));
+  // This synthetic update runs on the current platform. Linux restart tests
+  // do not need to download Windows-only shell assets; real Windows updates
+  // and both production packagers still include the verified native bundle.
+  const built = await buildRelease(join(base, 'bundle'), project, process.platform === 'win32' ? {} : {
+    windowsPosix: async () => ({ executable: '', files: [] }),
+  });
   const files = unzipSync(new Uint8Array(await readFile(built.archive)));
   const pkg = JSON.parse(strFromU8(files['notara/examples/native-vault/package.json']!));
   files['notara/examples/native-vault/package.json'] = strToU8(JSON.stringify({ ...pkg, version }));

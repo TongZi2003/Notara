@@ -49,7 +49,7 @@ test('a downloaded release installs and restarts the real DSH while keeping a le
     await client.ask(sessionId, '更新前', { '更新前': '课堂会保留下来。' });
     await client.writeVaultFile('保留.md', '# 保留资料\n');
     await runtime.controller.check();
-    expect(runtime.controller.status().phase).toBe('ready');
+    expect(runtime.controller.status().phase, runtime.controller.status().message).toBe('ready');
     await client.close();
     await runtime.controller.apply();
     expect(runtime.controller.status()).toMatchObject({ phase: 'current', currentVersion: fixture.release.version });
@@ -74,7 +74,7 @@ test('a real next-release startup failure restores the original snapshot and can
     const sessionId = await client.createSession();
     await client.ask(sessionId, '恢复前', { '恢复前': '保留这节课。' });
     await runtime.controller.check();
-    expect(runtime.controller.status().phase).toBe('ready');
+    expect(runtime.controller.status().phase, runtime.controller.status().message).toBe('ready');
     await client.close(); await runtime.controller.apply();
     expect(runtime.controller.status().phase).toBe('error');
     const original = JSON.parse(await readFile('examples/native-vault/package.json', 'utf8')).version;
