@@ -139,12 +139,20 @@ test('教学设置进入真实装配请求，同课切教法改变下一次请�
 
   const [firstTurn] = await harness.ask(sessionId, '我们从条件概率开始。', { '我们从条件概率开始。': '先说说你自己的解释。' });
   const firstWire = JSON.stringify(firstTurn);
+  const firstSystem = effectiveSystemText(firstTurn!);
+  const resourceRoot = join(process.cwd(), 'examples/native-vault/teaching');
+  const manifest = JSON.parse(await readFile(join(resourceRoot, 'manifest.json'), 'utf8')) as { choices: { id: string; file: string }[] };
+  const mixedFile = manifest.choices.find(item => item.id === 'mixed')!.file;
   // 首条真实请求就带着所选教法、目标与临时要求 —— 不是第一次回复之后才补上。
-  expect(effectiveSystemText(firstTurn!)).toContain('混合教法');
+  expect(firstSystem).toContain('混合教法');
+  expect(firstSystem).toContain('## Web 平台工具映射');
+  expect(firstSystem).toContain(await readFile(join(resourceRoot, 'base.md'), 'utf8'));
+  expect(firstSystem).toContain(await readFile(join(resourceRoot, mixedFile), 'utf8'));
   expect(firstWire).toContain('理解条件概率');
   expect(firstWire).toContain('先让我自己试');
   // 教学预设真实挂载：四个课堂生命周期工具＋原生 Bash、读图与技能工具。
   expect(toolNames(firstTurn!)).toEqual(expect.arrayContaining([...NOTARA_TOOL_NAMES, ...TEACHER_NATIVE_TOOL_NAMES]));
+  expect(toolNames(firstTurn!)).toEqual(expect.arrayContaining(['write_lesson_board', 'vault_command']));
   // Ordinary Vault reads and writes use dedicated tools; generic file tools remain
   // restricted to code paths and are refused for ordinary Vault text.
   // Search stays in Bash; read/write/edit stay offered for code files only (the guard refuses anything else).

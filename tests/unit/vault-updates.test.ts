@@ -17,10 +17,17 @@ test('only a newer stable version with a matching release manifest is offered', 
   expect(compareVersions('0.21.10', '0.21.9')).toBe(1);
   expect(compareVersions('0.23.13-dev.4', '0.23.12')).toBe(1);
   expect(compareVersions('0.23.13-dev.4', '0.23.13-dev.5')).toBe(-1);
+  expect(compareVersions('0.24.1', '0.23.13-dev.5')).toBe(1);
   expect(compareVersions('0.23.13', '0.23.13-dev.4')).toBe(1);
   expect(compareVersions('0.23.13-dev.4', '0.23.13-dev.4')).toBe(0);
   expect(parseRelease(release, manifest, '0.21.4', runtime)?.version).toBe('0.21.5');
   expect(parseRelease(release, manifest, '0.21.5-dev.4', runtime)?.version).toBe('0.21.5');
+  const nextVersion = '0.24.1';
+  const nextAsset = (name: string) => ({ name, browser_download_url: `https://github.com/TongZi2003/Notara/releases/download/v${nextVersion}/${name}` });
+  const nextManifest = { ...manifest, version: nextVersion, archive: `notara-${nextVersion}.zip`, runtime: { ...runtime, dataVersion: 5 } };
+  const nextRelease = { ...release, tag_name: `v${nextVersion}`, html_url: `https://github.com/TongZi2003/Notara/releases/tag/v${nextVersion}`, assets: [nextAsset('notara-update.json'), nextAsset(nextManifest.archive)] };
+  expect(parseRelease(nextRelease, nextManifest, '0.23.12', runtime)?.compatible).toBe(false);
+  expect(parseRelease(release, manifest, nextVersion, runtime)).toBeNull();
   expect(parseRelease({ ...release, prerelease: true }, manifest, '0.21.4', runtime)).toBeNull();
   expect(parseRelease(release, manifest, '0.21.5', runtime)).toBeNull();
   expect(() => parseRelease(release, { ...manifest, version: '0.21.6' }, '0.21.4', runtime)).toThrow();

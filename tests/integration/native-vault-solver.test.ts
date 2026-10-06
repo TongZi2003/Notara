@@ -106,7 +106,13 @@ test('new worker sandboxes bind before first request and cannot exceed a read-on
     const requests = (await harness.requests()).filter(row => row.sessionId === child!.sessionId);
     const allowedWrite = scope === 'workspace' && !parentReadOnly;
     const offered = toolNames(requests[0]!);
+    const workerSystem = effectiveSystemText(requests[0]!);
     expect(offered).toEqual(expect.arrayContaining(['vault_read', 'vault_search', 'bash', 'web_search', 'web_fetch']));
+    expect(offered).not.toContain('vault_command');
+    expect(offered).not.toContain('write_lesson_board');
+    expect(workerSystem).toContain('## Web 平台工具映射');
+    expect(workerSystem).toContain('工作员没有 vault_command');
+    expect(workerSystem).toContain(await readFile(join(process.cwd(), 'examples/native-vault/teaching/workers/base.md'), 'utf8'));
     expect(offered.includes('vault_save')).toBe(allowedWrite);
     expect(JSON.stringify(requests[0]?.messages)).toContain(allowedWrite ? 'workspace-write' : 'read-only');
     expect(await harness.vaultExists(path)).toBe(allowedWrite);
@@ -151,6 +157,7 @@ test('五预设真实请求使用独立职责与配置；只读工作员能读�
     const group = requests.filter(row => row.messages.some(message => message.role === 'user' && message.content.some(block => block.text?.includes(`完成${preset}限定工作`))));
     expect(group.length, preset).toBeGreaterThan(0);
     const system = effectiveSystemText(group[0]!);
+    expect(system).toContain('## Web 平台工具映射');
     expect(system).toContain(`# ${names[preset as keyof typeof names]}`);
     expect(system).not.toContain('你是教学者');
     expect(JSON.stringify(group)).not.toContain('PARENT_ONLY_BACKGROUND');

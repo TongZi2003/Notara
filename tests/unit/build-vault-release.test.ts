@@ -16,8 +16,8 @@ test('release inventory includes all Windows executable, source and license asse
     'scripts/entry.ts', 'examples/pixel-classroom/package.json', 'resources/font.txt', 'resources/icons/notara.ico', 'docs/install.md', 'docs/first-lesson.md', 'docs/runtime/plugins.md',
     'docs/runtime/vault-launcher.md', 'docs/runtime/windows-native-vault.md', 'docs/runtime/upstream-lock.json', 'docs/runtime/chatgpt-account.md', 'docs/runtime/remote-access.md']) await text(path);
   await text('package.json', JSON.stringify({ devDependencies: { '@deepseek-ai/dsh': '0.2.0-rc.1', '@deepseek-ai/cordis': '4.0.4' } }));
-  await text('examples/native-vault/package.json', JSON.stringify({ version: '0.23.2' }));
-  await text('docs/runtime/update-contract.json', JSON.stringify({ dataVersion: 4 }));
+  await text('examples/native-vault/package.json', JSON.stringify({ version: '0.24.1' }));
+  await text('docs/runtime/update-contract.json', JSON.stringify({ dataVersion: 5 }));
   const files = ['busybox.exe', 'source.tgz', 'LICENSE.txt', 'NOTICE.txt'].map(name => `vendor/windows-posix/FRP-test/${name}`);
   for (const path of files) await text(path, `asset ${path}`);
   await text('vendor/windows-posix/FRP-test/.provision.lock', 'private lock');
@@ -29,8 +29,14 @@ test('release inventory includes all Windows executable, source and license asse
   const result = await buildRelease(join(root, 'output'), root, { windowsPosix: async source => {
     expect(source).toBe(root); return { executable: join(root, files[0]!), files };
   } });
+  expect(result.version).toBe('0.24.1');
   const entries = unzipSync(await readFile(result.archive));
-  const inventory = JSON.parse(new TextDecoder().decode(entries['notara/notara-files.json']!)) as { files: Record<string, string> };
+  const inventory = JSON.parse(new TextDecoder().decode(entries['notara/notara-files.json']!)) as { version: string; files: Record<string, string> };
+  const manifest = JSON.parse(await readFile(result.manifest, 'utf8')) as { version: string; archive: string; sha256: string; runtime: { dataVersion: number } };
+  expect(inventory.version).toBe(result.version);
+  expect(manifest).toMatchObject({ version: result.version, archive: 'notara-0.24.1.zip' });
+  expect(manifest.runtime.dataVersion).toBe(5);
+  expect(manifest.sha256).toMatch(/^[a-f0-9]{64}$/);
   for (const path of [...files, 'resources/icons/notara.ico', 'LICENSE', 'scripts/installer-character-progress.ps1', 'resources/installer/mascot-outline.json']) {
     expect(entries[`notara/${path}`]).toBeDefined();
     expect(inventory.files[path]).toBe(createHash('sha256').update(entries[`notara/${path}`]!).digest('hex'));

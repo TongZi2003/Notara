@@ -2,7 +2,7 @@ import { pluginEventType } from './plugin-events.js';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { appendTeachingEvent, readTeachingSettings } from './teaching-state.js';
-import { teachingResource, teachingManifest, canonicalTeachingId } from './teaching-catalog.js';
+import { teachingResource, teachingManifest, canonicalTeachingId, WEB_PLATFORM_MAPPING } from './teaching-catalog.js';
 import { workerProgress } from './worker-progress.js';
 import { WORKER_PRESETS, WORKER_TOOLS, workerPreset, workerAllows } from './worker-catalog.js';
 import { installWorkerPolicy } from './worker-policy.js';
@@ -107,7 +107,7 @@ function selectedSkills(value = [], adopted = []) {
 /** 角色任务正文：共同规则、共用概念、该预设职责与按需原则。 */
 function workerRole(preset, skills) {
   return [teachingResource('workers/base.md'), teachingResource('concepts.md'), teachingResource(`workers/${preset.id}.md`),
-    ...skills.map(item => `## 按需原则 ${item.name}\n\n${item.text()}`)].join('\n\n');
+    ...skills.map(item => `## 按需原则 ${item.name}\n\n${item.text()}`), WEB_PLATFORM_MAPPING].join('\n\n');
 }
 
 /** 一个 preset 的 route/tools；旧 persona 记录不再参与装配。 */

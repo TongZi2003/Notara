@@ -62,9 +62,7 @@
 
 ## 保存与生效
 
-用 `vault_command` 调用 skill-list、skill-read、skill-save；精确字段先 command-help。scope 为 set/global；启用与采用修订由学生确认，不能通过写入字段自行启用。
-
-提交修订前先用 `skill-list` 同时检查当前技能和待采用修订，并用 `skill-read` 读取它们的完整正文及 revision。若已有待采用修订，以那份待采用正文为合并起点：保留其中尚未采用的有效内容，把这次经核对的新内容并入，去掉重复或互相矛盾的表述，再用真实 revision 保存更新后的同一份修订；不要用旧的已启用正文覆盖它，也不要丢弃上一份修订后另起一份。保存后明确告诉学生：这是对上一份未采用修订的合并更新，仍需学生在技能页查看并决定采用。若没有待采用修订，则从当前启用正文出发，创建一份待采用修订。无论哪种情况，都核对保存回执和后续 `skill-list` 状态；不能把已保存或待采用说成已生效。
+经 Bash 用 `notara skill-list --input ...`、`notara skill-read --input ...`、`notara skill-save --input ...`；精确字段先读各自 `--help` 返回的 schema 和 example，复杂正文用 UTF-8 JSON 文件或 quoted heredoc，调用方式见 `notara-vault-workflow`。scope 为 set/global；启用与采用修订由学生确认，不能通过写入字段自行启用。
 
 ## 自查
 
@@ -75,4 +73,4 @@
 - 每条要点的“何时想起”具体到可以判断，写到机制；依据写清是学生主动发现还是老师给的。
 - 技能说明写清了这个主题的触发情形，看说明就知道什么时候该读它。
 - 篇幅合适；内容多时拆成几份，每份用自己的 `tags`。
-- 保存后用 `skill-list` 核对状态与待确认修订，而不是只看命令返回成功。
+- 保存后用 `notara skill-list` 核对状态与待确认修订，而不是只看命令返回成功。

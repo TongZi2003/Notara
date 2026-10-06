@@ -2,13 +2,13 @@
 
 先把小书桌安顿好，再抱着第一道题来找老师吧。第一次使用按「下载并打开 → 接好模型 → 选学习目录 → 发出问题」走就可以，不用一口气研究所有开关喵。
 
-适用源码版本：Notara 0.23.12 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。混合教法、资料工具与空间白板见[本版说明](releases/native-vault-0.23.12.md)，分支白板见[0.23.11 说明](releases/native-vault-0.23.11.md)，弹窗键盘修复见[0.23.10 说明](releases/native-vault-0.23.10.md)，自动恢复、关闭和单个桌面入口见[0.23.9 说明](releases/native-vault-0.23.9.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
+适用源码版本：Notara 0.24.1 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。自由白板、桌面学习 Skill 原文同步和 PDF 改进见[本版说明](releases/native-vault-0.24.1.md)，分支白板见[0.23.11 说明](releases/native-vault-0.23.11.md)，弹窗键盘修复见[0.23.10 说明](releases/native-vault-0.23.10.md)，自动恢复、关闭和单个桌面入口见[0.23.9 说明](releases/native-vault-0.23.9.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
 
-🐾 当前工作区为 **0.23.13-dev.4 未发布开发版**：新增一层对话分组，真实教材测试补齐了 PDF 中文映射、字体和图像解码资源，并调整了小尺寸页面的默认清晰度；PDF 摘要缓存最多保留 64 项。验证记录保存在开发工作区，公开源码不附带真实教材测量明细。下方下载链接仍指向已发布的 0.23.12。本轮仅用临时隔离实例验收，没有升级正在使用的程序或数据目录；对话记忆和资料归属保持原有机制。读书需要的资源会随开发版构建打包，运行时不用另找网站下载喵。
+🐾 0.24.1 纳入自由白板、PDF 书签与范围读取、中文字体和扫描页修复、窗格调换与一层课堂分组；读书和绘图资源随包分发。新白板的数据格式标识为 5：从 0.23.12 或更早版本升级前，停止服务并备份运行目录和外部学习目录，然后在新版目录执行 `vault:upgrade`。更新器会要求手动升级；旧程序不能安全读写新版自由白板，回退时也必须恢复升级前的数据备份。
 
 ## Windows x64 免安装版
 
-想少折腾环境，可以从 [0.23.12 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.23.12) 抱走 `notara-portable-0.23.12-win-x64.zip`，完整解压后双击「start-notara.cmd」。包内已经收好 Node.js、npm、Windows 依赖与构建产物，无需先安装系统 Node.js、Git 或运行安装脚本。运行要求仍为 Windows 10 1903+ / Windows 11 x64；首次启动要布置数据目录，请稍等一下，模型账号和可选的 ngrok 仍需自行配置。
+想少折腾环境，可以从 [0.24.1 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.24.1) 抱走 `notara-portable-0.24.1-win-x64.zip`，完整解压后双击「start-notara.cmd」。包内已经收好 Node.js、npm、Windows 依赖与构建产物，无需先安装系统 Node.js、Git 或运行安装脚本。运行要求仍为 Windows 10 1903+ / Windows 11 x64；首次启动要布置数据目录，请稍等一下，模型账号和可选的 ngrok 仍需自行配置。
 
 用「stop-notara.cmd」停止；需要桌面入口时运行「create-notara-shortcuts.cmd」。便携包的程序体积较大，课堂与资料仍保存在用户的 `.notara/vault-runtime`，并不写入程序包。
 

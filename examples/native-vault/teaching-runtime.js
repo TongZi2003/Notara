@@ -9,7 +9,7 @@ import { serializeFrontmatter } from './frontmatter.js';
 import { safeRelativePath, resolveVaultRoot } from './vault.js';
 import { lessonLog,parseLessonSummaries,upsertLessonSummary,parseRoute,renderRoute } from './lesson-data.js';
 import { scriptBodyRevision } from './script-binding.js';
-import { TEACHING_PRESET,teachingManifest,teachingResource,teachingResourcePath,currentTeachingBody } from './teaching-catalog.js';
+import { TEACHING_PRESET,teachingManifest,teachingResource,teachingResourcePath,currentTeachingBody,WEB_PLATFORM_MAPPING } from './teaching-catalog.js';
 import { readTeachingSettings,updateTeachingSettings,validateTeachingPatch,bindTeachingLesson,appendTeachingEvent,teachingCutoff,LESSON_EVENT,SUMMARY_EVENT } from './teaching-state.js';
 import { installAgentTools } from './agent-tools.js';
 import { teacherPersona } from './persona.js';
@@ -434,7 +434,7 @@ export function installTeachingRuntime(ctx,config={}) {
     // No workspace lookup here: this section must compose before any learning
     // set is registered. The concrete material root travels in the per-turn
     // context below, and the path rule itself lives in the teaching resources.
-    return teacherPersona(settings,teachingResource('persona.md'))+'\n\n'+teachingResource('base.md')+'\n\n'+teachingResource('concepts.md')+'\n\n'+currentTeachingBody(settings.teachingRef);
+    return teacherPersona(settings,teachingResource('persona.md'))+'\n\n'+teachingResource('base.md')+'\n\n'+teachingResource('concepts.md')+'\n\n'+currentTeachingBody(settings.teachingRef)+'\n\n'+WEB_PLATFORM_MAPPING;
   }}));
   ctx.on('system-prompt/assemble',async(assembly,context,next)=>{
     const result=await next(),agent=context.agent;

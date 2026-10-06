@@ -1,4 +1,4 @@
 {
-  "dataVersion": 4,
-  "note": "Bump when a release changes persistent data in a way that requires a backup or prevents reinstalling the old release. Automatic updates require this value and DSH/Cordis versions to match."
+  "dataVersion": 5,
+  "note": "Version 5 covers lesson board formatVersion 2 metadata and immutable scene/history refs. Notara 0.23.12 cannot read or safely write those fields. Automatic updates require this value and DSH/Cordis versions to match."
 }

@@ -51,12 +51,12 @@ Web 最初从 `746856e` 建工作树。收到用户《Notara-功能修改实施�
 
 | ID | 要求 | 实现及结果 |
 | --- | --- | --- |
-| S01 | 新版教学内容 | 合并 base/concepts/manifest/mixed 及 board、lesson-preparation、method-distillation、subject-math-prep、subject-chemistry-prep；包含引入/讲述/攻坚/复盘职责、任务权重、纵向因果/横向类比、深入问题和学科示例 |
-| S02 | 提示与实现一致 | 按 Web 实际工具动作、先读取、sceneOps 与 patch 并列、Host 原生选区协议适配，移除桌面 IPC/Pi 专有调用 |
+| S01 | 新版教学内容 | 10 月 6 日按用户要求改为原文同步：25 份 skills、concepts 与 mixed 共 27 份正文与 Desktop 9f50c26 的 Git blob 逐字一致；包含资料整理新增 PDF/pageRange 与找资料联网说明，不再保留先前的局部正文适配 |
+| S02 | 提示与实现一致 | 原文之外单独装配 Web 工具映射：实际 Vault/白板/课堂/Skill 工具、原生 PDF 持久附件与独立网页工具；sceneOps 与 patch 并列、Host 原生选区和现有权限边界不变 |
 | S03 | 技能和模板保护 | 保留 25 个内置技能、26 项按需资源、7 个旧菜单别名、既有 ID、启停/自定义/草稿/修订采用/继承/模板升级；浏览器回归通过 |
 | O01 | 工具数量 | Web 原有工具与权限边界保留，不整体复制桌面八工具或 Pi 会话 |
 | O02 | PDF 与分屏 | 文件容器用既有 PDF.js/CMaps/标准字体/WASM；资料 path+fragment、跳转/调换/关闭重开/刷新保持焦点与同一 composer/草稿 |
-| O03 | 桌面专有功能 | Electron/macOS/系统账户/窗口/默认目录/关闭保护不迁入 Web，沿用原生 Host 与会话生命周期 |
+| O03 | 桌面专有功能 | Electron/macOS/系统账户/原生窗口不迁入 Web；Web 已有学习目录选择、启动器准备默认工作区和独立关闭入口，沿用原生 Host 与会话生命周期。README 解释两端对应入口与运行数据目录 |
 
 ## 使用入口
 
@@ -118,6 +118,8 @@ agent-io.js、agent-media.js、pdf-resources.js、font-route.js、session-groups
 
 Host 选区回执提交前保留最多 10 分钟，Host 重启或过期后需重选，明确拒绝而不扩大范围。绘图/请求大小与历史上限仍生效，未新增自动清理。
 
-PDF 浏览器上传 50 MiB 与整文件阅读仍是上一轮边界，未宣称解决任意大文件内存或新增 OCR。真实模型回复质量、正式发布与现用安装升级不属于本次隔离验收。
+PDF 浏览器上传 50 MiB 与整文件阅读仍是上一轮边界，未宣称解决任意大文件内存或新增 OCR。真实模型回复质量与现用安装升级不属于本次隔离验收。
 
-变化已完成验收，留在 codex/whiteboard-web，随本文保存本地提交，未推送或合并。组合日志为 .runtime/migration-e2e-final.log，修正后的窄屏专项状态与截图在 .runtime/e2e-free-board/；构建与类型/插件/单元日志见上表。回滚可从 f22c860 创建分支对照，不要对另一对话的 checkout 执行 reset。完整迁移清单即本文。
+10 月 5 日的融合提交为 53a71ea，当时保存在 codex/whiteboard-web，未推送。10 月 6 日用户授权同步学长 Skill 原文并合并发布 0.24.1，原文同步证据见对应 dev-log，正式交付与升级边界见 docs/releases/native-vault-0.24.1.md；发布门禁结果以 GitHub Actions 和正式 Release 为准。新白板的 dataVersion 为 5，旧安装必须备份后手动升级；本次不修改另一对话的 checkout 或用户当前安装。
+
+融合组合日志为 .runtime/migration-e2e-final.log，修正后的窄屏专项状态与截图在 .runtime/e2e-free-board/；构建与类型/插件/单元日志见上表。回滚可从 f22c860 创建分支对照，不要对另一对话的 checkout 执行 reset。完整迁移清单即本文。
