@@ -22,10 +22,24 @@ test.skipIf(process.platform !== 'win32' || !archive)('portable ZIP starts with 
     // Exercise Windows' standard ZIP reader, not the same library that writes
     // the package. Environment values keep Unicode paths out of shell source.
     const extract = "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory($env:NOTARA_QA_ARCHIVE, $env:NOTARA_QA_OUTPUT)";
-    await execute(ps, ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(extract, 'utf16le').toString('base64')], {
-      env: { ...process.env, NOTARA_QA_ARCHIVE: resolve(archive!), NOTARA_QA_OUTPUT: directory },
-      cwd: directory, windowsHide: true, timeout: 150_000, maxBuffer: 1_000_000,
-    });
+    // Extracting every bundled runtime dependency can be slow on a cold hosted
+    // Windows disk. Keep a separate, bounded budget for the native ZIP reader.
+    const archiveBytes = (await stat(resolve(archive!))).size;
+    const extractionTimeout = 360_000, extractionStartedAt = Date.now();
+    console.info(`Portable QA ZIP: ${archiveBytes} bytes; native extraction budget: ${extractionTimeout}ms`);
+    try {
+      await execute(ps, ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(extract, 'utf16le').toString('base64')], {
+        env: { ...process.env, NOTARA_QA_ARCHIVE: resolve(archive!), NOTARA_QA_OUTPUT: directory },
+        cwd: directory, windowsHide: true, timeout: extractionTimeout, maxBuffer: 1_000_000,
+      });
+      console.info(`Portable QA native extraction completed in ${Date.now() - extractionStartedAt}ms`);
+    } catch (error) {
+      const details = error as { code?: string | number; signal?: string | null; killed?: boolean; stdout?: string; stderr?: string };
+      const diagnostic = { code: details.code, signal: details.signal, killed: details.killed,
+        archiveBytes, timeout: extractionTimeout, elapsed: Date.now() - extractionStartedAt,
+        stdout: details.stdout?.slice(0, 4096), stderr: details.stderr?.slice(0, 4096) };
+      throw new Error(`Windows ZIP extraction failed ${JSON.stringify(diagnostic)}`, { cause: error });
+    }
     expect(await readdir(project), 'Windows extraction must include all English launchers').toEqual(expect.arrayContaining(['start-notara.cmd', 'stop-notara.cmd', 'create-notara-shortcuts.cmd']));
     await mkdir(profile);
     const guard = join(directory, 'network-guard.mjs');
@@ -88,4 +102,4 @@ test.skipIf(process.platform !== 'win32' || !archive)('portable ZIP starts with 
     expect(dirname(await realpath(directory)).toLowerCase()).toBe((await realpath(tmpdir())).toLowerCase());
     await rm(directory, { recursive: true, force: true });
   }
-}, 300_000);
+}, 600_000);
