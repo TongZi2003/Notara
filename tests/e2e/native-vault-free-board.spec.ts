@@ -135,6 +135,9 @@ async function addBlock(page: Page, type: 'text' | 'drawing' | 'mindmap' | 'figu
     return card;
   }
   await expect(editor).toBeVisible({ timeout: 30_000 });
+  // The dialog mounts before its asynchronous content read has initialized
+  // the draft; the header Save button reflects actual editor readiness.
+  await expect(editor.locator(':scope > header').getByRole('button', { name: '保存', exact: true })).toBeEnabled({ timeout: 30_000 });
   return editor;
 }
 
@@ -380,6 +383,7 @@ test('teacher list/read/apply/undo preserves originals, manual links, groups, an
 
     const pinnedEditor = await addBlock(page, 'text', '可引用原稿', '这块原稿用于验证白板引用入口。');
     await pinnedEditor.getByRole('button', { name: '返回白板', exact: true }).click();
+    await expect(pinnedEditor).toBeHidden();
     const pinnedBlock = await findBlock(await readBoard(client, sessionId), '可引用原稿');
     const beforePinnedAsk = (await client.turns(sessionId)).length;
     const pinnedCard = boardPane(page).locator('.nb-block').filter({ has: page.getByRole('heading', { name: pinnedBlock.title, exact: true }) });
