@@ -236,3 +236,14 @@ export const EXCALIDRAW_ASSETS=Object.freeze({
   "excalidraw/fonts/Xiaolai/Xiaolai-Regular-f6032fc06eb20480f096199713f70885.woff2": "font/woff2",
   "excalidraw/fonts/Xiaolai/Xiaolai-Regular-f8ee5d36068a42b51d0e4a1116cfcec1.woff2": "font/woff2"
 });
+
+// These are package notices, not lazy resources exposed to the browser. The
+// font files remain individually allowlisted above; this file is copied into
+// the plugin snapshot so redistribution keeps their source declarations.
+export const EXCALIDRAW_FONT_NOTICE_FILE='THIRD-PARTY-NOTICES.txt';
+export const EXCALIDRAW_FONT_LICENSES=Object.freeze({
+  'SIL Open Font License 1.1':Object.freeze(['Assistant','Excalifont','Lilita','Nunito','Virgil','Xiaolai']),
+  'MIT License':Object.freeze(['ComicShanns']),
+  'Cascadia Code license':Object.freeze(['Cascadia']),
+  'Liberation license reference':Object.freeze(['Liberation']),
+});

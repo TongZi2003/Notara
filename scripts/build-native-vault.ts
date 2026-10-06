@@ -1,11 +1,12 @@
 import { build } from 'esbuild';
-import { readFile, writeFile, cp, rm, readdir } from 'node:fs/promises';
+import { readFile, writeFile, cp, rm, readdir, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { outputNamed } from './package-bin.ts';
 import { ACADEMY_FILES } from '../examples/native-vault/academy.js';
 import { PDF_RESOURCE_FILES } from '../examples/native-vault/pdf-resources.js';
 import { withVaultBuild } from './vault-build-lock.ts';
 import {boardReact,excalidrawLocalAssets} from './board-editor-build.ts';
+import {EXCALIDRAW_FONT_LICENSES,EXCALIDRAW_FONT_NOTICE_FILE} from '../examples/native-vault/excalidraw-assets.js';
 
 await withVaultBuild(resolve('.'), 'native-vault', async () => {
 // Patches also read/write shared dependencies, so run only after acquiring the
@@ -89,6 +90,9 @@ const excalidrawFontRoot=resolve('node_modules/@excalidraw/excalidraw/dist/prod/
 const installedDrawingFonts=(await readdir(excalidrawFontRoot,{recursive:true,withFileTypes:true})).filter(entry=>entry.isFile()).map(entry=>'excalidraw/fonts/'+entry.parentPath.slice(excalidrawFontRoot.length+1).replaceAll('\\','/')+'/'+entry.name).sort();
 const reviewedDrawingFonts=Object.keys(LAZY_FILES).filter(name=>name.startsWith('excalidraw/fonts/')).sort();
 if(JSON.stringify(installedDrawingFonts)!==JSON.stringify(reviewedDrawingFonts))throw Error('Excalidraw font manifest differs from locked dependency; review it before building');
+const drawingFontFamilies=[...new Set(reviewedDrawingFonts.map(name=>name.split('/')[2]))].sort();
+const licensedDrawingFontFamilies=[...new Set(Object.values(EXCALIDRAW_FONT_LICENSES).flat())].sort();
+if(JSON.stringify(drawingFontFamilies)!==JSON.stringify(licensedDrawingFontFamilies))throw Error('Excalidraw font notice map differs from locked dependency; review it before building');
 await rm(resolve('examples/native-vault/lazy'), { recursive: true, force: true });
 for (const name of Object.keys(LAZY_FILES)) {
   const source = LAZY_SOURCES[name] ?? (name.startsWith('excalidraw/fonts/') ? 'node_modules/@excalidraw/excalidraw/dist/prod/'+name.slice('excalidraw/'.length) : name==='excalidraw/LICENSE.txt' ? 'resources/licenses/excalidraw-MIT.txt' : undefined), entry = LAZY_BUILDS[name];
@@ -96,6 +100,9 @@ for (const name of Object.keys(LAZY_FILES)) {
   else if (entry) await build({ entryPoints: [resolve(entry)], outfile: resolve('examples/native-vault/lazy', name), bundle: true, format: 'esm', platform: 'browser', target: 'es2022', minify: true, legalComments: 'eof', logLevel: 'error', conditions:['production'], define:{'process.env.NODE_ENV':'"production"'},plugins:[boardReact,excalidrawLocalAssets,{name:'editor-styles',setup(builder){builder.onLoad({filter:/\.css$/},async args=>({contents:await readFile(args.path,'utf8'),loader:'text'}));}}] });
   else throw new Error(`native-vault lazy module ${name} has no build source`);
 }
+const fontNoticeTarget=resolve('examples/native-vault/lazy/excalidraw/fonts',EXCALIDRAW_FONT_NOTICE_FILE);
+await mkdir(dirname(fontNoticeTarget),{recursive:true});
+await cp(resolve('resources/licenses/excalidraw-fonts-notices.txt'),fontNoticeTarget);
 // JSXGraph is dual MIT/LGPL; its notice ships beside the module it is built into.
 await cp(resolve('node_modules/jsxgraph/LICENSE.MIT'), resolve('examples/native-vault/lazy/LICENSE-JSXGraph.txt'));
 // CMaps, fonts and image decoders are needed only when reading a PDF. Ship

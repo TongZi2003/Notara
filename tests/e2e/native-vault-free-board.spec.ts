@@ -89,7 +89,14 @@ async function currentSession(page: Page): Promise<string> {
 }
 
 async function readBoard(client: Awaited<ReturnType<typeof connectVault>>, sessionId: string): Promise<BoardSnapshot> {
-  return client.value(await client.rpc<BoardSnapshot>('notaraVault/board', { input: { sessionId } }));
+  let retries = 0;
+  for (;;) {
+    try { return client.value(await client.rpc<BoardSnapshot>('notaraVault/board', { input: { sessionId } })); }
+    catch (error) {
+      if (!(error instanceof Error) || !error.message.includes('资料已被修改，请刷新后再试') || retries >= 3) throw error;
+      await new Promise<void>(resolve => setTimeout(resolve, 25 * (2 ** retries++)));
+    }
+  }
 }
 
 async function readBlockContent(client: Awaited<ReturnType<typeof connectVault>>, sessionId: string, blockId: string): Promise<BoardContent> {
