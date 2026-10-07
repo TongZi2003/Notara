@@ -61,6 +61,14 @@ git --version
 
 第一条应为 `v24` 或更新。安装或切换 Node 后，请重新打开终端。
 
+## OpenCode Go
+
+在模型设置中填服务地址、API Key 和模型 ID，并选择该模型使用的接口协议。模型与协议以 [OpenCode Go 官方目录](https://opencode.ai/docs/go/#endpoints) 为准：OpenAI Completions/Responses 使用 `https://opencode.ai/zen/go/v1`，Anthropic Messages 使用 `https://opencode.ai/zen/go`。例如 GLM 使用 `openai-completions`，GPT 使用 `openai-responses`，MiniMax 使用 `anthropic-messages`。
+
+Notara 对这两个官方服务地址自动发送稳定的 `x-opencode-session` 和自身客户端标识。同一课堂的续聊、重试、压缩和标题生成沿用课堂 ID，新课堂使用自己的 ID；无需手工配置该请求头、安装其他插件或另开代理。服务商配置名可以自定义。OpenAI SDK 在所填地址后追加 `/chat/completions` 或 `/responses`，Anthropic SDK 追加 `/v1/messages`；按对应协议填写地址，避免重复拼接。
+
+兼容处理只作用于官方 Go 服务地址，其他 API 与订阅接入继续使用原有请求头。OpenCode Go 的额度、支持的模型和使用要求以服务商为准。
+
 ## 第一次启动
 
 ```sh

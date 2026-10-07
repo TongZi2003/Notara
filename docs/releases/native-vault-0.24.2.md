@@ -25,6 +25,10 @@
 - ngrok两路进程输出分别限长并脱敏，保留真正的退出错误；已释放视图的正常取消不再误报打开失败。
 - 25份学习Skill、混合教法与共用概念共27份教学正文保持0.24.1采用的桌面原文。
 
+## OpenCode Go
+
+内置支持 OpenCode Go 官方地址：Anthropic Messages 使用 `https://opencode.ai/zen/go`，OpenAI Completions/Responses 使用 `https://opencode.ai/zen/go/v1`。请求以 `x-opencode-session` 稳定复用原生课堂 ID，并使用 Notara 自有 User-Agent；其他服务和订阅的请求头、认证与地址保持原有行为。
+
 ## 下载与升级
 
 - Windows x64免安装包：`notara-portable-0.24.2-win-x64.zip`，完整解压后运行 `start-notara.cmd`，另提供 `.sha256` 校验文件。
@@ -38,5 +42,7 @@
 ## 验证范围
 
 修复通过本地构建、类型、插件、单元、集成与真实浏览器回归，浏览器使用隔离Vault、合成课堂与测试模型。正式发布流程分别执行Windows命令/安装/恢复/便携启动检查与Linux类型、单元、集成、浏览器检查；两种ZIP在打包时独立解压核对全部条目CRC和长度，更新清单与便携包附带SHA-256。
+
+OpenCode Go 三种 SDK 协议的请求头集成回归 10/10 PASS；ChatGPT 回归 Node 23/23、隔离浏览器 1/1 PASS；补丁脚本类型、构建与 postinstall 验证 PASS。回归使用合成凭据和拦截请求，未使用真实 OpenCode Go 账号，也未发起付费请求。
 
 这些检查不代表真实付费模型、ngrok公网账号或实际教学质量的验收，本次没有修改真实学习数据。
