@@ -58,7 +58,7 @@ test('figures and flow diagrams render, explore and take answers on the board', 
     }, { timeout: 10_000 }).toBe(true);
     await board(page).getByRole('button', { name: '全览', exact: true }).click();
     // 全览 never shrinks below half size.
-    expect(parseInt(await board(page).locator('.nb-toolbar').getByText(/^\d+%$/).textContent() ?? '0', 10)).toBeGreaterThanOrEqual(50);
+    expect(Number(await board(page).getByRole('spinbutton', { name: '缩放百分比' }).inputValue())).toBeGreaterThanOrEqual(50);
     // …and keeps the latest block wholly in view, with earlier sections to its left.
     await expect.poll(async () => {
       const [block, pane] = await Promise.all([latestBlock.boundingBox(), board(page).boundingBox()]);
