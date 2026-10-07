@@ -19,6 +19,7 @@ import { CANVAS_CSS, LESSON_ROLES, createVaultCanvas } from './canvas-client.js'
 import { VIEW_IDS } from './views-client.js';
 import { mediaLocatorSuffix, parseMediaTarget } from './media.js';
 import { createVaultClient, visibleInterval } from './remote-client.js';
+import { createProjectionReader } from './projection-client.js';
 import { STAR_CSS, createStarMap, routeStarLayout } from './star-map-client.js';
 import { routeForestLayout } from './forest-client.js';
 
@@ -218,14 +219,21 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
     kind === 'sequence' && h('polygon', { points: '17,2.5 25,5 17,7.5', 'data-edge': kind }));
 
   function useRoutes(vault, visible) {
-    const [state, setState] = useState({ data: { routes: [], nodes: [], edges: [] }, loading: true, error: '', tick: 0 });
+    const [state, setState] = useState({ data: { routes: [], nodes: [], edges: [] }, loading: true, error: '' });
+    const reader=useMemo(()=>createProjectionReader(input=>vault.routes(input)),[vault]);
+    const dataKey=useRef(null);
+    const generation=useRef(0);
     const call = useRef(async () => {});
     call.current = async () => {
+      const ticket=++generation.current;
       try {
-        const result = await vault.routes({});
+        const result = await reader.read();
         if (!result?.ok) throw new Error('read');
-        setState(previous => ({ data: JSON.stringify(previous.data) === JSON.stringify(result.value) ? previous.data : result.value, loading: false, error: '', tick: previous.tick + 1 }));
-      } catch { setState(previous => ({ ...previous, loading: false, error: '暂时无法读取学习路线，请稍后重试。' })); }
+        if(ticket!==generation.current)return;
+        const key=result.value;
+        if(key===dataKey.current)setState(previous=>previous.loading||previous.error?{...previous,loading:false,error:''}:previous);
+        else{dataKey.current=key;setState({data:result.value,loading:false,error:''});}
+      } catch { if(ticket===generation.current)setState(previous => ({ ...previous, loading: false, error: '暂时无法读取学习路线，请稍后重试。' })); }
     };
     useEffect(() => {
       if (!visible) return;
@@ -234,7 +242,7 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
       const refresh = () => { void call.current(); };
       window.addEventListener('notara-vault-changed', refresh);
       window.addEventListener('focus', refresh);
-      return () => { timer(); window.removeEventListener('notara-vault-changed', refresh); window.removeEventListener('focus', refresh); };
+      return () => { generation.current++;timer(); window.removeEventListener('notara-vault-changed', refresh); window.removeEventListener('focus', refresh); };
     }, [vault, visible]);
     return [state, () => call.current()];
   }
@@ -257,6 +265,7 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
     const [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [creating, setCreating] = useState(false), [overview, setOverview] = useState(false);
     const [title, setTitle] = useState(''), [lines, setLines] = useState('');
     const [log, setLog] = useState({ status: 'loading', hits: [], total: 0 });
+    const logKey=useRef('');
     const [media, setMedia] = useState({});
     const root = useRef(null), resize = useRef(null);
     const routes = state.data?.routes ?? [];
@@ -264,19 +273,23 @@ export function createVaultRoutes(React, { STYLE, IconButton, Dialog, CodeMirror
     useEffect(() => { if (route && route.path !== selectedPath) setSelectedPath(route.path); }, [route?.path]);
     // In 计划 the panel lists the routes: follow its choice and report ours back.
     useEffect(() => { if (props.routePath && props.routePath !== selectedPath) { setSelectedPath(props.routePath); setSelected(''); } }, [props.routePath]);
-    useEffect(() => { if (route?.path) props.onRouteChange?.(route.path); }, [route?.path]);
+    useEffect(() => { if (route?.path) props.onRouteChange?.(route.path); }, [route?.path,props.onRouteChange]);
     useEffect(() => {
-      let live = true;
+      if(!props.visible)return;
+      let live = true,generation=0;
+      const accept=next=>{if(!live)return;const key=JSON.stringify(next);if(key!==logKey.current){logKey.current=key;setLog(next);}};
       const load = async () => {
+        const ticket=++generation;
         try {
           const result = await vault.lessonLog({ limit: 8 });
-          if (live) setLog(result?.ok ? { status: 'ready', hits: result.value.hits ?? [], total: result.value.total ?? 0 } : { status: 'failed', hits: [], total: 0 });
-        } catch { if (live) setLog({ status: 'failed', hits: [], total: 0 }); }
+          if(ticket!==generation)return;
+          accept(result?.ok ? { status: 'ready', hits: result.value.hits ?? [], total: result.value.total ?? 0 } : { status: 'failed', hits: [], total: 0 });
+        } catch { if(ticket===generation)accept({ status: 'failed', hits: [], total: 0 }); }
       };
-      if (props.visible) void load();
+      void load();const timer=visibleInterval(load,2500);
       window.addEventListener('notara-vault-changed', load);
-      return () => { live = false; window.removeEventListener('notara-vault-changed', load); };
-    }, [vault, props.visible, state.tick]);
+      return () => { live = false;timer();window.removeEventListener('notara-vault-changed', load); };
+    }, [vault, props.visible]);
 
     const projection = useMemo(() => routeProjection(state.data, route?.path), [state.data, route?.path]);
     const byKey = useMemo(() => new Map(projection.nodes.map(row => [row.key, row])), [projection]);

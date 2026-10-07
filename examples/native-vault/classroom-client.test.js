@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { CLASSROOM_VIEW, WORKER_MODEL_PLACEHOLDER, WORKER_STATUS, WORKER_TOOL_NAME, availableRoute, canInspectTask, candidateRouteFor, showsInspectAction, workerFootnote, classroomSummary, draftRoute, draftTools, elapsedLabel, hasRunningTask, isWorkerTool, modelChoices, normalizeRoute, normalizeTools, followLabel, presetLabel, taskProgressLabel, taskRows, toolRowProjection, workerById, workerConfigInput, workerDraft, workerDraftKey, workerPresetLabel, workerRouteNotice, workerRowProjection, workerRows, workerScopeLabel } from './classroom-client.js';
+import { CLASSROOM_VIEW, WORKER_MODEL_PLACEHOLDER, WORKER_STATUS, WORKER_TOOL_NAME, availableRoute, canInspectTask, candidateRouteFor, configureSolverFailureMessage, isSolverSettingsConflict, showsInspectAction, workerFootnote, classroomSummary, draftRoute, draftTools, elapsedLabel, hasRunningTask, isWorkerTool, modelChoices, normalizeRoute, normalizeTools, followLabel, presetLabel, taskProgressLabel, taskRows, toolRowProjection, workerById, workerConfigInput, workerDraft, workerDraftKey, workerPresetLabel, workerRouteNotice, workerRowProjection, workerRows, workerScopeLabel } from './classroom-client.js';
 import { VAULT_REMOTE_METHODS } from './remote-client.js';
 import { WORKER_PRESETS, WORKER_TOOLS } from './worker-catalog.js';
 import { taskElapsedLabel } from './classroom-client.js';
+import { SOLVER_SETTINGS_CONFLICT_CODE, SOLVER_SETTINGS_CONFLICT_MESSAGE } from './solver-policy.js';
 
 test('finished task durations stay fixed; interrupted tasks without an end time do not keep running', () => {
   const startedAt = '2026-09-23T06:00:00.000Z', finishedAt = '2026-09-23T06:00:12.000Z';
@@ -36,6 +37,16 @@ const payload = (extra = {}) => ({
 /** The view plus one named worker, which is the unit every helper works on. */
 const view = (extra = {}) => classroomSummary(payload(extra));
 const pick = (extra, id = 'problem') => workerById(view(extra), id);
+
+test('只有明确的解题设置冲突才显示 CAS 提示，通用 RPC 错误保留草稿并显示保存失败', () => {
+  assert.equal(isSolverSettingsConflict({ code: SOLVER_SETTINGS_CONFLICT_CODE }), true);
+  assert.equal(isSolverSettingsConflict({ code: 'gateway/internal', message: SOLVER_SETTINGS_CONFLICT_MESSAGE }), true);
+  assert.equal(isSolverSettingsConflict({ code: 'gateway/internal', message: '操作未完成，请检查内容后重试。' }), false);
+  assert.equal(isSolverSettingsConflict({ code: 'gateway/internal', message: `前缀${SOLVER_SETTINGS_CONFLICT_MESSAGE}` }), false);
+  assert.equal(configureSolverFailureMessage({ code: 'gateway/internal', message: SOLVER_SETTINGS_CONFLICT_MESSAGE }, true), '教室设置已经在别处更新，已读到最新内容；你的选择仍然保留。');
+  assert.equal(configureSolverFailureMessage({ code: 'gateway/internal', message: '操作未完成，请检查内容后重试。' }, true), '保存失败，你的选择仍然保留在窗口里。');
+  assert.equal(configureSolverFailureMessage({ code: SOLVER_SETTINGS_CONFLICT_CODE }, false), '教室设置没有保存，最新内容暂时未能读取；你的选择仍然保留，请重试。');
+});
 
 test('教室 value 投影 Host 给的五位工作员与真实模型列表，不合并成一个角色', () => {
   const summary = view();

@@ -7,6 +7,7 @@ import { validateBoardSourceRef } from './board-mindmap.js';
 
 /** Host-bound lesson boards live here; only write_lesson_board writes them. */
 export const BOARD_DIRECTORY='lesson-board';
+export const BOARD_HISTORY_LIMIT=2000;
 export const BOARD_KINDS = ['note','question','hint','reference','attempt'];
 const fail = code => { throw new Error(code); };
 const marker = /^<!-- notara-board (\{[^\n]*\}) -->\r?\n/gm;
@@ -75,7 +76,7 @@ function canvasMetadata(board,blocks){
       objects.add(group.id);return {id:group.id,title:group.title,members:[...group.members]};
     });
   }
-  if(board.historyRefs!==undefined){if(!Array.isArray(board.historyRefs)||board.historyRefs.length>2000||!board.historyRefs.every(hash))fail('board_history_invalid');out.historyRefs=[...board.historyRefs];}
+  if(board.historyRefs!==undefined){if(!Array.isArray(board.historyRefs)||board.historyRefs.length>BOARD_HISTORY_LIMIT||!board.historyRefs.every(hash))fail('board_history_invalid');out.historyRefs=[...board.historyRefs];}
   return out;
 }
 /**

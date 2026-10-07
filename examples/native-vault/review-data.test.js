@@ -69,6 +69,15 @@ test('record contract names each unusable field', () => {
   assert.equal(stateOf(record(card({}), request('2026-09-20', { result: 'unchecked' }))).learned, false);
 });
 
+test('new evaluation days must match the Host timestamp within one timezone day', () => {
+  const at = '2026-09-20T04:00:00.000Z';
+  for (const day of ['1970-01-01', '2042-01-01']) {
+    assert.throws(() => record(card({}), request(day, judged(), { at })), /review_request_invalid/);
+  }
+  const localTomorrow = record(card({}), request('2026-09-21', judged(), { at: '2026-09-20T12:00:00.000Z' }));
+  assert.equal(stateOf(localTomorrow).last_review, '2026-09-21');
+});
+
 test('a record written with depth and a next check (0.20.0–0.20.1) stays readable and never moves the tier', () => {
   const unlearned = { learned: false, mastery: 0, interval: null, last_review: null, next_review: null };
   const older = { id: 'four-part', at: '2026-09-20T04:00:00.000Z', day: '2026-09-20', keyStep: '列出样本空间', result: 'done',
@@ -131,6 +140,15 @@ test('the calendar carries the key step of a new record', () => {
   const review = calendar.events.find(event => event.kind === 'review');
   assert.deepEqual({ keyStep: review.keyStep, result: review.result }, judged());
   assert.equal('assessments' in review, false);
+});
+
+test('calendar projection sorts documents whose title is absent', () => {
+  const documents = ['2026-09-20.md', '日记/2026-09-20.md'].map(path => ({
+    path, content: '', frontmatter: {}, type: undefined, revision: 'rev',
+  }));
+  const result = calendarProjection(documents, { from: '2026-09-20', to: '2026-09-20', today: '2026-09-20', timeZone: 'UTC' });
+  assert.equal(result.events.length, 2);
+  assert.deepEqual(result.events.map(event => event.title), ['', '']);
 });
 
 test('each record generation reads as its own text', () => {

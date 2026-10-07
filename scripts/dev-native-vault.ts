@@ -1,4 +1,4 @@
-import { chmod, cp, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises';
+import { cp, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { execFile, spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -6,7 +6,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import lockfile from 'proper-lockfile';
-import { ensureVaultAliases, httpUrlPort, installedPluginRoot, isBrowserBlockedPort, liveVaultUrl, mustUpgradeBeforeStart, pluginVersions, readVaultState, vaultPluginLinks, writeVaultState, validateVaultPort } from './vault-launcher-state.ts';
+import { ensureVaultAliases, httpUrlPort, installedPluginRoot, isBrowserBlockedPort, liveVaultUrl, mustUpgradeBeforeStart, pluginVersions, readVaultState, vaultPluginLinks, writeVaultState, validateVaultPort, upgradeBeforeStartMessage } from './vault-launcher-state.ts';
 import { packageBin } from './package-bin.ts';
 import { ensureWindowsPosix } from './windows-posix.ts';
 import { withVaultBuiltSnapshot } from './vault-build-lock.ts';
@@ -14,6 +14,7 @@ import { confirmTaskkillExited } from './taskkill-result.ts';
 import { acquireVaultRootLock } from './vault-root-lock.ts';
 import { upgradeLegacySettings } from './legacy-settings.ts';
 import { studentProfile } from './vault-profile.ts';
+import { writePrivateFile } from './remote-access-config.ts';
 import { VAULT_TEST_MODEL, VAULT_TEST_PROVIDER } from './fixtures/vault-test-model.ts';
 // @ts-expect-error Native Vault is plain JS; the preset module has no declarations.
 import { TEACHER_PRESET, TEACHER_PRESET_ID } from '../examples/native-vault/teacher-preset.js';
@@ -115,7 +116,7 @@ export async function startVaultPersistent(rootInput: string, options: VaultPers
     let state = await readVaultState(root);
     if (state) {
       const versions = await vaultVersions(root);
-      if (mustUpgradeBeforeStart(versions)) throw new Error(`这个数据目录的插件是 ${versions.snapshot}，代码目录是 ${versions.checkout}。0.21.0 起 DSH 升到 0.2.0，会把打开过的课迁成新格式，旧版读不了。先整份备份数据目录，再运行 npm run vault:upgrade，然后启动。`);
+      if (mustUpgradeBeforeStart(versions)) throw new Error(upgradeBeforeStartMessage(versions));
     }
     if (!state) {
       if ((await readdir(root)).length) throw new Error('数据目录已存在且未登记为持久化 Vault；请先迁移，不能重新初始化。');
@@ -425,8 +426,7 @@ async function bootVault(root: string, options: VaultOptions & { preserve?: bool
       if (options.preserve) port = actualPort;
       await options.onReady?.(actualPort);
       const launcher = join(root, 'launcher.json');
-      await writeFile(launcher, JSON.stringify({ pid: child.pid, parentPid: process.pid, workspace, node: process.versions.node, testModel: options.testModel === true, authUrl }), { mode: 0o600 });
-      await chmod(launcher, 0o600);
+      await writePrivateFile(launcher, JSON.stringify({ pid: child.pid, parentPid: process.pid, workspace, node: process.versions.node, testModel: options.testModel === true, authUrl }));
     }
     return { ready: ready(), stopProcess, authUrl: () => authUrl, log: () => redact(output) };
   }

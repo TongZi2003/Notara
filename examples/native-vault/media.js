@@ -1,6 +1,80 @@
-/** Existing PDF files may be read up to this size; upload limits are separate. */
+/** The browser's whole-file data URL reader stays below V8's string limit and
+ * the extra copies created by atob/Uint8Array. Larger assets need a bounded
+ * reader; the Host's PDF page path has its own range-based limit below. */
+export const ASSET_DATA_URL_MAX_BYTES = 256 * 1024 * 1024;
+/** PDF page tools use bounded native byte ranges, not a whole-file data URL. */
 export const PDF_FILE_MAX_BYTES = 512 * 1024 * 1024;
 export const PDF_FILE_LIMIT_NOTICE = '这份 PDF 超过 512 MiB，当前无法使用。请先拆成较小的文件再打开。';
+/** Each browser RPC transfers at most this many raw PDF bytes. */
+export const PDF_RANGE_RPC_MAX_BYTES = 1024 * 1024;
+/** Refuse pathological PDF.js recovery requests instead of reassembling a book. */
+export const PDF_RANGE_REQUEST_MAX_BYTES = 32 * 1024 * 1024;
+/** Two in-flight ranges cap browser-side reconstruction buffers at 64 MiB. */
+export const PDF_RANGE_MAX_ACTIVE_REQUESTS = 2;
+/** Keep PDF.js bursts bounded without allocating buffers until work starts. */
+export const PDF_RANGE_MAX_PENDING_REQUESTS = 8;
+/** Bound simultaneous whole-file identity scans across remote requests. */
+export const PDF_RANGE_OPEN_MAX_JOBS = 4;
+/** Bound native reads both per lease and across one Vault store. */
+export const PDF_RANGE_MAX_ACTIVE_PER_LEASE = 2;
+export const PDF_RANGE_MAX_ACTIVE_PER_STORE = 4;
+/** A range reader may fetch the verified file twice plus bounded retry headroom. */
+export const PDF_RANGE_SESSION_EXTRA_BYTES = 64 * 1024 * 1024;
+
+const PDF_RANGE_REMOTE_ERROR_MESSAGES = new Set([
+  'vault_asset_range_busy', 'vault_asset_range_expired', 'vault_asset_range_budget_exceeded',
+  'vault_asset_range_queue_full', 'vault_asset_range_request_too_large',
+  'vault_pdf_too_large', 'vault_revision_conflict',
+]);
+
+/** Typert wraps ordinary Host Errors as gateway/internal; only restore known PDF codes. */
+export function remotePdfErrorCode(error) {
+  if (error?.code === 'gateway/internal' && PDF_RANGE_REMOTE_ERROR_MESSAGES.has(error.message)) return error.message;
+  return error?.code ?? error?.message ?? 'vault_asset_range_failed';
+}
+
+/** Small FIFO scheduler used by the PDF transport; queued jobs retain only offsets. */
+export function createBoundedJobQueue({ maxActive, maxPending }) {
+  if (!Number.isSafeInteger(maxActive) || maxActive < 1 || !Number.isSafeInteger(maxPending) || maxPending < 0) {
+    throw new TypeError('invalid_bounded_queue_limits');
+  }
+  const pending = [], pendingKeys = new Set(), activeKeys = new Set();
+  let closed = false;
+  function pump() {
+    while (!closed && activeKeys.size < maxActive && pending.length) {
+      const job = pending.shift();
+      pendingKeys.delete(job.key);
+      activeKeys.add(job.key);
+      Promise.resolve().then(job.run).catch(error => { try { job.onError(error); } catch {} }).finally(() => {
+        activeKeys.delete(job.key);
+        pump();
+      });
+    }
+  }
+  return Object.freeze({
+    enqueue(key, run, onError = () => {}) {
+      if (closed) return 'closed';
+      if (pendingKeys.has(key) || activeKeys.has(key)) return 'duplicate';
+      if (activeKeys.size >= maxActive && pending.length >= maxPending) return 'full';
+      pending.push({ key, run, onError });
+      pendingKeys.add(key);
+      pump();
+      return 'queued';
+    },
+    close() {
+      closed = true;
+      pending.length = 0;
+      pendingKeys.clear();
+    },
+    get activeCount() { return activeKeys.size; },
+    get pendingCount() { return pending.length; },
+  });
+}
+
+export function assertAssetDataUrlSize(size, kind) {
+  if (!Number.isSafeInteger(size) || size < 0) throw new Error('vault_asset_size_unavailable');
+  if (size > ASSET_DATA_URL_MAX_BYTES) throw new Error(kind === 'pdf' ? 'vault_pdf_data_url_too_large' : 'vault_asset_too_large');
+}
 
 /**
  * Code the Vault edits as plain text (no toolchain here: running and testing use
@@ -87,11 +161,16 @@ export function revisionForBytes(bytes) {
 export function mediaLocatorSuffix(locator) {
   if (!locator) return '';
   if (locator.kind === 'pdf-page') return `#page=${encodeURIComponent(locator.page)}${locator.revision ? `&revision=${encodeURIComponent(locator.revision)}` : ''}`;
-  if (locator.kind === 'pdf-region') return `#page=${encodeURIComponent(locator.page)}&rect=${locator.rect.map(value => encodeURIComponent(value)).join(',')}${locator.annotationId ? `&annotation=${encodeURIComponent(locator.annotationId)}` : ''}${locator.revision ? `&revision=${encodeURIComponent(locator.revision)}` : ''}`;
+  if (locator.kind === 'pdf-region') return `#page=${encodeURIComponent(locator.page)}&rect=${locatorRectText(locator.rect)}${locator.annotationId ? `&annotation=${encodeURIComponent(locator.annotationId)}` : ''}${locator.revision ? `&revision=${encodeURIComponent(locator.revision)}` : ''}`;
   if (locator.kind === 'video-time') return `#t=${encodeURIComponent(locator.startMs)}${locator.endMs === undefined ? '' : `,${encodeURIComponent(locator.endMs)}`}`;
-  if (locator.kind === 'image-region') return `#rect=${locator.rect.map(value => encodeURIComponent(value)).join(',')}`;
+  if (locator.kind === 'image-region') return `#rect=${locatorRectText(locator.rect)}`;
   if (locator.kind === 'html-range' && locator.anchor) return `#anchor=${encodeURIComponent(locator.anchor)}`;
   return '';
+}
+
+function locatorRectText(rect) {
+  if (!Array.isArray(rect) || rect.length !== 4 || Array.from(rect).some(value => !Number.isFinite(value))) throw new Error('media_locator_invalid');
+  return rect.map(value => encodeURIComponent(value)).join(',');
 }
 
 export function embedTarget(path, locator) {
@@ -173,8 +252,12 @@ export function parseMediaTarget(target) {
     return { path, locator: { kind: 'pdf-page', page, ...revisionParam(params) } };
   }
   if (key === 't') {
-    const [start, end] = (raw ?? '').split(',');
-    if (/^\d+$/.test(start ?? '') && (end === undefined || /^\d+$/.test(end))) return { path, locator: { kind: 'video-time', startMs: Number(start), ...(end === undefined ? {} : { endMs: Number(end) }) } };
+    const parts = (raw ?? '').split(',');
+    if (parts.length <= 2 && parts.every(part => /^\d+$/.test(part))) {
+      const times = parts.map(Number);
+      if (times.every(Number.isSafeInteger)) return { path, locator: { kind: 'video-time', startMs: times[0], ...(times.length === 2 ? { endMs: times[1] } : {}) } };
+    }
+    return invalidLocator(path);
   }
   if (key === 'rect') {
     const rect = rectNumbers(raw);

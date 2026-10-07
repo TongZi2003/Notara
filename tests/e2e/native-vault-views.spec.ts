@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type Request, type Response } from '@playwright/test';
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { startVaultIsolated, type VaultRuntime } from '../../scripts/dev-isolated.ts';
@@ -30,6 +30,43 @@ test('vault views keep file facts, node-centred graph details and one chat mount
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  const responseByRequest = new Map<Request, Response>();
+  page.on('response', response => responseByRequest.set(response.request(), response));
+  const waitForRpcResponse = async (request: Request) => {
+    const response = responseByRequest.get(request) ?? await page.waitForResponse(candidate => candidate.request() === request);
+    expect(response.ok()).toBe(true);
+    expect(await response.finished()).toBeNull();
+  };
+  let releaseFirstPdfRead!: () => void, releaseFocusedPdfRead!: () => void;
+  let signalFirstPdfReadContinued!: () => void, signalFocusedPdfReadStarted!: () => void, signalFocusedPdfReadContinued!: () => void;
+  const firstPdfReadGate = new Promise<void>(resolve => { releaseFirstPdfRead = resolve; });
+  const focusedPdfReadGate = new Promise<void>(resolve => { releaseFocusedPdfRead = resolve; });
+  const firstPdfReadContinued = new Promise<void>(resolve => { signalFirstPdfReadContinued = resolve; });
+  const focusedPdfReadStarted = new Promise<void>(resolve => { signalFocusedPdfReadStarted = resolve; });
+  const focusedPdfReadContinued = new Promise<void>(resolve => { signalFocusedPdfReadContinued = resolve; });
+  const releasePendingReads: Array<() => void> = [releaseFirstPdfRead, releaseFocusedPdfRead];
+  const pendingReadContinuations: Promise<void>[] = [firstPdfReadContinued, focusedPdfReadContinued];
+  let pdfAssetReadCount = 0;
+  let firstPdfReadRequest: Request | undefined, focusedPdfReadRequest: Request | undefined;
+  await page.route('**/api/notaraVault/readAsset', async route => {
+    const request = route.request().postDataJSON() as { payload?: { args?: { input?: { path?: string } } } };
+    if (request.payload?.args?.input?.path === '媒体/向量讲义.pdf') {
+      pdfAssetReadCount++;
+      const ordinal = pdfAssetReadCount;
+      const isFirstPdfRead = ordinal === 1, isFocusedPdfRead = ordinal === 2;
+      if (isFirstPdfRead) firstPdfReadRequest = route.request();
+      if (isFocusedPdfRead) focusedPdfReadRequest = route.request();
+      if (isFirstPdfRead) await firstPdfReadGate;
+      if (isFocusedPdfRead) { signalFocusedPdfReadStarted(); await focusedPdfReadGate; }
+      try { await route.continue(); }
+      finally {
+        if (isFirstPdfRead) signalFirstPdfReadContinued();
+        if (isFocusedPdfRead) signalFocusedPdfReadContinued();
+      }
+      return;
+    }
+    await route.continue();
+  });
   const expandRail = async () => {
     const toggle = page.getByRole('button', { name: '展开文件栏', exact: true }).first();
     if (await toggle.isVisible().catch(() => false)) await toggle.click();
@@ -46,6 +83,9 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     await expect(tab(page, '对话').target).toBeVisible();
     await railNav(page).getByRole('button', { name: 'Vault', exact: true }).click();
     await expect(tab(page, '文件').target).toBeVisible();
+    await tab(page, '文件').click();
+    await page.getByRole('group', { name: '文件列表' }).getByRole('button', { name: /向量讲义\.pdf/ }).first().click();
+    await expect.poll(() => pdfAssetReadCount, { timeout: 10_000 }).toBe(1);
     await expect(tab(page, '图谱').target).toBeVisible();
     await expect(tab(page, '卡片').target).toBeVisible();
     await expect(page.getByRole('tab', { name: '阅读器', exact: true })).toHaveCount(0);
@@ -66,6 +106,7 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     const cards = join(runtime.root, 'workspace/vault/卡片');
     await mkdir(cards, { recursive: true });
     await writeFile(join(cards, '坐标卡.md'), '---\ntype: card\n---\n# 坐标卡\n\n![[媒体/向量讲义.pdf#page=2&rect=0.1,0.1,0.8,0.2]]\n\n> A point can be described by its coordinates.\n');
+    await writeFile(join(cards, '导航焦点.md'), '---\ntype: card\n---\n# 导航焦点\n\n![[知识/向量.md]]\n');
     await expect(page.getByRole('button', { name: '打开卡片 坐标卡', exact: true })).toBeVisible();
     await page.getByPlaceholder('搜索卡片…').fill('不存在');
     await expect(page.getByText('没有符合条件的卡片。')).toBeVisible();
@@ -73,6 +114,22 @@ test('vault views keep file facts, node-centred graph details and one chat mount
 
     // A card source now lands in the assets view, on the original page and region.
     await page.getByRole('button', { name: /媒体\/向量讲义\.pdf · 第 2 页/ }).click();
+    await expect.poll(() => pdfAssetReadCount, { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
+    await focusedPdfReadStarted;
+    // Keep the explicit page-2 focus open pending long enough to expose a
+    // competing default-page open after the shell acknowledges navigation.
+    await page.waitForTimeout(250);
+    const readsWhileFocusedOpenWasPending = pdfAssetReadCount;
+    releaseFocusedPdfRead();
+    releaseFirstPdfRead();
+    await Promise.all([firstPdfReadContinued, focusedPdfReadContinued]);
+    await page.unroute('**/api/notaraVault/readAsset');
+    if (!firstPdfReadRequest || !focusedPdfReadRequest) throw new Error('Expected both delayed PDF readAsset requests to be intercepted.');
+    await Promise.all([waitForRpcResponse(firstPdfReadRequest), waitForRpcResponse(focusedPdfReadRequest)]);
+    await page.waitForTimeout(250);
+    const raceMetricsPath = testInfo.outputPath('pdf-focus-race-requests.json');
+    await writeFile(raceMetricsPath, JSON.stringify({ initialAndFocusedReadsHeld: true, callsWhilePending: readsWhileFocusedOpenWasPending }, null, 2));
+    await testInfo.attach('pdf-focus-race-requests', { path: raceMetricsPath, contentType: 'application/json' });
     await expect(page.locator('canvas[aria-label="向量讲义.pdf"]')).toBeVisible();
     await expect(page.getByRole('spinbutton', { name: '页码' })).toHaveValue('2');
     // The card's region is the current selection: the excerpt tool opens on it.
@@ -86,6 +143,41 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     // The Vault section lists the files in the side panel.
     await expect(page.getByRole('group', { name: '文件列表' }).getByRole('button', { name: /向量讲义\.pdf/ }).first()).toBeVisible();
 
+    // Creating a preferred page while another focused Markdown read is pending
+    // must keep the new page selected even if the post-create file-list refresh
+    // fails. The old response is released only after the created page is shown.
+    await tab(page, '图谱').click();
+    const preferenceRaceNode = page.getByRole('button', { name: '图谱节点 导航焦点', exact: true });
+    await expect(preferenceRaceNode).toBeVisible();
+    await preferenceRaceNode.click();
+    const preferenceRacePane = detailsPane(page);
+    const preferenceRaceSource = preferenceRacePane.getByRole('button', { name: /知识\/向量\.md/ }).first();
+    if (!(await preferenceRaceSource.isVisible())) await preferenceRacePane.getByText('来源', { exact: true }).click();
+    await expect(preferenceRaceSource).toBeVisible();
+    let releasePendingPreferredRead!: () => void, signalPreferredReadContinued!: () => void;
+    const pendingPreferredReadGate = new Promise<void>(resolve => { releasePendingPreferredRead = resolve; });
+    const preferredReadContinued = new Promise<void>(resolve => { signalPreferredReadContinued = resolve; });
+    releasePendingReads.push(releasePendingPreferredRead);
+    pendingReadContinuations.push(preferredReadContinued);
+    const pendingPreferredReadRequests: Request[] = [];
+    const createdPageReadRequests: Request[] = [];
+    await page.route('**/api/notaraVault/read', async route => {
+      const request = route.request().postDataJSON() as { payload?: { args?: { input?: { path?: string } } } };
+      const path = request.payload?.args?.input?.path;
+      if (path === '知识/向量.md') {
+        const isPendingFocusRead = pendingPreferredReadRequests.length === 0;
+        pendingPreferredReadRequests.push(route.request());
+        if (isPendingFocusRead) await pendingPreferredReadGate;
+        try { await route.continue(); }
+        finally { if (isPendingFocusRead) signalPreferredReadContinued(); }
+        return;
+      }
+      if (path === '卡片/我的摘录.md') createdPageReadRequests.push(route.request());
+      await route.continue();
+    });
+    await preferenceRaceSource.click();
+    await expect.poll(() => pendingPreferredReadRequests.length, { timeout: 10_000 }).toBeGreaterThan(0);
+
     // 新建页面 opens a dialog; the Markdown page lands in the vault.
     await page.getByRole('button', { name: '新建页面', exact: true }).click();
     const dialog = page.getByRole('dialog');
@@ -94,8 +186,85 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     await dialog.getByLabel('页面标题').fill('我的摘录');
     await dialog.getByLabel('目标路径').fill('卡片/我的摘录.md');
     await expect(dialog.getByRole('button', { name: '创建 Markdown 页面', exact: true })).toBeEnabled();
+
+    let listFailureReplies = 0;
+    let creationPersisted = false;
+    let creationResponseCompleted = false;
+    let listFailureRepliesBeforeCreateResponse = 0;
+    let createFromTemplateRequest: Request | undefined;
+    const listFailureRequests: Request[] = [];
+    let signalCreateResponseFinished!: () => void;
+    const createResponseFinished = new Promise<void>(resolve => { signalCreateResponseFinished = resolve; });
+    page.on('response', response => {
+      if (response.request() !== createFromTemplateRequest) return;
+      void response.finished().then(error => {
+        if (!error) creationResponseCompleted = true;
+        listFailureRepliesBeforeCreateResponse = listFailureReplies;
+        signalCreateResponseFinished();
+      });
+    });
+    await page.route('**/api/notaraVault/createFromTemplate', async route => {
+      createFromTemplateRequest = route.request();
+      const upstream = await route.fetch();
+      const body = await upstream.text();
+      const envelope = JSON.parse(body) as { result?: { ok?: unknown } };
+      if (envelope.result?.ok !== true) throw new Error('createFromTemplate did not persist the preferred page successfully');
+      creationPersisted = true;
+      await route.fulfill({ response: upstream, body });
+    });
+    await page.route('**/api/notaraVault/list', async route => {
+      const upstream = await route.fetch();
+      if (!creationPersisted) {
+        await route.fulfill({ response: upstream });
+        return;
+      }
+      await createResponseFinished;
+      if (!creationResponseCompleted) {
+        await route.fulfill({ response: upstream });
+        return;
+      }
+      const envelope = JSON.parse(await upstream.text()) as { type?: unknown; rpcId?: unknown; result?: unknown };
+      if (typeof envelope.type !== 'string' || typeof envelope.rpcId !== 'string') throw new Error('list RPC did not use the expected Typert response envelope');
+      listFailureRequests.push(route.request());
+      listFailureReplies++;
+      await route.fulfill({ response: upstream, body: JSON.stringify({
+        ...envelope,
+        result: { ok: false, error: { code: 'gateway/internal', message: 'injected list failure', details: {} } },
+      }) });
+    });
     await dialog.getByRole('button', { name: '创建 Markdown 页面', exact: true }).click();
+    await expect.poll(() => creationPersisted, { timeout: 10_000 }).toBe(true);
+    if (!createFromTemplateRequest) throw new Error('Expected the page creation RPC to be intercepted.');
+    await waitForRpcResponse(createFromTemplateRequest);
+    await createResponseFinished;
+    expect(creationResponseCompleted).toBe(true);
+    expect(listFailureRepliesBeforeCreateResponse).toBe(0);
+    await page.unroute('**/api/notaraVault/createFromTemplate');
+    await expect.poll(() => listFailureReplies, { timeout: 10_000 }).toBeGreaterThan(0);
+    await waitForRpcResponse(listFailureRequests[0]!);
+    await expect.poll(() => createdPageReadRequests.length, { timeout: 10_000 }).toBeGreaterThan(0);
+    await waitForRpcResponse(createdPageReadRequests[0]!);
     await expect(page.getByRole('heading', { name: '我的摘录', exact: true })).toBeVisible();
+    await page.unroute('**/api/notaraVault/list');
+    expect(await readFile(join(cards, '我的摘录.md'), 'utf8')).toContain('# 我的摘录');
+    releasePendingPreferredRead();
+    await preferredReadContinued;
+    await waitForRpcResponse(pendingPreferredReadRequests[0]!);
+    await page.waitForTimeout(250);
+    await page.unroute('**/api/notaraVault/read');
+    await expect(page.getByRole('heading', { name: '我的摘录', exact: true })).toBeVisible();
+    const preferredCreateMetricsPath = testInfo.outputPath('pdf-pending-preferred-create.json');
+    await writeFile(preferredCreateMetricsPath, JSON.stringify({
+      pendingMarkdownReads: pendingPreferredReadRequests.length,
+      successfulCreateRpcPersisted: creationPersisted,
+      createResponseCompletedBeforeInjectedListFailure: creationResponseCompleted,
+      listFailuresBeforeCreateResponse: listFailureRepliesBeforeCreateResponse,
+      actualListRpcFailureReplies: listFailureReplies,
+      createdPageReadRepliesCompleted: createdPageReadRequests.length,
+      staleMarkdownResponseCompletedAfterCreatedPageShown: true,
+      finalSelectedPath: '卡片/我的摘录.md',
+    }, null, 2));
+    await testInfo.attach('pdf-pending-preferred-create', { path: preferredCreateMetricsPath, contentType: 'application/json' });
     expect(await readFile(join(cards, '我的摘录.md'), 'utf8')).toContain('# 我的摘录');
 
     // Double-clicking a graph node opens the file in the assets view: one reader.
@@ -122,6 +291,139 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     await expect(page.locator('canvas[aria-label="向量讲义.pdf"]')).toBeVisible();
     await expect(page.getByRole('spinbutton', { name: '页码' })).toHaveValue('2');
 
+    // A user can cancel a pending focus on another file by choosing the
+    // already-open PDF from the rail; the late Markdown read must not take over.
+    await tab(page, '图谱').click();
+    const navigationNode = page.getByRole('button', { name: '图谱节点 导航焦点', exact: true });
+    await expect(navigationNode).toBeVisible();
+    await navigationNode.click();
+    const navigationPane = detailsPane(page);
+    const markdownSource = navigationPane.getByRole('button', { name: /知识\/向量\.md/ }).first();
+    if (!(await markdownSource.isVisible())) await navigationPane.getByText('来源', { exact: true }).click();
+    await expect(markdownSource).toBeVisible();
+    let releaseMarkdownFocus!: () => void, signalMarkdownReadContinued!: () => void;
+    const markdownFocusGate = new Promise<void>(resolve => { releaseMarkdownFocus = resolve; });
+    const markdownReadContinued = new Promise<void>(resolve => { signalMarkdownReadContinued = resolve; });
+    releasePendingReads.push(releaseMarkdownFocus);
+    pendingReadContinuations.push(markdownReadContinued);
+    let markdownFocusReads = 0;
+    const markdownReadRequests: Request[] = [];
+    const navigationReadPaths: string[] = [];
+    const navigationAssetReadPaths: string[] = [];
+    const navigationPdfReadRequests: Request[] = [];
+    const navigationPdfAssetRequests: Request[] = [];
+    await page.route('**/api/notaraVault/read', async route => {
+      const request = route.request().postDataJSON() as { payload?: { args?: { input?: { path?: string } } } };
+      const path = request.payload?.args?.input?.path;
+      if (typeof path === 'string') navigationReadPaths.push(path);
+      if (path === '媒体/向量讲义.pdf') navigationPdfReadRequests.push(route.request());
+      if (path === '知识/向量.md') {
+        markdownFocusReads++;
+        markdownReadRequests.push(route.request());
+        const isFirstMarkdownRead = markdownFocusReads === 1;
+        if (isFirstMarkdownRead) await markdownFocusGate;
+        try { await route.continue(); }
+        finally { if (isFirstMarkdownRead) signalMarkdownReadContinued(); }
+        return;
+      }
+      await route.continue();
+    });
+    await page.route('**/api/notaraVault/readAsset', async route => {
+      const request = route.request().postDataJSON() as { payload?: { args?: { input?: { path?: string } } } };
+      const path = request.payload?.args?.input?.path;
+      if (typeof path === 'string') navigationAssetReadPaths.push(path);
+      if (path === '媒体/向量讲义.pdf') navigationPdfAssetRequests.push(route.request());
+      await route.continue();
+    });
+    await markdownSource.click();
+    await expect.poll(() => markdownFocusReads, { timeout: 10_000 }).toBeGreaterThan(0);
+    await expect(page.locator('canvas[aria-label="向量讲义.pdf"]')).toBeVisible();
+    await expect(page.getByRole('spinbutton', { name: '页码' })).toHaveValue('2');
+    await tab(page, '文件').click();
+    await expandRail();
+    await page.getByRole('group', { name: '文件列表' }).getByRole('button', { name: /向量讲义\.pdf/ }).first().click();
+    const markdownFocusReadsAtSelection = markdownFocusReads;
+    // The second real navigation must issue a fresh PDF open while the prior
+    // Markdown read is still held. Wait for that open's asset RPC to finish
+    // before releasing the stale Markdown response below.
+    await expect.poll(() => navigationPdfReadRequests.length, { timeout: 10_000 }).toBeGreaterThan(0);
+    const selectedPdfReadRequest = navigationPdfReadRequests.at(-1)!;
+    await waitForRpcResponse(selectedPdfReadRequest);
+    if (navigationPdfAssetRequests.length === 0) {
+      const diagnosticPath = testInfo.outputPath('pdf-navigation-rpc-paths.json');
+      await writeFile(diagnosticPath, JSON.stringify({ navigationReadPaths, navigationAssetReadPaths, pdfReadResponseFinished: true }, null, 2));
+      await testInfo.attach('pdf-navigation-rpc-paths', { path: diagnosticPath, contentType: 'application/json' });
+    }
+    await expect.poll(() => navigationPdfAssetRequests.length, { timeout: 10_000 }).toBeGreaterThan(0);
+    const selectedPdfAssetRequest = navigationPdfAssetRequests.at(-1)!;
+    await waitForRpcResponse(selectedPdfAssetRequest);
+    const delayedMarkdownRequests = [...markdownReadRequests];
+    releaseMarkdownFocus();
+    await markdownReadContinued;
+    await Promise.all(delayedMarkdownRequests.map(waitForRpcResponse));
+    await page.waitForTimeout(250);
+    await page.unroute('**/api/notaraVault/read');
+    await page.unroute('**/api/notaraVault/readAsset');
+    await expect(page.locator('canvas[aria-label="向量讲义.pdf"]')).toBeVisible();
+    await expect(page.getByRole('spinbutton', { name: '页码' })).toHaveValue('1');
+    await expect(page.getByLabel('Markdown Live Preview 编辑器')).toHaveCount(0);
+
+    // Choosing the same PDF while a focused page request is pending is an
+    // ordinary file open and must return to its default page.
+    await tab(page, '图谱').click();
+    await page.getByRole('button', { name: '图谱节点 坐标卡', exact: true }).click();
+    const coordinatePane = detailsPane(page);
+    const pdfSource = coordinatePane.getByRole('button', { name: /媒体\/向量讲义\.pdf/ }).first();
+    if (!(await pdfSource.isVisible())) await coordinatePane.getByText('来源', { exact: true }).click();
+    await expect(pdfSource).toBeVisible();
+    let releaseSamePdfFocus!: () => void, signalSamePdfReadContinued!: () => void;
+    const samePdfFocusGate = new Promise<void>(resolve => { releaseSamePdfFocus = resolve; });
+    const samePdfReadContinued = new Promise<void>(resolve => { signalSamePdfReadContinued = resolve; });
+    releasePendingReads.push(releaseSamePdfFocus);
+    pendingReadContinuations.push(samePdfReadContinued);
+    let samePdfFocusReads = 0;
+    const samePdfReadRequests: Request[] = [];
+    await page.route('**/api/notaraVault/readAsset', async route => {
+      const request = route.request().postDataJSON() as { payload?: { args?: { input?: { path?: string } } } };
+      if (request.payload?.args?.input?.path === '媒体/向量讲义.pdf') {
+        samePdfFocusReads++;
+        samePdfReadRequests.push(route.request());
+        const isFocusedRead = samePdfFocusReads === 1;
+        if (isFocusedRead) await samePdfFocusGate;
+        try { await route.continue(); }
+        finally { if (isFocusedRead) signalSamePdfReadContinued(); }
+        return;
+      }
+      await route.continue();
+    });
+    await pdfSource.click();
+    await expect.poll(() => samePdfFocusReads, { timeout: 10_000 }).toBeGreaterThan(0);
+    await tab(page, '文件').click();
+    await expandRail();
+    await page.getByRole('group', { name: '文件列表' }).getByRole('button', { name: /向量讲义\.pdf/ }).first().click();
+    await expect.poll(() => samePdfFocusReads, { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
+    const samePdfFocusReadsAtSelection = samePdfFocusReads;
+    releaseSamePdfFocus();
+    await samePdfReadContinued;
+    await Promise.all(samePdfReadRequests.map(waitForRpcResponse));
+    await page.waitForTimeout(250);
+    await page.unroute('**/api/notaraVault/readAsset');
+    await expect(page.locator('canvas[aria-label="向量讲义.pdf"]')).toBeVisible();
+    await expect(page.getByRole('spinbutton', { name: '页码' })).toHaveValue('1');
+    const navigationMetricsPath = testInfo.outputPath('pdf-navigation-races.json');
+    await writeFile(navigationMetricsPath, JSON.stringify({
+      markdownFocusReadsAtSelection,
+      pdfRailNavigationReadPaths: navigationReadPaths,
+      pdfRailNavigationAssetReadPaths: navigationAssetReadPaths,
+      pdfReadResponseCompletedBeforeStaleMarkdownRelease: true,
+      pdfAssetResponseCompletedBeforeStaleMarkdownRelease: true,
+      staleMarkdownResponsesCompletedBeforeFinalAssertion: markdownReadRequests.length,
+      samePdfFocusReadsAtSelection,
+      samePdfResponsesCompleted: samePdfReadRequests.length,
+      selectedPageAfterSamePathOpen: 1,
+    }, null, 2));
+    await testInfo.attach('pdf-navigation-races', { path: navigationMetricsPath, contentType: 'application/json' });
+
     // 打开摘录工具 creates the child card with its parent and anchor.
     await tab(page, '卡片').click();
     await page.getByRole('button', { name: '打开卡片 坐标卡', exact: true }).click();
@@ -144,7 +446,7 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     await createCard(page).click();
     await expect(page.getByText(cardCreated).first()).toBeVisible();
     expect(await readFile(join(cards, '基底摘录.md'), 'utf8')).toContain('#anchor=%E5%85%B3%E9%94%AE%E8%81%94%E7%B3%BB');
-    expect((await readdir(cards)).length).toBe(4);
+    expect((await readdir(cards)).length).toBe(5);
 
     // The child card now shows up as a name in the graph details.
     await tab(page, '图谱').click();
@@ -239,7 +541,7 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     // Browser reload reconstructs the projection solely from the saved files.
     await page.reload();
     await tab(page, '卡片').click();
-    await expect(page.getByRole('button', { name: /^打开卡片 / })).toHaveCount(4);
+    await expect(page.getByRole('button', { name: /^打开卡片 / })).toHaveCount(5);
     await page.setViewportSize({ width: 600, height: 900 });
     await tab(page, '图谱').click();
     await page.getByRole('button', { name: '图谱节点 坐标卡', exact: true }).click();
@@ -273,6 +575,12 @@ test('vault views keep file facts, node-centred graph details and one chat mount
     await expect(page.locator('canvas[aria-label]')).toHaveCount(0);
     expect(errors.filter(text => !/favicon|net::|downloadable font/i.test(text))).toEqual([]);
   } finally {
+    for (const release of releasePendingReads) release();
+    await Promise.race([Promise.all(pendingReadContinuations), page.waitForTimeout(1000)]).catch(() => {});
+    await page.unroute('**/api/notaraVault/read').catch(() => {});
+    await page.unroute('**/api/notaraVault/readAsset').catch(() => {});
+    await page.unroute('**/api/notaraVault/list').catch(() => {});
+    await page.unroute('**/api/notaraVault/createFromTemplate').catch(() => {});
     await testInfo.attach('console-errors', { body: JSON.stringify(errors), contentType: 'application/json' });
     await page.screenshot({ path: testInfo.outputPath('final-state.png') });
     await testInfo.attach('graph-geometry', { body: JSON.stringify(await page.locator('.nv-graph-board, .nv-graph-layout, .nv-views').evaluateAll(nodes => nodes.map(node => ({ className: node.className, box: node.getBoundingClientRect().toJSON() })))), contentType: 'application/json' });

@@ -1,4 +1,5 @@
 import { pluginEventType } from './plugin-events.js';
+import { createProjectionMemo } from './projection-runtime.js';
 import {createBoardReferences} from './board-references.js';
 import { Service } from '@deepseek-ai/cordis';
 import { createHash,randomUUID } from 'node:crypto';
@@ -67,7 +68,7 @@ const SUMMARY_REQUEST=`请总结这次课堂，保存本课小结，保留原会
 
 export class NotaraTeaching extends Service {
   constructor(ctx,{root=process.cwd()}={},internals={}) {
-    super(ctx,'notaraTeaching');this.root=resolve(root);this.internals=internals;this.prepared=new WeakMap();this.requests=new Map();this.routeLocks=new Map();this.summaryLocks=new Map();this.operations=new Map();
+    super(ctx,'notaraTeaching');this.root=resolve(root);this.internals=internals;this.prepared=new WeakMap();this.requests=new Map();this.routeLocks=new Map();this.summaryLocks=new Map();this.operations=new Map();this.routeProjections=createProjectionMemo();
     this.nativeArchive=internals.archive??(ctx.get('workspaceRegistry')?.archiveSession.bind(ctx.workspaceRegistry));
     // Session id → the summary cutoff its deferred archive was scheduled against.
     this.archiveAfterTurn=new Map();
@@ -226,7 +227,9 @@ export class NotaraTeaching extends Service {
     return args.archive?this.archiveSaved(session,result,{afterTurn:true}):result;
   }
   async routes(args={},exec) {
-    const io=exec?createAgentVaultIO(this.ctx,exec):await this.editorFor(args),scan=await io.scan(),routes=[],nodes=[],edges=[];
+    const io=exec?createAgentVaultIO(this.ctx,exec):await this.editorFor(args),scan=await io.scan();
+    return this.routeProjections(io.workspace.path,[io.workspace.id,scan.documents.map(doc=>[doc.path,doc.revision]),scan.errors,scan.truncated],()=>{
+    const routes=[],nodes=[],edges=[];
     const summaries=scan.documents.flatMap(doc=>{try{return parseLessonSummaries(doc);}catch{return [];}});
     for(const document of scan.documents.filter(doc=>doc.type==='route')){
       // A route the planner cannot read (a hand edit broke its blocks) is listed
@@ -241,6 +244,7 @@ export class NotaraTeaching extends Service {
       edges.push(...route.edges.map(edge=>({...edge,routePath:document.path})));
     }
     return {routes,nodes,edges};
+    });
   }
   async routeContext(exec,settings) {
     if(!settings.routePath||!settings.nodeId)return null;

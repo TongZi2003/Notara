@@ -1,17 +1,21 @@
 import {randomUUID,createHash} from 'node:crypto';
-import {createBoardObjectStore} from './board-storage.js';
+import {boardObjectHash,createBoardObjectStore} from './board-storage.js';
 import {applySceneOperations,validateBoardScene,validateBoardUrl} from './board-scene.js';
 import {validateBoardSourceRef} from './board-mindmap.js';
 import {parseSourceRef,createEditorVaultIO} from './agent-io.js';
 import {safeRelativePath} from './vault.js';
-import {BOARD_CONTENT_TYPES,BOARD_KINDS,parseBoard,renderBoard,validateBoardBody,validateLayout} from './board-data.js';
+import {BOARD_CONTENT_TYPES,BOARD_HISTORY_LIMIT,BOARD_KINDS,parseBoard,renderBoard,validateBoardBody,validateLayout} from './board-data.js';
 import {boardComponents,validateBoardComponents} from './board-components.js';
 const fail=code=>{throw new Error(code);};
 const exact=(value,keys,code='board_content_invalid')=>{if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!keys.includes(key)))fail(code);return value;};
-const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const normalizeObjectKeys=value=>Array.isArray(value)?value.map(normalizeObjectKeys):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).filter(key=>value[key]!==undefined).sort().map(key=>[key,normalizeObjectKeys(value[key])])):value;
+const equal=(a,b)=>JSON.stringify(normalizeObjectKeys(a))===JSON.stringify(normalizeObjectKeys(b));
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const object=v=>v&&typeof v==='object'&&!Array.isArray(v);
 const id=()=>randomUUID();
+const FULL_HISTORY_CACHE_LIMIT=16*1024*1024;
+const SUMMARY_HISTORY_CACHE_LIMIT=8*1024*1024;
+const HISTORY_SESSION_CACHE_LIMIT=32;
 const line=(v,max=160)=>typeof v==='string'&&v.trim()&&v.length<=max&&!/[\r\n\0]/.test(v);
 const contentFields=new Set(['title','body','contentRef','sourceRef','url','kind','contentType']);
 const editorCounters=new Set(['version','versionNonce','updated','index']);
@@ -73,8 +77,9 @@ function assertSelectedUndo(current,next,original,selected){
  changedRows(current.mindmap?.links??[],next.mindmap?.links??[],row=>row.id??`${row.from}:${row.to}`,(a,b)=>{for(const row of [a,b])if(row&&(!allowed.has(row.from)||!allowed.has(row.to)))fail('board_patch_scope_invalid');});
  if(!equal(current.appState,next.appState)||!equal(current.files,next.files))fail('board_patch_scope_invalid');
 }
-export function createBoardEditing(service,{readState,project,pathFor}) {
- const baselines=new Map(),selectionScopes=new Map(),stores=new Map();
+export function createBoardEditing(service,{readState,project,pathFor,objectStoreFactory=createBoardObjectStore}) {
+ const baselines=new Map(),selectionScopes=new Map(),stores=new Map(),historyCaches=new Map(),fullHistoryLru=new Map(),summaryHistoryLru=new Map();
+ let fullHistoryBytes=0,summaryHistoryBytes=0,cacheSequence=0;
  async function getContext(sessionId,signal){
   const agent=await service.agentFor(sessionId);
   if(agent.session.header.origin==='subagent')fail('teaching_session_required');
@@ -83,14 +88,14 @@ export function createBoardEditing(service,{readState,project,pathFor}) {
   if(!io.workspace?.id||!io.rootPath)fail('board_store_unavailable');
   if(agent.session.id!==sessionId)fail('teaching_session_required');
   const key=io.workspace.id+'\0'+io.rootPath;
-  if(!stores.has(key))stores.set(key,createBoardObjectStore(io.rootPath));
+  if(!stores.has(key))stores.set(key,objectStoreFactory(io.rootPath));
   return {session:{sessionId,agent},io,store:stores.get(key)};
  }
  function captureScope(context,signal){
   const {io,session,store}=context,workspaceId=io.workspace.id,rootPath=io.rootPath;
   const check=()=>{signal?.throwIfAborted();if(io.workspace.id!==workspaceId||io.rootPath!==rootPath||session.agent.session.id!==session.sessionId)fail('scope_override_denied');};
   const checked=async operation=>{check();try{const value=await operation();check();return value;}catch(error){check();throw error;}};
-  return {io,workspaceId,check,store:{read:(...args)=>checked(()=>store.read(...args)),write:(...args)=>checked(()=>store.write(...args)),copy:(...args)=>checked(()=>store.copy(...args))}};
+  return {io,workspaceId,check,objectStore:store,store:{read:(...args)=>checked(()=>store.read(...args)),write:(...args)=>checked(()=>store.write(...args)),copy:(...args)=>checked(()=>store.copy(...args))}};
  }
  async function loadScene(block,session,scope) {
   scope.check();if(!block.contentRef)return null;const stored=await scope.store.read(session.sessionId,block.contentRef);if(stored.kind!=='scene')fail('board_content_corrupt');
@@ -113,17 +118,94 @@ export function createBoardEditing(service,{readState,project,pathFor}) {
   if(scene.mindmap){scene.mindmap.nodes=scene.mindmap.nodes.map(n=>({...n,elementId:resolve(n.elementId),parentId:n.parentId===null?null:resolve(n.parentId),...(n.parentEdgeId?{parentEdgeId:resolve(n.parentEdgeId)}:{})}));scene.mindmap.links=scene.mindmap.links.map(l=>({...l,...(l.id?{id:id()}:{}),from:resolve(l.from),to:resolve(l.to)}));scene.mindmap.notes=(scene.mindmap.notes??[]).map(n=>({...n,elementId:resolve(n.elementId)}));}
   return validateBoardScene(scene);
  }
- async function history(board,session,scope){const result=[];for(const ref of board.historyRefs??[]){const value=await scope.store.read(session.sessionId,ref);if(value.kind!=='commit')fail('board_content_corrupt');result.push(value);}return result;}
- function contribution(entry,entries){return {id:entry.id,actor:entry.actor,at:entry.at,targetIds:[...new Set(entry.changes.filter(c=>c.collection==='blocks').map(c=>c.id))],contentChanged:entry.changes.some(c=>!c.field||contentFields.has(c.field)),undoOf:entry.undoOf??null,canUndo:!entry.undoOf&&!entries.some(e=>e.undoOf===entry.id),undone:entries.some(e=>e.undoOf===entry.id)};}
- async function contributions(board,session,scope){const entries=await history(board,session,scope);return entries.map(entry=>contribution(entry,entries));}
+ function removeHistoryCache(key){
+  const cache=historyCaches.get(key);if(!cache)return;
+  for(const item of cache.full.values())if(item.token!==undefined){fullHistoryLru.delete(item.token);fullHistoryBytes-=item.size;}
+  for(const item of cache.summaries.values())if(item.token!==undefined){summaryHistoryLru.delete(item.token);summaryHistoryBytes-=item.size;}
+  historyCaches.delete(key);
+ }
+ function historyCacheFor(session,scope){
+  const key=JSON.stringify([scope.workspaceId,scope.io.rootPath,session.sessionId]);let cache=historyCaches.get(key);
+  if(cache){historyCaches.delete(key);historyCaches.set(key,cache);return cache;}
+  cache={key,full:new Map(),summaries:new Map()};historyCaches.set(key,cache);
+  while(historyCaches.size>HISTORY_SESSION_CACHE_LIMIT)removeHistoryCache(historyCaches.keys().next().value);
+  return cache;
+ }
+ function trimFullHistoryCache(){
+  while(fullHistoryBytes>FULL_HISTORY_CACHE_LIMIT&&fullHistoryLru.size){
+   const [token,item]=fullHistoryLru.entries().next().value;fullHistoryLru.delete(token);fullHistoryBytes-=item.size;
+   const cache=historyCaches.get(item.key),cached=cache?.full.get(item.ref);if(cached?.token===token)cache.full.delete(item.ref);
+  }
+ }
+ function trimSummaryHistoryCache(){
+  while(summaryHistoryBytes>SUMMARY_HISTORY_CACHE_LIMIT&&summaryHistoryLru.size){
+   const [token,item]=summaryHistoryLru.entries().next().value;summaryHistoryLru.delete(token);summaryHistoryBytes-=item.size;
+   const cache=historyCaches.get(item.key),cached=cache?.summaries.get(item.ref);if(cached?.token===token)cache.summaries.delete(item.ref);
+  }
+ }
+ function summarizeCommit(entry,ref){
+  const changes=entry.changes.map(({collection,id,field})=>({collection,id,...(field?{field}:{})}));
+  return {ref,id:entry.id,actor:entry.actor,at:entry.at,requestId:entry.requestId??null,requestHash:entry.requestHash??null,created:entry.created??{},undoOf:entry.undoOf??null,changes,targetIds:[...new Set(changes.filter(c=>c.collection==='blocks').map(c=>c.id))],contentChanged:changes.some(c=>!c.field||contentFields.has(c.field))};
+ }
+ function cacheFullEntry(cache,ref,value){
+  if(historyCaches.get(cache.key)!==cache)return;
+  const size=Buffer.byteLength(JSON.stringify(value));if(size>FULL_HISTORY_CACHE_LIMIT){cache.full.delete(ref);return;}
+  const previous=cache.full.get(ref);if(previous?.token!==undefined){fullHistoryLru.delete(previous.token);fullHistoryBytes-=previous.size;}
+  const token=++cacheSequence;cache.full.set(ref,{value,size,token});fullHistoryLru.set(token,{key:cache.key,ref,size});fullHistoryBytes+=size;trimFullHistoryCache();
+ }
+ function cacheSummary(cache,ref,value){
+  if(historyCaches.get(cache.key)!==cache)return;
+  const size=Buffer.byteLength(JSON.stringify(value));if(size>SUMMARY_HISTORY_CACHE_LIMIT){cache.summaries.delete(ref);return;}
+  const previous=cache.summaries.get(ref);if(previous?.token!==undefined){summaryHistoryLru.delete(previous.token);summaryHistoryBytes-=previous.size;}
+  const token=++cacheSequence;cache.summaries.set(ref,{value,size,token});summaryHistoryLru.set(token,{key:cache.key,ref,size});summaryHistoryBytes+=size;trimSummaryHistoryCache();
+ }
+ function touchHistoryEntry(lru,item){if(item.token!==undefined){const record=lru.get(item.token);if(record){lru.delete(item.token);lru.set(item.token,record);}}}
+ async function historyEntry(ref,session,scope,cache){
+  const cached=cache.full.get(ref);
+  if(cached){if(cached.promise)return cached.promise;touchHistoryEntry(fullHistoryLru,cached);return cached.value;}
+  let pending;
+  pending=(async()=>{
+   const value=await scope.store.read(session.sessionId,ref);if(value.kind!=='commit')fail('board_content_corrupt');
+   if(cache.full.get(ref)?.promise===pending)cacheFullEntry(cache,ref,value);
+   return value;
+  })();cache.full.set(ref,{promise:pending});
+  pending.catch(()=>{if(cache.full.get(ref)?.promise===pending)cache.full.delete(ref);});
+  return pending;
+ }
+ async function historySummaries(board,session,scope){
+  const cache=historyCacheFor(session,scope),result=[];
+  for(const ref of board.historyRefs??[]){
+   let cached=cache.summaries.get(ref);
+   if(cached){touchHistoryEntry(summaryHistoryLru,cached);result.push(cached.value);continue;}
+   const summary=summarizeCommit(await historyEntry(ref,session,scope,cache),ref);
+   cached=cache.summaries.get(ref);if(!cached)cacheSummary(cache,ref,summary);else touchHistoryEntry(summaryHistoryLru,cached);
+   result.push(summary);
+  }
+  return result;
+ }
+ function undoneIds(entries){return new Set(entries.filter(entry=>entry.undoOf).map(entry=>entry.undoOf));}
+ function contribution(entry,undone,summary=false){return {id:entry.id,actor:entry.actor,at:entry.at,targetIds:summary?entry.targetIds:[...new Set(entry.changes.filter(c=>c.collection==='blocks').map(c=>c.id))],contentChanged:summary?entry.contentChanged:entry.changes.some(c=>!c.field||contentFields.has(c.field)),undoOf:entry.undoOf??null,canUndo:!entry.undoOf&&!undone.has(entry.id),undone:undone.has(entry.id)};}
+ async function contributions(board,session,scope){const entries=await historySummaries(board,session,scope),undone=undoneIds(entries);return entries.map(entry=>contribution(entry,undone,true));}
  async function content(input,{teacher=false}={}) {
   exact(input,['sessionId','blockId']);const context=await getContext(input.sessionId),{session,io}=context,scope=captureScope(context),state=await readState(io,input.sessionId);scope.check();const block=state.board.blocks.find(b=>b.id===input.blockId);if(!block)fail('board_block_missing');
   const scene=await loadScene(block,session,scope);
   if(teacher){const key=session.sessionId+':'+block.id;baselines.delete(key);baselines.set(key,{block:structuredClone(block),scene:structuredClone(scene)});while(baselines.size>100)baselines.delete(baselines.keys().next().value);}
-  const entries=await history(state.board,session,scope);scope.check();
+  const entries=await historySummaries(state.board,session,scope);scope.check();
   let value=scene;
   if(teacher&&scene)value={...scene,files:Object.fromEntries(Object.entries(scene.files??{}).map(([key,f])=>[key,{id:key,mimeType:f.mimeType}]))};
-  return {blockId:block.id,contentType:block.contentType??'text',revision:state.revision,block,content:value,contributions:entries.filter(e=>e.changes.some(c=>c.collection==='blocks'&&c.id===block.id)).map(e=>({...contribution(e,entries),original:e.changes.filter(c=>c.id===block.id&&(c.field==='body'||c.field==='title')).map(({field,before,after})=>({field,before,after}))}))};
+  const undone=undoneIds(entries);
+  const historyCache=historyCacheFor(session,scope),historyContributions=[];
+  for(const summary of entries){
+   if(!summary.targetIds.includes(block.id))continue;
+   let original=[];
+   if(summary.changes.some(c=>c.id===block.id&&(c.field==='body'||c.field==='title'))){
+    const entry=await historyEntry(summary.ref,session,scope,historyCache);
+    original=entry.changes.filter(c=>c.id===block.id&&(c.field==='body'||c.field==='title')).map(({field,before,after})=>({field,before,after}));
+   }
+   historyContributions.push({...contribution(summary,undone,true),original});
+  }
+  scope.check();
+  return {blockId:block.id,contentType:block.contentType??'text',revision:state.revision,block,content:value,contributions:historyContributions};
  }
  async function readForTeacher({sessionId,blockId}={}) {
   const context=await getContext(sessionId),{io}=context;
@@ -168,7 +250,7 @@ export function createBoardEditing(service,{readState,project,pathFor}) {
   if(actor==='teacher'&&!service.isTeaching(session.agent))fail('teaching_session_required');
   if(!Array.isArray(input.ops)||!input.ops.length||input.ops.length>80)fail('board_content_invalid');
   if(input.requestId!==undefined&&!line(input.requestId,100))fail('board_content_invalid');
-  const state=await readState(io,input.sessionId);scope.check();const entries=await history(state.board,session,scope),requestId=operationId??input.requestId,requestHash=digest(input.ops);
+  const state=await readState(io,input.sessionId);scope.check();const entries=await historySummaries(state.board,session,scope),historyCache=historyCacheFor(session,scope),requestId=operationId??input.requestId,requestHash=digest(input.ops);
   const previous=requestId&&entries.find(e=>e.requestId===requestId&&e.actor===actor);
   if(previous){if(previous.requestHash!==requestHash)fail('board_request_reused');return {...await project(io,state,input.sessionId),saved:true,commitId:previous.id,created:previous.created,contributions:await contributions(state.board,session,scope)};}
   if(actor==='student'&&input.expectedRevision!==state.revision)fail('vault_revision_conflict');
@@ -247,7 +329,7 @@ export function createBoardEditing(service,{readState,project,pathFor}) {
    }else if(op.type==='ungroup'){
     exact(op,['type','groupId']);if(!board.groups.some(g=>g.id===op.groupId))fail('board_group_missing');board.groups=board.groups.filter(g=>g.id!==op.groupId);
    }else if(op.type==='undo'){
-    exact(op,['type','commitId']);if(input.ops.length!==1)fail('board_content_invalid');const entry=entries.find(e=>e.id===op.commitId);if(!entry||entry.undoOf||entries.some(e=>e.undoOf===entry.id)||actor==='teacher'&&entry.actor!=='teacher')fail('board_undo_unavailable');
+    exact(op,['type','commitId']);if(input.ops.length!==1)fail('board_content_invalid');const summary=entries.find(e=>e.id===op.commitId);if(!summary||summary.undoOf||entries.some(e=>e.undoOf===summary.id)||actor==='teacher'&&summary.actor!=='teacher')fail('board_undo_unavailable');const entry=await historyEntry(summary.ref,session,scope,historyCache);
     for(const change of [...entry.changes].reverse()){
      const rows=board[change.collection]??=[],index=rows.findIndex(r=>r.id===change.id),now=rows[index];
      if(!change.field){if(!equal(now??null,change.after))fail('board_undo_conflict');if(change.before)rows.push(structuredClone(change.before));if(now)rows.splice(index,1);}
@@ -257,18 +339,17 @@ export function createBoardEditing(service,{readState,project,pathFor}) {
   }
   const changes=changesBetween(before,board);if(!changes.length)return {...await project(io,state,input.sessionId),saved:true,created,contributions:await contributions(board,session,scope)};
   const commitId=id(),entry={kind:'commit',id:commitId,actor,at:new Date().toISOString(),requestId:requestId??null,requestHash,created,changes,...(input.ops[0].type==='undo'?{undoOf:input.ops[0].commitId}:{})};
-  const historyRef=await scope.store.write(session.sessionId,entry);board.historyRefs.push(historyRef);if(board.historyRefs.length>2000)fail('board_history_full');
-  const rendered=renderBoard(board);parseBoard(rendered,session.sessionId);scope.check();const saved=await io.save(pathFor(session.sessionId),rendered,state.revision);
+  const historyRef=boardObjectHash(entry);
+  board.historyRefs=[...board.historyRefs.slice(-(BOARD_HISTORY_LIMIT-1)),historyRef];
+  const rendered=renderBoard(board);parseBoard(rendered,session.sessionId);scope.check();
+  if(await scope.store.write(session.sessionId,entry)!==historyRef)fail('board_content_corrupt');
+  const saved=await io.save(pathFor(session.sessionId),rendered,state.revision);
   // Invalidate only successfully modified teacher baselines, retaining reread evidence.
   if(actor==='teacher')for(const change of changes)if(change.collection==='blocks')baselines.delete(session.sessionId+':'+change.id);
-  const committed=[...entries,entry],receipt={saved:true,revision:saved.revision,commitId,created,contributions:committed.map(e=>contribution(e,committed))};
+  const newSummary=summarizeCommit(entry,historyRef);cacheSummary(historyCache,historyRef,newSummary);
+  const committed=[...entries.slice(-(BOARD_HISTORY_LIMIT-1)),newSummary],undone=undoneIds(committed),receipt={saved:true,revision:saved.revision,commitId,created,contributions:committed.map(e=>contribution(e,undone,true))};
   try{scope.check();const result=await project(io,{board,revision:saved.revision},session.sessionId);scope.check();return {...result,...receipt};}
   catch(error){return {...receipt,scopeChanged:Boolean(signal?.aborted),projectionPending:true};}
- }
- async function cloneObjects(board,sourceSessionId,targetSessionId,sourceIO){
-  const context=sourceIO?{session:{sessionId:sourceSessionId},io:sourceIO,store:createBoardObjectStore(sourceIO.rootPath)}:await getContext(sourceSessionId),scope=captureScope(context),store=scope.store;
-  const copied=new Set(),copy=async ref=>{scope.check();if(!ref||copied.has(ref))return;const value=await store.read(sourceSessionId,ref);if(value.kind==='scene')for(const file of Object.values(value.scene.files??{}))await copy(file.assetRef);if(value.kind==='commit')for(const change of value.changes)if(change.field==='contentRef'){await copy(change.before);await copy(change.after);}else if(!change.field){await copy(change.before?.contentRef);await copy(change.after?.contentRef);}await store.copy(sourceSessionId,targetSessionId,ref);copied.add(ref);};
-  for(const block of board.blocks)await copy(block.contentRef);for(const ref of board.historyRefs??[])await copy(ref);scope.check();
  }
  async function list({sessionId}={}){return readForTeacher({sessionId});}
  async function apply(input,options={}){return commit(input,{...options,actor:'teacher'});}
@@ -286,5 +367,21 @@ export function createBoardEditing(service,{readState,project,pathFor}) {
  }
  function assertLegacyWriteScope(sessionId){if(selectionScopes.get(sessionId)?.size)fail('board_patch_scope_invalid');}
  async function forgetRead(blockId,{sessionId}={}){baselines.delete(sessionId+':'+blockId);}
- return {commit,apply,undo,content,list,readForTeacher,loadScene,contributions,contributionView,cloneObjects,bindSelection,forgetRead,assertLegacyWriteScope};
+ /** Offline only: caller confirms all shared-workspace board clients have stopped. */
+ async function maintainImmutableObjects({sessionId,workspaceWritersStopped=false}={}){
+  const context=await getContext(sessionId),store=context.store;
+  if(typeof store.maintain!=='function')fail('board_store_unavailable');
+  const workspaceId=context.io.workspace.id,rootPath=context.io.rootPath;
+  const loadBoard=async()=>{
+   if(context.io.workspace.id!==workspaceId||context.io.rootPath!==rootPath||context.session.agent.session.id!==sessionId)fail('scope_override_denied');
+   return {...await readState(context.io,sessionId),scope:{workspaceId,rootPath,sessionId}};
+  };
+  return store.maintain(sessionId,{loadBoard,workspaceWritersStopped});
+ }
+ async function cloneObjects(board,sourceSessionId,targetSessionId,sourceIO){
+  const context=sourceIO?{session:{sessionId:sourceSessionId},io:sourceIO,store:createBoardObjectStore(sourceIO.rootPath)}:await getContext(sourceSessionId),scope=captureScope(context),store=scope.store;
+  const copied=new Set(),copy=async ref=>{scope.check();if(!ref||copied.has(ref))return;const value=await store.read(sourceSessionId,ref);if(value.kind==='scene')for(const file of Object.values(value.scene.files??{}))await copy(file.assetRef);if(value.kind==='commit')for(const change of value.changes)if(change.field==='contentRef'){await copy(change.before);await copy(change.after);}else if(!change.field){await copy(change.before?.contentRef);await copy(change.after?.contentRef);}await store.copy(sourceSessionId,targetSessionId,ref);copied.add(ref);};
+  for(const block of board.blocks)await copy(block.contentRef);for(const ref of board.historyRefs??[])await copy(ref);scope.check();
+ }
+ return {commit,apply,undo,content,list,readForTeacher,loadScene,contributions,contributionView,cloneObjects,bindSelection,forgetRead,maintainImmutableObjects,assertLegacyWriteScope};
 }

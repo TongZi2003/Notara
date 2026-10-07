@@ -105,6 +105,10 @@ test('spatial projection stays finite, rings reject a zero axis, and ticks are b
   assert.ok(cone.base.every(point => Math.abs(point[2] - 5) < 1e-12 && Math.abs(Math.hypot(point[0] - 1, point[1] - 2) - 2) < 1e-12));
   assert.deepEqual(spatialTicks(0, 1000).length <= 16, true);
   assert.deepEqual(spatialTicks(4, 2), []);
+  const extremeTicks = spatialTicks(-Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_SAFE_INTEGER);
+  assert.ok(extremeTicks.length <= 256);
+  assert.ok(extremeTicks.every(Number.isFinite));
+  assert.ok(spatialTicks(-1_000_000_000, 1_000_000_000, Number.MAX_SAFE_INTEGER).length <= 256);
   const spec = parseFigure('axes x -2..2 y -2..2 z -2..2\nparam a = 1 in 0..2\npoint A = (a, 1, 2)\nmidpoint M = A A');
   const scene = spatialPointMap(spec, { a: 2 }, compileExpression);
   assert.deepEqual(scene.points.get('A'), [2, 1, 2]);

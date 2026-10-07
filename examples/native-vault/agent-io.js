@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { symbols } from '@deepseek-ai/cordis';
 import { safeRelativePath,parseMarkdownDocument,revisionFor,resolveVaultRoot,deepFreeze,pathKey,portablePath } from './vault.js';
 import { isCodePath, isToolCacheDirectory, mediaForPath, PDF_FILE_MAX_BYTES } from './media.js';
+import { projectionRevision } from './projection-runtime.js';
 
 const MAX_FILE_BYTES=50*1024*1024, MAX_TEXT_BYTES=2*1024*1024;
 const fail=code=>{throw new Error(code);};
@@ -213,7 +214,7 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
     if(!rootInfo) return {documents:[],files:[],errors:[],truncated:false,workspaceId:workspace.id};
     if(rootInfo.type!=='directory') fail('vault_path_invalid');
     const root=await fs.resolve(rootPath,{cwd:workspace.path,signal});
-    const documents=[],files=[],errors=[];let truncated=false;
+    const documents=[],files=[],errors=[],versions=[];let truncated=false;
     async function walk(directory,prefix='') {
       for(const entry of await fs.listDir(directory,signal)) {
         checkAbort();
@@ -224,6 +225,7 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
           const t=await target(path),info=await fs.stat(t,signal);
           if(info?.type==='directory'){await walk(t,path);continue;}
           if(info?.type!=='file') continue;
+          versions.push([path,info.version??null,info.size??null]);
           const row={path,title:entry.name,kind:path.toLowerCase().endsWith('.md')?'page':'asset',size:info.size??null};
           files.push(row);
           if(includeContent&&row.kind==='page') documents.push(await cachedRead(path,t,info));
@@ -231,7 +233,10 @@ export function createAgentVaultIO(ctx,exec,{scope='current',writeApproved=false
       }
     }
     await walk(root);
-    return {documents,files,errors,truncated,workspaceId:workspace.id};
+    // Native versions include inode/size/mtime/ctime, so a same-size external
+    // edit, addition or deletion also invalidates read-only projections.
+    const sourceRevision=versions.every(row=>typeof row[1]==='string')?projectionRevision([workspace.id,versions.sort((a,b)=>a[0].localeCompare(b[0])),documents.map(doc=>[doc.path,doc.revision]),errors,truncated]):null;
+    return {documents,files,errors,truncated,workspaceId:workspace.id,sourceRevision};
   }
 
   async function saveText(path,content,expectedRevision,validate,readBack=read,onCommitted) {

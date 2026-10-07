@@ -110,8 +110,10 @@ export function createVaultCanvas(React, { STYLE, IconButton }) {
       return () => element.removeEventListener('wheel', wheel);
     }, []);
     useEffect(() => {
-      if (!nodes.length) return;
       const previous = positions.current;
+      const keys=new Set(nodes.map(node=>node.key));
+      for(const key of previous.keys())if(!keys.has(key))previous.delete(key);
+      if (!nodes.length) return;
       for (const [index, node] of nodes.entries()) if (!previous.has(node.key)) previous.set(node.key, seededGraphPoint(index, nodes.length, size.width, size.height));
       state.positions = previous;
       const points = nodes.map(node => previous.get(node.key));

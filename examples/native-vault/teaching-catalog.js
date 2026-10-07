@@ -5,6 +5,13 @@ const bundled = new URL('./teaching/manifest.json', import.meta.url);
 const source = new URL('../../resources/vault-teaching/manifest.json', import.meta.url);
 const manifestUrl = existsSync(bundled) ? bundled : source;
 const root = new URL('./', manifestUrl);
+const resourceUrl = path => {
+  if (typeof path !== 'string' || !path || path.startsWith('/') || path.split('/').includes('..')) throw new Error('teaching_resource_invalid');
+  let url;
+  try { url = new URL(path, root); } catch { throw new Error('teaching_resource_invalid'); }
+  if (url.protocol !== root.protocol || url.host !== root.host || !url.pathname.startsWith(root.pathname)) throw new Error('teaching_resource_invalid');
+  return url;
+};
 export const TEACHING_PRESET = 'notara-teacher';
 /**
  * The shipped teaching skills describe a Desktop contract. Keep their bodies
@@ -29,12 +36,17 @@ export const teachingLegacyAliases = Object.freeze({
 });
 export function canonicalTeachingId(id) { return teachingLegacyAliases[id] ?? id; }
 export function teachingResource(path) {
-  if (typeof path !== 'string' || path.startsWith('/') || path.split('/').includes('..')) throw new Error('teaching_resource_invalid');
-  return readFileSync(new URL(path, root), 'utf8');
+  return readFileSync(teachingResourcePath(path), 'utf8');
 }
 export function currentTeachingBody(id) {
   const choice = teachingManifest.choices.find(item=>item.id===canonicalTeachingId(id));
   if (!choice) throw new Error('teaching_choice_invalid');
   return teachingResource(choice.file);
 }
-export function teachingResourcePath(path) { return fileURLToPath(new URL(path, root)); }
+export function teachingResourcePath(path) {
+  try { return fileURLToPath(resourceUrl(path)); }
+  catch (error) {
+    if (error instanceof Error && error.message === 'teaching_resource_invalid') throw error;
+    throw new Error('teaching_resource_invalid', { cause: error });
+  }
+}

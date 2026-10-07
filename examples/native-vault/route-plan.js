@@ -73,7 +73,7 @@ export function routeOverviewText(value, code = 'lesson_route_overview_invalid')
 export function routeLogEntry({ date, reason, titles = [] } = {}) {
   const day = asText(date).trim();
   const text = routeReasonText(reason);
-  const affected = (Array.isArray(titles) ? titles : []).map(title => asText(title).split(/\s*\n\s*/).join(' ').trim()).filter(Boolean);
+  const affected = (Array.isArray(titles) ? titles : []).map(title => sentinelFree(asText(title), 'lesson_route_title_invalid').split(/\s*\n\s*/).join(' ').trim()).filter(Boolean);
   return affected.length ? `- ${day} · 原因：${text} · 影响：${affected.join('、')}` : `- ${day} · 原因：${text}`;
 }
 
@@ -188,13 +188,15 @@ export function appendRouteLogEntry(log, entry) {
  * compared by exactly the rule that produced it. */
 export function routeBlockHeading(title, id) {
   const nodeId = asText(id).trim();
-  return asText(title).replace(/\s+/g, ' ').trim() || nodeId;
+  return sentinelFree(asText(title), 'lesson_route_title_invalid').replace(/\s+/g, ' ').trim() || nodeId;
 }
 
 /** The canonical block for one node: the id it belongs to, its title and its
  * brief. A node with no brief and no earlier block gets no block at all, so a
  * pre-block route page is not rewritten just because it was read. */
-export function routeNodeBlock({ id, title, brief } = {}) {
+export function routeNodeBlock(input = {}) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) fail('lesson_route_node_invalid');
+  const { id, title, brief } = input;
   const nodeId = asText(id).trim();
   if (!nodeId || /[\r\n]/.test(nodeId)) fail('lesson_route_node_invalid');
   const heading = routeBlockHeading(title, nodeId);

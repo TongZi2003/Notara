@@ -628,6 +628,13 @@ function markLines(state, ranges, from, to, spec) {
   }
 }
 
+function rangeContains(ranges){
+  const merged=[];
+  for(const range of [...ranges].sort((a,b)=>a.from-b.from)){
+    const last=merged.at(-1);if(last&&range.from<=last.to)last.to=Math.max(last.to,range.to);else merged.push({from:range.from,to:range.to});
+  }
+  return point=>{let left=0,right=merged.length;while(left<right){const middle=(left+right)>>>1;if(merged[middle].from<=point)left=middle+1;else right=middle;}return left>0&&point<merged[left-1].to;};
+}
 function buildDecorations(state) {
   const ranges = [], text = state.doc.toString(), metadata = previewFrontmatter(text);
   // A read-only preview is always unstyled as source: clicking a formula or a
@@ -649,8 +656,9 @@ function buildDecorations(state) {
   // decorations over one range: a note inside a folded section is read through
   // the section's own body instead of drawing a second fold.
   const foldedSections = sections.filter(section => section.to > section.from && sectionPanels.get(section.from) !== 'editing');
-  const insideSection = point => foldedSections.some(section => point >= section.from && point < section.to);
+  const insideSection = rangeContains(foldedSections);
   const folded = teacher.filter(block => block.to > block.from && panels.get(block.from) !== 'editing' && !insideSection(block.from));
+  const insideFolded=rangeContains(folded);
   // A formula reveals its TeX only while the cursor is inside it. Dense math
   // would otherwise flip back to source whenever the line is edited.
   const touches = (from, to) => focused && state.selection.ranges.some(range => range.from < to && range.to > from);
@@ -666,7 +674,7 @@ function buildDecorations(state) {
     // A folded teacher block hides its own lines completely; its inner Markdown
     // is rendered by the nested read-only preview instead of by decorations
     // that would overlap the replacement range.
-    if (name !== 'Document' && folded.some(block => from >= block.from && from < block.to)) return false;
+    if (name !== 'Document' && insideFolded(from)) return false;
     // The same holds for a folded 教师理解 section, whose own heading line is
     // replaced together with everything the section contains.
     if (name !== 'Document' && insideSection(from)) return false;

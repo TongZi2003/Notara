@@ -12,9 +12,12 @@ import './patch-windows-token-dacl.ts';
 import './patch-storage-json.ts';
 import './patch-student-ui.ts';
 import { stripConversationSeams, applyConversationSeams } from './patch-conversation-views.ts';
+import { applySidebarReadyPatch } from './patch-sidebar-ready.ts';
 
 const project = join(dirname(fileURLToPath(import.meta.url)), '..');
 const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
+
+applySidebarReadyPatch();
 
 // DSH 0.2.0 cold session/list still uses only persisted projection hints. An idle rename
 // is already in the native log, but the throttled hint may retain its old title

@@ -1,6 +1,6 @@
 import { buildMarkdownCardContent, markdownSections } from './graph.js';
 import { buildPdfCardContent, cardPathFor } from './pdf.js';
-import { embedTarget, isCodePath, mediaForPath, parseMediaTarget, PDF_FILE_LIMIT_NOTICE } from './media.js';
+import { embedTarget, isCodePath, mediaForPath, parseMediaTarget, PDF_FILE_LIMIT_NOTICE, PDF_FILE_MAX_BYTES, ASSET_DATA_URL_MAX_BYTES } from './media.js';
 import { VIEW_IDS } from './views-client.js';
 import { createVaultClient, visibleInterval } from './remote-client.js';
 import { createDraftStore } from './draft-client.js';
@@ -13,7 +13,10 @@ import { mathStyleText } from './math-latex.js';
 
 const USER_SKILL_DIRECTORY = '技能';
 export function assetFailureNotice(error){
-  return `${error?.code??''} ${error?.message??''}`.includes('vault_pdf_too_large')?PDF_FILE_LIMIT_NOTICE:'无法打开这个文件，可能已被移动或删除。';
+  const reason=`${error?.code??''} ${error?.message??''}`,limit=ASSET_DATA_URL_MAX_BYTES/(1024*1024);
+  if(reason.includes('vault_pdf_data_url_too_large'))return `这个 PDF 超过 ${limit} MiB，当前无法确认范围读取版本；刷新文件列表后重试。按页读取上限为 512 MiB。`;
+  if(reason.includes('vault_asset_too_large'))return `这个文件超过 ${limit} MiB，暂不能在页面中预览。请用外部程序打开或先拆分文件。`;
+  return reason.includes('vault_pdf_too_large')?PDF_FILE_LIMIT_NOTICE:'无法打开这个文件，可能已被移动或删除。';
 }
 /** Why a page did not save, in the student's words; the Host's reason code decides. */
 export function saveFailureNotice(error) {
@@ -90,18 +93,31 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
       const uploadRef = useRef(null);
       const pdfCardSaving = useRef(false);
       const openSequence = useRef(0);
+      // A focused read owns its locator until it settles; shell navigation can
+      // acknowledge focus before React commits the new selected path.
+      const openingRef = useRef(null);
+      const currentSessionRef = useRef(sessionId); currentSessionRef.current = sessionId;
+      useEffect(()=>drafts.subscribe((id,message)=>{if(id===sessionId)setNotice(message);}),[sessionId]);
       useEffect(() => {
         if (dirty && document) drafts.set(sessionId, { path: document.path, document, draft });
         else if (document && drafts.get(sessionId)?.path === document.path) drafts.delete(sessionId);
       }, [dirty, document, draft, sessionId]);
 
       const refresh = useCallback(async (preferred) => {
+        // A successfully created/uploaded file is the new navigation intent,
+        // even if reading the updated tree fails. Ordinary polling has no target.
+        if (preferred) {
+          if (openingRef.current && openingRef.current.path !== preferred) {
+            ++openSequence.current; openingRef.current = null;
+          }
+          setSelected(preferred);
+        }
         let result;
         try { result = await vault.list({}); }
         catch { setNotice('文件树暂时无法读取。'); setListing(value => value === 'ready' ? value : 'failed'); return false; }
         if (!result?.ok) { setNotice('文件树暂时无法读取。'); setListing(value => value === 'ready' ? value : 'failed'); return false; }
         setFiles(result.value.files); setTree(result.value.tree); setListing('ready');
-        setSelected(previous => preferred || previous || result.value.files[0]?.path || '');
+        setSelected(previous => previous || result.value.files[0]?.path || '');
         setNotice('');
         return true;
       }, [selected, vault]);
@@ -109,35 +125,65 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
       // Tracks the path `open()` last displayed so the `selected` effect below
       // does not re-open (and wipe notices) after a programmatic open.
       const openedRef = useRef('');
+      useEffect(() => () => { ++openSequence.current; openingRef.current = null; }, []);
       const open = useCallback(async (path, notice, locator) => {
         if (!path) return;
         setError('');
         const sequence = ++openSequence.current;
-        let read;
-        try { read = await vault.read({ path }); } catch { read = undefined; }
-        if (read?.ok) {
-          let links;
-          try { links = await vault.links({ path }); } catch { links = undefined; }
-          if (sequence !== openSequence.current) return;
+        const request = { path, sessionId, sequence, locator };
+        openingRef.current = request;
+        setSelected(path);
+        const current = () => sequence === openSequence.current && currentSessionRef.current === sessionId;
+        try {
+          let read;
+          try { read = await vault.read({ path }); } catch { read = undefined; }
+          if (!current()) return;
+          if (read?.ok) {
+            let links;
+            try { links = await vault.links({ path }); } catch { links = undefined; }
+            if (!current()) return;
+            openedRef.current = path;
+            setExtracting(false);
+            const retained = drafts.get(sessionId), restored = retained?.path === path ? retained : undefined;
+            setSelected(path); setDocument(restored?.document ?? read.value); setAsset(undefined); setPdfSelection(undefined); setDraft(restored?.draft ?? read.value.content); setSelection(''); setDirty(!!restored); setBacklinks(links?.ok ? links.value.incoming : []); setNotice(restored ? '已恢复未保存修改' : notice ?? '');
+            return;
+          }
+          let media;
+          try { media = await vault.readAsset({ path }); }
+          catch(error) { media = {ok:false,error}; }
+          if (!current()) return;
+          if (!media?.ok) {
+            const reason = `${media?.error?.code ?? ''} ${media?.error?.message ?? ''}`;
+            if (reason.includes('vault_pdf_data_url_too_large')) {
+              let summary = files.find(item => item.path === path && item.kind === 'asset');
+              if (!summary) {
+                let latest;
+                try { latest = await vault.list({ prefix: path }); } catch { latest = undefined; }
+                if (!current()) return;
+                summary = latest?.ok ? latest.value.files.find(item => item.path === path && item.kind === 'asset') : undefined;
+                if (latest?.ok) setFiles(previous => {
+                  const merged = new Map(previous.map(item => [item.path, item]));
+                  for (const item of latest.value.files) merged.set(item.path, item);
+                  return [...merged.values()];
+                });
+              }
+              if (!current()) return;
+              if (summary?.assetKind === 'pdf' && Number.isSafeInteger(summary.size) && summary.size <= PDF_FILE_MAX_BYTES) {
+                openedRef.current = path; setSelected(path); setDocument(undefined); setAsset(summary); setAssetPage(locator?.page ?? 1); setAssetLocator(locator); setPdfSelection(undefined); setDraft(''); setSelection(''); setDirty(false); setBacklinks([]); setNotice(notice ?? `这个 PDF 超过 ${ASSET_DATA_URL_MAX_BYTES / (1024 * 1024)} MiB，已切换为按页范围读取。`);
+                return;
+              }
+              if (summary?.assetKind === 'pdf' && Number.isSafeInteger(summary.size) && summary.size > PDF_FILE_MAX_BYTES) {
+                openedRef.current = path; setSelected(path); setDocument(undefined); setAsset(undefined); setNotice(''); setError(PDF_FILE_LIMIT_NOTICE); return;
+              }
+            }
+            openedRef.current = path; setSelected(path); setDocument(undefined); setAsset(undefined); setNotice('');
+            setError(assetFailureNotice(media?.error)); return;
+          }
           openedRef.current = path;
           setExtracting(false);
-          const retained = drafts.get(sessionId), restored = retained?.path === path ? retained : undefined;
-          setSelected(path); setDocument(restored?.document ?? read.value); setAsset(undefined); setPdfSelection(undefined); setDraft(restored?.draft ?? read.value.content); setSelection(''); setDirty(!!restored); setBacklinks(links?.ok ? links.value.incoming : []); setNotice(restored ? '已恢复未保存修改' : notice ?? '');
-          return;
-        }
-        let media;
-        try { media = await vault.readAsset({ path }); }
-        catch(error) { media = {ok:false,error}; }
-        if (!media?.ok) {
-          if (sequence !== openSequence.current) return;
-          openedRef.current = path; setSelected(path); setDocument(undefined); setAsset(undefined); setNotice('');
-          setError(assetFailureNotice(media?.error)); return;
-        }
-        if (sequence !== openSequence.current) return;
-        openedRef.current = path;
-        setExtracting(false);
-        setSelected(path); setDocument(undefined); setAsset(media.value); setAssetPage(locator?.page ?? 1); setAssetLocator(locator); setPdfSelection(undefined); setDraft(''); setSelection(''); setDirty(false); setBacklinks([]); setNotice(notice ?? '');
-      }, [vault, sessionId]);
+          setSelected(path); setDocument(undefined); setAsset(media.value); setAssetPage(locator?.page ?? 1); setAssetLocator(locator); setPdfSelection(undefined); setDraft(''); setSelection(''); setDirty(false); setBacklinks([]); setNotice(notice ?? '');
+        } finally { if (openingRef.current === request) openingRef.current = null; }
+      }, [vault, sessionId, files]);
 
       useEffect(() => {
         if (!viewRequest?.focus) return;
@@ -162,29 +208,34 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
       },[vault,selected,document?.path,dirty,refresh]);
 
       useEffect(() => {
-        let live = true, attempts = 0;
+        if(!visible)return;
+        let live = true, attempts = 0,timer;
         const tick = async () => {
+          if(!live)return;
           attempts += 1;
           const ok = await refresh();
-          if (!ok && live && attempts < 20) setTimeout(tick, 1200);
+          if (!ok && live && attempts < 20) timer=setTimeout(tick, 1200);
         };
         void tick();
-        return () => { live = false; };
-      }, []);
-      useEffect(() => { if (!viewRequest?.focus && selected && selected !== openedRef.current) void open(selected); }, [selected]);
-      useEffect(() => { void vault.templates({}).then(result => { if (result.ok) { setTemplates(result.value); if (!templatePath) setTemplatePath(result.value[0]?.path || ''); } }); }, []);
+        return () => { live = false;clearTimeout(timer); };
+      }, [visible,vault]);
+      useEffect(() => {
+        if (viewRequest?.focus || !selected || selected === openedRef.current) return;
+        const pending = openingRef.current;
+        if (pending && pending.sessionId === sessionId && pending.sequence === openSequence.current) return;
+        void open(selected);
+      }, [selected, open, viewRequest?.focus]);
+      useEffect(() => { let live=true;void vault.templates({}).then(result => { if (live&&result.ok) { setTemplates(result.value);setTemplatePath(previous=>previous||result.value[0]?.path||''); } }).catch(()=>{if(live)setNotice('模板暂时无法读取，请稍后重试。');});return()=>{live=false;}; }, [vault]);
       const embedPaths = JSON.stringify([...new Set([...draft.matchAll(/!\[\[([^\]]+)\]\]/g)].map(match => parseMediaTarget(match[1]).path))]);
       useEffect(() => {
         if (!document) { setEmbeddedAssets({}); return undefined; }
         let live = true;
         const targets = [...draft.matchAll(/!\[\[([^\]]+)\]\]/g)].map(match => parseMediaTarget(match[1]).path);
         const unique = [...new Set(targets)];
-        void Promise.all(unique.filter(path => !path.toLowerCase().endsWith('.md')).map(async path => { try { return [path, await vault.readAsset({ path })]; } catch { return [path, null]; } })).then(rows => {
-          if (!live) return;
-          const next = {};
-          for (const [path, result] of rows) if (result?.ok) next[path] = result.value;
-          setEmbeddedAssets(next);
-        });
+        const queue=unique.filter(path=>!path.toLowerCase().endsWith('.md')),next={};
+        setEmbeddedAssets({});
+        async function worker(){while(live&&queue.length){const path=queue.shift();let result;try{result=await vault.readAsset({path});}catch{}if(live&&result?.ok){next[path]=result.value;setEmbeddedAssets({...next});}}}
+        void Promise.all([worker(),worker()]);
         return () => { live = false; };
       }, [document?.path, document?.revision, embedPaths, vault]);
       useEffect(() => {
@@ -200,13 +251,19 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
             const result = await vault.list({});
             if (!live || !result.ok) return;
             setFiles(result.value.files); setTree(result.value.tree);
-            if (!selected || (!document && !asset)) return;
+            // While another file opens, keep refreshing the list but never
+            // compare its revision with the content still displayed here.
+            if (!selected || selected !== (document?.path ?? asset?.path)) return;
             const summary = result.value.files.find(item => item.path === selected);
             if(!summary){
               if(dirty){setNotice('文件已被移走，未保存修改仍保留在编辑器中。');return;}
               ++openSequence.current;openedRef.current='';setSelected('');setDocument(undefined);setAsset(undefined);setPdfSelection(undefined);setDraft('');setSelection('');setBacklinks([]);return;
             }
             if (asset && summary?.revision !== asset.revision) {
+              if (summary?.assetKind === 'pdf' && summary.size > ASSET_DATA_URL_MAX_BYTES) {
+                setAsset(summary); setPdfSelection(undefined); setNotice('PDF 文件已变化，已按列表中的新版本重新打开。');
+                return;
+              }
               const media = await vault.readAsset({ path: selected });
               if (live && media.ok) { setAsset(media.value); setPdfSelection(undefined); setNotice('媒体文件已从文件刷新'); }
               return;
@@ -240,10 +297,15 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
         } catch { return { error: true }; }
       }, [document?.path, document?.revision]);
       const selectPage = path => {
-        if (!path || path === selected) return;
+        const pending = openingRef.current;
+        const choosingPendingFocus = pending?.path === path && pending.sessionId === sessionId && pending.sequence === openSequence.current && !!pending.locator;
+        if (!path || (path === selected && !choosingPendingFocus)) return;
         if (dirty || codeDirty) { setNotice('当前页面有未保存修改，请先保存或放弃。'); return; }
         if (!files.some(file => file.path === path)) { setNotice(`还没有这个页面：${path}`); return; }
-        setQuery(''); setHits([]); setAnchor(''); setSelected(path);
+        // Invalidate before React's selection effect so a previous read cannot
+        // take the view back. A same-path choice cancels a pending locator too.
+        setQuery(''); setHits([]); setAnchor('');
+        void open(path);
       };
       const runSearch = async value => {
         setQuery(value);
@@ -296,7 +358,7 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
       const bringPath = async path => {
         setContextMenu(null);
         if (!path) return false;
-        if (path === selected && (document || asset)) return bringIntoConversation();
+        if (path === (document?.path ?? asset?.path)) return bringIntoConversation();
         if (dirty) { setNotice('请先保存或放弃当前修改，再带入对话。'); return false; }
         const currentSessionId = await activeSession();
         if (!currentSessionId) return false;
@@ -373,7 +435,7 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
           const dataBase64 = btoa(parts.join('')), path = `媒体/${file.name}`;
           const result = await vault.saveAsset({ path, dataBase64, mime: file.type || 'application/octet-stream', expectedRevision: null });
           if (!result.ok) { setNotice(createFailureNotice(result.error, '媒体文件')); return; }
-          await refresh(path); setSelected(path); setNotice('媒体文件已保存'); window.dispatchEvent(new Event('notara-vault-changed'));
+          await refresh(path); setNotice('媒体文件已保存'); window.dispatchEvent(new Event('notara-vault-changed'));
         } catch { setNotice('媒体文件保存失败，文件可能过大或格式不受支持。'); }
       };
       // A code file starts empty and opens in the code editor; the extension decides the language.
@@ -385,7 +447,7 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
         try {
           const result = await vault.saveAsset({ path, dataBase64: '', mime: mediaForPath(path).mime, expectedRevision: null });
           if (!result.ok) { setNotice(createFailureNotice(result.error, '代码文件')); return; }
-          setCreatingCode(false); await refresh(path); setSelected(path); setNotice(`已创建代码文件：${path}`); window.dispatchEvent(new Event('notara-vault-changed'));
+          setCreatingCode(false); await refresh(path); setNotice(`已创建代码文件：${path}`); window.dispatchEvent(new Event('notara-vault-changed'));
         } catch { setNotice('代码文件没有创建，请检查路径后再试。'); }
       };
       const create = async event => {
@@ -393,7 +455,7 @@ const useFileActions=createFileActions(React,{STYLE,Dialog});
         if (dirty || codeDirty) { setNotice('当前页面有未保存修改，请先保存或放弃。'); return; }
         if (!templatePath || !newPath.trim()) return;
         const result = await vault.createFromTemplate({ templatePath, path: newPath.trim(), values: { title: newTitle.trim() || '新页面', date: new Date().toISOString().slice(0, 10) }, expectedRevision: null });
-        if (result.ok) { setCreating(false); setNewPath('路线/新页面.md'); await refresh(result.value.path); setSelected(result.value.path); window.dispatchEvent(new Event('notara-vault-changed')); }
+        if (result.ok) { setCreating(false); setNewPath('路线/新页面.md'); await refresh(result.value.path); window.dispatchEvent(new Event('notara-vault-changed')); }
         else setNotice(createFailureNotice(result.error, '页面'));
       };
       const selectFromResult = path => selectPage(path);

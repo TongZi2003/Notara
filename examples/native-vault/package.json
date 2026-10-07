@@ -1,6 +1,6 @@
 {
   "name": "@notara/vault-native",
-  "version": "0.24.1",
+  "version": "0.24.2",
   "license": "MIT",
   "type": "module",
   "main": "index.js",
@@ -29,6 +29,7 @@
     "lazy",
     "lazy-assets.js",
     "vault.js",
+    "projection-runtime.js",
     "frontmatter.js",
     "media.js",
     "pdf.js",

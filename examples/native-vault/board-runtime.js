@@ -6,6 +6,7 @@ import { BOARD_DIRECTORY,parseBoard,renderBoard,upsertBoard,projectBoard,validat
 import { BOARD_COMPONENTS,appendBoardAnswer,boardAnswerMessage,boardComponents,fingerprint,validateBoardAnswer } from './board-components.js';
 import { createInteractionRuntime } from './interactive-runtime.js';
 import { createBoardEditing } from './board-editing-runtime.js';
+import { markProjection } from './projection-runtime.js';
 const fail=code=>{throw new Error(code);};
 export const boardPath=sessionId=>BOARD_DIRECTORY+'/'+createHash('sha256').update(sessionId).digest('hex').slice(0,32)+'.md';
 export async function readBoardDocument(io,sessionId){
@@ -49,6 +50,8 @@ export function createBoardRuntime(service){
     }
     value.workspaceId=io.workspace.id;
     value.contributions=await editing.contributionView({sessionId});
+    if(scan.sourceRevision)markProjection(value,[io.workspace.id,state.revision,scan.sourceRevision,
+      value.blocks.map(block=>[block.id,block.sourceState??null,block.interactive??null,block.interactiveState??null]),value.contributions]);
     return value;
   }
   function deliver(agent,board,block,component,answer){
@@ -59,6 +62,7 @@ export function createBoardRuntime(service){
     catch{return {sent:false,queued:false};}
   }
   return {
+    maintainImmutableObjects:options=>editing.maintainImmutableObjects(options),
     commit:(input,options)=>editing.commit(input,{actor:'student',...options}),
     content:input=>editing.content(input),
     list:input=>editing.list(input),

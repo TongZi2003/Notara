@@ -2,13 +2,14 @@ import { createHash } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, lstat, realpath, unlink, writeFile, link, open, rm } from 'node:fs/promises';
-import { lstatSync, readdirSync } from 'node:fs';
+import { createReadStream, lstatSync, readdirSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { parseFrontmatter, serializeFrontmatter } from './frontmatter.js';
-import { isToolCacheDirectory, mediaForPath, PDF_FILE_MAX_BYTES } from './media.js';
+import { assertAssetDataUrlSize, isToolCacheDirectory, mediaForPath, PDF_FILE_MAX_BYTES, PDF_RANGE_MAX_ACTIVE_PER_LEASE, PDF_RANGE_MAX_ACTIVE_PER_STORE, PDF_RANGE_RPC_MAX_BYTES, PDF_RANGE_SESSION_EXTRA_BYTES } from './media.js';
 import { buildVaultGraph } from './graph.js';
 import { learningStars } from './mastery-data.js';
+import { createProjectionMemo } from './projection-runtime.js';
 
 const WIKI_LINK = /\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g;
 const HEADING = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
@@ -285,8 +286,13 @@ function buildSnippet(content, needle) {
   const lower = content.toLocaleLowerCase(), index = lower.indexOf(needle);
   if (index < 0) return content.split(/\r?\n/).find(Boolean) ?? '';
   const start = Math.max(0, index - 48), end = Math.min(content.length, index + needle.length + 96);
-  return `${start > 0 ? '…' : ''}${content.slice(start, end).replaceAll('\n', ' ')}${end < content.length ? '…' : ''}`;
+  const safeStart = start > 0 && isLowSurrogate(content.charCodeAt(start)) && isHighSurrogate(content.charCodeAt(start - 1)) ? start + 1 : start;
+  const safeEnd = end < content.length && isLowSurrogate(content.charCodeAt(end)) && isHighSurrogate(content.charCodeAt(end - 1)) ? end - 1 : end;
+  return `${safeStart > 0 ? '…' : ''}${content.slice(safeStart, safeEnd).replaceAll('\n', ' ')}${safeEnd < content.length ? '…' : ''}`;
 }
+
+function isHighSurrogate(value) { return value >= 0xd800 && value <= 0xdbff; }
+function isLowSurrogate(value) { return value >= 0xdc00 && value <= 0xdfff; }
 
 export function buildBacklinks(documents) {
   const result = new Map();
@@ -362,6 +368,12 @@ function isSupersededTemplate(name, existing) {
 
 export function createVaultStore(root, templateRoot) {
   const rootPath = resolve(root);
+  const assetIdentityCache = new Map();
+  const assetRangeLeases = new Map();
+  let activeAssetRangeReads = 0;
+  const ASSET_IDENTITY_CACHE_LIMIT = 256;
+  const ASSET_RANGE_LEASE_LIMIT = 32;
+  const ASSET_RANGE_LEASE_TTL_MS = 60 * 60 * 1000;
 
   async function ensureRoot() {
     await mkdir(rootPath, { recursive: true });
@@ -448,29 +460,191 @@ export function createVaultStore(root, templateRoot) {
     }
   }
 
-  async function assetSummary(path) {
+  function rememberAssetIdentity(path, key, summary) {
+    assetIdentityCache.delete(path);
+    assetIdentityCache.set(path, { key, summary });
+    if (assetIdentityCache.size > ASSET_IDENTITY_CACHE_LIMIT) assetIdentityCache.delete(assetIdentityCache.keys().next().value);
+  }
+
+  function closeRangeJob(job) {
+    if (!job.handle) return Promise.resolve();
+    job.closePromise ??= job.handle.close().catch(() => undefined);
+    return job.closePromise;
+  }
+
+  async function revokeAssetRangeLease(id, lease) {
+    lease.closed = true;
+    if (assetRangeLeases.get(id) === lease) assetRangeLeases.delete(id);
+    const jobs = [...lease.activeJobs];
+    await Promise.all(jobs.map(job => closeRangeJob(job)));
+    await Promise.all(jobs.map(job => job.done));
+    return true;
+  }
+
+  function pruneAssetRangeLeases(now = Date.now()) {
+    for (const [id, lease] of assetRangeLeases) {
+      if (lease.closed || now - lease.touchedAt >= ASSET_RANGE_LEASE_TTL_MS) void revokeAssetRangeLease(id, lease);
+    }
+    while (assetRangeLeases.size >= ASSET_RANGE_LEASE_LIMIT) {
+      let oldestId, oldestAt = Infinity;
+      for (const [id, lease] of assetRangeLeases) if (lease.touchedAt < oldestAt) { oldestId = id; oldestAt = lease.touchedAt; }
+      if (oldestId === undefined) break;
+      const oldest = assetRangeLeases.get(oldestId);
+      if (oldest) void revokeAssetRangeLease(oldestId, oldest);
+    }
+  }
+
+  function rangeOwner(value) {
+    if (typeof value !== 'string' || !value || value.length > 240) fail('vault_asset_range_scope');
+    return value;
+  }
+
+  function rangeId(value, code = 'vault_asset_range_invalid') {
+    if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) fail(code);
+    return value;
+  }
+
+  async function assetSummary(path, { signal } = {}) {
     const value = safeRelativePath(path);
     if (value.toLowerCase().endsWith('.md') || pathKey(value.split('/')[0]) === '_templates') fail('vault_asset_required');
     try {
-      const absolute=await target(value),media=mediaForPath(value);
-      if(media.kind==='pdf'&&(await lstat(absolute)).size>PDF_FILE_MAX_BYTES)fail('vault_pdf_too_large');
-      const bytes = await readFile(absolute);
-      if(media.kind==='pdf'&&bytes.byteLength>PDF_FILE_MAX_BYTES)fail('vault_pdf_too_large');
-      return { path: value, title: basename(value), kind: 'asset', assetKind: media.kind, mime: media.mime, extension: media.extension, ...(media.language ? { language: media.language } : {}), size: bytes.byteLength, revision: revisionForBytes(bytes) };
+      const absolute=await target(value),media=mediaForPath(value),before=await lstat(absolute,{bigint:true});
+      if(!before.isFile())fail('vault_file_required');
+      const hash=createHash('sha256');let size=0;
+      try {
+        for await(const chunk of createReadStream(absolute, signal ? { signal } : undefined)) {
+          if (signal?.aborted) fail('vault_asset_range_cancelled');
+          hash.update(chunk);size+=chunk.byteLength;
+        }
+      } catch (error) {
+        if (signal?.aborted) fail('vault_asset_range_cancelled', error);
+        throw error;
+      }
+      const after=await lstat(absolute,{bigint:true});
+      if(!after.isFile()||size!==Number(before.size)||fileStatKey(before)!==fileStatKey(after))fail('vault_revision_conflict');
+      const summary = { path: value, title: basename(value), kind: 'asset', assetKind: media.kind, mime: media.mime, extension: media.extension, ...(media.language ? { language: media.language } : {}), size, revision: hash.digest('hex').slice(0,24) };
+      rememberAssetIdentity(value, fileStatKey(before), summary);
+      return summary;
     } catch (error) {
       if (error instanceof Error && error.code === 'ENOENT') fail('vault_file_not_found');
       throw error;
     }
   }
 
-  async function readAsset(path) {
-    const summary = await assetSummary(path),absolute=await target(summary.path);
-    if(summary.assetKind==='pdf'&&(await lstat(absolute)).size>PDF_FILE_MAX_BYTES)fail('vault_pdf_too_large');
-    const bytes = await readFile(absolute);
-    if(summary.assetKind==='pdf'){
-      if(bytes.byteLength>PDF_FILE_MAX_BYTES)fail('vault_pdf_too_large');
-      if(revisionForBytes(bytes)!==summary.revision)fail('vault_revision_conflict');
+  async function openAssetRange(path, owner, requestId, signal) {
+    const value = safeRelativePath(path), caller = rangeOwner(owner), request = rangeId(requestId);
+    if (signal?.aborted) fail('vault_asset_range_cancelled');
+    const { absolute, info } = await assetRangeCandidate(value);
+    const key = fileStatKey(info), cached = assetIdentityCache.get(value);
+    let summary = cached?.key === key ? cached.summary : await assetSummary(value, { signal });
+    if (signal?.aborted) fail('vault_asset_range_cancelled');
+    const identity = assetIdentityCache.get(value), after = await lstat(absolute, { bigint: true });
+    if (!identity || identity.summary.revision !== summary.revision || fileStatKey(after) !== identity.key) fail('vault_revision_conflict');
+    if (summary.assetKind !== 'pdf') fail('vault_media_not_supported');
+    if (!Number.isSafeInteger(summary.size) || summary.size <= 0) fail('vault_pdf_size_unavailable');
+    if (summary.size > PDF_FILE_MAX_BYTES) fail('vault_pdf_too_large');
+    pruneAssetRangeLeases();
+    for (const lease of assetRangeLeases.values()) if (lease.owner === caller && lease.requestId === request) fail('vault_asset_range_duplicate');
+    const id = randomUUID(), touchedAt = Date.now();
+    assetRangeLeases.set(id, { id, requestId: request, owner: caller, path: value, revision: summary.revision, size: summary.size, fileKey: identity.key, readBytes: 0, readBudget: summary.size * 2 + PDF_RANGE_SESSION_EXTRA_BYTES, touchedAt, closed: false, activeReads: 0, activeJobs: new Set() });
+    return { ...summary, rangeId: id };
+  }
+
+  async function assetRangeCandidate(path) {
+    const value = safeRelativePath(path), absolute = await target(value);
+    let info;
+    try { info = await lstat(absolute, { bigint: true }); }
+    catch (error) { if (error instanceof Error && error.code === 'ENOENT') fail('vault_file_not_found'); throw error; }
+    if (!info.isFile()) fail('vault_file_required');
+    if (mediaForPath(value).kind !== 'pdf') fail('vault_media_not_supported');
+    if (info.size <= 0n) fail('vault_pdf_size_unavailable');
+    if (info.size > BigInt(PDF_FILE_MAX_BYTES)) fail('vault_pdf_too_large');
+    return { value, absolute, info };
+  }
+
+  async function validateAssetRange(path) {
+    await assetRangeCandidate(path);
+    return true;
+  }
+
+  async function readAssetRange(owner, id, offset, length, expectedRevision) {
+    const caller = rangeOwner(owner), token = rangeId(id);
+    if (typeof expectedRevision !== 'string' || !/^[0-9a-f]{24}$/i.test(expectedRevision)) fail('vault_revision_invalid');
+    if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(length) || length < 1) fail('vault_asset_range_invalid');
+    if (length > PDF_RANGE_RPC_MAX_BYTES) fail('vault_asset_range_too_large');
+    const lease = assetRangeLeases.get(token);
+    if (!lease || lease.closed || Date.now() - lease.touchedAt >= ASSET_RANGE_LEASE_TTL_MS) {
+      assetRangeLeases.delete(token);
+      fail('vault_asset_range_expired');
     }
+    if (lease.owner !== caller) fail('vault_asset_range_scope');
+    if (expectedRevision !== lease.revision) fail('vault_revision_conflict');
+    if (offset > lease.size || length > lease.size - offset) fail('vault_asset_range_invalid');
+    if (lease.activeReads >= PDF_RANGE_MAX_ACTIVE_PER_LEASE || activeAssetRangeReads >= PDF_RANGE_MAX_ACTIVE_PER_STORE) fail('vault_asset_range_busy');
+    if (lease.readBytes + length > lease.readBudget) fail('vault_asset_range_budget_exceeded');
+    lease.readBytes += length;
+    lease.activeReads += 1;
+    activeAssetRangeReads += 1;
+    let finish;
+    const job = { handle: null, closePromise: null, done: new Promise(resolve => { finish = resolve; }) };
+    lease.activeJobs.add(job);
+    const assertActive = () => { if (lease.closed || assetRangeLeases.get(token) !== lease) fail('vault_asset_range_cancelled'); };
+    try {
+      const absolute = await target(lease.path);
+      assertActive();
+      const beforePath = await lstat(absolute, { bigint: true });
+      assertActive();
+      if (!beforePath.isFile() || fileStatKey(beforePath) !== lease.fileKey) fail('vault_revision_conflict');
+      job.handle = await open(absolute, 'r');
+      assertActive();
+      const opened = await job.handle.stat({ bigint: true });
+      assertActive();
+      if (!opened.isFile() || fileStatKey(opened) !== lease.fileKey) fail('vault_revision_conflict');
+      const bytes = Buffer.allocUnsafe(length);
+      let read = 0;
+      while (read < length) {
+        const result = await job.handle.read(bytes, read, length - read, offset + read);
+        if (result.bytesRead < 1) fail('vault_revision_conflict');
+        read += result.bytesRead;
+        assertActive();
+      }
+      const after = await job.handle.stat({ bigint: true }), afterPath = await lstat(absolute, { bigint: true });
+      assertActive();
+      if (!after.isFile() || !afterPath.isFile() || fileStatKey(after) !== lease.fileKey || fileStatKey(afterPath) !== lease.fileKey) fail('vault_revision_conflict');
+      lease.touchedAt = Date.now();
+      return { offset, length, revision: lease.revision, dataBase64: bytes.toString('base64') };
+    } catch (error) {
+      if (error instanceof Error && error.code === 'ENOENT') fail('vault_revision_conflict', error);
+      throw error;
+    } finally {
+      await closeRangeJob(job);
+      lease.activeJobs.delete(job);
+      lease.activeReads -= 1;
+      activeAssetRangeReads -= 1;
+      finish();
+    }
+  }
+
+  async function cancelAssetRange(owner, token) {
+    const caller = rangeOwner(owner), id = rangeId(token);
+    for (const [rangeToken, lease] of assetRangeLeases) {
+      if (lease.owner === caller && (rangeToken === id || lease.requestId === id)) {
+        return revokeAssetRangeLease(rangeToken, lease);
+      }
+    }
+    return false;
+  }
+
+  async function readAsset(path) {
+    const value=safeRelativePath(path),absolute=await target(value),media=mediaForPath(value);
+    let info;
+    try{info=await lstat(absolute);}catch(error){if(error instanceof Error&&error.code==='ENOENT')fail('vault_file_not_found');throw error;}
+    if(!info.isFile())fail('vault_file_required');
+    assertAssetDataUrlSize(info.size,media.kind);
+    const summary = await assetSummary(value);
+    const bytes = await readFile(absolute);
+    assertAssetDataUrlSize(bytes.byteLength,media.kind);
+    if(revisionForBytes(bytes)!==summary.revision)fail('vault_revision_conflict');
     return { ...summary, dataUrl: `data:${summary.mime};base64,${bytes.toString('base64')}` };
   }
 
@@ -516,6 +690,15 @@ export function createVaultStore(root, templateRoot) {
   // freshness. A scan still stats every file, so outside edits show at once;
   // only files whose key changed are read, hashed and parsed again.
   const scanCache = new Map();
+  const memoProjection = createProjectionMemo(2);
+  async function fileProjection(kind) {
+    const documents=await scan(),assets=await scanAssets();
+    const sources=[documents.map(doc=>[doc.path,doc.revision]),assets.map(asset=>[asset.path,asset.revision])];
+    return memoProjection(kind,sources,()=>{
+      const graph=buildVaultGraph(documents,assets);
+      return kind==='graph'?graph:learningStars(graph,documents);
+    });
+  }
   async function cachedScan(paths, compute, owns) {
     const result = [], seen = new Set(paths);
     for (const path of paths) {
@@ -758,16 +941,18 @@ export function createVaultStore(root, templateRoot) {
     scan,
     scanAssets,
     readAsset,
+    validateAssetRange,
+    openAssetRange,
+    readAssetRange,
+    cancelAssetRange,
     save: saveDocument,
     saveAsset,
     async search(query, limit) { return searchDocuments(await scan(), query, limit); },
     async query(where, limit) { return queryDocuments(await scan(), where, limit); },
-    // The graph is a pure projection of the files on disk: no table, no cache,
-    // no write path. Every call re-scans so external edits are visible at once.
-    async graph() { return buildVaultGraph(await scan(), await scanAssets()); },
-    // 星图亮度 is the same kind of projection: one scan, the same graph, and the
-    // cards' own review history. Nothing is cached or written back.
-    async learningStars() { const documents = await scan(); return learningStars(buildVaultGraph(documents, await scanAssets()), documents); },
+    // Re-stat on every call; reuse only the pure projection whose source
+    // revisions still match. Same-size external edits and deletion invalidate.
+    async graph() { return fileProjection('graph'); },
+    async learningStars() { return fileProjection('stars'); },
     async links(path) {
       const document = await readDocument(path), backlinks = buildBacklinks(await scan());
       return { outgoing: document.links, incoming: backlinks.get(document.path) ?? [] };

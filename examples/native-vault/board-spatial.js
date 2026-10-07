@@ -1,9 +1,16 @@
 /** Pure helpers for the lightweight SVG space-figure renderer. */
 export function spatialTicks(from, to, limit = 16) {
   if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return [];
-  const start = Math.ceil(from), end = Math.floor(to), step = Math.max(1, Math.ceil((end - start + 1) / limit));
-  const count = Math.max(0, Math.floor((end - start) / step) + 1);
-  return Array.from({ length: count }, (_, index) => start + index * step);
+  const start = Math.ceil(from), end = Math.floor(to);
+  if (end < start) return [];
+  const budget = Number.isSafeInteger(limit) && limit > 0 ? Math.min(limit, 256) : 16;
+  const span = end - start, finiteSpan = Number.isFinite(span);
+  const step = Math.max(1, Math.ceil(finiteSpan ? (span + 1) / budget : end / budget - start / budget));
+  const count = finiteSpan ? Math.min(budget, Math.max(0, Math.floor(span / step) + 1)) : budget;
+  return Array.from({ length: count }, (_, index) => {
+    const value = start + index * step;
+    return Number.isFinite(value) ? Math.min(end, Math.max(start, value)) : start * (1 - index / count) + end * (index / count);
+  });
 }
 
 export function createSpatialProjector(bounds, camera, width = 760, height = 520) {

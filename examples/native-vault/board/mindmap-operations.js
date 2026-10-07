@@ -1,7 +1,7 @@
 export const emptyMindmap=()=>({nodes:[],links:[],notes:[]});
 export function branchIds(map,id) {
  const ids=[id],seen=new Set(ids);
- for(let i=0;i<ids.length;i++)for(const node of map.nodes)if(node.parentId===ids[i]&&!seen.has(node.elementId)){seen.add(node.elementId);ids.push(node.elementId);}
+ for(let i=0;i<ids.length;i++)for(const node of map.nodes)if(node?.parentId===ids[i]&&!seen.has(node.elementId)){seen.add(node.elementId);ids.push(node.elementId);}
  return ids;
 }
 export function changeParent(map,id,parentId) {
@@ -18,7 +18,8 @@ export function layoutBranch(elements,map,id) {
  const byId=new Map(elements.map(e=>[e.id,e])),root=byId.get(id),positions=new Map();
  if(!root||root.locked)return elements;
  let row=0;
- const visit=(nodeId,depth)=>{const element=byId.get(nodeId);if(!element)return;if(element.locked){row+=branchIds(map,nodeId).length;return;}positions.set(nodeId,{x:root.x+depth*240,y:root.y+row++*100});for(const n of map.nodes)if(n.parentId===nodeId)visit(n.elementId,depth+1);};
+ const visited=new Set();
+ const visit=(nodeId,depth)=>{if(visited.has(nodeId))return;visited.add(nodeId);const element=byId.get(nodeId);if(!element)return;if(element.locked){row+=branchIds(map,nodeId).length;return;}positions.set(nodeId,{x:root.x+depth*240,y:root.y+row++*100});for(const n of map.nodes)if(n?.parentId===nodeId)visit(n.elementId,depth+1);};
  visit(id,0);
  return elements.map(e=>{
   const target=positions.get(e.id);if(target)return {...e,...target};

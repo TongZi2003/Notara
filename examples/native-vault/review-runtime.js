@@ -13,7 +13,7 @@ export function createReviewRuntime(service) {
   const ioFor = (args, exec, write = false) => exec
     ? createAgentVaultIO(service.ctx, exec, { writeApproved: write })
     : service.editorFor(args);
-  const zoneFor = (args, exec) => calendarZone(exec ? undefined : args.timeZone);
+  const zoneFor = args => calendarZone(args.timeZone);
   async function readTarget(io, args) {
     if (typeof args.path !== 'string' || typeof args.expectedRevision !== 'string') fail('vault_reference_invalid');
     return io.read(args.path, args.expectedRevision);
@@ -21,11 +21,11 @@ export function createReviewRuntime(service) {
   const receipt = doc => ({ path: doc.path, title: doc.title, revision: doc.revision, ref: doc.ref, saved: true });
   return {
     async calendar(args, exec) {
-      const io = await ioFor(args, exec), scan = await io.scan(), timeZone = zoneFor(args, exec);
+      const io = await ioFor(args, exec), scan = await io.scan(), timeZone = zoneFor(args);
       return { ...calendarProjection(scan.documents, { from: args.from, to: args.to, timeZone, today: civilDay(new Date(), timeZone) }), truncated: scan.truncated, unreadable: scan.errors.length };
     },
     async queue(args, exec) {
-      const io = await ioFor(args, exec), scan = await io.scan(), timeZone = zoneFor(args, exec);
+      const io = await ioFor(args, exec), scan = await io.scan(), timeZone = zoneFor(args);
       return { ...reviewQueue(scan.documents, { today: civilDay(new Date(), timeZone), query: args.query, tag: args.tag, status: args.status, offset: args.offset, limit: args.limit }), truncated: scan.truncated, unreadable: scan.errors.length };
     },
     async detail(args) {
@@ -34,7 +34,7 @@ export function createReviewRuntime(service) {
     },
     async record(args, exec) {
       const io = await ioFor(args, exec, true), doc = await readTarget(io, args);
-      const at = new Date().toISOString(), day = civilDay(at, zoneFor(args, exec));
+      const at = new Date().toISOString(), day = civilDay(at, zoneFor(args));
       const id = exec?.callId ? createHash('sha256').update(`${exec.agent.session.id}:${exec.callId}`).digest('hex').slice(0, 24) : randomUUID();
       if (['passed', 'assessments', 'depth', 'nextCheck'].some(key => Object.hasOwn(args, key))) fail('review_request_invalid');
       const before = reviewState(doc);

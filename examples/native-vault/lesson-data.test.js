@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 import { civilDay } from './calendar-data.js';
 import { findLearning } from './learning-data.js';
-import { lessonLog, parseLessonSummaries, parseRoute, renderRoute, stableLessonSummaryId, upsertLessonSummary } from './lesson-data.js';
+import { lessonLog, parseLessonSummaries, parseRoute, renderRoute, stableLessonSummaryId, upsertLessonSummary, validateRouteNodes } from './lesson-data.js';
+import { routeLogEntry, routeNodeBlock } from './route-plan.js';
 import { createVaultStore, parseMarkdownDocument, revisionFor } from './vault.js';
 
 const SESSION_A = 'session-2026-09-21-a';
@@ -340,6 +341,19 @@ test('a node brief lives in its own page block and never in frontmatter', () => 
   assert.match(content, /<!-- notara:route-node "n1" -->/);
   assert.ok(blockFor(content, 'n1').includes('讲清定义。'));
   assert.ok(blockFor(content, 'n2').includes('补练离心率。'));
+});
+
+test('route node and log titles cannot inject owned markers into the route body', () => {
+  const title = '我的 notara:route-node 笔记';
+  assert.throws(() => routeNodeBlock({ id: 'n1', title, brief: '规划' }), /lesson_route_title_invalid/);
+  assert.throws(() => renderRoute({ title: '路线', nodes: [{ id: 'n1', title, materials: [], brief: '规划' }] }), /lesson_route_title_invalid/);
+  assert.throws(() => routeLogEntry({ date: '2026-10-06', reason: '修改路线', titles: [title] }), /lesson_route_title_invalid/);
+});
+
+test('public route helpers return domain errors for missing input shapes', () => {
+  assert.throws(() => routeNodeBlock(null), /lesson_route_node_invalid/);
+  assert.throws(() => validateRouteNodes(undefined), /lesson_route_lessons_invalid/);
+  assert.throws(() => validateRouteNodes(Array(2)), /lesson_route_lessons_invalid/);
 });
 
 test('reorder, schedule and class binding keep every brief on its own node', () => {

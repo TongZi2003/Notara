@@ -293,11 +293,14 @@ test('repeated scans reuse unchanged pages, still record each observation and se
   ctx.emit=(name,...rest)=>{if(name==='fs/observed')observed.push(rest[0]);return emit(name,...rest);};
   const io=module.createAgentVaultIO(ctx,exec);
   const first=await io.scan(),second=await io.scan();
+  assert.match(first.sourceRevision,/^[a-f0-9]{64}$/);
+  assert.equal(second.sourceRevision,first.sourceRevision);
   const pick=scan=>scan.documents.find(doc=>doc.path==='a.md');
   assert.equal(pick(second),pick(first),'an unchanged page is served from the cache');
   assert.equal(observed.filter(target=>String(target?.targetKey??target).replaceAll('\\','/').endsWith('/a.md')).length,2,'the cached page is still recorded as observed');
   await writeFile(join(root,'vault/a.md'),'# A\n\nALPHA');
   const third=await io.scan();
+  assert.notEqual(third.sourceRevision,first.sourceRevision,'same-size external edits invalidate the projection token');
   assert.match(pick(third).content,/ALPHA/);
   assert.notEqual(pick(third).revision,pick(first).revision);
 });

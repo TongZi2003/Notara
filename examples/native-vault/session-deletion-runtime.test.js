@@ -8,6 +8,21 @@ import { linkedSessionClosure, reconcileSessionSearchIndex, sessionCreationTarge
 const SESSION_ID = 'session-to-recover';
 const STAGING_NAME = '.notara-session-deletion-staging';
 
+test('deletion previews expire abandoned confirmations and keep a bounded live set',async()=>{
+  const runtime=new SessionDeletionRuntime({});
+  runtime.snapshot=async sessionId=>({root:{title:sessionId},fingerprint:'test',ids:[sessionId],entries:[{id:sessionId}]});
+  runtime.assertInactive=async()=>{};
+  runtime.challenges.set('expired',{expiresAt:Date.now()-1});
+  const first=await runtime.previewDeletion({sessionId:'first'});
+  assert.equal(runtime.challenges.has('expired'),false);
+  for(let n=0;n<256;n++)await runtime.previewDeletion({sessionId:`lesson-${n}`});
+  assert.equal(runtime.challenges.size,256);
+  assert.equal(runtime.challenges.has(first.token),false);
+  runtime.challenges.set('expired-again',{sessionId:'test',expiresAt:Date.now()-1});
+  await assert.rejects(runtime.deleteConversation({sessionId:'test',token:'expired-again',typedTitle:'test'}),/session_delete_confirmation_expired/);
+  assert.equal(runtime.challenges.has('expired-again'),false);
+});
+
 function deferred() {
   let resolve;
   const promise = new Promise(done => { resolve = done; });
@@ -118,6 +133,47 @@ async function recoveryFixture(state) {
   return { root, sessionDir, transactionDir, stagedDir, header, persistence, workspaceRegistry, registryIndex, detached, query, queryCache, agents, ctx, searchEntered, releaseSearch, get searchCalls() { return searchCalls; }, get listCalls() { return listCalls; }, get resumeCalls() { return resumeCalls; }, deletedProjectionIds };
 }
 
+async function partialRollbackRecoveryFixture() {
+  const root = await mkdtemp(join(tmpdir(), 'notara-session-deletion-partial-recovery-'));
+  const persistenceRoot = join(root, 'sessions'), projectRoot = join(persistenceRoot, 'project');
+  const ids = ['session-already-restored', 'session-still-staged'];
+  const headers = ids.map((id, index) => ({ id, cwd: join(root, 'workspace'), createdAt: index + 1, version: 4 }));
+  const sessionDirs = ids.map(id => join(projectRoot, id));
+  const stagingRoot = join(root, STAGING_NAME), transactionId = 'd68ddcb4-1dc2-4a77-b0cd-a25e86d57c10';
+  const transactionDir = join(stagingRoot, transactionId), stillStagedDir = join(transactionDir, 'session-1');
+  await mkdir(sessionDirs[0], { recursive: true });
+  await mkdir(stillStagedDir, { recursive: true });
+  await writeFile(join(sessionDirs[0], 'events.jsonl'), 'already restored session log');
+  await writeFile(join(stillStagedDir, 'events.jsonl'), 'still staged session log');
+  await writeFile(join(transactionDir, 'notara-session-deletion.json'), `${JSON.stringify({
+    owner: 'notara-vault-native', version: 1, state: 'staging', transactionId, ids,
+    archived: [], pinned: ids,
+    entries: headers.map((header, index) => ({ id: header.id, header, stagedName: `session-${index}` })),
+  })}\n`);
+
+  const persistence = {
+    root: persistenceRoot,
+    locate(meta) { return { kind: 'jsonl', path: join(persistenceRoot, 'project', meta.id, 'events.jsonl') }; },
+    async list() {
+      const rows = [];
+      for (let index = 0; index < ids.length; index++) {
+        const exists = await stat(join(sessionDirs[index], 'events.jsonl')).then(() => true, error => error.code === 'ENOENT' ? false : Promise.reject(error));
+        if (exists) rows.push({ header: headers[index], revision: `revision-${index}` });
+      }
+      return rows;
+    },
+  };
+  const archivedSessionIds = new Set(ids), pinnedSessionIds = new Set(), registryIndex = [];
+  const workspaceRegistry = {
+    archivedSessionIds, pinnedSessionIds,
+    async unarchiveSession(id) { archivedSessionIds.delete(id); },
+    async pinSession(id) { pinnedSessionIds.add(id); },
+    async replaceHeaderIndex(rows) { registryIndex.splice(0, registryIndex.length, ...rows); },
+  };
+  const ctx = { sessionPersistence: persistence, workspaceRegistry };
+  return { root, ids, headers, sessionDirs, transactionDir, stillStagedDir, persistence, workspaceRegistry, registryIndex, ctx };
+}
+
 test('linked deletion closure is transitive, deterministic, and excludes unrelated sessions', () => {
   const rows = [
     { id: 'root' },
@@ -172,6 +228,21 @@ test('startup recovery rolls an interrupted staging transaction back to its orig
     assert.deepEqual(fixture.registryIndex.map(row => row.id), [SESSION_ID]);
     assert.equal(fixture.workspaceRegistry.archivedSessionIds.has(SESSION_ID), false);
     assert.equal(fixture.workspaceRegistry.pinnedSessionIds.has(SESSION_ID), true);
+  } finally { await rm(fixture.root, { recursive: true, force: true }); }
+});
+
+test('startup recovery resumes a two-session rollback after one session was already restored', async () => {
+  const fixture = await partialRollbackRecoveryFixture();
+  try {
+    const runtime = new SessionDeletionRuntime(fixture.ctx);
+    await runtime.recoverStaging();
+
+    assert.equal(await readFile(join(fixture.sessionDirs[0], 'events.jsonl'), 'utf8'), 'already restored session log');
+    assert.equal(await readFile(join(fixture.sessionDirs[1], 'events.jsonl'), 'utf8'), 'still staged session log');
+    assert.deepEqual(fixture.workspaceRegistry.archivedSessionIds, new Set());
+    assert.deepEqual(fixture.workspaceRegistry.pinnedSessionIds, new Set(fixture.ids));
+    assert.deepEqual(fixture.registryIndex.map(row => row.id).sort(), [...fixture.ids].sort());
+    await assert.rejects(stat(fixture.transactionDir), error => error.code === 'ENOENT');
   } finally { await rm(fixture.root, { recursive: true, force: true }); }
 });
 
@@ -230,13 +301,13 @@ test('deletion blocks live-session mutations for the whole tree while reads, sto
     release.resolve();
     await assert.rejects(deletion, /session_delete_rollback_failed/);
     assert.equal(fixture.removals, 1);
-    assert.equal(runtime.isBlocked('class'), false);
-    assert.equal(runtime.isBlocked('child'), false);
+    assert.equal(runtime.isBlocked('class'), true);
+    assert.equal(runtime.isBlocked('child'), true);
+    await assert.rejects(runtime.previewDeletion({sessionId:'class'}),/session_delete_rollback_failed/);
     const signal = new AbortController().signal;
     for (const sessionId of ['class', 'child']) {
       for (const method of ['create', 'fork', 'prompt', 'rename', 'selectModel', 'updateQueue']) {
-        assert.deepEqual(await controller[method]({ sessionId, title: '删除失败后仍可继续' }, signal), { accepted: true });
-        assert.equal(fixture.calls.at(-1).rest[0], signal);
+        await assert.rejects(controller[method]({ sessionId, title: '恢复完成前不允许覆盖日志' }, signal),/session_delete_in_progress/);
       }
     }
     await fixture.dispose();

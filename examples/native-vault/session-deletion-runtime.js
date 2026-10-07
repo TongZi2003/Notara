@@ -5,6 +5,7 @@ import { TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 
 const REMOTE_METHOD_DESCRIPTOR = '@deepseek-ai/dsh-typert-protocol/remote-methods';
 const CONFIRM_WINDOW_MS = 3 * 60 * 1000;
+const MAX_CHALLENGES = 256;
 const STAGING_NAME = '.notara-session-deletion-staging';
 const MANIFEST_NAME = 'notara-session-deletion.json';
 const MANIFEST_OWNER = 'notara-vault-native';
@@ -102,6 +103,7 @@ export class SessionDeletionRuntime {
     this.creations = new Set();
     this.mutations = new Set();
     this.deletionOwners = new Map();
+    this.recoveryRequired = new Set();
     this.searchSessions = ctx.sessionQuery?.searchSessions;
     this.listSessions = ctx.sessionQuery?.listSessions;
     this.ready = Promise.resolve();
@@ -183,7 +185,7 @@ export class SessionDeletionRuntime {
       if (agents.resume === wrappedResume) agents.resume = originalResume;
       for (const [method, original, wrapped] of controllerWrappers) if (controller[method] === wrapped) controller[method] = original;
       for (const [method, original, wrapped] of queryWrappers) if (query[method] === wrapped) query[method] = original;
-      this.challenges.clear(); this.deleting.clear(); this.retired.clear(); this.handles.clear(); this.mutations.clear();
+      this.challenges.clear(); this.deleting.clear(); this.retired.clear(); this.handles.clear(); this.mutations.clear();this.recoveryRequired.clear();
       await this.ready.catch(() => {});
     }, 'notara-session-deletion.lifecycle');
   }
@@ -239,10 +241,14 @@ export class SessionDeletionRuntime {
     exactInput(input, ['sessionId']);
     await this.ready;
     const sessionId = validId(input.sessionId);
+    if(this.recoveryRequired.has(sessionId))fail('session_delete_rollback_failed');
     if (this.isBlocked(sessionId)) fail('session_delete_in_progress');
     const snapshot = await this.snapshot(sessionId);
     await this.assertInactive(snapshot);
-    const token = randomUUID(), expiresAt = Date.now() + CONFIRM_WINDOW_MS;
+    const now=Date.now();
+    for(const [token,challenge] of this.challenges)if(challenge.expiresAt<=now)this.challenges.delete(token);
+    while(this.challenges.size>=MAX_CHALLENGES)this.challenges.delete(this.challenges.keys().next().value);
+    const token = randomUUID(), expiresAt = now + CONFIRM_WINDOW_MS;
     this.challenges.set(token, { sessionId, title: snapshot.root.title, fingerprint: snapshot.fingerprint, ids: snapshot.ids, expiresAt });
     return {
       token, title: snapshot.root.title, expiresAt,
@@ -257,7 +263,8 @@ export class SessionDeletionRuntime {
     const sessionId = validId(input.sessionId);
     if (typeof input.token !== 'string' || input.token.length > 100 || typeof input.typedTitle !== 'string' || input.typedTitle.length > 300) fail('session_delete_input_invalid');
     const challenge = this.challenges.get(input.token);
-    if (!challenge || challenge.sessionId !== sessionId || challenge.expiresAt < Date.now()) fail('session_delete_confirmation_expired');
+    if(challenge&&challenge.expiresAt<=Date.now())this.challenges.delete(input.token);
+    if (!challenge || challenge.sessionId !== sessionId || challenge.expiresAt <= Date.now()) fail('session_delete_confirmation_expired');
     if (input.typedTitle !== challenge.title) fail('session_delete_title_mismatch');
     this.challenges.delete(input.token);
     if (challenge.ids.some(id => this.isBlocked(id))) fail('session_delete_in_progress');
@@ -275,10 +282,16 @@ export class SessionDeletionRuntime {
       await this.assertInactive(snapshot);
       return await this.removeSnapshot(snapshot, lock);
     } catch (error) {
-      throw new Error(errorCode(error));
+      const code=errorCode(error);
+      if(code==='session_delete_rollback_failed')for(const id of challenge.ids)this.recoveryRequired.add(id);
+      throw new Error(code);
     } finally {
-      for (const id of challenge.ids) this.deleting.delete(id);
-      for (const id of challenge.ids) if (this.deletionOwners.get(id) === lock) this.deletionOwners.delete(id);
+      // Partially restored logs remain unavailable until startup replays their
+      // staging transaction; admitting new writes could overwrite recovery data.
+      for (const id of challenge.ids) if(!this.recoveryRequired.has(id)){
+        this.deleting.delete(id);
+        if (this.deletionOwners.get(id) === lock) this.deletionOwners.delete(id);
+      }
     }
   }
 

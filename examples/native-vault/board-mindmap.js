@@ -32,8 +32,8 @@ export function validateBoardSourceRef(ref){
 export function validateMindmap(meta,elements){
   exact(meta,['version','nodes','links','notes']);
   if(meta.version!==undefined&&meta.version!==1||!Array.isArray(meta.nodes)||meta.nodes.length>500||!Array.isArray(meta.links??[])||(meta.links??[]).length>1000||!Array.isArray(meta.notes??[])||(meta.notes??[]).length>500||!Array.isArray(elements))fail();
-  const available=new Map(elements.map(e=>[e.id,e])),byId=new Map(),owners=new Set();
-  const nodes=meta.nodes.map(n=>{
+  const available=new Map(Array.from(elements,e=>{if(!object(e)||!id(e.id))fail();return [e.id,e];})),byId=new Map(),owners=new Set();
+  const nodes=Array.from(meta.nodes,n=>{
     exact(n,['elementId','parentId','sourceRef','parentEdgeId']);
     if(!id(n.elementId)||n.parentId!==null&&!id(n.parentId)||owners.has(n.elementId)||!available.has(n.elementId)||available.get(n.elementId).isDeleted)fail();
     if(n.parentEdgeId!==undefined&&!id(n.parentEdgeId))fail();
@@ -43,8 +43,8 @@ export function validateMindmap(meta,elements){
   const treeEdges=new Set();
   for(const n of nodes)if(n.parentEdgeId!==undefined){const edge=available.get(n.parentEdgeId);if(n.parentId===null||!edge||edge.isDeleted||edge.type!=='arrow'||treeEdges.has(edge.id)||edge.startBinding?.elementId!==n.parentId||edge.endBinding?.elementId!==n.elementId)fail();treeEdges.add(edge.id);}
   const seenLinks=new Set();
-  const links=(meta.links??[]).map(l=>{exact(l,['id','from','to','label']);if(l.id!==undefined&&(!id(l.id)||seenLinks.has(l.id)||available.has(l.id))||!byId.has(l.from)||!byId.has(l.to)||l.from===l.to||l.label!==undefined&&(typeof l.label!=='string'||l.label.length>500||/[\u0000-\u001f]/.test(l.label)))fail();if(l.id!==undefined)seenLinks.add(l.id);return {...(l.id===undefined?{}:{id:l.id}),from:l.from,to:l.to,...(l.label===undefined?{}:{label:l.label})};});
-  const noteIds=new Set(),notes=(meta.notes??[]).map(n=>{exact(n,['elementId','text']);if(!byId.has(n.elementId)||noteIds.has(n.elementId)||typeof n.text!=='string'||n.text.length>10000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(n.text))fail();noteIds.add(n.elementId);return {...n};});
+  const links=Array.from(meta.links??[],l=>{exact(l,['id','from','to','label']);if(l.id!==undefined&&(!id(l.id)||seenLinks.has(l.id)||available.has(l.id))||!byId.has(l.from)||!byId.has(l.to)||l.from===l.to||l.label!==undefined&&(typeof l.label!=='string'||l.label.length>500||/[\u0000-\u001f]/.test(l.label)))fail();if(l.id!==undefined)seenLinks.add(l.id);return {...(l.id===undefined?{}:{id:l.id}),from:l.from,to:l.to,...(l.label===undefined?{}:{label:l.label})};});
+  const noteIds=new Set(),notes=Array.from(meta.notes??[],n=>{exact(n,['elementId','text']);if(!byId.has(n.elementId)||noteIds.has(n.elementId)||typeof n.text!=='string'||n.text.length>10000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(n.text))fail();noteIds.add(n.elementId);return {...n};});
   return {...(meta.version===undefined?{}:{version:1}),nodes,links,notes};
 }
 function checked(input,nodeId){const scene=validateBoardScene(input);if(!scene.mindmap||!scene.mindmap.nodes.some(n=>n.elementId===nodeId))fail();return scene;}

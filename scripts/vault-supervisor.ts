@@ -6,7 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import lockfile from 'proper-lockfile';
 import { httpUrlPort, liveVaultUrl, pluginVersions } from './vault-launcher-state.ts';
 import { VaultRecovery, validateVaultRecoveryPolicy, type VaultRecoveryPolicy, type VaultRecoveryStatus } from './vault-recovery.ts';
-import { codeContract, discoverRelease, prepareRelease, runPackageScript, UpdateController } from './vault-updates.ts';
+import { acquireCachedCodeLease, cleanupPreparedReleaseCache, codeContract, collectReleaseCache, defaultReleaseCacheRoot, discoverRelease, prepareRelease, releaseCachedCodeLease, runPackageScript, UpdateController } from './vault-updates.ts';
 import type { Release } from './vault-updates.ts';
 import { startUpdateServer } from './vault-update-server.ts';
 import { createRemoteAccessService, type RemoteAccessDependencies, type RemoteAccessService } from './remote-access-service.ts';
@@ -31,6 +31,9 @@ export async function superviseVault(root: string, code: string, port?: number, 
   validateVaultRecoveryPolicy(options.recoveryPolicy);
   let active: Worker | undefined;
   let activeCode = code;
+  let lastStableCode = code;
+  let rollbackCode = code;
+  let pendingCode: string | undefined;
   let activePort = port;
   let stopped = false;
   let stopRequested = false;
@@ -50,7 +53,21 @@ export async function superviseVault(root: string, code: string, port?: number, 
   if (installed.snapshot && installed.snapshot !== contract.version) throw new Error('插件快照与启动代码版本不同。先运行 npm run vault:upgrade，再启动；课堂与资料会保留。');
   const controller: UpdateController = new UpdateController(contract.version, code, {
     discover: async signal => { if (updates) return updates.discover(); const current = await codeContract(activeCode); return discoverRelease(controller.status().currentVersion, current.runtime, fetch, signal); },
-    prepare: (release, signal) => updates ? updates.prepare(release) : prepareRelease(release, fetch, undefined, signal),
+    prepare: async (release, signal) => {
+      const previous = pendingCode;
+      pendingCode = updates
+        ? await updates.prepare(release)
+        : await prepareRelease(release, fetch, defaultReleaseCacheRoot(), signal);
+      if (updates) {
+        if (previous) {
+          try { await releaseCachedCodeLease(previous); }
+          catch { console.error('新版已准备好，但旧版本缓存未能完全清理。'); }
+        }
+      } else {
+        await cleanupPreparedReleaseCache(defaultReleaseCacheRoot(), [activeCode, rollbackCode, pendingCode], previous);
+      }
+      return pendingCode;
+    },
     stop: async () => {
       await recovery?.suspend();
       const errors: unknown[] = [];
@@ -59,11 +76,19 @@ export async function superviseVault(root: string, code: string, port?: number, 
       if (errors.length) throw new AggregateError(errors, 'Could not cleanly stop the managed Vault runtime.');
     },
     upgrade: next => runPackageScript(next, 'vault-upgrade.ts', ['--root', root, '--keep-source']),
-    start: async next => { active = await launch(next); activeCode = next; },
+    start: async next => {
+      if (next !== lastStableCode) rollbackCode = lastStableCode;
+      active = await launch(next); activeCode = next;
+    },
     commit: async (next, release) => {
       const path = pointerPath(root), pending = path + '.next';
       await writeFile(pending, JSON.stringify({ format: 1, code: next, version: release.version, sha256: release.sha256 }), { mode: 0o600 });
-      await rename(pending, path); activeCode = next;
+      await rename(pending, path); activeCode = next; lastStableCode = next;
+      if (pendingCode) { await releaseCachedCodeLease(pendingCode).catch(() => {}); pendingCode = undefined; }
+      if (!updates) {
+        try { await collectReleaseCache(defaultReleaseCacheRoot(), [activeCode, rollbackCode]); }
+        catch { console.error('Notara 已完成更新，但未能清理旧版本缓存。'); }
+      }
     },
   });
   const bridge = await startUpdateServer(controller, remote, () => {
@@ -76,17 +101,28 @@ export async function superviseVault(root: string, code: string, port?: number, 
   }
   async function launch(source: string, signal?: AbortSignal): Promise<Worker> {
     if (stopped || stopRequested) throw new Error('启动器已停止。');
-    const child = spawn(process.execPath, ['--import', pathToFileURL(join(source, 'node_modules/tsx/dist/loader.mjs')).href, join(source, 'scripts/vault-process.ts'), root, String(activePort ?? NaN)], {
-      cwd: source, env: { ...process.env, NOTARA_UPDATE_URL: bridge.url, NOTARA_UPDATE_TOKEN: bridge.token,
-        NOTARA_REMOTE_SETTINGS_URL: bridge.url, NOTARA_REMOTE_SETTINGS_TOKEN: bridge.token }, stdio: ['ignore', 'inherit', 'inherit', 'ipc'], windowsHide: true,
-    });
+    const cacheRoot = defaultReleaseCacheRoot();
+    await acquireCachedCodeLease(source, cacheRoot);
+    let leaseReleased = false;
+    const releaseLease = async () => {
+      if (leaseReleased) return;
+      leaseReleased = true;
+      await releaseCachedCodeLease(source);
+    };
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn(process.execPath, ['--import', pathToFileURL(join(source, 'node_modules/tsx/dist/loader.mjs')).href, join(source, 'scripts/vault-process.ts'), root, String(activePort ?? NaN)], {
+        cwd: source, env: { ...process.env, NOTARA_UPDATE_URL: bridge.url, NOTARA_UPDATE_TOKEN: bridge.token,
+          NOTARA_REMOTE_SETTINGS_URL: bridge.url, NOTARA_REMOTE_SETTINGS_TOKEN: bridge.token }, stdio: ['ignore', 'inherit', 'inherit', 'ipc'], windowsHide: true,
+      });
+    } catch (error) { await releaseLease(); throw error; }
     let exited = false;
     const exit = new Promise<void>(done => { child.once('exit', () => { exited = true; done(); }); child.once('error', () => { exited = true; done(); }); });
     const stop = async () => {
-      if (exited) return;
-      if (child.connected) child.send({ type: 'stop' });
-      const timer = setTimeout(() => { child.kill('SIGTERM'); }, 15_000);
-      try { await exit; } finally { clearTimeout(timer); }
+      if (exited) { await releaseLease(); return; }
+      if (child.connected) { try { child.send({ type: 'stop' }); } catch { /* The exit listener still owns completion. */ } }
+      const timer = setTimeout(() => { try { child.kill('SIGTERM'); } catch { /* Process may already have exited. */ } }, 15_000);
+      try { await exit; } finally { clearTimeout(timer); await releaseLease(); }
     };
     let onAbort: (() => void) | undefined;
     try {
@@ -142,6 +178,10 @@ export async function superviseVault(root: string, code: string, port?: number, 
     const errors: unknown[] = [];
     try { await recovery!.close(); } catch (error) { errors.push(error); }
     try { await controller.close(); } catch (error) { errors.push(error); }
+    if (pendingCode) {
+      try { await releaseCachedCodeLease(pendingCode); pendingCode = undefined; }
+      catch (error) { errors.push(error); }
+    }
     stopped = true;
     try { await remote.close(); } catch (error) { errors.push(error); }
     const worker = active;

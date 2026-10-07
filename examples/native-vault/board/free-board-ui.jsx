@@ -60,6 +60,7 @@ export function FreeBlockEditor({block,client,draftKey,visible,boardRevision,onC
   projectionPending.current=false;draft.current=createBoardDraft(initial);if(restored)draft.current.edit({});notify();setLoaded(true);setEpoch(n=>n+1);setStatus(restored?'已恢复未保存的草稿':'');
  }catch(error){if(alive.current){setStatus(error.message);onNotice(error.message);}}}
  useEffect(()=>{alive.current=true;load();return()=>{alive.current=false;readTicket.current++;clearTimeout(timer.current);};},[client,key]);
+ useEffect(()=>drafts.subscribe((id,message)=>{if(id===key)onNotice(message);}),[key,onNotice]);
  useEffect(()=>{if(loaded&&!draft.current?.dirty&&!pending.current&&(boardRevision!==draft.current?.value.revision||projectionPending.current))load();},[boardRevision]);
  useEffect(()=>{const detail={key:'board:'+key,dirty};window.dispatchEvent(new CustomEvent('notara-editor-dirty',{detail}));return()=>window.dispatchEvent(new CustomEvent('notara-editor-dirty',{detail:{...detail,dirty:false}}));},[dirty,key]);
  function edit(patch){draft.current.edit(patch);flight.current=null;notify();setStatus('未保存');clearTimeout(timer.current);timer.current=setTimeout(()=>flush(),1000);}
@@ -75,14 +76,19 @@ export function FreeBlockEditor({block,client,draftKey,visible,boardRevision,onC
  }
  async function flushAll(){if(!await flush())return false;if(draft.current?.dirty){if(!await flush()||draft.current.dirty){onNotice('仍有新修改未保存，请先保存。');return false;}}return true;}
  async function finish(action){if(await flushAll())action();}
+ async function discard(){
+  clearTimeout(timer.current);if(pending.current)await pending.current;
+  flight.current=null;projectionPending.current=false;readTicket.current++;draft.current=null;const removed=drafts.delete(key);setDirty(false);onNotice(removed?'已放弃本地修改，原先保存的内容保留。':'已放弃本页修改，但浏览器未能删除旧草稿；刷新后可能恢复旧修改。');onClose();
+ }
  callbacks.current={flush,finish};
  useEffect(()=>{onFlush(()=>flushAll());return()=>onFlush(null);},[onFlush]);
  useEffect(()=>{if(!visible&&loaded)callbacks.current.flush();},[visible]);
  const close=()=>finish(onClose);
  // Escape returns to the outer board; text entry and drawing retain their own keys.
  return <div ref={host} data-board-editing="true" className={'nb-free-editor'+(inline?' nb-inline-editor':'')} role={inline?'region':'dialog'} aria-modal={inline?undefined:'true'} aria-label={`编辑 ${block.title}`} style={inline?{height:block.height??420}:undefined} onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'&&!e.defaultPrevented&&!e.target.closest('.excalidraw')){e.preventDefault();close();}}}>
-  <header><strong>{isDrawing(block)?block.contentType==='mindmap'?'导图内编辑':'绘图内编辑':block.contentType==='figure'?'函数图':'编辑白板内容'}</strong><span role="status">{status}</span><button disabled={saving||!loaded} onClick={()=>flush()}>保存</button>{inline?<button disabled={saving} onClick={()=>finish(onExpand)}>放大编辑</button>:<button disabled={saving||!loaded} onClick={onExport}>导出</button>}<button disabled={saving} onClick={close}>{inline?'收起编辑':'返回白板'}</button></header>
+  <header><strong>{isDrawing(block)?block.contentType==='mindmap'?'导图内编辑':'绘图内编辑':block.contentType==='figure'?'函数图':'编辑白板内容'}</strong><span role="status">{status}</span><button disabled={saving||!loaded} onClick={()=>flush()}>保存</button>{dirty&&<button disabled={saving} onClick={discard}>放弃修改</button>}{inline?<button disabled={saving} onClick={()=>finish(onExpand)}>放大编辑</button>:<button disabled={saving||!loaded} onClick={onExport}>导出</button>}<button disabled={saving} onClick={close}>{inline?'收起编辑':'返回白板'}</button></header>
   {!loaded?<div className="nb-editor-loading"><p>{status}</p><button onClick={load}>重试读取</button><button onClick={onClose}>关闭</button></div>:<>
+   {dirty&&boardRevision!==value.revision&&<p role="note">白板已在别处更新，本地草稿仍保留。请先复制要保留的文字，再放弃修改并重新打开最新内容。</p>}
    <label className="nb-edit-title">标题<input aria-label="块标题" maxLength={160} value={value.title} onChange={e=>edit({title:e.target.value})}/></label>
    {isDrawing(block)?<div className="nb-drawing-host">{visible&&<EditorBoundary key={epoch} onError={onNotice}><Suspense fallback={<p>正在打开绘图工具…</p>}><DrawingEditor scene={value.content} mindmap={block.contentType==='mindmap'} onChange={content=>edit({content})} onSelect={ids=>{selected.current=ids;}} onSource={onSource} onError={onNotice} sources={sources} onExit={close}/></Suspense></EditorBoundary>}</div>:block.contentType==='figure'?<FigureEditor body={value.body} onChange={body=>edit({body})} onError={onNotice} onDiscuss={text=>finish(()=>onDiscuss(teacherRequest({...block,title:draft.current.value.title,revision:draft.current.value.revision},[],text)))}/>:<label className="nb-edit-body">正文<textarea aria-label="块正文" maxLength={50000} value={value.body} onChange={e=>edit({body:e.target.value})} placeholder="写下你的文字、公式或解题过程"/></label>}
    {isDrawing(block)&&<label className="nb-edit-caption">补充说明<textarea aria-label="绘图说明" maxLength={50000} value={value.body} onChange={e=>edit({body:e.target.value})}/></label>}

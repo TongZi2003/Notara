@@ -42,8 +42,9 @@ export function useLiveClassroom() {
       lastReceived = Date.now(); setState(next); setConnected(true);
     };
     window.addEventListener('message', receive);
-    window.parent.postMessage({ type: 'notara:classroom-ready', channel }, location.origin);
-    const heartbeat = setInterval(() => { if (Date.now() - lastReceived > 8000) setConnected(false); }, 2000);
+    const ready=()=>window.parent.postMessage({ type: 'notara:classroom-ready', channel }, location.origin);
+    ready();
+    const heartbeat = setInterval(() => { if (Date.now() - lastReceived > 8000){setConnected(false);ready();} }, 2000);
     return () => { clearInterval(heartbeat); window.removeEventListener('message', receive); };
   }, []);
   return { state, connected };

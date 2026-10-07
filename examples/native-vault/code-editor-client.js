@@ -132,6 +132,7 @@ export function createCodeEditor(React) {
     const [dirty, setDirty] = useState(false), [notice, setNotice] = useState(''), [saving, setSaving] = useState(false), [broken, setBroken] = useState('');
     const dirtyRef = useRef(false), report = useRef(onDirty);
     report.current = onDirty;
+    useEffect(()=>codeDrafts.subscribe((id,message)=>{if(id===draftKey)setNotice(message);}),[draftKey]);
     const markDirty = value => {
       dirtyRef.current = value;
       setDirty(value);

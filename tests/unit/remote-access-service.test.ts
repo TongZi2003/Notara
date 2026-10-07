@@ -145,6 +145,38 @@ test('a failed remote startup cleans its resources and permits retry without ste
   }
 }, 30_000);
 
+test('retrying enable first cleans an owned tunnel and releases its lock after a transient cleanup failure', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-remote-enable-retry-'));
+  let starts = 0, stops = 0;
+  const dependencies: RemoteAccessDependencies = {
+    assertNgrokReady: async () => join(root, 'fixture-global-ngrok.yml'),
+    startProxy: async options => ({ port: options.proxyPort, close: async () => undefined }),
+    startTunnel: async config => {
+      starts++;
+      const exited = new Promise<never>(() => {});
+      void exited.catch(() => undefined);
+      return {
+        publicUrl: starts === 1 ? 'https://unexpected.example.invalid' : `https://${config.publicHost}`,
+        exited,
+        async stop() { stops++; if (stops === 1) throw new Error('transient tunnel stop failure'); },
+      };
+    },
+  };
+  const service = createRemoteAccessService(root, () => loginUrl, dependencies);
+  try {
+    await service.save(defaults);
+    await expect(service.enable({})).rejects.toThrow('remote_start_failed');
+    expect(await service.status({})).toMatchObject({ phase: 'error', canDisable: true });
+    await expect(service.enable({})).resolves.toMatchObject({ phase: 'enabled', canDisable: true });
+    expect(starts).toBe(2);
+    expect(stops).toBe(2);
+    await service.disable({});
+  } finally {
+    await service.close().catch(() => undefined);
+    await rm(root, { recursive: true, force: true });
+  }
+}, 30_000);
+
 test('an abrupt remote tunnel exit releases resources and lets another service take ownership', async () => {
   const root = await mkdtemp(join(tmpdir(), 'notara-remote-exit-'));
   let starts = 0, proxyCloses = 0, tunnelStops = 0;

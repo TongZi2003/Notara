@@ -494,6 +494,8 @@ function routeNodes(lessons, { brief = false } = {}) {
  * prerequisite is a teaching order, never a mastery lock.
  */
 export function validateRouteNodes(nodes) {
+  if (!Array.isArray(nodes)) fail('lesson_route_lessons_invalid');
+  if (Array.from(nodes).some(node => !node || typeof node !== 'object' || Array.isArray(node))) fail('lesson_route_lessons_invalid');
   const ids = new Set();
   for (const node of nodes) {
     if (ids.has(node.id)) fail('lesson_route_duplicate_node');

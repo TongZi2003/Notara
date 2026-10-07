@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { teachingManifest, teachingLegacyAliases, teachingResource } from './teaching-catalog.js';
+import { teachingManifest, teachingLegacyAliases, teachingResource, teachingResourcePath } from './teaching-catalog.js';
 import { apply } from './teacher.js';
 
 const sourceRoot = new URL('../../resources/vault-teaching/', import.meta.url);
@@ -69,6 +69,11 @@ test('the real teacher Skill provider lists distinct locators and retrieves each
     assert.equal((await provider.get(entry)).content, teachingResource(targetItem.file), alias);
   }
   assert.deepEqual(await provider.list({ signal: AbortSignal.abort() }), []);
+});
+
+test('encoded path separators receive the teaching-resource domain error', () => {
+  assert.throws(() => teachingResourcePath('%2e%2e%2f'), /teaching_resource_invalid/);
+  assert.throws(() => teachingResource('%2e%2e%2f'), /teaching_resource_invalid/);
 });
 
 test('adopted user skills join the teacher catalog from both tiers; drafts never do', async t => {

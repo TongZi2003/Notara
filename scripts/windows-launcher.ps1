@@ -92,7 +92,7 @@ try {
     if ($Action -eq 'Start' -and ((Test-Path -LiteralPath (Join-Path $projectRoot '.notara-install.lock')) -or (Test-Path -LiteralPath (Join-Path $projectRoot '.notara-install-journal.json')))) {
         throw '此目录正在安装或有未恢复的安装记录。请先完成安装，再启动 Notara。'
     }
-    if ($Port -lt 0 -or $Port -gt 65535) { throw '端口必须在 1 到 65535 之间，留空则使用默认端口。' }
+    if ($Port -lt 0 -or $Port -gt 65535) { throw '端口必须在 0 到 65535 之间；0 或留空则使用默认端口。' }
     $nodePath = $null
     $npmEntry = $null
     $portableMarker = Join-Path $projectRoot 'notara-portable.json'

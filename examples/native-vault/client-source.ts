@@ -4,6 +4,7 @@ import { EditorState, Transaction } from '@codemirror/state';
 import { EditorView, drawSelection, keymap } from '@codemirror/view';
 import { lazyUrl, loadLazyModule } from './lazy-assets.js';
 import { pdfDocumentOptions } from './pdf-resources.js';
+import { createBoundedJobQueue, PDF_RANGE_MAX_ACTIVE_REQUESTS, PDF_RANGE_MAX_PENDING_REQUESTS, PDF_RANGE_RPC_MAX_BYTES, PDF_RANGE_REQUEST_MAX_BYTES, remotePdfErrorCode } from './media.js';
 import { previewFrontmatter, vaultPreview } from './live-preview.js';
 import { createVaultViews } from './views-client.js';
 import { findAnchorLine, findSummaryBlockLine } from './graph.js';
@@ -132,6 +133,18 @@ window.__ModuleLoader__.load({
       const bytes = new Uint8Array(binary.length);
       for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
       return bytes;
+    }
+
+    function decodeRangeBytes(dataBase64) {
+      if (typeof dataBase64 !== 'string' || dataBase64.length % 4 === 1 || !/^[A-Za-z0-9+/]*={0,2}$/.test(dataBase64)) throw new Error('vault_asset_range_invalid');
+      const binary = atob(dataBase64), bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+      return bytes;
+    }
+
+    function requireRemoteValue(result) {
+      if (!result?.ok) throw new Error(remotePdfErrorCode(result?.error));
+      return result.value;
     }
 
     async function renderPdfPreview(asset, locator, canvas, signal) {
@@ -446,7 +459,7 @@ window.__ModuleLoader__.load({
      */
     const usePdfAnnotations = createPdfAnnotations(React, { STYLE, IconButton });
     function PdfReader({ vault, asset, page, initialRegion, onPage, onSelectionChange, onCopyEmbed, onBring, onCreateCard, busy = false }) {
-      const bytes = useMemo(() => decodeAssetBytes(asset.dataUrl), [asset.path, asset.revision]);
+      const bytes = useMemo(() => asset.dataUrl ? decodeAssetBytes(asset.dataUrl) : null, [asset.path, asset.revision, asset.dataUrl]);
       const [load, setLoad] = useState({ status: 'loading' });
       const [requested, setRequested] = useState(page);
       const [zoomed, setZoomed] = useState(false);
@@ -457,6 +470,7 @@ window.__ModuleLoader__.load({
       const [drawing, setDrawing] = useState(false);
       const [failedPage, setFailedPage] = useState(undefined);
       const [attempt, setAttempt] = useState(0);
+      const [reloadNonce, setReloadNonce] = useState(0);
       const [region, setRegion] = useState(undefined);
       const [cardTitle, setCardTitle] = useState('');
       const [extracting, setExtracting] = useState(!!initialRegion);
@@ -471,33 +485,103 @@ window.__ModuleLoader__.load({
       useEffect(()=>{if(!region?.annotationId||region.page!==displayed?.page)return;const stage=stageRef.current,scroll=stage?.parentElement;if(stage&&scroll)scroll.scrollTo({top:Math.max(0,region.rect[1]*stage.offsetHeight-scroll.clientHeight/3),behavior:'smooth'});},[region?.annotationId,displayed?.page,displayed?.scale]);
 
       useEffect(() => {
-        let live = true;
+        let live = true, task, rangeTransport, rangeId, requestId;
         setLoad({ status: 'loading' });
         setRequested(Math.max(1, page || 1));
         setDisplayed(undefined);
         setFailedPage(undefined);
         setRegion(undefined);
-        loadPdf().then(({ getDocument }) => {
+        const failLoading = error => {
           if (!live) return;
-          const task = getDocument(pdfDocumentOptions(bytes.slice()));
+          const code = error?.message ?? 'pdf_document_invalid';
+          setLoad({ status: 'failed', error: code });
+          void task?.destroy().catch(() => undefined);
+        };
+        const start = async () => {
+          const { getDocument, PDFDataRangeTransport } = await loadPdf();
+          if (!live) return;
+          let options;
+          if (bytes) options = pdfDocumentOptions(bytes.slice());
+          else {
+            requestId = crypto.randomUUID();
+            const opened = requireRemoteValue(await vault.openAssetRange({ path: asset.path, requestId }));
+            if (!live) {
+              void vault.cancelAssetRange({ requestId }).catch(() => undefined);
+              if (opened?.rangeId) void vault.cancelAssetRange({ rangeId: opened.rangeId }).catch(() => undefined);
+              return;
+            }
+            if (opened?.revision !== asset.revision || opened?.size !== asset.size || typeof opened?.rangeId !== 'string') {
+              if (opened?.rangeId) void vault.cancelAssetRange({ rangeId: opened.rangeId }).catch(() => undefined);
+              throw new Error('vault_revision_conflict');
+            }
+            rangeId = opened.rangeId;
+            class VaultPdfRangeTransport extends PDFDataRangeTransport {
+              constructor() {
+                super(opened.size, null, false, opened.title);
+                this.active = true;
+                this.jobs = createBoundedJobQueue({ maxActive: PDF_RANGE_MAX_ACTIVE_REQUESTS, maxPending: PDF_RANGE_MAX_PENDING_REQUESTS });
+              }
+              requestDataRange(begin, end) {
+                if (!this.active || !live) return;
+                if (Number.isSafeInteger(begin) && Number.isSafeInteger(end) && end > begin && end - begin > PDF_RANGE_REQUEST_MAX_BYTES) {
+                  failLoading(new Error('vault_asset_range_request_too_large'));
+                  return;
+                }
+                if (!Number.isSafeInteger(begin) || !Number.isSafeInteger(end) || begin < 0 || end <= begin || end > opened.size) {
+                  failLoading(new Error('vault_asset_range_invalid'));
+                  return;
+                }
+                const result = this.jobs.enqueue(`${begin}:${end}`, () => this.readRange(begin, end), error => {
+                  if (this.active && live) failLoading(error);
+                });
+                if (result === 'full') failLoading(new Error('vault_asset_range_queue_full'));
+              }
+              async readRange(begin, end) {
+                if (!this.active || !live) return;
+                const bytes = new Uint8Array(end - begin);
+                for (let offset = begin; offset < end; offset += PDF_RANGE_RPC_MAX_BYTES) {
+                  if (!this.active || !live) return;
+                  const length = Math.min(PDF_RANGE_RPC_MAX_BYTES, end - offset);
+                  const row = requireRemoteValue(await vault.readAssetRange({ rangeId, offset, length, expectedRevision: asset.revision }));
+                  if (!this.active || !live) return;
+                  if (row?.offset !== offset || row?.length !== length || row?.revision !== asset.revision) throw new Error('vault_revision_conflict');
+                  const chunk = decodeRangeBytes(row.dataBase64);
+                  if (chunk.length !== length) throw new Error('vault_asset_range_invalid');
+                  bytes.set(chunk, offset - begin);
+                }
+                if (this.active && live) this.onDataRange(begin, bytes);
+              }
+              abort() {
+                if (!this.active) return;
+                this.active = false;
+                this.jobs.close();
+                if (rangeId) void vault.cancelAssetRange({ rangeId }).catch(() => undefined);
+              }
+            }
+            rangeTransport = new VaultPdfRangeTransport();
+            options = { ...pdfDocumentOptions(), range: rangeTransport, rangeChunkSize: PDF_RANGE_RPC_MAX_BYTES, disableStream: true, disableAutoFetch: true };
+          }
+          if (!live) return;
+          task = getDocument(options);
           taskRef.current = task;
-          return task.promise.then(loaded => {
-            if (!live) { void task.destroy(); return; }
-            documentRef.current = loaded;
-            setRequested(value => Math.min(Math.max(value, 1), loaded.numPages));
-            setLoad({ status: 'ready', pages: loaded.numPages });
-          });
-        }).catch(() => {
-          if (live) setLoad({ status: 'failed' });
-        });
+          const loaded = await task.promise;
+          if (!live) { void task.destroy(); return; }
+          documentRef.current = loaded;
+          setRequested(value => Math.min(Math.max(value, 1), loaded.numPages));
+          setLoad({ status: 'ready', pages: loaded.numPages });
+        };
+        void start().catch(failLoading);
         return () => {
           live = false;
           documentRef.current = undefined;
-          const task = taskRef.current;
-          taskRef.current = undefined;
-          void task?.destroy();
+          rangeTransport?.abort();
+          if (requestId) void vault.cancelAssetRange({ requestId }).catch(() => undefined);
+          if (rangeId) void vault.cancelAssetRange({ rangeId }).catch(() => undefined);
+          const current = task;
+          if (taskRef.current === current) taskRef.current = undefined;
+          void current?.destroy().catch(() => undefined);
         };
-      }, [bytes]);
+      }, [bytes, asset.path, asset.revision, asset.size, vault, reloadNonce]);
 
       useEffect(() => {
         const stage = stageRef.current?.parentElement;
@@ -574,6 +658,19 @@ window.__ModuleLoader__.load({
       };
 
       const pages = load.status === 'ready' ? load.pages : 0;
+      const pdfFailure = load.error === 'vault_revision_conflict'
+        ? 'PDF 在读取期间发生变化，请刷新列表后重新打开。'
+        : load.error === 'vault_asset_range_expired'
+          ? 'PDF 范围读取已过期，请重新读取。'
+        : load.error === 'vault_asset_range_budget_exceeded'
+          ? '本次 PDF 读取超过按文件大小计算的安全总预算，请拆分文件或使用外部阅读器。'
+          : load.error === 'vault_pdf_too_large'
+            ? 'PDF 超过 512 MiB，当前不能按页读取。'
+            : load.error === 'vault_asset_range_request_too_large'
+              ? 'PDF 含有超过 32 MiB 的连续对象，当前按页阅读器无法读取；可拆分文件或使用外部阅读器。'
+            : load.error === 'vault_asset_range_queue_full' || load.error === 'vault_asset_range_busy'
+              ? 'PDF 正在读取的范围太多，请稍后重新打开。'
+            : '这份 PDF 读不出来，可能已经损坏或需要的单个范围过大。';
       return React.createElement('div', { style: STYLE.pdfReader },
         React.createElement('div', { style: STYLE.pdfToolbar },
           React.createElement(IconButton, { icon: 'left', label: '上一页', disabled: requested <= 1, onClick: () => setRequested(value => Math.max(1, value - 1)) }),
@@ -587,10 +684,11 @@ window.__ModuleLoader__.load({
           annotations.toolbar,
           React.createElement(IconButton, { icon: 'extract', label: '框选原文区域', 'aria-pressed': extracting, onClick: () => setExtracting(value => !value) }),
         ),
+        React.createElement('p', { role: 'note', style: { ...STYLE.pdfHint, flex: 'none', padding: '4px 12px', margin: 0 } }, 'PDF 文字层可能缺字或乱码，请以当前页原图为准。'),
         referenceStale&&React.createElement('p',{role:'alert',style:STYLE.notice},'PDF 已变化，卡片保存的旧区域没有自动叠加，请核对原文。'),
         React.createElement('div', { className: 'nv-pdf-body' },
         load.status === 'failed'
-          ? React.createElement('div', { style: STYLE.empty }, '这份 PDF 读不出来，可能已经损坏。')
+          ? React.createElement('div', { style: STYLE.empty, role: 'alert' }, pdfFailure, React.createElement('button', { className: 'nv-quiet', onClick: () => setReloadNonce(value => value + 1) }, '重新读取 PDF'))
           : React.createElement('div', { style: STYLE.pdfScroll },
               React.createElement('div', { ref: stageRef, style: { ...STYLE.pdfStage, visibility: displayed ? 'visible' : 'hidden' } },
                 React.createElement('canvas', { ref: canvasRef, style: STYLE.pdfCanvas, 'aria-label': asset.title }),

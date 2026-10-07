@@ -1,6 +1,7 @@
 import { createVaultClient, visibleInterval } from './remote-client.js';
+import { createProjectionReader } from './projection-client.js';
 import { createDraftStore } from './draft-client.js';
-import { SOLVER_MAX_TOKENS, SOLVER_MIN_TOKENS, SOLVER_TOKEN_LIMIT, preferredSolverEffort, validSolverBudget } from './solver-policy.js';
+import { SOLVER_MAX_TOKENS, SOLVER_MIN_TOKENS, SOLVER_SETTINGS_CONFLICT_CODE, SOLVER_SETTINGS_CONFLICT_MESSAGE, SOLVER_TOKEN_LIMIT, preferredSolverEffort, validSolverBudget } from './solver-policy.js';
 import { workerPreset } from './worker-catalog.js';
 
 /**
@@ -39,6 +40,20 @@ const text = value => (typeof value === 'string' ? value : '');
 
 function record(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+}
+
+/** Only the typed conflict or the Host's fixed conflict text means a stale CAS revision. */
+export function isSolverSettingsConflict(error) {
+  const failure = record(error);
+  return failure?.code === SOLVER_SETTINGS_CONFLICT_CODE || failure?.message === SOLVER_SETTINGS_CONFLICT_MESSAGE;
+}
+
+/** Keep generic save failures distinct from a confirmed concurrent update. */
+export function configureSolverFailureMessage(error, refreshed) {
+  if (!isSolverSettingsConflict(error)) return '保存失败，你的选择仍然保留在窗口里。';
+  return refreshed
+    ? '教室设置已经在别处更新，已读到最新内容；你的选择仍然保留。'
+    : '教室设置没有保存，最新内容暂时未能读取；你的选择仍然保留，请重试。';
 }
 
 /** The saved independent model route and its optional generation allowance. */
@@ -467,15 +482,19 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
     // Every 教室 call answers with the same value shape, so a write is rendered
     // straight from its own response instead of a follow-up read that could
     // publish an older snapshot than the write already committed.
-    const apply = value => { generation.current++; setState({ value, loading: false, error: '' }); };
+    const reader=useMemo(()=>createProjectionReader(input=>vault.classroom(input)),[vault]);
+    const valueKey=useRef(null);
+    const accept=value=>{if(value===valueKey.current)setState(previous=>previous.loading||previous.error?{...previous,loading:false,error:''}:previous);else{valueKey.current=value;setState({value,loading:false,error:''});}};
+    const apply = value => { generation.current++; reader.invalidate(); accept(value); };
     const call = useRef(async () => {});
     call.current = async () => {
       const ticket = ++generation.current;
       try {
-        const result = await vault.classroom({});
+        const result = await reader.read();
         if (!result?.ok) throw new Error('read');
-        if (ticket === generation.current) setState({ value: result.value, loading: false, error: '' });
+        if (ticket === generation.current){accept(result.value);return true;}
       } catch { if (ticket === generation.current) setState(previous => ({ ...previous, loading: false, error: '暂时读不出教室状态，请稍后重试。' })); }
+      return false;
     };
     useEffect(() => {
       if (!visible) return undefined;
@@ -490,7 +509,8 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
   }
 
   /** 教室设置: one dialog, one worker at a time; nothing about the student. */
-  function WorkerDialog({ sessionId, view, onClose, onSave, onReload, busy, error }) {
+  function WorkerDialog({ sessionId, view, onClose, onSave, onReload, busy:parentBusy, error }) {
+    const [submitting,setSubmitting]=useState(false),busy=parentBusy||submitting;
     const key = id => workerDraftKey(sessionId, id);
     const workers = view.workers;
     const shared = view.defaultsRevision !== null;
@@ -521,11 +541,15 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
     const scope = shared && draft.scope !== 'lesson' ? 'default' : 'lesson';
     const teacherLabel = view.teacherRoute?.label;
     const submit = async (value, inherit = false) => {
+      if(busy)return;
+      setSubmitting(true);
       // Polling can refresh the revisions while this draft still contains older
       // settings. Only the revision the draft was based on may authorize its save.
-      const saved = await onSave(workerConfigInput({ preset: presetId, draft, route: value, scope, inherit,
-        expectedRevision: scope === 'lesson' ? draft.expectedRevision : draft.defaultsRevision }));
-      if (saved) { const next = classroomSummary(saved); setDraft({ ...workerDraft(next.workers.find(row => row.id === presetId), next.models), scope, expectedRevision: next.revision, defaultsRevision: next.defaultsRevision }); }
+      try{
+        const saved = await onSave(workerConfigInput({ preset: presetId, draft, route: value, scope, inherit,
+          expectedRevision: scope === 'lesson' ? draft.expectedRevision : draft.defaultsRevision }));
+        if (saved) { const next = classroomSummary(saved); setDraft({ ...workerDraft(next.workers.find(row => row.id === presetId), next.models), scope, expectedRevision: next.revision, defaultsRevision: next.defaultsRevision }); }
+      }finally{setSubmitting(false);}
     };
     return h(Dialog, { title: '教室设置', onClose },
       h('form', { onSubmit: event => { event.preventDefault(); if (route !== undefined) submit(route); } },
@@ -605,9 +629,9 @@ export function createVaultClassroom(React, { STYLE, IconButton, Dialog, resolve
           setNotice(input.inherit ? (input.scope === 'lesson' ? '已改回所有课堂的默认。' : '已恢复为跟随老师。') : input.route ? '已保存，下一次后台分析会用这个模型。' : '已保存：这位工作员跟随老师的模型。');
           apply(result.value); return result.value;
         }
-        // A CAS conflict keeps the draft: the newest state is re-read, the form stays.
-        setError('教室设置已经在别处更新，已读到最新内容；你的选择仍然保留。');
-        await refresh();
+        // Failed writes keep their draft. Only an explicit CAS signal gets conflict wording.
+        const refreshed=await refresh();
+        setError(configureSolverFailureMessage(result?.error, refreshed));
       } catch { setError('保存失败，你的选择仍然保留在窗口里。'); }
       finally { setBusy(false); }
     };

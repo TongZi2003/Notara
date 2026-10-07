@@ -437,7 +437,7 @@ const COMMANDS = {
     example: '{"path":"媒体/向量讲义.pdf"}',
   },
   'pdf-page': {
-    summary: '按物理页读 PDF（上限 512 MiB），返回文字层、页数、真实 revision 和页图；小字或公式优先裁剪区域，图像长边最多 2048 像素。',
+    summary: '按物理页读 PDF（上限 512 MiB），返回文字层、页数、真实 revision 和页图；文字层可能缺字或乱码，以原页图为准。小字或公式优先裁剪区域，图像长边最多 2048 像素。',
     write: false,
     fields: {
       path: { ...pathField('PDF 的 Vault 相对路径，如 媒体/向量讲义.pdf。'), required: true },

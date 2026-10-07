@@ -1,9 +1,16 @@
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
+import { createServer as createHttpServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
-import { isBrowserBlockedPort, liveVaultUrl, mustUpgradeBeforeStart, pluginVersions, readVaultState, validateVaultPort, writeVaultState } from '../../scripts/vault-launcher-state.ts';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { securePrivatePath } from '../../scripts/remote-access-config.ts';
+import { isBrowserBlockedPort, liveVaultUrl, mustUpgradeBeforeStart, pluginVersions, readVaultState, upgradeBeforeStartMessage, validateVaultPort, writeVaultState } from '../../scripts/vault-launcher-state.ts';
+
+vi.mock('../../scripts/remote-access-config.ts', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../scripts/remote-access-config.ts')>();
+  return { ...actual, securePrivatePath: vi.fn(actual.securePrivatePath) };
+});
 
 const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))); });
@@ -42,6 +49,31 @@ describe('a launcher record left behind by a stopped Vault', () => {
     await writeFile(join(root, 'launcher.json'), JSON.stringify({ pid: process.pid, authUrl: `http://127.0.0.1:${port}/?token=stale` }));
     await expect(liveVaultUrl(root)).resolves.toBeUndefined();
   });
+  for (const removed of [true, false]) it(removed
+    ? 'returns not running when shutdown removes its record during the login probe'
+    : 'keeps ACL failures visible while the launcher record still exists', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'notara-launcher-probe-'));
+    roots.push(root);
+    const launcher = join(root, 'launcher.json');
+    const server = createHttpServer((_request, response) => {
+      void (async () => {
+        if (removed) await rm(launcher);
+        response.writeHead(303, { location: './', 'set-cookie': 'dsh-auth-synthetic=1' });
+        response.end();
+      })().catch(error => { response.destroy(error); });
+    });
+    const port = await freePort();
+    await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve));
+    try {
+      await writeVaultState(root, { kind: 'notara-vault-persistent', version: 1, port, testModel: true });
+      await writeFile(launcher, JSON.stringify({ pid: process.pid, authUrl: `http://127.0.0.1:${port}/?token=synthetic` }));
+      if (removed) await expect(liveVaultUrl(root)).resolves.toBeUndefined();
+      else {
+        vi.mocked(securePrivatePath).mockRejectedValueOnce(new Error('synthetic ACL denied'));
+        await expect(liveVaultUrl(root)).rejects.toThrow('synthetic ACL denied');
+      }
+    } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
+  });
 });
 
 describe('mustUpgradeBeforeStart', () => {
@@ -55,12 +87,20 @@ describe('mustUpgradeBeforeStart', () => {
     expect(mustUpgradeBeforeStart({ snapshot: undefined, checkout: '0.21.0' })).toBe(false);
     expect(mustUpgradeBeforeStart({ snapshot: '0.0.1-old', checkout: undefined })).toBe(false);
   });
+  it('blocks the 0.24.1 formatVersion 2 boundary, while 0.24.0 remains readable by the old snapshot', () => {
+    expect(mustUpgradeBeforeStart({ snapshot: '0.23.12', checkout: '0.24.0' })).toBe(false);
+    expect(mustUpgradeBeforeStart({ snapshot: '0.23.12', checkout: '0.24.1' })).toBe(true);
+    expect(mustUpgradeBeforeStart({ snapshot: '0.24.0', checkout: '0.24.1' })).toBe(true);
+    expect(mustUpgradeBeforeStart({ snapshot: '0.24.1', checkout: '0.24.2' })).toBe(false);
+    expect(upgradeBeforeStartMessage({ snapshot: '0.23.12', checkout: '0.24.1' })).toContain('旧版无法读取新版白板');
+    expect(upgradeBeforeStartMessage({ snapshot: '0.23.12', checkout: '0.24.1' })).toContain('备份整个数据目录');
+  });
 });
 
 it('rejects browser-blocked manual ports while keeping automatic selection and normal ports usable', () => {
   for (const port of [22, 6000, 6667, 10080]) expect(() => validateVaultPort(port)).toThrow('被浏览器禁止访问');
   for (const port of [0, 80, 443, 47093, 57093, 65535]) expect(() => validateVaultPort(port)).not.toThrow();
-  for (const port of [-1, 1.5, NaN, 65536]) expect(() => validateVaultPort(port)).toThrow('Invalid Vault port');
+  for (const port of [-1, 1.5, NaN, 65536]) expect(() => validateVaultPort(port)).toThrow('端口必须是 0 到 65535 之间的整数');
   expect(isBrowserBlockedPort(0)).toBe(true);
 });
 

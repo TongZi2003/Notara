@@ -20,7 +20,7 @@
  */
 import type { ColorValue } from '../upstream/webview-ui/src/components/ui/types';
 import type { OfficeLayout, PlacedFurniture } from '../upstream/webview-ui/src/office/types';
-import { TileType } from '../upstream/webview-ui/src/office/types';
+import { TileType,MAX_COLS,MAX_ROWS } from '../upstream/webview-ui/src/office/types';
 
 // ── 尺寸与配色 ────────────────────────────────────────────────────────────────
 // 房间 16×13：第 0 行只用于挂墙装饰，第 1 行是北墙，第 2..10 行是可走地板，
@@ -533,8 +533,14 @@ function isUsableLayout(value: unknown): value is OfficeLayout {
   const candidate = value as Partial<OfficeLayout>;
   if (candidate.version !== 1) return false;
   if (!Number.isInteger(candidate.cols) || !Number.isInteger(candidate.rows)) return false;
+  if((candidate.cols as number)<1||(candidate.cols as number)>MAX_COLS||(candidate.rows as number)<1||(candidate.rows as number)>MAX_ROWS)return false;
   if (!Array.isArray(candidate.tiles) || !Array.isArray(candidate.furniture)) return false;
-  return candidate.tiles.length === (candidate.cols as number) * (candidate.rows as number);
+  if(candidate.tiles.length !== (candidate.cols as number) * (candidate.rows as number)||!candidate.tiles.every(tile=>Object.values(TileType).includes(tile)))return false;
+  const ids=new Set<string>();
+  return candidate.furniture.every(item=>{
+    if(!item||typeof item!=='object'||typeof item.uid!=='string'||!item.uid||ids.has(item.uid)||typeof item.type!=='string'||!item.type||!Number.isInteger(item.col)||!Number.isInteger(item.row)||item.col<0||item.row<0||item.col>=(candidate.cols as number)||item.row>=(candidate.rows as number))return false;
+    ids.add(item.uid);return true;
+  });
 }
 
 /** 出厂教室的独立副本（`OfficeState` 会持有它，别把常量本体交出去）。 */

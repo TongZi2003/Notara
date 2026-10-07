@@ -51,7 +51,7 @@ export async function vaultToolMedia(ctx,exec,value) {
   const route=exec.agent?.session?.requestHeader?.()?.config??exec.agent?.options;
   const info=route?.provider&&route?.model?await ctx.get('llm')?.resolveModelInfo(route.provider,route.model,exec.signal):null;
   if(!info?.inputModalities?.includes('image'))return {...receipt,imageAvailable:false,
-    warnings:[...(receipt.warnings??[]),'当前模型未声明图像输入能力，本次只返回文字层，不能据此声称已核对原页图。需要图像证据时使用支持图像的模型。']};
+    warnings:[...(receipt.warnings??[]),'当前模型未声明图像输入能力，本次只返回文字层，不能据此声称已核对原页图。文字层可能缺失或乱码，以原页图为准；需要图像证据时使用支持图像的模型。']};
   const attachments=ctx.get('attachments');
   if(!attachments)fail('vault_image_storage_unavailable');
   exec.signal?.throwIfAborted();

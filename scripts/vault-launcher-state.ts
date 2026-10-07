@@ -1,11 +1,12 @@
-import { readFile, writeFile, rename, chmod, lstat, symlink, realpath } from 'node:fs/promises';
+import { readFile, writeFile, rename, lstat, symlink, realpath } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
 import { httpUrlPort, isBrowserBlockedPort } from '../examples/native-vault/http-port.js';
+import { securePrivatePath } from './remote-access-config.ts';
 export { httpUrlPort, isBrowserBlockedPort } from '../examples/native-vault/http-port.js';
 
 export interface VaultState { kind: 'notara-vault-persistent'; version: 1; port: number; testModel: boolean; legacyRoots?: string[] }
 function validatePortNumber(port: number): void {
-  if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid Vault port');
+  if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('端口必须是 0 到 65535 之间的整数。');
 }
 export function validateVaultPort(port: number): void {
   validatePortNumber(port);
@@ -64,7 +65,19 @@ export async function liveVaultUrl(root: string): Promise<string | undefined> {
     const landing = new URL(response.headers.get('location') ?? '', url);
     if (response.status !== 303 || landing.origin !== url.origin || landing.pathname !== '/' || landing.search !== '' || !response.headers.getSetCookie().some(value => value.startsWith('dsh-auth-'))) throw new Error('运行中的服务与保存的登录入口不一致；请检查该实例，不要另起服务。');
   } catch (error) { throw new Error('无法核对运行中的 Vault；未尝试替换服务。', { cause: error }); }
-  await chmod(join(root, 'launcher.json'), 0o600);
+  const launcher = join(root, 'launcher.json');
+  try { await securePrivatePath(launcher); }
+  catch (error) {
+    // Shutdown can remove the record after the HTTP probe, including while
+    // Windows applies its ACL. Only an absent record means it stopped; retain
+    // permission failures while a record still exists.
+    const exists = await lstat(launcher).then(() => true, (failure: NodeJS.ErrnoException) => {
+      if (failure.code === 'ENOENT') return false;
+      throw failure;
+    });
+    if (!exists) return undefined;
+    throw error;
+  }
   return record.authUrl;
 }
 
@@ -92,6 +105,8 @@ export async function pluginVersions(root: string, project: string): Promise<{ s
 
 /** The Vault release that moved to DSH 0.2.0. */
 const DSH_020_VAULT = [0, 21, 0];
+/** 0.24.1 introduced dataVersion 5; an older snapshot cannot read its board format. */
+const BOARD_V2_VAULT = [0, 24, 1];
 const release = (version: string): number[] | undefined => {
   const match = /^(\d+)\.(\d+)\.(\d+)/.exec(version);
   return match ? match.slice(1).map(Number) : undefined;
@@ -104,5 +119,19 @@ const before = (a: number[], b: number[]): boolean => { for (let i = 0; i < 3; i
  */
 export function mustUpgradeBeforeStart({ snapshot, checkout }: { snapshot: string | undefined; checkout: string | undefined }): boolean {
   const from = snapshot === undefined ? undefined : release(snapshot), to = checkout === undefined ? undefined : release(checkout);
-  return !!from && !!to && before(from, DSH_020_VAULT) && !before(to, DSH_020_VAULT);
+  if (!from || !to) return false;
+  const crossesDshBoundary = before(from, DSH_020_VAULT) && !before(to, DSH_020_VAULT);
+  const crossesBoardFormatBoundary = before(from, BOARD_V2_VAULT) && !before(to, BOARD_V2_VAULT);
+  return crossesDshBoundary || crossesBoardFormatBoundary;
+}
+
+export function upgradeBeforeStartMessage({ snapshot, checkout }: { snapshot: string | undefined; checkout: string | undefined }): string | undefined {
+  const from = snapshot === undefined ? undefined : release(snapshot), to = checkout === undefined ? undefined : release(checkout);
+  if (!from || !to) return undefined;
+  const reasons: string[] = [];
+  if (before(from, DSH_020_VAULT) && !before(to, DSH_020_VAULT))
+    reasons.push('0.21.0 起 DSH 升到 0.2.0，打开过的课堂会迁成旧版读不了的新格式');
+  if (before(from, BOARD_V2_VAULT) && !before(to, BOARD_V2_VAULT))
+    reasons.push('0.24.1 起白板格式已升级，旧版无法读取新版白板');
+  return reasons.length ? `这个数据目录的插件是 ${snapshot}，代码目录是 ${checkout}。${reasons.join('；')}。先备份整个数据目录，再运行 npm run vault:upgrade，然后启动。` : undefined;
 }

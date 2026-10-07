@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdtemp, mkdir, readFile, rename, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -21,7 +22,7 @@ import {
   searchDocuments,
   toggleTaskContent,
 } from './vault.js';
-import { embedTarget, mediaForPath, parseMediaTarget } from './media.js';
+import { ASSET_DATA_URL_MAX_BYTES, PDF_FILE_MAX_BYTES, PDF_RANGE_RPC_MAX_BYTES, assertAssetDataUrlSize, embedTarget, mediaForPath, parseMediaTarget } from './media.js';
 import { buildPdfCardContent, cardPathFor, quoteFromItems } from './pdf.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { profileOverview, profileRevisions } from './learning-data.js';
@@ -171,6 +172,14 @@ test('projects a sorted tree and query/search results from documents', () => {
   });
   assert.deepEqual(queryDocuments(documents, { status: 'draft' }, 10).map(item => item.path), ['知识/向量.md']);
   assert.deepEqual(searchDocuments(documents, '基底', 10).map(item => item.path), ['知识/基底.md', '知识/向量.md']);
+});
+
+test('search excerpts never truncate a supplementary Unicode code point', () => {
+  const content = `# Emoji\n\n😀${'x'.repeat(47)}needle${'z'.repeat(110)}\n`;
+  const document = parseMarkdownDocument('知识/emoji.md', content, revisionFor(content));
+  const snippet = searchDocuments([document], 'needle')[0].snippet;
+  assert.ok(snippet.startsWith('…'));
+  assert.equal(snippet, snippet.toWellFormed());
 });
 
 test('builds incoming links from canonical page paths', () => {
@@ -327,6 +336,9 @@ test('declares strict client codecs for the native Remote contribution', async (
   // DSH 0.2.0 typert refuses a strict codec without a create() factory.
   assert.match(source, /create: \(\) => strictJsonSchema/);
   assert.ok(VAULT_REMOTE_METHODS.includes('readAsset'));
+  assert.ok(VAULT_REMOTE_METHODS.includes('openAssetRange'));
+  assert.ok(VAULT_REMOTE_METHODS.includes('readAssetRange'));
+  assert.ok(VAULT_REMOTE_METHODS.includes('cancelAssetRange'));
   assert.ok(VAULT_REMOTE_METHODS.includes('saveAsset'));
   assert.match(source, /const REMOTE_METHODS = VAULT_REMOTE_METHODS/);
 });
@@ -471,6 +483,15 @@ test('classifies common media assets and round-trips locators in Markdown embeds
   assert.deepEqual(withEmbed.links, ['知识/向量.md']);
 });
 
+test('whole-file media reads share one bounded data URL size contract', () => {
+  assert.equal(ASSET_DATA_URL_MAX_BYTES, 256 * 1024 * 1024);
+  assert.doesNotThrow(() => assertAssetDataUrlSize(ASSET_DATA_URL_MAX_BYTES, 'pdf'));
+  assert.doesNotThrow(() => assertAssetDataUrlSize(ASSET_DATA_URL_MAX_BYTES, 'image'));
+  assert.throws(() => assertAssetDataUrlSize(ASSET_DATA_URL_MAX_BYTES + 1, 'pdf'), /vault_pdf_data_url_too_large/);
+  assert.throws(() => assertAssetDataUrlSize(ASSET_DATA_URL_MAX_BYTES + 1, 'image'), /vault_asset_too_large/);
+  assert.throws(() => assertAssetDataUrlSize(Number.NaN, 'image'), /vault_asset_size_unavailable/);
+});
+
 test('lists, reads and revision-saves binary assets beside Markdown pages', async () => {
   const root = await mkdtemp(join(tmpdir(), 'notara-vault-assets-'));
   try {
@@ -491,9 +512,75 @@ test('lists, reads and revision-saves binary assets beside Markdown pages', asyn
     assert.equal(pdf.assetKind, 'pdf');
     assert.equal(pdf.mime, 'application/pdf');
     assert.match(pdf.dataUrl, /^data:application\/pdf;base64,/);
+    assert.equal(pdf.revision, createHash('sha256').update('%PDF-asset').digest('hex').slice(0, 24));
     const saved = await store.saveAsset('新资料.html', Buffer.from('<h1>新资料</h1>').toString('base64'), 'text/html', null);
     assert.equal(saved.assetKind, 'html');
     await assert.rejects(() => store.saveAsset('新资料.html', Buffer.from('冲突').toString('base64'), 'text/html', null), /vault_revision_conflict/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('browser PDF ranges stay bounded, scoped to a revision, and cancellable', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-vault-pdf-range-'));
+  try {
+    const pdfPath = join(root, '讲义.pdf'), bytes = Buffer.from('%PDF-range-one-page');
+    await writeFile(pdfPath, bytes);
+    const store = createVaultStore(root), listed = await store.list();
+    const listedAsset = listed.files.find(item => item.path === '讲义.pdf');
+    assert.ok(listedAsset);
+    const requestId = '00000000-0000-4000-8000-000000000001';
+    const opened = await store.openAssetRange('讲义.pdf', 'session-a', requestId, new AbortController().signal);
+    assert.equal(opened.revision, listedAsset.revision);
+    assert.equal(opened.size, bytes.length);
+    assert.equal(Object.hasOwn(opened, 'dataUrl'), false);
+    const first = await store.readAssetRange('session-a', opened.rangeId, 0, 4, opened.revision);
+    assert.equal(Buffer.from(first.dataBase64, 'base64').toString(), '%PDF');
+    assert.equal(first.offset, 0);
+    assert.equal(first.length, 4);
+    await assert.rejects(() => store.readAssetRange('session-b', opened.rangeId, 0, 4, opened.revision), /vault_asset_range_scope/);
+    await assert.rejects(() => store.readAssetRange('session-a', opened.rangeId, 0, 4, 'f'.repeat(24)), /vault_revision_conflict/);
+    await assert.rejects(() => store.readAssetRange('session-a', opened.rangeId, 0, PDF_RANGE_RPC_MAX_BYTES + 1, opened.revision), /vault_asset_range_too_large/);
+    await assert.rejects(() => store.readAssetRange('session-a', opened.rangeId, bytes.length - 1, 2, opened.revision), /vault_asset_range_invalid/);
+
+    const replacement = join(root, 'replacement.tmp');
+    await writeFile(replacement, Buffer.alloc(bytes.length, 0x58));
+    await rename(replacement, pdfPath);
+    await assert.rejects(() => store.readAssetRange('session-a', opened.rangeId, 0, 4, opened.revision), /vault_revision_conflict/);
+    assert.equal(await store.cancelAssetRange('session-a', opened.rangeId), true);
+    await assert.rejects(() => store.readAssetRange('session-a', opened.rangeId, 0, 4, opened.revision), /vault_asset_range_expired/);
+
+    const abort = new AbortController(); abort.abort();
+    await assert.rejects(() => store.openAssetRange('讲义.pdf', 'session-a', '00000000-0000-4000-8000-000000000002', abort.signal), /vault_asset_range_cancelled/);
+    await writeFile(join(root, 'image.png'), Buffer.from('image'));
+    await assert.rejects(() => store.openAssetRange('image.png', 'session-a', '00000000-0000-4000-8000-000000000003', new AbortController().signal), /vault_media_not_supported/);
+    assert.equal(PDF_FILE_MAX_BYTES, 512 * 1024 * 1024);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('PDF range RPCs cap concurrent reads per lease and store, and cancellation drains in-flight work', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'notara-vault-pdf-range-concurrency-'));
+  try {
+    const bytes = Buffer.from('%PDF-range-concurrency');
+    await writeFile(join(root, '并发.pdf'), bytes);
+    const store = createVaultStore(root), leases = [];
+    for (let index = 1; index <= 6; index++) {
+      leases.push(await store.openAssetRange('并发.pdf', `owner-${index}`, `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`, new AbortController().signal));
+    }
+    const sameLease = leases[0];
+    const perLease = await Promise.allSettled(Array.from({ length: 3 }, () => store.readAssetRange('owner-1', sameLease.rangeId, 0, 1, sameLease.revision)));
+    assert.equal(perLease.filter(result => result.status === 'fulfilled').length, 2);
+    assert.equal(perLease.find(result => result.status === 'rejected').reason.message, 'vault_asset_range_busy');
+
+    const acrossStore = await Promise.allSettled(leases.slice(0, 5).map((lease, index) => store.readAssetRange(`owner-${index + 1}`, lease.rangeId, 1, 1, lease.revision)));
+    assert.equal(acrossStore.filter(result => result.status === 'fulfilled').length, 4);
+    assert.equal(acrossStore.find(result => result.status === 'rejected').reason.message, 'vault_asset_range_busy');
+
+    const cancelled = leases[5], pending = store.readAssetRange('owner-6', cancelled.rangeId, 2, 1, cancelled.revision);
+    assert.equal(await store.cancelAssetRange('owner-6', cancelled.rangeId), true);
+    await assert.rejects(() => pending, /vault_asset_range_cancelled/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -532,11 +619,26 @@ test('writes a visual PDF region and annotation reference without copying extrac
 test('uses a dedicated PDF reader with a drawable selection layer', async () => {
   const source = await readFile(new URL('./client-source.ts', import.meta.url), 'utf8');
   assert.match(source, /getDocument\(/);
+  assert.match(source, /PDFDataRangeTransport/);
+  assert.match(source, /vault\.readAssetRange\(\{ rangeId, offset, length, expectedRevision: asset\.revision \}/);
+  assert.match(source, /PDF 文字层可能缺字或乱码，请以当前页原图为准/);
   assert.doesNotMatch(source, /new TextLayer/);
   assert.match(source, /onPointerDown/);
   assert.match(source, /pdfSelectLayer/);
   assert.match(source, /创建区域引用卡片/);
   assert.doesNotMatch(source, /createElement\('object'/);
+  assert.match(source, /vault_asset_range_expired[\s\S]*?PDF 范围读取已过期，请重新读取/);
+  assert.match(source, /load\.status === 'failed'[\s\S]*?重新读取 PDF/);
+  assert.match(source, /\[bytes, asset\.path, asset\.revision, asset\.size, vault, reloadNonce\]/);
+});
+
+test('a first focused large PDF fetches an exact-path summary when the file list has not arrived', async () => {
+  const source = await readFile(new URL('./assets-client.js', import.meta.url), 'utf8');
+  assert.match(source, /if \(!summary\)\s*\{[\s\S]*?vault\.list\(\{ prefix: path \}\)/);
+  assert.match(source, /const current = \(\) => sequence === openSequence\.current && currentSessionRef\.current === sessionId/);
+  assert.match(source, /vault\.list\(\{ prefix: path \}\)[\s\S]*?if \(!current\(\)\) return/);
+  assert.match(source, /latest\.value\.files\.find\(item => item\.path === path && item\.kind === 'asset'\)/);
+  assert.match(source, /summary\?\.assetKind === 'pdf'[\s\S]*?summary\.size <= PDF_FILE_MAX_BYTES/);
 });
 
 test('collects the text a PDF rectangle selection covers, in reading order', () => {

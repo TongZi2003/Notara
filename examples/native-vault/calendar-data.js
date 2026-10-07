@@ -41,7 +41,7 @@ export function calendarProjection(documents, { from, to, timeZone, today }) {
   const events = [], invalid = [], routes = [];
   const put = event => { if (event.date >= from && event.date <= to) events.push(event); };
   for (const doc of documents) {
-    const base = { path: doc.path, title: doc.title, revision: doc.revision };
+    const base = { path: doc.path, title: typeof doc.title === 'string' ? doc.title : '', revision: doc.revision };
     const date = dailyDate(doc);
     if (date) put({ ...base, key: `daily:${doc.path}`, kind: 'daily', date });
     if (doc.type === 'card') {
@@ -74,6 +74,6 @@ export function calendarProjection(documents, { from, to, timeZone, today }) {
     } catch { invalid.push({ path: doc.path, kind: 'log' }); }
   }
   const unique = [...new Map(events.map(event => [event.key, event])).values()];
-  unique.sort((a, b) => a.date.localeCompare(b.date) || a.kind.localeCompare(b.kind) || a.title.localeCompare(b.title, 'zh'));
+  unique.sort((a, b) => a.date.localeCompare(b.date) || a.kind.localeCompare(b.kind) || String(a.title ?? '').localeCompare(String(b.title ?? ''), 'zh'));
   return { from, to, today, timeZone, events: unique, routes, invalid };
 }

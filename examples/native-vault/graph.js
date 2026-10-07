@@ -182,7 +182,8 @@ function previewLines(lines) {
 function truncateExcerpt(value) {
   if (!value) return '';
   const text = value.replace(/\s+/g, ' ').trim();
-  return text.length > EXCERPT_LENGTH ? `${text.slice(0, EXCERPT_LENGTH - 1)}…` : text;
+  const points = Array.from(text);
+  return points.length > EXCERPT_LENGTH ? `${points.slice(0, EXCERPT_LENGTH - 1).join('')}…` : text;
 }
 
 /** Card excerpts are the fact text and never the folded answers. The 内容

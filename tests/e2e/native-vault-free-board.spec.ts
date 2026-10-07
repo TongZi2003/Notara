@@ -34,6 +34,7 @@ interface BoardContent {
   block: BoardBlock;
   content?: {
     elements?: Array<{ id: string; type: string; text?: string }>;
+    files?: Record<string,{id:string;dataURL:string;mimeType:string}>;
     mindmap?: { nodes: Array<{ elementId: string; parentId: string | null }>; links: unknown[]; notes: unknown[] };
   } | null;
   contributions?: Contribution[];
@@ -240,6 +241,21 @@ test('free text blocks create, autosave, reload, and retain a conflicting draft'
     await expect(restored.getByRole('status')).toHaveText('已恢复未保存的草稿');
     await expect(restored.getByLabel('块正文')).toHaveValue(localDraft);
     expect((await readBoard(client, sessionId)).blocks.find(row => row.id === block.id)?.body).toBe('另一处已经保存的正文。');
+    // Removal can fail independently of writes; discarding must still survive
+    // reopening the editor and reloading the page.
+    await page.evaluate(()=>{const remove=Storage.prototype.removeItem;Storage.prototype.removeItem=function(key){if(key.startsWith('notara:free-board-draft:'))throw Error('synthetic remove failure');remove.call(this,key);};});
+    await restored.getByRole('button',{name:'放弃修改',exact:true}).click();
+    await expect(restored).not.toBeVisible();
+    await latestCard.getByRole('button',{name:'编辑',exact:true}).click();
+    const fresh=page.getByRole('dialog',{name:'编辑 保存竞争草稿'});
+    await expect(fresh.getByLabel('块正文')).toHaveValue('另一处已经保存的正文。');
+    await fresh.getByLabel('块正文').fill('放弃冲突草稿后仍能正常保存。');
+    await fresh.locator(':scope > header').getByRole('button',{name:'保存',exact:true}).click();
+    await expect.poll(async ()=>(await readBoard(client,sessionId)).blocks.find(row=>row.id===block.id)?.body).toBe('放弃冲突草稿后仍能正常保存。');
+    await fresh.getByRole('button',{name:'返回白板',exact:true}).click();
+    await page.reload();
+    await expect(lessonTabs(page)).toBeVisible({timeout:30_000});
+    await expect(await showBoard(page)).toContainText('放弃冲突草稿后仍能正常保存。');
     expectNoUnexpectedErrors(errors);
   } finally {
     errors.dispose();
@@ -247,6 +263,37 @@ test('free text blocks create, autosave, reload, and retain a conflicting draft'
     await client.close();
     await runtime.stop();
   }
+});
+
+test('mind-map menu undo preserves embedded images and can still save after reload',async({page},testInfo)=>{
+  test.setTimeout(300_000);
+  const runtime=await startVaultIsolated({testModel:true}),client=await connectVault(runtime),errors=collectErrors(page,runtime.authUrl);
+  client.approvals.auto('allowed-once');
+  try{
+    await enterLesson(page,runtime,client,'含图导图撤销','开始含图导图撤销回归','课堂已准备。','课堂已准备。');
+    const sessionId=await currentSession(page);
+    const board=await showBoard(page);
+    const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6Z8sAAAAASUVORK5CYII=';
+    const before=await readBoard(client,sessionId);
+    client.value(await client.rpc('notaraVault/commitBoard',{input:{sessionId,expectedRevision:before.revision,requestId:randomUUID(),ops:[{type:'create',ref:'image-map',title:'含图导图',body:'',contentType:'mindmap',content:{version:1,elements:[{id:'image',type:'image',x:0,y:0,width:100,height:100,fileId:'picture',status:'saved',scale:[1,1]}],appState:{},files:{picture:{id:'picture',mimeType:'image/png',dataURL:png}},mindmap:{version:1,nodes:[],links:[],notes:[]}}}]}}));
+    const card=board.locator('.nb-block').filter({has:page.getByRole('heading',{name:'含图导图',exact:true})});
+    await expect(card).toBeVisible({timeout:30_000});
+    await card.getByRole('button',{name:'编辑',exact:true}).click();
+    const editor=page.getByRole('dialog',{name:'编辑 含图导图'}),tools=editor.getByRole('toolbar',{name:'导图节点操作'});
+    await tools.getByRole('button',{name:'新增根节点',exact:true}).click();
+    await tools.getByRole('button',{name:'撤销导图操作',exact:true}).click();
+    await editor.locator(':scope > header').getByRole('button',{name:'保存',exact:true}).click();
+    await expect(editor.getByRole('status')).toHaveText('已保存',{timeout:30_000});
+    const block=await findBlock(await readBoard(client,sessionId),'含图导图'),saved=await readBlockContent(client,sessionId,block.id);
+    expect(saved.content?.elements?.filter(e=>e.type==='image')).toHaveLength(1);
+    expect(saved.content?.files?.picture?.dataURL).toBe(png);
+    expect(saved.content?.mindmap?.nodes).toHaveLength(0);
+    await editor.getByRole('button',{name:'返回白板',exact:true}).click();
+    await page.reload();await expect(lessonTabs(page)).toBeVisible({timeout:30_000});
+    await showBoard(page);
+    await expect(boardPane(page).locator('.nb-scene-preview image')).toHaveCount(1);
+    expectNoUnexpectedErrors(errors);
+  }finally{errors.dispose();await testInfo.attach('page-diagnostics',{body:JSON.stringify(errors),contentType:'application/json'});await client.close();await runtime.stop();}
 });
 
 test('drawing rectangles, mind-map nodes, and function sliders persist through autosave and reload', async ({ page }, testInfo) => {
@@ -522,7 +569,7 @@ test('free drawing editor follows native dark and notebook themes at narrow widt
     await expect(excalidraw).toHaveClass(/theme--dark/);
     const notebookInput = editor.getByLabel('块标题');
     await expect.poll(() => notebookInput.evaluate(element => getComputedStyle(element).borderRadius)).toBe('6px 8px 5px 7px');
-    const narrowGeometry = await page.evaluate(() => {
+    const readNarrowGeometry = () => page.evaluate(() => {
       const dialog = document.querySelector('.nb-free-editor')!;
       return {
         pageOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - document.documentElement.clientWidth,
@@ -530,9 +577,12 @@ test('free drawing editor follows native dark and notebook themes at narrow widt
         dialogRight: dialog.getBoundingClientRect().right,
       };
     });
-    expect(narrowGeometry.pageOverflow).toBeLessThanOrEqual(1);
-    expect(narrowGeometry.dialogOverflow).toBeLessThanOrEqual(1);
-    expect(narrowGeometry.dialogRight).toBeLessThanOrEqual(601);
+    // Viewport/theme updates can precede the next layout frame. Wait for all
+    // three original bounds together; a persistent overflow still fails.
+    await expect.poll(async () => {
+      const geometry = await readNarrowGeometry();
+      return Math.max(geometry.pageOverflow, geometry.dialogOverflow, geometry.dialogRight - 600);
+    }).toBeLessThanOrEqual(1);
     const rectangleTool = editor.getByRole('radio', { name: '矩形', exact: true });
     await expect(rectangleTool).toBeVisible();
     await expect(rectangleTool).toBeEnabled();

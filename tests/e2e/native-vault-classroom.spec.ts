@@ -27,6 +27,34 @@ const SOLVER_REQUEST = '让解题者后台算这道题';
 /** The model route the classroom's own preferred model lives on. */
 const SOLVER_ROUTE_VALUE = `${VAULT_SOLVER_PROVIDER}\u0000${VAULT_SOLVER_MODEL}`;
 
+function diagnosticRecord(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+}
+
+function configureSolverDiagnostic(request: unknown, response: unknown): Record<string, unknown> {
+  const payload = diagnosticRecord(diagnosticRecord(request)?.payload);
+  const rawArgs = payload?.args;
+  const args = Array.isArray(rawArgs) ? rawArgs[0] : rawArgs;
+  const argRecord = diagnosticRecord(args);
+  const input = diagnosticRecord(argRecord?.input) ?? argRecord;
+  const result = diagnosticRecord(diagnosticRecord(response)?.result);
+  const value = diagnosticRecord(result?.value);
+  const failure = diagnosticRecord(result?.error);
+  const expectedRevision = input?.expectedRevision;
+  const defaultsRevision = value?.defaultsRevision;
+  return {
+    scope: typeof input?.scope === 'string' ? input.scope.slice(0, 32) : null,
+    preset: typeof input?.preset === 'string' ? input.preset.slice(0, 32) : null,
+    expectedRevision: typeof expectedRevision === 'number' && Number.isSafeInteger(expectedRevision) ? expectedRevision : null,
+    ok: typeof result?.ok === 'boolean' ? result.ok : null,
+    defaultsRevision: result?.ok === true && typeof defaultsRevision === 'number' && Number.isSafeInteger(defaultsRevision) ? defaultsRevision : null,
+    error: result?.ok === false ? {
+      code: typeof failure?.code === 'string' ? failure.code.slice(0, 100) : null,
+      message: typeof failure?.message === 'string' ? failure.message.slice(0, 240) : null,
+    } : null,
+  };
+}
+
 async function openVault(page: Page, runtime: VaultRuntime): Promise<void> {
   await page.goto(runtime.authUrl);
   const later = page.getByRole('button', { name: /Configure later|稍后配置/ });
@@ -48,7 +76,23 @@ test('五种工作预设独立保存配置，列表与像素共用真实出题�
   test.setTimeout(240_000);
   const runtime = await startVaultIsolated({ testModel: true, pixelClassroom: true });
   const errors: string[] = [];
+  const configDiagnostics: Record<string, unknown>[] = [];
+  let configDiagnosticPending: Promise<void> = Promise.resolve();
   watch(page, errors);
+  page.on('response', response => {
+    let pathname: string;
+    try { pathname = new URL(response.url()).pathname; } catch { return; }
+    if (response.request().method() !== 'POST' || pathname !== '/api/notaraVault/configureSolver') return;
+    const request = response.request();
+    configDiagnosticPending = configDiagnosticPending.then(async () => {
+      if (configDiagnostics.length >= 16) return;
+      try {
+        configDiagnostics.push(configureSolverDiagnostic(request.postDataJSON(), await response.json()));
+      } catch {
+        configDiagnostics.push({ scope: null, preset: null, expectedRevision: null, ok: null, defaultsRevision: null, error: { code: null, message: 'diagnostic_unavailable' } });
+      }
+    });
+  });
   try {
     // An existing installation may still have the legacy read scope. Preserve
     // it on load; only an explicit new selection grants the expanded tools.
@@ -66,6 +110,8 @@ test('五种工作预设独立保存配置，列表与像素共用真实出题�
       await expect(pixel.getByRole('button', { name, exact: true })).toBeVisible();
     }
     await expect(pixel.getByRole('button', { name: '播放', exact: true })).toHaveCount(0);
+    await pixel.locator('body').evaluate(()=>window.dispatchEvent(new Event('pixel-classroom:storage-error')));
+    await expect(pixel.getByRole('status').filter({hasText:'浏览器未能保存教室布置'})).toBeVisible();
     await expect(bench(page).getByRole('region', { name: '后台任务', exact: true })).toHaveCount(0);
     await bench(page).getByRole('button', { name: '列表', exact: true }).click();
     for (const name of ['大肥鱼', '题目研究员', '课时备课员', '核验员', '通用工作员', '出题员']) {
@@ -175,10 +221,64 @@ test('五种工作预设独立保存配置，列表与像素共用真实出题�
       await staleDialog.getByRole('button', { name: '载入最新设置', exact: true }).click();
       await expect(staleDialog.getByLabel('每次分析的生成上限')).toHaveValue('16384');
     } finally { await companion.close(); }
+  } catch (error) {
+    await configDiagnosticPending;
+    if (configDiagnostics.length) console.log(`[classroom-configureSolver-diagnostics] ${JSON.stringify(configDiagnostics)}`);
+    throw error;
   } finally {
     await writeFile(testInfo.outputPath('console.json'), JSON.stringify(errors));
     await testInfo.attach('host-log', { body: runtime.log(), contentType: 'text/plain' });
     await page.screenshot({ path: testInfo.outputPath('final-state.png') });
+    await runtime.stop();
+  }
+  expect(errors.filter(text => !/favicon|net::|downloadable font/i.test(text))).toEqual([]);
+});
+
+test('通用配置保存失败不冒充 CAS，保留工作员草稿并允许重试', async ({ page }) => {
+  test.setTimeout(120_000);
+  const runtime = await startVaultIsolated({ testModel: true });
+  const errors: string[] = [];
+  let configureRequests = 0;
+  watch(page, errors);
+  try {
+    await openVault(page, runtime);
+    await script(runtime, { '__session-title': '配置错误恢复验收', '开始上课。': '好，我们开始。' });
+    await page.locator('[data-composer-input]').fill('开始上课。');
+    await page.locator('[data-composer-input]').press('Enter');
+    await expect(page.getByText('好，我们开始。').first()).toBeVisible({ timeout: 30_000 });
+    await tab(page, '教室').click();
+    await expect(bench(page)).toBeVisible();
+    await bench(page).getByRole('button', { name: '教室设置', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: '教室设置' });
+    await dialog.getByRole('button', { name: '出题员', exact: true }).click();
+    await dialog.getByLabel('后台模型', { exact: true }).selectOption(SOLVER_ROUTE_VALUE);
+    await dialog.getByLabel('每次分析的生成上限').fill('16384');
+
+    // Fail one valid RPC response at the browser boundary; the retry goes to
+    // the isolated Host and proves the same retained draft can still commit.
+    await page.route('**/api/notaraVault/configureSolver', async route => {
+      configureRequests++;
+      if (configureRequests === 1) {
+        const request = route.request().postDataJSON() as { rpcId?: unknown };
+        if (typeof request.rpcId !== 'string') throw new Error('configureSolver request omitted its RPC id');
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ type: 'server-response', rpcId: request.rpcId, result: { ok: false, error: { code: 'gateway/internal', message: '操作未完成，请检查内容后重试。', details: {} } } }),
+        });
+      } else await route.continue();
+    });
+    await dialog.getByRole('button', { name: '保存', exact: true }).click();
+    const alert = dialog.getByRole('alert');
+    await expect(alert).toHaveText('保存失败，你的选择仍然保留在窗口里。');
+    await expect(alert).not.toContainText('已经在别处更新');
+    await expect(dialog.getByLabel('每次分析的生成上限')).toHaveValue('16384');
+
+    await dialog.getByRole('button', { name: '保存', exact: true }).click();
+    await expect(page.getByText('已保存，下一次后台分析会用这个模型。').first()).toBeVisible();
+    expect(configureRequests).toBe(2);
+  } finally {
+    await page.unroute('**/api/notaraVault/configureSolver').catch(() => {});
     await runtime.stop();
   }
   expect(errors.filter(text => !/favicon|net::|downloadable font/i.test(text))).toEqual([]);

@@ -346,10 +346,15 @@ function evaluationRequest(request) {
   // New records are written in the current shape only.
   if (['passed', 'assessments', 'depth', 'nextCheck'].some(key => Object.hasOwn(request, key))) fail(code);
   const actor = actorText(request.actor, code);
+  const at = stampText(request.at, code), day = validateDay(request.day);
+  const stampDay = new Date(at).toISOString().slice(0, 10);
+  const [stampYear, stampMonth, stampDate] = stampDay.split('-').map(Number);
+  const [dayYear, dayMonth, dayDate] = day.split('-').map(Number);
+  if (Math.abs(civilMs(dayYear, dayMonth, dayDate) - civilMs(stampYear, stampMonth, stampDate)) > 86_400_000) fail(code);
   return {
     id: boundedText(request.id, TEXT_BUDGET, code),
-    at: stampText(request.at, code),
-    day: validateDay(request.day),
+    at,
+    day,
     ...keyStepEvidence(request, { teacher: actor === 'teacher' }),
     note: validateReviewNote(request.note),
     sessionId: sessionText(request.sessionId, code),

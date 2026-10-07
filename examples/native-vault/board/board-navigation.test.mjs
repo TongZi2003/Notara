@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {zoomAt,wheelCamera,panIntent,BOARD_NAVIGATION_KEY,readNavigationPreference,bindWheelBoundary} from './board-navigation.js';
+import {zoomAt,wheelCamera,panIntent,BOARD_NAVIGATION_KEY,BOARD_MOUSE_WHEEL_KEY,readNavigationPreference,createNavigationPreference,navigationPreferenceFor,bindWheelBoundary} from './board-navigation.js';
 
 test('zoom keeps the world point under the pointer, including limits',()=>{
  const before={x:-230,y:47,z:.8},point={x:110,y:280};
@@ -25,6 +25,15 @@ test('line/page wheel units and consecutive events preserve every increment',()=
  assert.equal(wheelCamera(camera,{deltaY:2,deltaMode:1},'trackpad',point).y,-56);
  assert.equal(wheelCamera(camera,{deltaY:1,deltaMode:2},'trackpad',point,600).y,-624);
 });
+test('mouse wheel mapping is independent from device mode and modified wheel still zooms',()=>{
+ const before={x:10,y:20,z:1},point={x:150,y:250},mouse={device:'mouse',mouseWheel:'scroll'};
+ assert.deepEqual(wheelCamera(before,{deltaX:8,deltaY:120},mouse,point),{x:2,y:-100,z:1});
+ assert.deepEqual(wheelCamera(before,{deltaX:8,deltaY:120},{device:'trackpad',mouseWheel:'zoom'},point),{x:2,y:-100,z:1});
+ for(const key of ['ctrlKey','metaKey'])assert(wheelCamera(before,{deltaY:-8,[key]:true},mouse,point).z>1);
+ assert(wheelCamera(before,{deltaY:120},{device:'mouse',mouseWheel:'zoom'},point).z<1);
+ assert.deepEqual(navigationPreferenceFor({closest:()=>({dataset:{navigation:'mouse',mouseWheel:'scroll'}})}),mouse);
+ assert.deepEqual(navigationPreferenceFor({closest:()=>({dataset:{navigation:'trackpad',mouseWheel:'invalid'}})}),{device:'trackpad',mouseWheel:'zoom'});
+});
 test('pan starts only on allowed buttons and never takes Space from a text input or active editor',()=>{
  const target=selector=>({closest:query=>query.split(',').includes(selector)?{}:null});
  assert.equal(panIntent({button:2,target:target('')},true),false);
@@ -42,6 +51,29 @@ test('preference defaults to mouse, validates stored values and tolerates unavai
  assert.equal(readNavigationPreference({getItem:()=> 'trackpad'}),'trackpad');
  assert.equal(readNavigationPreference({getItem:()=> 'invalid'}),'mouse');
  assert.equal(readNavigationPreference({getItem(){throw Error('blocked');}}),'mouse');
+});
+test('settings notify all mounted consumers, preserve legacy storage and observe another tab',()=>{
+ const values=new Map([[BOARD_NAVIGATION_KEY,'trackpad']]),events=new EventTarget();
+ const storage={getItem:key=>values.get(key),setItem:(key,value)=>values.set(key,value)};
+ const preference=createNavigationPreference(storage,events);
+ assert.deepEqual(preference.getSnapshot(),{device:'trackpad',mouseWheel:'zoom'});
+ const changes=[],stopBoard=preference.subscribe(()=>changes.push(['board',preference.getSnapshot()])),stopSettings=preference.subscribe(()=>changes.push(['settings',preference.getSnapshot()]));
+ preference.setDevice('mouse');
+ assert.equal(values.get(BOARD_NAVIGATION_KEY),'mouse');
+ assert.deepEqual(changes,[['board',{device:'mouse',mouseWheel:'zoom'}],['settings',{device:'mouse',mouseWheel:'zoom'}]]);
+ preference.setDevice('invalid');preference.setMouseWheel('invalid');assert.equal(changes.length,2);
+ preference.setMouseWheel('scroll');assert.equal(values.get(BOARD_MOUSE_WHEEL_KEY),'scroll');
+ stopBoard();preference.setDevice('trackpad');assert.deepEqual(changes.at(-1),['settings',{device:'trackpad',mouseWheel:'scroll'}]);
+ const event=new Event('storage');Object.defineProperties(event,{key:{value:BOARD_NAVIGATION_KEY},newValue:{value:null}});events.dispatchEvent(event);
+ assert.deepEqual(preference.getSnapshot(),{device:'mouse',mouseWheel:'scroll'});
+ const mappingEvent=new Event('storage');Object.defineProperties(mappingEvent,{key:{value:BOARD_MOUSE_WHEEL_KEY},newValue:{value:null}});events.dispatchEvent(mappingEvent);
+ assert.deepEqual(preference.getSnapshot(),{device:'mouse',mouseWheel:'zoom'});
+ stopSettings();const before=changes.length;preference.setDevice('trackpad');assert.equal(changes.length,before);
+});
+test('a blocked storage write still changes the active page and its subscribers',()=>{
+ const preference=createNavigationPreference({getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}});
+ let notified=0;const stop=preference.subscribe(()=>notified++);
+ preference.setMouseWheel('scroll');assert.deepEqual(preference.getSnapshot(),{device:'mouse',mouseWheel:'scroll'});assert.equal(notified,1);stop();
 });
 test('native inner boundary allows ordinary document scroll and prevents browser pinch zoom',()=>{
  const host=new EventTarget(),unbind=bindWheelBoundary(host);

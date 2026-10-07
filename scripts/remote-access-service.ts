@@ -311,6 +311,11 @@ export function createRemoteAccessService(
     phase = 'starting';
     code = undefined;
     try {
+      // A previous failed start may still own a resource or its lock because
+      // cleanup was transiently denied. Retry that owned cleanup before
+      // acquiring the same lock again, instead of making the next click fail
+      // with remote_busy and requiring a third attempt.
+      if (releaseLock || proxy || tunnel) await stopOwnedResources();
       const settings = await readSettings();
       if (!settings) return throwCode('remote_configuration_required');
       const localUrl = await getLoginUrl();

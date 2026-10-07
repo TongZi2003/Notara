@@ -1,12 +1,26 @@
 import { constants } from 'node:fs';
 import { copyFile, lstat, mkdir, readFile, readdir, readlink, realpath, rename, rm, stat, symlink, unlink, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep, posix, win32 } from 'node:path';
 import lockfile from 'proper-lockfile';
 import { readVaultState, validateVaultPort, writeVaultState } from './vault-launcher-state.ts';
 
 function isWithin(root: string, candidate: string): boolean {
   const fromRoot = relative(root, candidate);
   return fromRoot === '' || (fromRoot !== '..' && !fromRoot.startsWith(`..${sep}`) && !isAbsolute(fromRoot));
+}
+
+export function vaultRootsOverlap(source: string, destination: string, platform: NodeJS.Platform = process.platform): boolean {
+  const paths = platform === 'win32' ? win32 : posix;
+  const normalize = (path: string): string => {
+    const resolved = paths.resolve(path);
+    return platform === 'win32' ? resolved.toLowerCase() : resolved;
+  };
+  const sourcePath = normalize(source), destinationPath = normalize(destination);
+  const contains = (parent: string, child: string): boolean => {
+    const boundary = parent.endsWith(paths.sep) ? parent : parent + paths.sep;
+    return child === parent || child.startsWith(boundary);
+  };
+  return contains(sourcePath, destinationPath) || contains(destinationPath, sourcePath);
 }
 
 function relocateLinkTarget(sourceRoot: string, destinationRoot: string, sourcePath: string, target: string): string {
@@ -55,7 +69,7 @@ export async function relocateVaultRuntime(sourceInput: string, destinationInput
   validateVaultPort(port);
   if (port === 0) throw new Error('Migration requires the existing fixed port');
   const source = await realpath(sourceInput), destination = resolve(destinationInput), backup = source + '.pre-persistent';
-  if (destination === source || destination.startsWith(source + sep) || source.startsWith(destination + sep)) throw new Error('Vault roots must be separate');
+  if (vaultRootsOverlap(source, destination)) throw new Error('Vault roots must be separate');
   for (const path of [destination, backup]) {
     if (await lstat(path).then(() => true, (error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return false; throw error; })) throw new Error('Migration target or backup already exists');
   }

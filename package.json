@@ -30,7 +30,7 @@
     "vault:desktop:stop": "tsx scripts/desktop-vault.ts stop",
     "test:e2e": "playwright test",
     "test:e2e:vault": "playwright test native-vault-",
-    "test:plugins": "cd examples/native-vault && node --test && cd ../pixel-classroom && node --test",
+    "test:plugins": "node scripts/test-plugins.mjs",
     "test:unit": "vitest run --config vitest.unit.config.ts",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
     "test:integration": "vitest run --config vitest.integration.config.ts",

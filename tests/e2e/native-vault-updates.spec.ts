@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { startVaultIsolated, startVaultPersistent } from '../../scripts/dev-isolated.ts';
 import { superviseVault } from '../../scripts/vault-supervisor.ts';
+import { codeContract } from '../../scripts/vault-updates.ts';
 
 test('the update notice survives an action error and the settings can check again', async ({ page }, testInfo) => {
   const runtime = await startVaultIsolated({ testModel: true });
@@ -45,8 +46,10 @@ test('the update notice survives an action error and the settings can check agai
 test('a real launcher startup reaches the global notice and another launch reminds again', async ({ page, context }) => {
   test.setTimeout(120_000);
   const root = await mkdtemp(join(tmpdir(), 'notara-update-browser-'));
-  const version = JSON.parse(await readFile('examples/native-vault/package.json', 'utf8')).version as string;
-  const parts = version.split('.').map(Number); parts[2] = parts[2]! + 1;
+  const contract = await codeContract(resolve('.'));
+  // Local development suffixes are allowed; published candidate versions use
+  // stable three-part numbers, just as the real discovery endpoint does.
+  const parts = contract.version.split('-')[0]!.split('.').map(Number); parts[2] = parts[2]! + 1;
   const latest = parts.join('.');
   const seed = await startVaultPersistent(root, { testModel: true, port: 0 }); await seed.stop();
   let checked = 0, prepared = 0;
@@ -56,7 +59,7 @@ test('a real launcher startup reaches the global notice and another launch remin
     discover: async () => { checked++; return { version: latest, compatible: true, sha256: 'a'.repeat(64),
       url: `https://github.com/TongZi2003/Notara/releases/tag/v${latest}`,
       archiveUrl: `https://github.com/TongZi2003/Notara/releases/download/v${latest}/notara-${latest}.zip`,
-      runtime: { dsh: '0.2.0-rc.1', cordis: '4.0.4', dataVersion: 4 } }; },
+      runtime: contract.runtime }; },
     prepare: async () => { prepared++; return resolve('.'); },
   };
   let runtime = await superviseVault(root, resolve('.'), undefined, operations);

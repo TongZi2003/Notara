@@ -2,6 +2,7 @@ import { MATERIAL_TYPES, childCardsOf, childMaterialsOf, collapseVaultGraph, fil
 import { mediaLocatorSuffix, parseMediaTarget } from './media.js';
 import { CANVAS_CSS, KNOWLEDGE_ROLES, createVaultCanvas } from './canvas-client.js';
 import { createVaultClient, visibleInterval } from './remote-client.js';
+import { createProjectionReader } from './projection-client.js';
 import { createFileActions } from './file-actions-client.js';
 import { mathLabelParts, renderMath } from './math-latex.js';
 import { STAR_CSS, constellationLayout, createStarMap } from './star-map-client.js';
@@ -78,10 +79,6 @@ export function createVaultViews(React, { STYLE, IconButton, Menu, Dialog }) {
   const { useRemembered, NodeMark, Board } = createVaultCanvas(React, { STYLE, IconButton });
   const { StarMap, StarLegend, StarReading, useSky } = createStarMap(React, { STYLE, IconButton });
   const useFileActions=createFileActions(React,{STYLE,Dialog});
-  const graphSignature = value => {
-    const nodes = Array.isArray(value?.nodes) ? value.nodes : [], edges = Array.isArray(value?.edges) ? value.edges : [];
-    return `${nodes.length}:${edges.length}|${nodes.map(node => `${node.path}:${node.revision}:${(node.tags??[]).join(',')}`).join('\u001f')}|${edges.map(edge => `${edge.kind}:${edge.source}>${edge.target}`).join('\u001f')}`;
-  };
   const sessions = new Map();
   const stateFor = sessionId => { if (!sessions.has(sessionId)) sessions.set(sessionId, { graph: {}, cards: {} }); return sessions.get(sessionId); };
   const btn = (label, onClick, { className, ...extra } = {}) => h('button', { className: ['nv-quiet', className].filter(Boolean).join(' '), onClick, ...extra }, label);
@@ -90,16 +87,17 @@ export function createVaultViews(React, { STYLE, IconButton, Menu, Dialog }) {
   function useVault(ctx, sessionId) { return useMemo(() => createVaultClient(ctx, sessionId), [ctx, sessionId]); }
   function useGraph(vault, visible) {
     const [state, setState] = useState({ graph: { nodes: [], edges: [] }, loading: true, error: '' });
+    const reader=useMemo(()=>createProjectionReader(input=>vault.graph(input)),[vault]);
     useEffect(() => {
       if (!visible) return;
-      let live = true, pending = false, signature = '';
+      let live = true, pending = false;
       const refresh = async () => {
         if (pending) return;
         pending = true;
         try {
-          const result = await vault.graph({});
+          const result = await reader.read();
           if (!result?.ok) throw new Error('read');
-          if (live) { const nextSignature = graphSignature(result.value), changed = signature !== nextSignature; signature = nextSignature; setState(previous => ({ graph: changed ? result.value : previous.graph, loading: false, error: '' })); }
+          if(live)setState(previous=>previous.graph===result.value&&!previous.loading&&!previous.error?previous:{graph:result.value,loading:false,error:''});
         } catch { if (live) setState(previous => ({ ...previous, loading: false, error: '暂时无法读取文件，请稍后重试。' })); }
         finally { pending = false; }
       };
@@ -114,6 +112,7 @@ export function createVaultViews(React, { STYLE, IconButton, Menu, Dialog }) {
    * known light and says so; it never falls back to zero. */
   function useStars(vault, visible) {
     const [state, setState] = useState({ stars: null, error: '' });
+    const reader=useMemo(()=>createProjectionReader(input=>vault.learningStars(input)),[vault]);
     useEffect(() => {
       if (!visible) return;
       let live = true, pending = false;
@@ -121,9 +120,9 @@ export function createVaultViews(React, { STYLE, IconButton, Menu, Dialog }) {
         if (pending) return;
         pending = true;
         try {
-          const result = await vault.learningStars({});
+          const result = await reader.read();
           if (!result?.ok) throw new Error('read');
-          if (live) setState(previous => ({ stars: JSON.stringify(previous.stars) === JSON.stringify(result.value) ? previous.stars : result.value, error: '' }));
+          if(live)setState(previous=>previous.stars===result.value&&!previous.error?previous:{stars:result.value,error:''});
         } catch { if (live) setState(previous => ({ ...previous, error: previous.stars ? '掌握度暂时无法刷新，显示的是上次读取的结果。' : '掌握度暂时读不出来，请稍后重试。' })); }
         finally { pending = false; }
       };

@@ -14,10 +14,10 @@ export const UI_CSS = `
 @container(max-width:600px){.nv-pdf-body{flex-direction:column}.nv-pdf-annotations{width:100%;max-height:38%;border-left:0;border-top:1px solid var(--dsw-alias-border-l1)}}
 .nv-assets{container-type:inline-size}.nv-assets .cm-editor{outline:none}.nv-assets .cm-content{padding-top:0}.nv-assets .cm-scroller{overflow:visible}.nv-assets .cm-line{overflow-wrap:anywhere}.nv-assets .nv-extract{max-width:600px;margin:16px auto;padding:16px 0;border-top:1px solid var(--dsw-alias-border-l1)}.nv-extract label{display:block;margin:10px 0}.nv-extract textarea{min-height:140px;resize:vertical}.nv-extract input,.nv-extract textarea,.nv-extract select{width:100%}
 @container(max-width:500px){.nv-file-rail{width:170px}.nv-document article{padding:18px 16px 40px}}
-.nv-split-handle{position:relative;z-index:3;overflow:visible}
+.nv-split-handle{position:relative;z-index:25;overflow:visible}
 .nv-split-resize{position:absolute;inset:0;touch-action:none;cursor:col-resize}
 .nv-split-resize:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}
-.nv-pane-swap{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:32px;height:32px;background:var(--dsw-alias-background-l1,#fff);border:1px solid var(--dsw-alias-border-l1);border-radius:8px;box-shadow:0 2px 8px #0002;cursor:pointer}
+.nv-pane-swap{position:absolute;z-index:1;bottom:12px;left:50%;transform:translateX(-50%);box-sizing:border-box;width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;background:var(--dsw-alias-bg-layer-1,#fff);color:var(--dsw-alias-label-primary);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;box-shadow:0 2px 8px #0002;cursor:pointer}
 .nv-panes[data-nv-axis=stacked] .nv-split-resize{cursor:row-resize}
 .nv-panes[data-nv-axis=stacked] .nv-pane-swap{bottom:auto;left:auto;right:12px;top:50%;transform:translateY(-50%)}
 .nv-panes[data-nv-axis=stacked] .nv-pane-swap svg{transform:rotate(90deg)}

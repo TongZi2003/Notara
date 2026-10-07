@@ -205,7 +205,7 @@ export const PDF_RESOURCE_FILES = Object.freeze({
 /** All three browser readers share the same resources and parse failure policy. */
 export function pdfDocumentOptions(data) {
   return {
-    data, cMapUrl: `${PDF_RESOURCE_PATH}/cmaps/`, cMapPacked: true,
+    ...(data === undefined ? {} : { data }), cMapUrl: `${PDF_RESOURCE_PATH}/cmaps/`, cMapPacked: true,
     standardFontDataUrl: `${PDF_RESOURCE_PATH}/standard_fonts/`,
     wasmUrl: `${PDF_RESOURCE_PATH}/wasm/`,
     isEvalSupported: false, stopAtErrors: true,

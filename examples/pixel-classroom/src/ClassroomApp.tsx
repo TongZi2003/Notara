@@ -93,6 +93,8 @@ export default function ClassroomApp() {
   }, [live.state?.teacher?.name, workers]);
   const [boot, setBoot] = useState<BootState>('loading');
   const [bootError, setBootError] = useState('');
+  const [storageError,setStorageError]=useState('');
+  useEffect(()=>{const notice=()=>setStorageError('浏览器未能保存教室布置，当前画面仍保留；刷新后可能恢复上次布置。');window.addEventListener('pixel-classroom:storage-error',notice);return()=>window.removeEventListener('pixel-classroom:storage-error',notice);},[]);
   const [layoutSource, setLayoutSource] = useState<'stored' | 'default'>('default');
   const [steps, setSteps] = useState(() => DEMO_STEPS.map((step) => ({ ...step })));
   const [stepIndex, setStepIndex] = useState(0);
@@ -456,6 +458,7 @@ export default function ClassroomApp() {
       data-nc-edit-mode={editor.isEditMode ? 'true' : 'false'}
       data-nc-layout-source={layoutSource}
     >
+      {storageError&&<p role="status">{storageError}</p>}
       <header className="pc-header">
         <div className="pc-brand">
           <span className="pc-brand-title">{liveMode ? '像素视图' : '像素教室'}</span>

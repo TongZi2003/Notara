@@ -52,3 +52,13 @@ test('mindmap rejects cycles, moves only selected branch and filters dangling re
  const repaired=reconcileMindmap({...tree,links:[{from:'a',to:'c',label:''}],notes:[{elementId:'c',text:'注'}]},elements.filter(e=>e.id!=='c'));
  assert.equal(repaired.nodes.length,3);assert.equal(repaired.links.length,0);assert.equal(repaired.notes.length,0);
 });
+test('branch traversal terminates on cyclic or sparse caller-supplied metadata',()=>{
+ const cyclic={nodes:[{elementId:'a',parentId:'b'},{elementId:'b',parentId:'a'}],links:[],notes:[]};
+ const elements=[{id:'a',x:10,y:20,width:80,height:40},{id:'b',x:50,y:60,width:80,height:40}];
+ assert.deepEqual(branchIds(cyclic,'a'),['a','b']);
+ const laid=layoutBranch(elements,cyclic,'a');
+ assert.deepEqual(laid.map(({id,x,y})=>({id,x,y})),[{id:'a',x:10,y:20},{id:'b',x:250,y:120}]);
+ const sparse={nodes:Array(1),links:[],notes:[]};
+ assert.deepEqual(branchIds(sparse,'a'),['a']);
+ assert.deepEqual(layoutBranch(elements,sparse,'a'),elements.map((element,index)=>index?element:{...element,x:10,y:20}));
+});

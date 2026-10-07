@@ -3,6 +3,7 @@ import freeCss from './board/free-board.css';
 import {createFreeBoardUI,DEFAULT_FIGURE,isDrawing} from './board/ui-client.js';
 const css=baseCss+freeCss;
 import { createVaultClient, visibleInterval } from './remote-client.js';
+import { createProjectionReader } from './projection-client.js';
 import { VIEW_IDS } from './views-client.js';
 import { renderBoardMarkdown,renderBoardInline,highlightBoardText,HIGHLIGHTS,exportBoard,boardImageTargets,stableBoardPreview,boardSelectionText } from './board-render.js';
 import { getBoardStream,subscribeBoardStream } from './board-stream.js';
@@ -17,7 +18,7 @@ import { mathStyleText } from './math-latex.js';
 import {EMPTY_SCENE,teacherRequest,sourceTarget,sourceRefForRead,requestId,captureBoardCreation} from './board/board-editing.js';
 import {mediaLocatorSuffix} from './media.js';
 import {createDraftStore} from './draft-client.js';
-import {BOARD_NAVIGATION_KEY,readNavigationPreference,isTextEntry,isInnerBoardEditor,panIntent,zoomAt,wheelCamera} from './board/board-navigation.js';
+import {boardNavigationPreference,isTextEntry,isInnerBoardEditor,panIntent,zoomAt,wheelCamera} from './board/board-navigation.js';
 const creationDrafts=createDraftStore('free-board-create');
 
 const EMPTY={revision:null,sections:[],blocks:[],sources:[],edges:[]};
@@ -132,10 +133,12 @@ export function createLessonBoard(React,readers) {
 
   return function Board({ctx,sessionId,visible,openView,onDiscuss}) {
     const client=useMemo(()=>createVaultClient(ctx,sessionId),[ctx,sessionId]);
+    const reader=useMemo(()=>createProjectionReader(input=>client.board(input)),[client]);
     const [board,setBoard]=useState(EMPTY),[face,setFace]=useState('board'),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[stream,setStream]=useState(()=>getBoardStream(sessionId)),[expandedInteraction,setExpandedInteraction]=useState(null);
     const [camera,setCamera]=useState({board:{x:0,y:0,z:1},sources:{x:0,y:0,z:1}}),[follow,setFollow]=useState(true),[exporting,setExporting]=useState(false),[include,setInclude]=useState({}),[outline,setOutline]=useState(false);
     const [heights,setHeights]=useState(()=>new Map()),[drag,setDrag]=useState(null),[reading,setReading]=useState(false);
-    const [navigation,setNavigation]=useState(readNavigationPreference),cameraRef=useRef(camera),space=useRef(false);
+    const navigation=React.useSyncExternalStore(boardNavigationPreference.subscribe,boardNavigationPreference.getSnapshot),cameraRef=useRef(camera),space=useRef(false);
+    const [zoomInput,setZoomInput]=useState('100'),zoomEditing=useRef(false);
     const workspaceId=board.workspaceId??ctx.workspaces?.list?.getSnapshot()?.items?.find(item=>item.sessionIds?.includes(sessionId))?.workspaceId??'';
     const draftKey=workspaceId+':'+sessionId;
     const [editing,setEditing]=useState(null),[inlineId,setInlineId]=useState(null),[selectedBlocks,setSelectedBlocks]=useState([]),[panel,setPanel]=useState(null),[form,setForm]=useState(()=>creationDrafts.get(draftKey)??{contentType:'text',title:'',body:'',url:'',path:'',page:1,width:420,height:420,label:'',direction:'forward',from:'',to:''}),[files,setFiles]=useState([]);
@@ -157,8 +160,9 @@ export function createLessonBoard(React,readers) {
     async function flushEditor(){return !editorFlush.current||await editorFlush.current.flush()!==false;}
     async function activateEditor(block,inline){if(!await flushEditor())return false;setInlineId(inline?block.id:null);setEditing(inline?null:block.id);setPanel(null);return true;}
     current.current=board;const cam=camera[face];
-    const accept=value=>{if(!Array.isArray(value?.blocks))return;const key=JSON.stringify(value);if(key===boardKey.current)return;boardKey.current=key;current.current=value;setBoard(value);};
-    async function refresh(){const serial=++request.current;try{const value=unwrap(await client.board());if(mounted.current&&serial===request.current&&!saving.current&&Array.isArray(value.blocks)){accept(value);projectionOutstanding.current=false;if(!observed.current){observed.current=true;setNotice('');}return value;}}catch(error){if(mounted.current)setNotice(projectionOutstanding.current?'内容已经保存，白板视图暂未同步，请稍后重试。':error.message);}return null;}
+    useEffect(()=>{if(face==='board'&&reading)zoomEditing.current=false;if(!zoomEditing.current)setZoomInput(String(Math.round(cam.z*100)));},[cam.z,face,reading]);
+    const accept=(value,fromPoll=false)=>{if(!Array.isArray(value?.blocks))return;if(!fromPoll)reader.invalidate();if(value===boardKey.current)return;boardKey.current=value;current.current=value;setBoard(value);};
+    async function refresh(){const serial=++request.current;try{const value=unwrap(await reader.read());if(mounted.current&&serial===request.current&&!saving.current&&Array.isArray(value.blocks)){accept(value,true);projectionOutstanding.current=false;if(!observed.current){observed.current=true;setNotice('');}return value;}}catch(error){if(mounted.current)setNotice(projectionOutstanding.current?'内容已经保存，白板视图暂未同步，请稍后重试。':error.message);}return null;}
     useEffect(()=>{mounted.current=true;boardKey.current='';refresh();return()=>{mounted.current=false;request.current++;};},[client]);
     useEffect(()=>{if(!visible)return;refresh();const timer=visibleInterval(()=>{if(!saving.current&&!gesture.current)refresh();},2500);return()=>timer();},[visible,client]);
     useEffect(()=>subscribeBoardStream(sessionId,value=>{if(['completed','error'].includes(value.status)){setStream(null);refresh();setNotice(value.status==='error'?'这次板书未保存，保留上次保存的内容。':'');}else{setStream(value);setNotice('');}}),[sessionId,client]);
@@ -224,13 +228,15 @@ export function createLessonBoard(React,readers) {
       focusedCall.current=stream.callId;
       const frameOf=layout.frames.find(item=>item.id===block.section);
       if(frameOf&&focusedSection.current!==block.section){focusedSection.current=block.section;focus(frameOf);return;}
-      const box=viewport.current?.getBoundingClientRect(),left=position.x*cam.z+cam.x,top=position.y*cam.z+cam.y;
-      if(box&&(left<0||top<0||left+position.width*cam.z>box.width||top+120>box.height))focus(position);
+      const box=viewport.current?.getBoundingClientRect(),latestCamera=cameraRef.current.board,left=position.x*latestCamera.z+latestCamera.x,top=position.y*latestCamera.z+latestCamera.y;
+      if(box&&(left<0||top<0||left+position.width*latestCamera.z>box.width||top+120>box.height))focus(position);
     },[stream?.callId,stream?.title,follow,face,reading,layout]);
     // Opening the board lands on the latest block once per visit, after the first measurements.
     const landed=useRef(false);
     useEffect(()=>{if(!visible){landed.current=false;return;}if(landed.current||face!=='board'||reading||stream||!merged.blocks.length||!heights.size)return;if(land())landed.current=true;},[visible,face,reading,stream,merged.blocks.length,heights.size>0,layout]);
-    const zoom=delta=>{setFollow(false);const rect=viewport.current.getBoundingClientRect();moveCamera(previous=>zoomAt(previous,previous.z+delta,{x:rect.width/2,y:rect.height/2}));};
+    const setZoom=value=>{const rect=viewport.current?.getBoundingClientRect();if(!rect)return;setFollow(false);moveCamera(previous=>zoomAt(previous,typeof value==='function'?value(previous.z):value,{x:rect.width/2,y:rect.height/2}));};
+    const zoom=delta=>setZoom(previous=>previous+delta);
+    const commitZoom=value=>{zoomEditing.current=false;const percent=Number(value);if(value.trim()&&Number.isFinite(percent)){const bounded=Math.max(30,Math.min(200,Math.round(percent)));setZoom(bounded/100);setZoomInput(String(bounded));}else setZoomInput(String(Math.round(cameraRef.current[face].z*100)));};
     useEffect(()=>{const element=viewport.current;if(!visible||!element||face==='board'&&reading)return;const wheel=event=>{if(event.defaultPrevented||isInnerBoardEditor(event.target)||localWheelTarget(event.target,element))return;event.preventDefault();event.stopPropagation();const rect=element.getBoundingClientRect();setFollow(false);moveCamera(previous=>wheelCamera(previous,event,navigation,{x:event.clientX-rect.left,y:event.clientY-rect.top},rect.height));};element.addEventListener('wheel',wheel,{capture:true,passive:false});return()=>element.removeEventListener('wheel',wheel,true);},[visible,face,reading,navigation]);
     const fitRect=rect=>{const box=viewport.current.getBoundingClientRect(),z=Math.max(.3,Math.min(1,(box.width-60)/rect.width,(box.height-110)/rect.height));moveCamera({z,x:(box.width-rect.width*z)/2-rect.x*z,y:30-rect.y*z});};
     // The latest block the teacher wrote (writing order) and the section it is in.
@@ -291,8 +297,13 @@ export function createLessonBoard(React,readers) {
         face==='board'&&layout.frames.map(item=>h('h1',{key:item.id,className:'nb-section-title',title:item.title,style:{left:item.x,top:item.y,maxWidth:item.titleWidth??item.width},dangerouslySetInnerHTML:{__html:renderBoardInline(item.title)}})),
         blocks.map(block=>h(Block,{...blockProps(block),position:positionOf(block)}))));
     const controls=h(React.Fragment,null,
-h('div',{className:'nb-toolbar',role:'toolbar','aria-label':'画布控制'},h('button',{'aria-label':'缩小',onClick:()=>zoom(-.1)},'−'),h('button',{'aria-label':'重置缩放',onClick:()=>moveCamera({z:1})},Math.round(cam.z*100)+'%'),h('button',{'aria-label':'放大',onClick:()=>zoom(.1)},'+'),h('button',{onClick:fit},'全览'),
-        h('select',{className:'nb-navigation-preference','aria-label':'导航方式',title:navigation==='mouse'?'滚轮缩放；中键或空格加拖动平移':'双指平移；捏合缩放',value:navigation,onChange:event=>{const value=event.target.value;setNavigation(value);try{localStorage.setItem(BOARD_NAVIGATION_KEY,value);}catch{}}},h('option',{value:'mouse'},'鼠标'),h('option',{value:'trackpad'},'触控板')),
+h('div',{className:'nb-toolbar',role:'toolbar','aria-label':'画布控制'},
+        h('div',{className:'nb-zoom-controls',role:'group','aria-label':'画布缩放'},
+          h('button',{'aria-label':'缩小',disabled:cam.z<=.3,onClick:()=>zoom(-.1)},'−'),
+          h('input',{className:'nb-zoom-slider',type:'range','aria-label':'缩放滑条',min:30,max:200,step:1,value:Math.round(cam.z*100),onChange:event=>setZoom(Number(event.target.value)/100)}),
+          h('button',{'aria-label':'放大',disabled:cam.z>=2,onClick:()=>zoom(.1)},'+')),
+        h('label',{className:'nb-zoom-value'},h('input',{type:'number','aria-label':'缩放百分比',min:30,max:200,step:1,inputMode:'numeric',value:zoomInput,onFocus:()=>{zoomEditing.current=true;},onChange:event=>setZoomInput(event.target.value),onBlur:event=>commitZoom(event.target.value),onKeyDown:event=>{if(event.key==='Enter'){event.preventDefault();event.currentTarget.blur();}}}),h('span',{'aria-hidden':true},'%')),
+        h('button',{onClick:fit},'全览'),
         face==='board'&&layout.frames.length>0&&h('button',{onClick:()=>{setFollow(false);const section=currentSection();if(section)fitRect(section);}},'本板块'),
         face==='board'&&layout.frames.length>0&&h('button',{'aria-expanded':outline,'aria-haspopup':'true',onClick:()=>setOutline(!outline)},'板块'),
         h('span',{className:'nb-sep'}),HIGHLIGHTS.map(color=>h('button',{key:color,className:'nb-color','data-color':color,'aria-label':colorNames[color]+'高亮',onMouseDown:e=>e.preventDefault(),onClick:()=>highlight(color)})),h('button',{'aria-label':'清除高亮',onMouseDown:e=>e.preventDefault(),onClick:()=>highlight(null)},'清除'),h('span',{className:'nb-sep'}),h('button',{className:'nb-follow','aria-pressed':follow,onClick:()=>{const next=!follow;setFollow(next);focusedCall.current=null;focusedSection.current=null;if(next&&face==='board'&&!stream)land();}},follow?'跟随中':'跟随板书')),
@@ -303,7 +314,7 @@ h('div',{className:'nb-toolbar',role:'toolbar','aria-label':'画布控制'},h('b
         h('ol',null,merged.blocks.filter(b=>!b.stream).map(block=>h('li',{key:block.id},h('button',{onClick:()=>{const p=layout.positions.get(block.id);if(p){setOutline(false);setFollow(false);focus(p);}}},block.title))))
       ));
     const readingView=h('div',{className:'nb-reading','aria-label':'课堂板书'},readingOrder(merged.sections,merged.blocks).map(group=>h('section',{key:group.id??'legacy',className:'nb-reading-section'},group.title&&h('h1',{className:'nb-section-title',title:group.title,dangerouslySetInnerHTML:{__html:renderBoardInline(group.title)}}),group.blocks.map(block=>h(Block,{...blockProps(block),position:null})))));
-    return h('div',{className:'nb-board',ref:root,'data-navigation':navigation,'data-reading':face==='board'&&reading?'true':undefined,onKeyDownCapture:event=>{if(event.code==='Space'&&!isTextEntry(event.target)&&!event.target.closest('button,a,summary,[role="button"]')&&!isInnerBoardEditor(event.target)&&!(face==='board'&&reading)){event.preventDefault();space.current=true;}if(event.key==='Escape'&&gesture.current){event.preventDefault();event.stopPropagation();endGesture(null,false);space.current=false;}},onKeyDown:event=>{if(event.key!=='Escape'||event.defaultPrevented||isInnerBoardEditor(event.target))return;if(exporting){event.preventDefault();setExporting(false);}else if(panel){event.preventDefault();setPanel(null);}else if(outline){event.preventDefault();setOutline(false);}}},h('style',null,css+FLOW_CSS),
+    return h('div',{className:'nb-board',ref:root,'data-navigation':navigation.device,'data-mouse-wheel':navigation.mouseWheel,'data-reading':face==='board'&&reading?'true':undefined,onKeyDownCapture:event=>{if(event.code==='Space'&&!isTextEntry(event.target)&&!event.target.closest('button,a,summary,[role="button"]')&&!isInnerBoardEditor(event.target)&&!(face==='board'&&reading)){event.preventDefault();space.current=true;}if(event.key==='Escape'&&gesture.current){event.preventDefault();event.stopPropagation();endGesture(null,false);space.current=false;}},onKeyDown:event=>{if(event.key!=='Escape'||event.defaultPrevented||isInnerBoardEditor(event.target))return;if(exporting){event.preventDefault();setExporting(false);}else if(panel){event.preventDefault();setPanel(null);}else if(outline){event.preventDefault();setOutline(false);}}},h('style',null,css+FLOW_CSS),
       h('header',{className:'nb-head'},h('div',{className:'nb-tabs',role:'tablist','aria-label':'白板两面'},[['board','课堂板书'],['sources','知识视图']].map(([id,label])=>h('button',{key:id,role:'tab','aria-selected':face===id,onClick:async()=>{if(!await flushEditor())return;setInlineId(null);setEditing(null);setFace(id);selection.current=null;setOutline(false);}},label))),face==='board'&&h('button',{disabled:busy,onClick:startCreate},'新增'),face==='board'&&h('button',{disabled:selectedBlocks.length<2||busy,onClick:()=>{setPanel('group');setForm(prev=>({...prev,title:''}));}},'分组'+(selectedBlocks.length?' ('+selectedBlocks.length+')':'')),h('button',{onClick:()=>setPanel(panel==='relations'?null:'relations')},'关系'),h('button',{onClick:()=>setPanel(panel==='contributions'?null:'contributions')},'修改记录'),h('span',{className:'nb-status',role:'status'},busy?'正在保存…':writing?'老师正在板书':board.revision?'已保存':''),h('button',{onClick:requestExport,'aria-expanded':exporting},'导出')),
       notice&&h('div',{className:'nb-notice',role:'status'},notice),
       face==='board'&&reading?readingView:canvas,

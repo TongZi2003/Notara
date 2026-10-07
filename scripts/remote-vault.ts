@@ -1,6 +1,6 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { appendFile, lstat, mkdir, open, readFile, realpath, rm } from 'node:fs/promises';
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import lockfile from 'proper-lockfile';
 import { homedir } from 'node:os';
@@ -67,7 +67,7 @@ function parseOptions(args: string[]): { options: CliOptions; rest: string[] } {
   return { options: { root, config, ...(port !== undefined ? { port } : {}) }, rest };
 }
 
-function statePaths(configPath: string): { directory: string; state: string; lock: string; policy: string; overlay: string; log: string } {
+export function statePaths(configPath: string): { directory: string; state: string; lock: string; policy: string; overlay: string; log: string } {
   const config = resolve(configPath);
   const directory = dirname(config);
   const base = config.replace(/\.[^./\\]+$/, '');
@@ -184,11 +184,11 @@ function controllerUrl(state: ControllerState, suffix: string): URL {
   return endpoint;
 }
 
-async function controllerRequest(state: ControllerState, method: 'GET' | 'POST', suffix: string, timeoutMs = 45_000): Promise<{ status: number; value?: PublicStatus; message?: string }> {
+async function controllerRequest(state: ControllerState, method: 'GET' | 'POST', suffix: string, timeoutMs = 45_000, signal?: AbortSignal): Promise<{ status: number; value?: PublicStatus; message?: string }> {
   const response = await fetch(controllerUrl(state, suffix), {
     method,
     headers: { authorization: `Bearer ${state.token}` },
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
   });
   const value = await response.json().catch(() => undefined) as (PublicStatus & { message?: string }) | undefined;
   return { status: response.status, ...(value ? { value, message: value.message } : {}) };
@@ -202,14 +202,15 @@ async function discardDeadController(paths: ReturnType<typeof statePaths>, state
 
 // The detached process must load its modules before publishing controller
 // state. Cold Windows Release installs need time for that and the first Host.
-async function waitForController(paths: ReturnType<typeof statePaths>, requestedRoot: string, timeoutMs = 120_000): Promise<{ state: ControllerState; status: PublicStatus }> {
+export async function waitForController(paths: ReturnType<typeof statePaths>, requestedRoot: string, timeoutMs = 120_000, signal?: AbortSignal): Promise<{ state: ControllerState; status: PublicStatus }> {
   const deadline = Date.now() + timeoutMs;
   let lastError = '';
   while (Date.now() < deadline) {
+    if (signal?.aborted) throw new Error('Remote controller startup was cancelled.');
     const state = await readControllerState(paths.state).catch(error => { lastError = errorText(error); return undefined; });
     if (state) {
       await assertControllerRoot(state, requestedRoot);
-      const reply = await controllerRequest(state, 'GET', '/v1/status').catch(error => { lastError = errorText(error); return undefined; });
+      const reply = await controllerRequest(state, 'GET', '/v1/status', 45_000, signal).catch(error => { lastError = errorText(error); return undefined; });
       if (reply?.status === 200 && reply.value) {
         if (reply.value.phase === 'failed') throw new Error(reply.value.error ?? 'Notara remote startup failed.');
         if (reply.value.phase === 'ready') return { state, status: reply.value };
@@ -217,9 +218,38 @@ async function waitForController(paths: ReturnType<typeof statePaths>, requested
         if (await discardDeadController(paths, state)) lastError = 'A previous remote controller exited during startup.';
       } else if (reply && reply.status !== 401) lastError = reply.message ?? `Controller returned HTTP ${reply.status}.`;
     }
-    await new Promise(resolve => setTimeout(resolve, 150));
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => { signal?.removeEventListener('abort', abort); resolve(); }, 150);
+      const abort = () => { clearTimeout(timer); reject(new Error('Remote controller startup was cancelled.')); };
+      if (signal?.aborted) abort();
+      else signal?.addEventListener('abort', abort, { once: true });
+    });
   }
   throw new Error(lastError ? `Remote startup timed out: ${lastError}` : `Remote startup did not become ready within ${timeoutMs / 1000} seconds. See ${paths.log}.`);
+}
+
+export async function waitForControllerProcess<T>(ready: (signal: AbortSignal) => Promise<T>, child: ChildProcess, logPath: string): Promise<T> {
+  let onError: ((error: Error) => void) | undefined;
+  let onExit: ((code: number | null, signal: NodeJS.Signals | null) => void) | undefined;
+  const failed = new Promise<never>((_resolve, reject) => {
+    onError = error => {
+      void logPrivate(logPath, `Could not spawn the remote controller: ${error.message}`).catch(() => undefined).finally(() => {
+        reject(new Error(`Could not start the remote controller. See ${logPath}.`, { cause: error }));
+      });
+    };
+    onExit = (code, signal) => reject(new Error(`Remote controller exited before becoming ready (code ${code ?? 'none'}, signal ${signal ?? 'none'}). See ${logPath}.`));
+    child.once('error', onError);
+    child.once('exit', onExit);
+    if (child.exitCode !== null || child.signalCode !== null) onExit(child.exitCode, child.signalCode);
+  });
+  const controller = new AbortController();
+  const polling = ready(controller.signal);
+  try { return await Promise.race([polling, failed]); }
+  finally {
+    controller.abort();
+    if (onError) child.removeListener('error', onError);
+    if (onExit) child.removeListener('exit', onExit);
+  }
 }
 
 async function waitForControllerShutdown(paths: ReturnType<typeof statePaths>, options: CliOptions, previous: ControllerState): Promise<void> {
@@ -313,8 +343,7 @@ async function startBackground(mode: StartMode, options: CliOptions): Promise<vo
     });
   } finally { await logHandle.close(); }
   child.unref();
-  child.once('error', error => { void logPrivate(paths.log, `Could not spawn the remote controller: ${error.message}`); });
-  const ready = await waitForController(paths, options.root);
+  const ready = await waitForControllerProcess(signal => waitForController(paths, options.root, 120_000, signal), child, paths.log);
   printStarted(ready.status);
 }
 

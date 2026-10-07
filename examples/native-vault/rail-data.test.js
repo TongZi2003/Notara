@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PLAN_VIEWS, RAIL_SECTIONS, VAULT_VIEWS, boardCollapse, filterByTitle, lessonGroups, railSectionOf } from './rail-data.js';
+import { PLAN_VIEWS, RAIL_SECTIONS, VAULT_VIEWS, boardCollapse, filterByTitle, folderLessons, lessonGroups, railSectionOf } from './rail-data.js';
 
 test('rail sections and views', () => {
   assert.deepEqual(RAIL_SECTIONS.map(item => item.label), ['首页', '计划', 'Vault', '技能']);
@@ -25,6 +25,13 @@ test('title filter ignores case and surrounding blanks', () => {
   const rows = [{ title: '条件概率' }, { title: 'Bayes 公式' }, { title: '' }];
   assert.deepEqual(filterByTitle(rows, '  bayes ').map(row => row.title), ['Bayes 公式']);
   assert.equal(filterByTitle(rows, '').length, 3);
+});
+
+test('a virtual folder with no title is safely omitted from title-filtered results', () => {
+  const result = folderLessons([{ id: 'lesson', title: '课堂' }], {
+    groups: [{ id: 'folder' }], members: [{ sessionId: 'lesson', groupId: 'folder' }],
+  }, 'missing');
+  assert.deepEqual(result, { folders: [], ungrouped: [] });
 });
 
 test('the board folds the panel and unfolds it only if it was folded for the board', () => {

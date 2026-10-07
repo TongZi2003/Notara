@@ -1,12 +1,15 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { spawn } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+import lockfile from 'proper-lockfile';
 import { packageBin } from './package-bin.ts';
 
 export const REPOSITORY = 'TongZi2003/Notara';
 export const MANIFEST_NAME = 'notara-update.json';
+export const defaultReleaseCacheRoot = (): string => join(homedir(), '.notara', 'releases');
 export interface RuntimeContract { dsh: string; cordis: string; dataVersion: number }
 export interface Release { version: string; url: string; archiveUrl: string; sha256: string; runtime: RuntimeContract; compatible: boolean }
 export interface UpdateStatus { phase: 'current' | 'checking' | 'downloading' | 'ready' | 'restarting' | 'error' | 'manual'; currentVersion: string; latestVersion?: string; releaseUrl?: string; message: string; launchId?: string }
@@ -146,8 +149,269 @@ export async function runNode(code: string, entry: string, args: string[], signa
     child.once('exit', code => { signal?.removeEventListener('abort', abort); code === 0 ? done() : reject(new Error(`更新安装未完成（退出码 ${code ?? '未知'}）。${/ENOSPC/.test(error) ? '磁盘空间不足。' : ''}`)); });
   });
 }
-export async function prepareRelease(release: Release, fetcher: typeof fetch = fetch, cacheRoot = join(homedir(), '.notara', 'releases'), signal?: AbortSignal): Promise<string> {
+const cacheMarker = '.notara-release-cache.json';
+const cacheKey = (path: string): string => process.platform === 'win32' ? resolve(path).toLowerCase() : resolve(path);
+const cachedCodeLeases = new Map<string, { count: number; target: string; release: () => Promise<void> }>();
+const legacyReleaseCacheName = /^((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))-([a-f0-9]{12})-(\d{13})$/;
+
+interface LegacyReleaseCacheInventoryEntry {
+  name: string;
+  path: string;
+  version: string;
+  digestPrefix: string;
+  createdAt: number;
+  packageContract: 'matches-directory' | 'mismatch' | 'unreadable';
+  ownershipMarker: 'missing' | 'matches-name' | 'mismatch-or-invalid';
+  releaseManifest: 'not-checked';
+  lease: 'active' | 'unknown' | 'expired-owner' | 'none-observed';
+  runtimePointer: 'matches-provided-pointer' | 'path-metadata-mismatch' | 'not-referenced-by-provided-pointers' | 'not-checked';
+  automaticallyRemovable: false;
+  retainReason: string;
+}
+
+interface ReleaseCachePointerReference { path: string; version: string; sha256: string }
+
+function isReleaseCachePath(code: string, cacheRoot: string): boolean {
+  const rootKey = cacheKey(resolve(cacheRoot)), key = cacheKey(resolve(code));
+  const rootPrefix = rootKey.endsWith(sep) ? rootKey : rootKey + sep;
+  return key === rootKey || key.startsWith(rootPrefix);
+}
+
+async function withReleaseCacheLock<T>(cacheRoot: string, action: () => Promise<T>): Promise<T> {
+  const root = resolve(cacheRoot);
+  await mkdir(root, { recursive: true, mode: 0o700 });
+  const release = await lockfile.lock(root, { retries: 10, stale: 30_000, update: 10_000 });
+  try { return await action(); } finally { await release(); }
+}
+
+async function acquireCachedCodeLeaseLocked(code: string, cacheRoot: string): Promise<void> {
+  const root = resolve(cacheRoot), path = resolve(code);
+  const key = cacheKey(path);
+  if (!isReleaseCachePath(path, root)) return;
+  const current = cachedCodeLeases.get(key);
+  if (current) { current.count++; return; }
+  const codeKey = createHash('sha256').update(key).digest('hex');
+  const target = join(dirname(path), `.notara-lease-${codeKey}-${process.pid}-${randomUUID()}`);
+  await writeFile(target, '', { flag: 'wx', mode: 0o600 });
+  try {
+    const release = await lockfile.lock(target, { retries: 0, stale: 30_000, update: 10_000 });
+    cachedCodeLeases.set(key, { count: 1, target, release });
+  } catch (error) { await rm(target, { force: true }); throw error; }
+}
+
+/** Keep a cached snapshot alive while a worker or pending update can still use it. */
+export async function acquireCachedCodeLease(code: string, cacheRoot = defaultReleaseCacheRoot()): Promise<void> {
+  if (!isReleaseCachePath(code, cacheRoot)) return;
+  await withReleaseCacheLock(cacheRoot, () => acquireCachedCodeLeaseLocked(code, cacheRoot));
+}
+
+export async function releaseCachedCodeLease(code: string): Promise<void> {
+  const key = cacheKey(code), lease = cachedCodeLeases.get(key);
+  if (!lease) return;
+  if (--lease.count > 0) return;
+  cachedCodeLeases.delete(key);
+  await lease.release();
+  await rm(lease.target, { force: true });
+}
+
+export async function collectReleaseCache(cacheRoot: string, preservePaths: readonly string[]): Promise<void> {
+  const root = resolve(cacheRoot);
+  const keep = new Set(preservePaths.map(cacheKey));
+  await withReleaseCacheLock(root, async () => {
+    for (const entry of await readdir(root, { withFileTypes: true })) {
+      // Only remove completed snapshots created by this cache format. Older
+      // timestamped snapshots have no ownership marker, so they may belong to
+      // another runtime and are deliberately retained.
+      if (!entry.isDirectory() || !/^\d+\.\d+\.\d+-[a-f0-9]{12}$/.test(entry.name)) continue;
+      const path = join(root, entry.name);
+      if (keep.has(cacheKey(path))) continue;
+      try {
+        const info = await lstat(path);
+        if (!info.isDirectory() || info.isSymbolicLink()) continue;
+        const marker = object(JSON.parse(await readFile(join(path, cacheMarker), 'utf8')));
+        const match = /^(\d+\.\d+\.\d+)-([a-f0-9]{12})$/.exec(entry.name);
+        if (!match || marker.format !== 1 || marker.version !== match[1] || typeof marker.sha256 !== 'string' ||
+          !/^[a-f0-9]{64}$/.test(marker.sha256) || !marker.sha256.startsWith(match[2]!)) continue;
+        // The cache-wide lock serializes this scan with lease creation in every
+        // new launcher. Leases live beside snapshots so code directories stay
+        // immutable, and per-process names allow shared snapshots.
+        let inUse = false;
+        const codeKey = createHash('sha256').update(cacheKey(path)).digest('hex');
+        for (const lease of await readdir(dirname(path), { withFileTypes: true })) {
+          if (!lease.isFile() || !lease.name.startsWith(`.notara-lease-${codeKey}-`)) continue;
+          const target = join(dirname(path), lease.name);
+          if (await lockfile.check(target, { stale: 30_000 })) { inUse = true; break; }
+          const matchOwner = new RegExp(`^\\.notara-lease-${codeKey}-(\\d+)-[\\w-]+$`).exec(lease.name);
+          const pid = Number(matchOwner?.[1]);
+          if (!matchOwner || !Number.isSafeInteger(pid) || pid < 1) { inUse = true; break; }
+          try { process.kill(pid, 0); inUse = true; break; }
+          catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') { inUse = true; break; } }
+          await rm(target, { force: true });
+          await rm(`${target}.lock`, { recursive: true, force: true });
+        }
+        if (inUse) continue;
+        await rm(path, { recursive: true, force: false });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
+    }
+  });
+}
+
+async function legacyCodeLeaseState(codePath: string): Promise<LegacyReleaseCacheInventoryEntry['lease']> {
+  const codeKey = createHash('sha256').update(cacheKey(codePath)).digest('hex');
+  const prefix = `.notara-lease-${codeKey}-`;
+  let found = false;
+  for (const lease of await readdir(dirname(codePath), { withFileTypes: true })) {
+    if (!lease.isFile() || !lease.name.startsWith(prefix)) continue;
+    found = true;
+    const target = join(dirname(codePath), lease.name);
+    let locked: boolean;
+    try { locked = await lockfile.check(target, { stale: 30_000 }); }
+    catch { return 'unknown'; }
+    if (locked) return 'active';
+    const owner = new RegExp(`^\\.notara-lease-${codeKey}-(\\d+)-[\\w-]+$`).exec(lease.name);
+    const pid = Number(owner?.[1]);
+    if (!owner || !Number.isSafeInteger(pid) || pid < 1) return 'unknown';
+    try { process.kill(pid, 0); return 'active'; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') return 'unknown'; }
+  }
+  return found ? 'expired-owner' : 'none-observed';
+}
+
+/** Read-only inventory for old timestamped snapshots; legacy entries are never auto-deleted or adopted. */
+async function inspectLegacyReleaseCache(
+  cacheRoot = defaultReleaseCacheRoot(),
+  pointers?: readonly ReleaseCachePointerReference[],
+): Promise<LegacyReleaseCacheInventoryEntry[]> {
+  const root = resolve(cacheRoot);
+  let entries;
+  try { entries = await readdir(root, { withFileTypes: true }); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error; }
+  const results: LegacyReleaseCacheInventoryEntry[] = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const match = legacyReleaseCacheName.exec(entry.name);
+    if (!match) continue;
+    const version = match[1]!;
+    const digestPrefix = match[2]!;
+    const timestamp = match[3]!;
+    const path = join(root, entry.name);
+    let info;
+    try { info = await lstat(path); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue; throw error; }
+    if (!info.isDirectory() || info.isSymbolicLink()) continue;
+
+    let packageContract: LegacyReleaseCacheInventoryEntry['packageContract'] = 'unreadable';
+    try { packageContract = (await codeContract(path)).version === version ? 'matches-directory' : 'mismatch'; }
+    catch { /* Report limited verification; never treat a failed read as ownership evidence. */ }
+
+    let ownershipMarker: LegacyReleaseCacheInventoryEntry['ownershipMarker'] = 'missing';
+    const markerPath = join(path, cacheMarker);
+    try {
+      const markerInfo = await lstat(markerPath);
+      if (!markerInfo.isFile() || markerInfo.isSymbolicLink()) ownershipMarker = 'mismatch-or-invalid';
+      else {
+        const marker = object(JSON.parse(await readFile(markerPath, 'utf8')));
+        ownershipMarker = marker.format === 1 && marker.version === version && typeof marker.sha256 === 'string' &&
+          /^[a-f0-9]{64}$/.test(marker.sha256) && marker.sha256.startsWith(digestPrefix) ? 'matches-name' : 'mismatch-or-invalid';
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') ownershipMarker = 'mismatch-or-invalid';
+    }
+
+    let runtimePointer: LegacyReleaseCacheInventoryEntry['runtimePointer'] = pointers ? 'not-referenced-by-provided-pointers' : 'not-checked';
+    if (pointers) {
+      const pathReference = pointers.find(pointer => cacheKey(pointer.path) === cacheKey(path));
+      if (pathReference) runtimePointer = pathReference.version === version && /^[a-f0-9]{64}$/.test(pathReference.sha256) && pathReference.sha256.startsWith(digestPrefix)
+        ? 'matches-provided-pointer' : 'path-metadata-mismatch';
+    }
+    results.push({
+      name: entry.name, path, version, digestPrefix, createdAt: Number(timestamp), packageContract, ownershipMarker,
+      releaseManifest: 'not-checked', lease: await legacyCodeLeaseState(path), runtimePointer, automaticallyRemovable: false,
+      retainReason: '旧目录没有可验证的安装后完整性与归属证明；运行时指针和租约只覆盖已提供的引用，不能证明其他实例均已停止。',
+    });
+  }
+  return results.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function readCachePointerReference(runtimeRoot: string): Promise<ReleaseCachePointerReference | undefined> {
+  let source: string;
+  try { source = await readFile(join(resolve(runtimeRoot), 'notara-release.json'), 'utf8'); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; }
+  const pointer = object(JSON.parse(source));
+  if (pointer.format !== 1 || typeof pointer.code !== 'string' || typeof pointer.version !== 'string' || typeof pointer.sha256 !== 'string')
+    throw new Error('运行时更新指针格式无效，inventory 已停止。');
+  return { path: resolve(pointer.code), version: pointer.version, sha256: pointer.sha256 };
+}
+
+const cacheInventoryUsage = '用法：npm exec -- tsx scripts/vault-updates.ts cache-inventory [--root <缓存目录>] [--runtime-root <数据目录>]';
+async function runCacheInventoryCli(args: readonly string[]): Promise<void> {
+  if (args.includes('--help') || args.includes('-h')) { console.log(cacheInventoryUsage); return; }
+  if (args[0] !== 'cache-inventory') throw new Error(cacheInventoryUsage);
+  let cacheRoot = defaultReleaseCacheRoot(), runtimeRoot: string | undefined;
+  for (let index = 1; index < args.length; index++) {
+    const option = args[index];
+    if ((option === '--root' || option === '--runtime-root') && args[index + 1]) {
+      if (option === '--root') cacheRoot = resolve(args[++index]!);
+      else runtimeRoot = resolve(args[++index]!);
+    } else throw new Error(cacheInventoryUsage);
+  }
+  const pointer = runtimeRoot ? await readCachePointerReference(runtimeRoot) : undefined;
+  const inventory = await inspectLegacyReleaseCache(cacheRoot, runtimeRoot ? (pointer ? [pointer] : []) : undefined);
+  console.log(`旧式更新缓存（只读）：${resolve(cacheRoot)}`);
+  if (!inventory.length) console.log('未发现旧式 version-sha12-timestamp 目录。');
+  for (const item of inventory) {
+    console.log(`- ${item.name}: package/runtime=${item.packageContract}; marker=${item.ownershipMarker}; lease=${item.lease}; runtime-pointer=${item.runtimePointer}; release-manifest=${item.releaseManifest}`);
+    console.log(`  保留：${item.retainReason}`);
+    console.log(`  路径：${item.path}`);
+  }
+  console.log('本命令不会删除或迁移目录。人工清理前请停止所有可能共用该缓存的 Notara 实例（包括自定义 --root），核对每个运行时指针并备份；仅处理确认不再使用的列出目录。');
+}
+
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+  runCacheInventoryCli(process.argv.slice(2)).catch(error => {
+    console.error(error instanceof Error ? error.message : '无法读取旧式更新缓存清单。');
+    process.exitCode = 1;
+  });
+}
+
+/** Release the replaced candidate before collecting snapshots; cleanup is best-effort after preparation succeeds. */
+export async function cleanupPreparedReleaseCache(cacheRoot: string, preservePaths: readonly string[], previousPendingCode?: string): Promise<void> {
+  let failed = false;
+  if (previousPendingCode) {
+    try { await releaseCachedCodeLease(previousPendingCode); }
+    catch { failed = true; }
+  }
+  try { await collectReleaseCache(cacheRoot, preservePaths); }
+  catch { failed = true; }
+  if (failed) console.error('新版已准备好，但旧版本缓存未能完全清理。');
+}
+
+async function validCachedRelease(path: string, release: Release): Promise<boolean> {
+  try {
+    const info = await lstat(path);
+    if (!info.isDirectory() || info.isSymbolicLink()) return false;
+    const marker = object(JSON.parse(await readFile(join(path, cacheMarker), 'utf8')));
+    if (marker.format !== 1 || marker.version !== release.version || marker.sha256 !== release.sha256) return false;
+    const actual = await codeContract(path);
+    return actual.version === release.version && sameRuntime(actual.runtime, release.runtime);
+  } catch { return false; }
+}
+
+export async function prepareRelease(release: Release, fetcher: typeof fetch = fetch, cacheRoot = defaultReleaseCacheRoot(), signal?: AbortSignal): Promise<string> {
   await mkdir(cacheRoot, { recursive: true, mode: 0o700 });
+  const installed = join(cacheRoot, `${release.version}-${release.sha256.slice(0, 12)}`);
+  const reused = await withReleaseCacheLock(cacheRoot, async () => {
+    if (await validCachedRelease(installed, release)) {
+      await acquireCachedCodeLeaseLocked(installed, cacheRoot);
+      return true;
+    }
+    const found = await lstat(installed).then(() => true, (error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return false; throw error; });
+    if (found) throw new Error('当前更新缓存校验失败，未删除可能正在使用的代码。');
+    return false;
+  });
+  if (reused) return installed;
   const staging = await mkdtemp(join(cacheRoot, 'staging-'));
   try {
     await extractRelease(await download(release.archiveUrl, 100_000_000, fetcher, signal), release.sha256, staging);
@@ -159,8 +423,20 @@ export async function prepareRelease(release: Release, fetcher: typeof fetch = f
     if (!npmEntry) throw new Error('请通过 npm run vault 启动，以便安装更新依赖。');
     await runNode(staging, npmEntry, ['ci', '--include=dev', '--no-audit', '--no-fund'], signal);
     await runPackageScript(staging, 'build-native-vault.ts', [], signal);
-    const installed = join(cacheRoot, `${release.version}-${release.sha256.slice(0, 12)}-${Date.now()}`);
-    await rename(staging, installed); return installed;
+    await writeFile(join(staging, cacheMarker), JSON.stringify({ format: 1, version: release.version, sha256: release.sha256 }));
+    await withReleaseCacheLock(cacheRoot, async () => {
+      if (await validCachedRelease(installed, release)) {
+        // Another runtime prepared the same release while this one built it.
+        await acquireCachedCodeLeaseLocked(installed, cacheRoot);
+        await rm(staging, { recursive: true, force: true });
+        return;
+      }
+      const found = await lstat(installed).then(() => true, (error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return false; throw error; });
+      if (found) throw new Error('当前更新缓存校验失败，未删除可能正在使用的代码。');
+      await rename(staging, installed);
+      await acquireCachedCodeLeaseLocked(installed, cacheRoot);
+    });
+    return installed;
   } catch (error) { await rm(staging, { recursive: true, force: true }); throw error; }
 }
 

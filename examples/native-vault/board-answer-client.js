@@ -1,12 +1,29 @@
 import { BOARD_COMPONENTS, answersFor, staleAnswerSummary } from './board-components.js';
+import {createDraftStore} from './draft-client.js';
 
 const letter = index => String.fromCharCode(65 + index);
 const clock = at => { const date = new Date(at); return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }); };
 const BLANK = /\{\{([^{}\n]*)\}\}/g;
 
 /** Unsent drafts belong to this browser only; storage can be missing or refuse. */
-function readDraft(key) { try { const raw = key && window.localStorage.getItem(key); return raw ? JSON.parse(raw) : undefined; } catch { return undefined; } }
-function writeDraft(key, value) { try { if (!key) return; if (value === undefined) window.localStorage.removeItem(key); else window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* per-viewer convenience only */ } }
+const drafts=createDraftStore('board-answer',{key:id=>id});
+export function restoreAnswerDraft(value,initial,component){
+  const compatible=(actual,expected,field)=>{
+    if(expected===null)return field==='exit'?actual===null||actual==='unsure'||actual==='other':actual===null||field==='point'&&actual&&typeof actual==='object'&&Number.isFinite(actual.x)&&Number.isFinite(actual.y);
+    if(Array.isArray(expected))return Array.isArray(actual)&&(expected.length===0||actual.length===expected.length)&&actual.every(item=>compatible(item,expected[0]??0));
+    if(expected&&typeof expected==='object')return actual&&typeof actual==='object'&&!Array.isArray(actual)&&Object.entries(expected).every(([key,item])=>compatible(actual[key],item,key));
+    return typeof actual===typeof expected&&(typeof actual!=='number'||Number.isFinite(actual));
+  };
+  if(!compatible(value,initial))return initial;
+  const indexed=(items,min,max)=>items.every(item=>Number.isSafeInteger(item)&&item>=min&&item<max);
+  if(component?.type==='choice'&&(!indexed(value.pick,0,component.spec.options.length)||new Set(value.pick).size!==value.pick.length||!component.spec.multiple&&value.pick.length>1))return initial;
+  if(component?.type==='order'){
+    if(component.spec.groups){if(!indexed(value.assign,-1,component.spec.groups.length))return initial;}
+    else if(!indexed(value.order,0,component.spec.items.length)||new Set(value.order).size!==value.order.length)return initial;
+  }
+  return value;
+}
+function writeDraft(key,value){if(value===undefined)drafts.delete(key);else drafts.set(key,value);}
 
 /**
  * The practice side of the board: one view per answerable component. A draft
@@ -118,9 +135,11 @@ export function createBoardAnswers(React, { renderInline, inputs = {} }) {
     const { current, stale } = answersFor(component, answers);
     const latest = current.at(-1);
     const [editing, setEditing] = useState(false);
-    const [draft, setDraft] = useState(() => readDraft(draftKey) ?? initialDraft(component));
+    const readDraft=()=>restoreAnswerDraft(drafts.get(draftKey),initialDraft(component),component);
+    const [draft, setDraft] = useState(readDraft);
     const [status, setStatus] = useState(null);
-    useEffect(() => { setDraft(readDraft(draftKey) ?? initialDraft(component)); setEditing(false); setStatus(null); }, [draftKey]);
+    useEffect(() => { setDraft(readDraft()); setEditing(false); setStatus(null); }, [draftKey]);
+    useEffect(()=>drafts.subscribe((id,message)=>{if(id===draftKey)setStatus({kind:'error',text:message});}),[draftKey]);
     const update = change => {
       setDraft(previous => { const next = change(previous); writeDraft(draftKey, next); return next; });
       // Editing invalidates local validation; delivery failures still need their receipt.

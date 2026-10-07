@@ -1,4 +1,5 @@
 import { createVaultClient, visibleInterval } from './remote-client.js';
+import {boardNavigationPreference} from './board/board-navigation.js';
 import { civilDay } from './calendar-data.js';
 import { VIEW_IDS } from './views-client.js';
 import { homeQueue } from './home-queue.js';
@@ -335,6 +336,7 @@ export function installStudentProjection(ctx,React,navigation,appearance) {
       finally{setDebugBusy(false);}
     };
     const look=React.useSyncExternalStore(appearance?.subscribe??(()=>()=>{}),appearance?.getSnapshot??(()=>({style:'minimal'})));
+    const boardWheel=React.useSyncExternalStore(boardNavigationPreference.subscribe,boardNavigationPreference.getSnapshot);
     const option=(style,label,note)=>React.createElement('label',{key:style,className:'nv-appearance-option','data-selected':look.style===style},
       React.createElement('input',{type:'radio',name:'notara-appearance',value:style,checked:look.style===style,onChange:()=>appearance?.setStyle(style)}),
       React.createElement('span',null,React.createElement('b',null,label),React.createElement('small',null,note)));
@@ -345,6 +347,17 @@ export function installStudentProjection(ctx,React,navigation,appearance) {
         option('minimal','极简','白底浅灰，系统字体。'),
         option('notebook','手帐','纸张、便签与手写字体；第一次切换需要下载约 7.6 MB 的字体。'),
         React.createElement('p',{style:{fontSize:12,color:'var(--dsw-alias-label-secondary)',margin:'8px 0 0'}},'只改变这台浏览器上的外观；深浅色仍跟随原生的外观设置。')),
+      React.createElement('fieldset',{className:'nv-appearance',style:{border:0,padding:0,margin:'0 0 22px'}},
+        React.createElement('legend',{style:{fontSize:13,fontWeight:500,marginBottom:10}},'白板操作'),
+        [['mouse','鼠标模式','中键或空格加拖动平移；普通滚轮使用下方独立映射。'],['trackpad','触控板模式','双指平移画布，捏合缩放。']].map(([value,label,note])=>React.createElement('label',{key:value,className:'nv-appearance-option','data-selected':boardWheel.device===value},
+          React.createElement('input',{type:'radio',name:'notara-board-device',value,checked:boardWheel.device===value,onChange:()=>boardNavigationPreference.setDevice(value)}),
+          React.createElement('span',null,React.createElement('b',null,label),React.createElement('small',null,note)))),
+        React.createElement('fieldset',{className:'nv-appearance',disabled:boardWheel.device!=='mouse',style:{border:0,padding:0,margin:'8px 0 0',opacity:boardWheel.device==='mouse'?1:.55}},
+          React.createElement('legend',{style:{fontSize:13,fontWeight:500,marginBottom:10}},'鼠标滚轮映射'),
+          [['zoom','放大缩小','滚轮缩放画布，保持鼠标指向的位置。'],['scroll','上下滚动','滚轮上下移动画布，不改变缩放比例。']].map(([value,label,note])=>React.createElement('label',{key:value,className:'nv-appearance-option','data-selected':boardWheel.mouseWheel===value},
+            React.createElement('input',{type:'radio',name:'notara-mouse-wheel',value,checked:boardWheel.mouseWheel===value,onChange:()=>boardNavigationPreference.setMouseWheel(value)}),
+            React.createElement('span',null,React.createElement('b',null,label),React.createElement('small',null,note))))),
+        React.createElement('p',{style:{fontSize:12,color:'var(--dsw-alias-label-secondary)',margin:'8px 0 0'}},'对本浏览器的白板、自由绘图与导图立即生效。鼠标设为上下滚动时，Ctrl / ⌘ 加滚轮仍可缩放。切换设备不会改变鼠标滚轮映射。')),
       React.createElement('label',{style:{display:'flex',alignItems:'center',gap:10}},
         React.createElement('input',{type:'checkbox',checked:state.debug,disabled:debugBusy,onChange:e=>{void changeDebug(e.target.checked);}}),'显示调试记录'),
       debugError&&React.createElement('p',{role:'alert'},debugError),

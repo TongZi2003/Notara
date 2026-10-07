@@ -123,6 +123,13 @@ test('keeps the documented node fields and returns an empty graph for an empty v
   });
 });
 
+test('graph excerpts truncate on Unicode code-point boundaries', () => {
+  const content = `# Emoji\n\n${'x'.repeat(152)}😀${'y'.repeat(20)}\n`;
+  const graph = buildVaultGraph([doc('知识/emoji.md', content)], []);
+  assert.equal(Array.from(graph.nodes[0].excerpt).length, 160);
+  assert.ok(graph.nodes[0].excerpt.endsWith('😀…'));
+});
+
 test('a parent cycle keeps its edges and reports null depth instead of recursing', () => {
   const first = doc('卡片/甲.md', '---\ntype: card\nparent: 卡片/乙.md\n---\n# 甲\n');
   const second = doc('卡片/乙.md', '---\ntype: card\nparent: 卡片/甲.md\n---\n# 乙\n');
@@ -352,9 +359,9 @@ test('store.graph() re-reads the vault and writes nothing back', async () => {
 test('the remote exposes a parameterless graph and the module stays browser-bundleable', async () => {
   const remote = await readFile(join(VAULT_DIR, 'index.js'), 'utf8');
   const method = remote.slice(remote.indexOf('async graph(input)'), remote.indexOf('async templates(input)'));
-  // 图谱只接受会话 scope：图本身就是整份 Vault 投影，不接受任何数据参数。
-  assert.match(method, /exactInput\(input, \[\], \['sessionId'\]\)/);
-  assert.match(method, /return store\.graph\(\)/);
+  // 图谱仍是整份 Vault 的只读投影；可选 token 只省去未变化的传输。
+  assert.match(method, /exactInput\(input, \[\], \['sessionId', 'projectionRevision'\]\)/);
+  assert.match(method, /conditionalProjection\(data,await store\.graph\(\)/);
   const methods = NotaraVaultRemote.prototype['@deepseek-ai/dsh-typert-protocol/remote-methods'].methods;
   assert.ok(methods.some(entry => entry.method === 'graph' && entry.invocation.kind === 'direct'));
 
@@ -377,6 +384,13 @@ test('media target parsing survives malformed fragments and round-trips anchors'
   assert.equal(parseMediaTarget('资料/100%讲义.pdf#page=1').path, '资料/100%讲义.pdf');
   assert.deepEqual(parseMediaTarget('资料/讲义.pdf#'), { path: '资料/讲义.pdf', locator: undefined });
   assert.deepEqual(parseMediaTarget('资料/讲义.pdf#page=abc'), { path: '资料/讲义.pdf', locator: undefined, invalidLocator: true });
+  for (const target of ['视频/课.mp4#t=01:30', '视频/课.mp4#t=abc', '视频/课.mp4#t=1,2,3', '视频/课.mp4#t=99999999999999999999']) {
+    assert.deepEqual(parseMediaTarget(target), { path: '视频/课.mp4', locator: undefined, invalidLocator: true }, target);
+  }
+  assert.deepEqual(parseMediaTarget('视频/课.mp4#t=9007199254740991,9007199254740991'), { path: '视频/课.mp4', locator: { kind: 'video-time', startMs: Number.MAX_SAFE_INTEGER, endMs: Number.MAX_SAFE_INTEGER } });
+  assert.throws(() => embedTarget('资料/讲义.pdf', { kind: 'pdf-region', page: 2 }), /media_locator_invalid/);
+  assert.throws(() => embedTarget('图片/图.png', { kind: 'image-region' }), /media_locator_invalid/);
+  assert.throws(() => embedTarget('图片/图.png', { kind: 'image-region', rect: Array(4) }), /media_locator_invalid/);
   assert.doesNotThrow(() => parseMediaTarget('资料/讲义.pdf#rect=1,%E4'));
 });
 

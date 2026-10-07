@@ -12,6 +12,8 @@ export const workerDefaultsPath = (env = process.env) => env.DSH_HOME ? join(env
 
 const EMPTY = Object.freeze({ revision: 0, presets: Object.freeze({}) });
 const fail = code => { throw new Error(code); };
+const windowsRenameDelays = [20, 40, 80, 160, 240];
+const retryableRenameCodes = new Set(['EPERM', 'EACCES', 'EBUSY']);
 
 function parse(text) {
   let value;
@@ -28,11 +30,26 @@ export async function readWorkerDefaults(path) {
 }
 
 const locks = new Map();
+async function renameWorkerDefaultsWithRetry(temporary, path, { platform = process.platform, renameFile = rename, pause = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}, beforeRetry = async () => {}) {
+  let firstSharingError;
+  for (let attempt = 0; ; attempt++) {
+    try { await renameFile(temporary, path); return; }
+    catch (error) {
+      if (platform !== 'win32' || !retryableRenameCodes.has(error?.code ?? '')) throw error;
+      firstSharingError ??= error;
+      if (attempt >= windowsRenameDelays.length) throw firstSharingError;
+      await pause(windowsRenameDelays[attempt]);
+      await beforeRetry();
+    }
+  }
+}
+
 /**
  * Replace one preset's defaults (`null` removes them) when the file is still at
  * `expectedRevision`. The write is a rename, so a reader never sees half a file.
+ * Filesystem overrides are an internal seam for deterministic rename-failure tests.
  */
-export async function writeWorkerDefault(path, expectedRevision, preset, value) {
+export async function writeWorkerDefault(path, expectedRevision, preset, value, filesystem = {}) {
   if (!path) fail('solver_defaults_unavailable');
   const previous = locks.get(path) ?? Promise.resolve();
   const work = previous.catch(() => {}).then(async () => {
@@ -43,7 +60,13 @@ export async function writeWorkerDefault(path, expectedRevision, preset, value) 
     const next = { revision: current.revision + 1, presets };
     await mkdir(dirname(path), { recursive: true });
     const temporary = `${path}.${process.pid}-${randomUUID()}.tmp`;
-    try { await writeFile(temporary, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 }); await rename(temporary, path); }
+    try {
+      await writeFile(temporary, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
+      await renameWorkerDefaultsWithRetry(temporary, path, filesystem, async () => {
+        const latest = await readWorkerDefaults(path);
+        if (latest.revision !== expectedRevision) fail('solver_settings_conflict');
+      });
+    }
     finally { await rm(temporary, { force: true }); }
     return next;
   });

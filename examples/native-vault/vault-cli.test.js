@@ -84,6 +84,20 @@ test('without a bound environment a command fails instead of guessing a root', a
   assert.match(result.errorJson.error.next, /--workspace/);
 });
 
+test('exec-bound calendar keeps the requested IANA timezone', async t => {
+  const { root } = await workspace(t);
+  const env = {
+    DSH_NOTARA_WORKSPACE: root,
+    DSH_NOTARA_WORKSPACE_ID: 'cli-timezone',
+    DSH_SESSION_ID: 'cli-timezone-session',
+    DSH_NOTARA_CALL_ID: 'cli-timezone-call',
+    TZ: 'Asia/Shanghai',
+  };
+  const result = await run(['calendar'], { env, input: JSON.stringify({ from: '2026-10-01', to: '2026-10-31', timeZone: 'Pacific/Auckland' }) });
+  assert.equal(result.code, 0, result.err);
+  assert.equal(result.json.result.timeZone, 'Pacific/Auckland');
+});
+
 test('standalone --workspace is the only explicit path, and records as actor self', async t => {
   const { root, revision } = await workspace(t);
   const env = { DSH_NOTARA_WORKSPACE: '', DSH_NOTARA_WORKSPACE_ID: '', DSH_SESSION_ID: '', DSH_NOTARA_CALL_ID: '' };

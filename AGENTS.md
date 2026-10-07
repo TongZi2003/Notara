@@ -4,6 +4,17 @@
 
 ## 当前事实源
 
+- Native Vault `0.24.2` 的白板设备模式与鼠标滚轮映射在「设置 → 学习界面」分别保存：设备沿用 `notara-board-navigation` 的 mouse/trackpad，鼠标滚轮用 `notara-board-mouse-wheel` 的 zoom/scroll，缺省为 zoom。切到触控板只禁用鼠标映射控件，不改其值；共享订阅让已挂载的白板立即更新。Ctrl/Meta 滚轮始终缩放，触控板普通滚轮增量平移；自由绘图、导图和二维函数图读取同一偏好。底栏用30%–200%的滑条与独立百分比输入框，输入在Enter或失焦时提交并保持视口中心锚点；分屏调换按钮为28px，顶栏按钮统一36px高。
+- Native Vault `0.24.2` 的白板、路线、教室、图谱与星图支持可选 `projectionRevision` 条件读取；无该字段的旧调用仍返回原值。来源未变化时返回小回执，客户端复用原对象，不在轮询中序列化整份投影；路线/图谱/星图投影缓存按真实来源 revision 失效，仍逐次观察外部修改和删除，每个 memo 保留预算为 16 MiB。
+- Native Vault `0.24.2` 的整文件 data URL 预览上限为 256 MiB；更大的 PDF 在 512 MiB 内使用按课堂与文件版本绑定的浏览器 Range 读取，单 RPC 最多 1 MiB，单连续对象最多 32 MiB，浏览器最多 2 个活动读取和 8 个等待区间。PDF 教师按页范围读取仍为 512 MiB；非 PDF 超过 256 MiB 在读取前拒绝。资产摘要用流式 SHA-256，revision 格式保持不变；PDF 文字层可能缺字或乱码，以真实页图为准。
+- Native Vault `0.24.2` 的本地草稿以 300 ms 合并写入，并在页面隐藏/关闭前尝试刷新存储；配额失败保留本页输入并提示先保存或复制。白板并发冲突保留草稿，学生可「放弃修改」后重新打开最新内容；导图菜单撤销保留图片文件，菜单历史最多 50 次且不重复拷贝图片正文。
+- Native Vault `0.24.2` 的白板历史引用滚动保留最近 2,000 次提交，撤销只针对仍在历史中的贡献。Host 的 `maintainImmutableObjects` 默认为只读计划；物理清理必须由调用方确认共享工作区的全部白板客户端和写入者已停止，逐个复核根 revision/scope、引用闭包和文件身份；正常读写、轮询和 fork 不自动执行物理清理或升级数据 schema。每个白板运行时缓存最多 32 个工作区/课堂，完整记录预算 16 MiB、摘要预算 8 MiB；首次读取从不可变记录重建摘要，缓存命中后的轮询和普通保存不用重读完整历史，撤销按目标读取完整记录；原稿详情只逐条读取目标块正文/标题相关记录，不累积所有块的完整历史对象。
+- Native Vault `0.24.2` 启动旧于 `0.24.1` 的插件快照时，跨 dataVersion 5 边界必须先备份并执行 `vault:upgrade`。删除回滚未完成的课堂保持暂停访问，重启重放 staging 恢复；真实文件冲突仍拒绝继续写入，不覆盖恢复数据。
+- Native Vault `0.24.2` 的更新缓存按正式版本和发布 SHA 命名，成功安装标记允许同版复用；准备新候选和应用更新后清理，仅删除新格式完整标记的空闲快照，保留当前、回退、待更新和其他进程租用的代码。租约过期时仍保守保留活进程使用的快照；旧时间戳缓存没有所有权证明，保持原状。`npm exec -- tsx scripts/vault-updates.ts cache-inventory [--root <缓存目录>] [--runtime-root <数据目录>]` 只读列出旧缓存合同、标记、可见租约、运行时指针与保留原因，不将旧文件名当成完整性或无人使用的证明。
+- Native Vault `0.24.2` 对锁定 DSH sidebar-right 的 ready 错误日志应用摘要校验补丁：已释放 View 的正常取消不误报打开失败，仍存活 View 的打开失败保留错误；不改原生引用释放、挂载或会话生命周期。补丁在 postinstall 与原生构建锁内应用。
+- Native Vault `0.24.2` 的共享工作员配置发布在 Windows 上仅对 `EPERM/EACCES/EBUSY` 原子 rename 有界重试，同一完整临时文件最多六次尝试、退避合计 540 ms；每次重试前重新核对 revision，持续失败保留原文件并清理临时文件。教室只把明确设置冲突识别为 CAS；普通保存失败保留草稿并如实提示，不能以刷新成功冒充已发生设置冲突。
+- Native Vault `0.24.2` 的文件引用定位在读取完成前保留请求路径、课堂与序号，确认导航后的列表刷新不重开默认页；重新选择文件和卸载使旧读取失效。带入文件与内容刷新核对实际显示内容路径，切换中的选中路径不能误用上一文件内容。
+
 - Native Vault 0.24.1 的自由白板融合来源为 Notara-Desktop `9f50c26`；Web 基线为 `f22c8605173d294f917684b4d856b2741cc6cf75`，其中 PDF 范围读取/资源、摘要缓存、课堂分组与分屏行为保留。学生可新增文字、绘图、思维导图、真实资料容器、链接和独立函数图；绘图及图片保存在按课堂隔离的不可变对象中，Markdown CAS 是提交点。文件容器编辑真实原文件，布局与文件 revision 分离；自由内容草稿保留、保存期间新输入不被旧回执清除。Excalidraw 和编辑器走本地 lazy route，复用原生 React，字体有精确资源清单。
 - Native Vault 0.24.1 沿用 `write_lesson_board`，默认 title/body 兼容旧写入；新增 `action=list/read/apply/undo`。patch 前必须 read，字段及场景冲突保留学生新输入，贡献原稿与撤销回执持久化。学生白板选区通过原生输入引用提交 Host 随机回执，仅真实学生消息激活，绑定时核对签发 revision，下一条消息清除或重新绑定；元素选区仅允许受限 sceneOps，不允许 addElement 或改整块正文/布局，有选区时旧 write 拒绝；容量不足拒绝新 scope，不驱逐既有 scope。旧六类教学组件、作答身份与重发、双面知识视图、流式板书、DOM Range 高亮保护、三维图及分支隔离继续保留。
 - Native Vault 0.24.1 的 25 份学习 Skill、`concepts.md` 与 `presets/mixed.md` 共 27 份正文逐字采用 Desktop `9f50c26ad94a0400a067df6bd17ef89593680e0d`；不要在正文内改写学长的教学内容或平台命令。Web 主教师/工作员另装配当前工具映射，保留各自实际权限；常驻 base、worker 权限合同、菜单折叠与旧调用别名保持 Web 接线。源码出处与逐文件 blob 在对应 dev-log。
@@ -34,7 +45,7 @@
 - Vault 保留目录的识别统一使用 `pathKey`（NFKC 加小写）：扫描排除模板与工具缓存的别名，回收站拒绝 `node_modules` 别名，旧 `vault/` 的脚手架别名不能遮住父目录已有学习资料。模板列表直接读取与创建操作相同的 `_templates/`，仅列出 Markdown；目录中的图片或文本附件不能让整个列表失败。
 - `createFromTemplate` 生成页面时移除模板选择器的 `template/name` 元信息，保留其他 frontmatter 字段与渲染后的正文；否则新建学情条目会被画像汇总视为模板而排除。模板源和既有用户文件不自动改写，纯 `renderTemplate` 仍仅替换占位符。
 - `patch-storage-json.ts` 对锁定 DSH JSON 后端应用摘要校验的 Windows 原子 rename 重试：仅 `EPERM/EACCES`，同一已 fsync 临时文件最多六次发布尝试，计划退避合计 540 ms。不能删除目标文件、重写 payload 或重放归档 RPC；持续占用仍失败并沿用上游回滚。真实 Windows 句柄回归在 `tests/unit/storage-json-patch.test.ts`。
-- Node 下限为 `>=24.0.0`；本机验证使用 Node `v24.13.0`。
+- Node 下限为 `>=24.0.0`；当前 Windows 验证使用 Node `v24.18.0`。
 - Native Vault 0.15.0 使用现代白灰主题与全局导航（0.18.0 起为图标列「首页 / 计划 / Vault / 技能」，见 0.18.0 与 0.18.1 条）；课堂沿用原生 session 与唯一输入框，切页只切换视图可见性。今日开课以当前课堂所属的已登记 workspace 为目标，未选定时只接受唯一 workspace，不向当前旧课堂直接发送。系统上下文与轨迹默认隐藏，可在设置的「学习界面」显式开启调试。路线的课程列表和图谱共用同一文件投影；双面白板接线以本文 0.16.6 规则为准。
 - Native Vault 0.15.1 起可选择学习目录（0.18.0 起在首页面板标题下），课堂列表仅显示原生目录登记中的会话，排除 blank、subagent 和 archived。目录身份优先从当前原生 session 反查；清空会话后可保留仍已登记的目录。选择目录沿用原生 workspaces/UI API，不重建 session 生命周期。极窄分屏按 `notara-pane` 容器适配字号；原生 HeroShell/Composer 的哈希类选择器在上游升级时须重新核对。
 - Native Vault 0.15.2 通过 `conversation.hero.intro` 接缝替换空课堂的欢迎说明，原生 composer 与 seat 保持原位置和生命周期；未安装插件时使用原生介绍作为 fallback。目录/教学模式保留在“课程选项”内；缺目录时直接显示原生选择控件，不能把输入框永久置于不可用状态。该接缝在 `scripts/patch-conversation-views.ts` 随锁定版本的摘要校验安装和剥离。

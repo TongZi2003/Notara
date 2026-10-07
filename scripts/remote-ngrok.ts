@@ -1,9 +1,10 @@
 import { spawn, execFile } from 'node:child_process';
+import { appendFile, readFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { createServer, type Server } from 'node:net';
 import type { ChildProcess } from 'node:child_process';
 import { resolve } from 'node:path';
-import { stringify } from 'yaml';
+import { parse, stringify } from 'yaml';
 import { securePrivatePath, writePrivateFile, type RemoteAccessConfig } from './remote-access-config.ts';
 
 const execFileAsync = promisify(execFile);
@@ -89,6 +90,26 @@ function ngrokTargetMatches(value: unknown, port: number): boolean {
   } catch { return value === String(port); }
 }
 
+export function sanitizeNgrokDiagnostics(output: string, secrets: readonly string[], truncated = false): string {
+  if (truncated) {
+    // The bounded tail may begin or end in the middle of a credential. Keep
+    // only complete lines so the clipped fragment cannot reach the log.
+    const firstLine = output.indexOf('\n'), lastLine = output.lastIndexOf('\n');
+    output = firstLine < 0 || lastLine <= firstLine ? '' : output.slice(firstLine + 1, lastLine + 1);
+  }
+  let safe = output.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '');
+  for (const secret of secrets) if (secret.length >= 3) safe = safe.replaceAll(secret, '[redacted]');
+  safe = safe.replace(/(authtoken\s*[:=]\s*)[^\s,;]+/gim, '$1[redacted]')
+    .replace(/(password\s*[:=]\s*)[^\s,;]+/gim, '$1[redacted]')
+    .replace(/(credentials?\s*[:=]\s*)[^\r\n]+/gim, '$1[redacted]');
+  return safe.slice(-32_000);
+}
+
+export function sanitizeNgrokDiagnosticChunks(chunks: readonly (Buffer | string)[], secrets: readonly string[], truncated = false): string {
+  const bytes = Buffer.concat(chunks.map(chunk => Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+  return sanitizeNgrokDiagnostics(bytes.toString('utf8'), secrets, truncated);
+}
+
 async function readTunnels(apiPort: number): Promise<unknown> {
   const response = await fetch(`http://127.0.0.1:${apiPort}/api/tunnels`, { signal: AbortSignal.timeout(1_500) });
   if (!response.ok) throw new Error(`ngrok local API returned HTTP ${response.status}.`);
@@ -134,13 +155,38 @@ export async function startNgrokTunnel(
     `--config=${overlay}`,
     '--log=stdout',
   ];
-  // ngrok can print configuration and connection details. Do not copy its raw
-  // output into logs; in-memory or per-chunk redaction can leak split secrets.
+  const secrets = [`${config.username}:${config.password}`, config.username, config.password];
+  try {
+    const credentials = parse(await readFile(base, 'utf8')) as { authtoken?: unknown; agent?: { authtoken?: unknown } };
+    for (const token of [credentials?.authtoken, credentials?.agent?.authtoken])
+      if (typeof token === 'string') secrets.push(token);
+  } catch { /* The ngrok config check already validates the selected source. */ }
+  // Each pipe needs its own bounded tail: interleaving stderr with a split
+  // stdout credential would otherwise separate its prefix from its secret tail.
   const child: ChildProcess = spawn(config.ngrokPath, args, {
     env: ngrokEnvironment(),
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });
+  const diagnostics = [
+    { bytes: Buffer.alloc(0), truncated: false },
+    { bytes: Buffer.alloc(0), truncated: false },
+  ];
+  const capture = (pipe: (typeof diagnostics)[number], chunk: Buffer | string): void => {
+    pipe.bytes = Buffer.concat([pipe.bytes, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
+    if (pipe.bytes.length > 64_000) { pipe.bytes = pipe.bytes.subarray(pipe.bytes.length - 64_000); pipe.truncated = true; }
+  };
+  child.stdout?.on('data', chunk => capture(diagnostics[0]!, chunk));
+  child.stderr?.on('data', chunk => capture(diagnostics[1]!, chunk));
+  let flushPromise: Promise<void> | undefined;
+  const flushDiagnostics = (): Promise<void> => {
+    flushPromise ??= (async () => {
+      const safe = diagnostics.map(pipe => sanitizeNgrokDiagnosticChunks([pipe.bytes], secrets, pipe.truncated).trim())
+        .filter(Boolean).join('\n').slice(-32_000).trim();
+      await appendFile(controllerLogPath, `ngrok diagnostics:\n${safe || '(no diagnostic output captured)'}\n`, { mode: 0o600 });
+    })();
+    return flushPromise;
+  };
   let stopping = false;
   let spawnError: Error | undefined;
   let exitResolve!: () => void;
@@ -155,6 +201,7 @@ export async function startNgrokTunnel(
   });
   child.once('exit', (code, signal) => {
     exitResolve();
+    void flushDiagnostics().catch(() => undefined);
     if (!stopping) exitReject(new Error(`ngrok exited (code ${code ?? 'none'}, signal ${signal ?? 'none'}). See ${controllerLogPath}.`));
   });
 
@@ -185,6 +232,7 @@ export async function startNgrokTunnel(
               await Promise.race([processExit, timeout]);
               if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
               await processExit;
+              await flushDiagnostics();
             },
           };
         }
@@ -194,7 +242,7 @@ export async function startNgrokTunnel(
       }
       await new Promise(resolve => setTimeout(resolve, 250));
     }
-    throw new Error(`ngrok did not report the configured endpoint in ${NGROK_TIMEOUT_MS / 1000} seconds. Check the domain assignment, account plan, and ngrok logs; no credential-bearing output was saved.`);
+    throw new Error(`ngrok did not report the configured endpoint in ${NGROK_TIMEOUT_MS / 1000} seconds. Check the domain assignment and account plan; sanitized diagnostics were written to ${controllerLogPath}.`);
   } catch (error) {
     stopping = true;
     if (child.exitCode === null && child.signalCode === null && !spawnError) child.kill('SIGTERM');
@@ -202,6 +250,7 @@ export async function startNgrokTunnel(
     await Promise.race([processExit, timeout]);
     if (child.exitCode === null && child.signalCode === null && !spawnError) child.kill('SIGKILL');
     await processExit;
+    await flushDiagnostics().catch(() => undefined);
     throw error;
   }
 }

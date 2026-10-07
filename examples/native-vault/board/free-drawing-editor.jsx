@@ -39,7 +39,11 @@ export default function FreeDrawingEditor({scene,mindmap,onChange,onSelect,onSou
  }
  function apply(elements,map,selectionIds=selected){
   if(!api.current)return;
-  menuHistory.current.push(structuredClone(last.current));setUndoCount(menuHistory.current.length);
+  // Immutable file payloads are shared between snapshots; bound the semantic undo stack.
+  const {files,...previous}=last.current;
+  menuHistory.current.push({...structuredClone(previous),files});
+  if(menuHistory.current.length>50)menuHistory.current.shift();
+  setUndoCount(menuHistory.current.length);
   semantic.current=map;map.nodes.forEach(n=>registry.current.set(n.elementId,n));
   const tagged=elements.map(e=>map.nodes.some(n=>n.elementId===e.id)?newElementWith(e,{customData:{...e.customData,[nodeTag]:map.nodes.find(n=>n.elementId===e.id)}}):e);
   api.current.updateScene({elements:tagged,appState:{selectedElementIds:Object.fromEntries(selectionIds.map(id=>[id,true]))},captureUpdate:CaptureUpdateAction.IMMEDIATELY});
@@ -73,7 +77,7 @@ export default function FreeDrawingEditor({scene,mindmap,onChange,onSelect,onSou
  function removeBranch(){if(!selectedNode)throw Error('请选中一个导图节点。');const ids=new Set(branchIds(semantic.current,selectedNode)),elements=api.current.getSceneElements().filter(e=>!ids.has(e.id)&&!ids.has(e.containerId)&&!ids.has(e.startBinding?.elementId)&&!ids.has(e.endBinding?.elementId));const map=reconcileMindmap(semantic.current,elements);applyTree(elements,map,[]);}
  function crossLink(){if(!selectedNode||!target||target===selectedNode)throw Error('请选择另一个关联节点。');const map={...semantic.current,links:[...semantic.current.links,{from:selectedNode,to:target,label:note}]},elements=api.current.getSceneElements(),a=elements.find(e=>e.id===selectedNode),b=elements.find(e=>e.id===target),arrows=convertToExcalidrawElements([{type:'arrow',x:a.x,y:a.y,points:[[0,0],[b.x-a.x,b.y-a.y]],start:{id:a.id},end:{id:b.id},strokeStyle:'dashed',label:note?{text:note}:undefined,customData:{[relationTag]:'cross'}}]);apply([...elements,...arrows],map);}
  function addNote(){if(!selectedNode||!note.trim())throw Error('选择节点并填写注释。');const e=api.current.getSceneElements().find(e=>e.id===selectedNode),extra=convertToExcalidrawElements([{type:'text',x:e.x,y:e.y+e.height+16,text:note,fontSize:16,fontFamily:5,strokeColor:'#677b8d'}]);apply([...api.current.getSceneElements(),...extra],{...semantic.current,notes:[...semantic.current.notes.filter(n=>n.elementId!==selectedNode),{elementId:selectedNode,text:note}]});}
- function undoMenu(){const previous=menuHistory.current.pop();if(!previous)return;semantic.current=previous.mindmap??emptyMindmap();registry.current=new Map(semantic.current.nodes.map(n=>[n.elementId,n]));api.current.updateScene({elements:previous.elements,captureUpdate:CaptureUpdateAction.IMMEDIATELY});publish(previous.elements,api.current.getAppState(),{});setUndoCount(menuHistory.current.length);}
+ function undoMenu(){const previous=menuHistory.current.pop();if(!previous)return;semantic.current=previous.mindmap??emptyMindmap();registry.current=new Map(semantic.current.nodes.map(n=>[n.elementId,n]));api.current.addFiles(Object.values(previous.files??{}));api.current.updateScene({elements:previous.elements,captureUpdate:CaptureUpdateAction.IMMEDIATELY});publish(previous.elements,api.current.getAppState(),api.current.getFiles());setUndoCount(menuHistory.current.length);}
  return <div className="nb-excalidraw-layer">
   {mindmap&&<div className="nb-mindmap-menu" role="toolbar" aria-label="导图节点操作">
    <input aria-label="节点文字" value={nodeText} onChange={e=>setNodeText(e.target.value)} maxLength={2000}/>

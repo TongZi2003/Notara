@@ -12,6 +12,7 @@ export function sessionDeletionRemoteDescriptors(strictJsonSchema) {
 
 function deletionError(error) {
   const code = error?.message ?? '';
+  if(code.includes('session_delete_rollback_failed'))return '删除中断，恢复尚未完成。此课堂已暂停访问，请重启 Notara 尝试恢复；若仍失败，请保留数据目录并检查文件冲突。';
   if (code.includes('session_delete_active')) return '这节课或关联的工作员仍在运行。请先让它们结束，再重新发起删除。';
   if (code.includes('session_delete_confirmation_stale') || code.includes('session_delete_confirmation_expired')) return '课堂内容已变化或确认已过期，请重新打开删除确认。';
   if (code.includes('session_delete_title_mismatch')) return '输入的课堂名称不一致。';

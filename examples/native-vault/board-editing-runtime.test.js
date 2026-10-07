@@ -84,6 +84,21 @@ test('free content commits scene images, source refs, manual links, groups and c
   assert.notEqual(changedSource.revision, source.revision);
 });
 
+test('undo removes a newly created block after parseBoard normalizes its property order', async t => {
+  const { service, io } = await fixture(t);
+  const created = await commit(service, 'lesson-one', null, [
+    { type: 'create', ref: 'new', title: '刚新增的块', body: '先写一条。', contentType: 'text' },
+  ]);
+  const state = await readBoardDocument(io, 'lesson-one');
+  const entry = await createBoardObjectStore(io.rootPath).read('lesson-one', state.board.historyRefs[0]);
+  assert.notDeepEqual(Object.keys(state.board.blocks[0]), Object.keys(entry.changes[0].after), 'the persisted block and commit snapshot use different insertion orders');
+
+  const undone = await commit(service, 'lesson-one', created.revision, [{ type: 'undo', commitId: created.commitId }]);
+  assert.equal(undone.saved, true);
+  assert.deepEqual((await service.board({ sessionId: 'lesson-one' })).blocks, []);
+  assert.equal(undone.contributions.at(-1).undoOf, created.commitId);
+});
+
 test('source cards keep their original ref and body when the target is missing, foreign, or unreadable', async t => {
   const { service, io, workspace } = await fixture(t);
   await mkdir(join(workspace, '资料'));
@@ -298,6 +313,51 @@ test('request ids replay the original receipt and concurrent stale commits lose 
   assert.equal(writes.filter(result => result.status === 'fulfilled').length, 1);
   assert.equal(writes.find(result => result.status === 'rejected').reason.message, 'vault_revision_conflict');
   assert.equal((await service.board({ sessionId: 'lesson-one' })).blocks.length, 2);
+});
+
+test('offline object maintenance reclaims a failed scene CAS and keeps history required for undo', async t => {
+  const { service, io } = await fixture(t);
+  const scene = text => ({ version: 1, elements: [textElement('shape', text)], appState: {}, files: {} });
+  const created = await commit(service, 'lesson-one', null, [{ type: 'create', ref: 'drawing', title: '并发场景', body: '', contentType: 'drawing', content: scene('初稿') }], 'gc-seed');
+  const blockId = created.created.drawing;
+  const originalReadBytes = service.ctx.fs.readBytes;
+  let boardReads = 0, releaseReads;
+  const bothBoardsRead = new Promise(resolve => { releaseReads = resolve; });
+  service.ctx.fs.readBytes = async function (path, ...args) {
+    const value = await originalReadBytes.call(this, path, ...args);
+    if (String(path).endsWith(boardPath('lesson-one')) && boardReads < 2) {
+      if (++boardReads === 2) releaseReads();
+      await bothBoardsRead;
+    }
+    return value;
+  };
+  let outcomes;
+  try {
+    outcomes = await Promise.allSettled([
+      commit(service, 'lesson-one', created.revision, [{ type: 'patch', blockId, patch: { content: scene('并发甲') } }], 'gc-race-a'),
+      commit(service, 'lesson-one', created.revision, [{ type: 'patch', blockId, patch: { content: scene('并发乙') } }], 'gc-race-b'),
+    ]);
+  } finally { service.ctx.fs.readBytes = originalReadBytes; releaseReads(); }
+  assert.equal(outcomes.filter(result => result.status === 'fulfilled').length, 1);
+  assert.equal(outcomes.filter(result => result.status === 'rejected').length, 1);
+  assert.equal(outcomes.find(result => result.status === 'rejected').reason.message, 'vault_revision_conflict');
+  const winner = outcomes.find(result => result.status === 'fulfilled').value;
+  const store = createBoardObjectStore(io.rootPath), contentBeforeGC = await service.lessonBoard.content({ sessionId: 'lesson-one', blockId });
+  const plan = await service.lessonBoard.maintainImmutableObjects({ sessionId: 'lesson-one' });
+  assert.equal(plan.readOnly, true);
+  assert.ok(plan.orphanRefs.length >= 2, `the failed CAS leaves its new scene and commit unreferenced: ${JSON.stringify(plan)}`);
+  for (const ref of plan.orphanRefs) assert.ok(await store.read('lesson-one', ref), 'planning must not remove an object');
+
+  const collected = await service.lessonBoard.maintainImmutableObjects({ sessionId: 'lesson-one', workspaceWritersStopped: true });
+  assert.deepEqual(new Set(collected.deletedRefs), new Set(plan.orphanRefs));
+  assert.equal((await service.lessonBoard.content({ sessionId: 'lesson-one', blockId })).content.elements[0].text,
+    contentBeforeGC.content.elements[0].text);
+
+  const latest = await readBoardDocument(io, 'lesson-one');
+  await commit(service, 'lesson-one', latest.revision, [{ type: 'undo', commitId: winner.commitId }], 'gc-undo');
+  assert.equal((await service.lessonBoard.content({ sessionId: 'lesson-one', blockId })).content.elements[0].text, '初稿',
+    'retained commit before/after scenes remain available to undo after collection');
+  assert.equal((await readBoardDocument(io, 'lesson-one')).board.historyRefs.length, 3);
 });
 
 test('fork copies immutable scene, raster assets and contribution history into a separate session', async t => {

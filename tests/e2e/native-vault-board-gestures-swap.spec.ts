@@ -7,6 +7,13 @@ const camera = (world: Locator) => world.evaluate(element => {
   return {x:matrix.e,y:matrix.f,z:matrix.a};
 });
 const views = (page: Page) => page.getByRole('tablist',{name:'课堂视图'});
+async function expectUncoveredSwap(button: Locator) {
+  const hits = await button.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return { width:rect.width, height:rect.height, uncovered:[[3,3],[rect.width-3,3],[3,rect.height-3],[rect.width-3,rect.height-3],[rect.width/2,rect.height/2]].every(([x,y])=>element.contains(element.ownerDocument.elementFromPoint(rect.left+x!,rect.top+y!))) };
+  });
+  expect(hits.width).toBe(28);expect(hits.height).toBe(28);expect(hits.uncovered).toBe(true);
+}
 
 test('board wheel anchors zoom, pan preserves inputs, and swapping preserves the mounted views', async ({page}) => {
   test.setTimeout(180_000);
@@ -29,6 +36,7 @@ test('board wheel anchors zoom, pan preserves inputs, and swapping preserves the
     await expect(page.locator('.nb-block')).toHaveCount(1);
     const separator=page.getByRole('separator',{name:'调整资料面板宽度'}),swap=page.getByRole('button',{name:'调换窗格'});
     await expect(swap).toBeVisible();
+    await expectUncoveredSwap(swap);
     // Equal seats keep both board widths above its reading-mode threshold.
     const area=(await panes.boundingBox())!,divider=(await separator.boundingBox())!;
     await page.mouse.move(divider.x+divider.width/2,divider.y+100);await page.mouse.down();
@@ -74,6 +82,7 @@ test('board wheel anchors zoom, pan preserves inputs, and swapping preserves the
     expect(await camera(world)).toEqual(heldCamera);
     await expect(separator).toHaveAttribute('aria-valuenow',ratio!);
     const swapBox=(await swap.boundingBox())!,splitBox=(await separator.boundingBox())!;
+    await expectUncoveredSwap(swap);
     expect(Math.abs(swapBox.x+swapBox.width/2-(splitBox.x+splitBox.width/2))).toBeLessThan(2);
     await separator.focus();await separator.press('ArrowLeft');
     const movedSwap=(await swap.boundingBox())!;
@@ -110,6 +119,7 @@ test('narrow conversation and file split swaps vertically and resizes on its vis
     await page.getByRole('button',{name:'打开资料面板',exact:true}).click();
     const separator=page.getByRole('separator',{name:'调整窗格高度'}),swap=page.getByRole('button',{name:'调换窗格'});
     await expect(separator).toHaveAttribute('aria-orientation','horizontal');
+    await expectUncoveredSwap(swap);
     await expect(page.locator('.nv-panes')).toHaveAttribute('data-nv-axis','stacked');
     const chat=page.locator('section[aria-label="对话区域"]'),files=page.locator('section[aria-label="文件区域"]');
     const before=(await chat.boundingBox())!,fileBefore=(await files.boundingBox())!;
@@ -122,6 +132,7 @@ test('narrow conversation and file split swaps vertically and resizes on its vis
     await separator.focus();await separator.press('ArrowUp');
     await expect(separator).toHaveAttribute('aria-valuenow',String(value-5));
     const current=(await separator.boundingBox())!,swapBox=(await swap.boundingBox())!;
+    await expectUncoveredSwap(swap);
     expect(Math.abs(swapBox.y+swapBox.height/2-(current.y+current.height/2))).toBeLessThan(2);
   }finally{await client.close();await runtime.stop();}
   expect(errors.filter(text=>!/favicon|net::|MISSING_CREDENTIAL|API key/i.test(text))).toEqual([]);
