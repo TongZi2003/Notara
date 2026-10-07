@@ -20,9 +20,13 @@ test('ChatGPT settings render every SIWC model, retain stale results on refresh 
         { id: 'gpt-6-luna', name: 'GPT-6-Luna' },
         { id: 'gpt-6.1-sol', name: 'GPT-6.1-Sol' }
       ];
-      let connected = true, failNextModels = false, modelRows = rows, authorizationRevision = 0;
+      let connected = true, failNextModels = false, modelRows = rows, authorizationRevision = 0, holdStatus = false, releaseStatus;
       const remote = {
-        async status() { return { ok: true, value: { pending: false, accounts: [{ id: 'synthetic-account', label: 'Synthetic test account', connected, planEnabled: true, authorizationRevision }] } }; },
+        async status() {
+          const value = { pending: false, accounts: [{ id: 'synthetic-account', label: 'Synthetic test account', connected, planEnabled: true, authorizationRevision }] };
+          if (holdStatus) { holdStatus = false; await new Promise(resolve => { releaseStatus = resolve; }); }
+          return { ok: true, value };
+        },
         async models() {
           if (failNextModels) { failNextModels = false; return { ok: false, error: { message: 'chatgpt_request_failed' } }; }
           return { ok: true, value: { models: modelRows } };
@@ -41,7 +45,9 @@ test('ChatGPT settings render every SIWC model, retain stale results on refresh 
         failNextRefresh() { failNextModels = true; },
         setRows(value) { modelRows = value; },
         setConnected(value) { connected = value; },
-        reauthorize() { authorizationRevision++; }
+        reauthorize() { authorizationRevision++; },
+        holdNextStatus() { holdStatus = true; },
+        releaseOldStatus() { releaseStatus(); }
       };
     ` } });
     await page.clock.install();
@@ -74,9 +80,12 @@ test('ChatGPT settings render every SIWC model, retain stale results on refresh 
     await expect(catalog).toContainText('GPT-6.2-Sol');
     // Successful reauthorization in another window clears displayed old rows even
     // when the new prefetch fails and connected/planEnabled remain unchanged.
+    await page.evaluate(() => (window as unknown as { chatgptCatalogHarness: { holdNextStatus(): void } }).chatgptCatalogHarness.holdNextStatus());
+    await page.clock.fastForward(1_600);
     await page.evaluate(() => (window as unknown as { chatgptCatalogHarness: { reauthorize(): void } }).chatgptCatalogHarness.reauthorize());
     await page.clock.fastForward(1_600);
     await expect(catalog).toHaveCount(0);
+    await page.evaluate(() => (window as unknown as { chatgptCatalogHarness: { releaseOldStatus(): void } }).chatgptCatalogHarness.releaseOldStatus());
     await expect(settings.getByRole('button', { name: '查看可用模型' })).toBeEnabled();
     await page.evaluate(() => (window as unknown as { chatgptCatalogHarness: { failNextRefresh(): void } }).chatgptCatalogHarness.failNextRefresh());
     await settings.getByRole('button', { name: '查看可用模型' }).click();

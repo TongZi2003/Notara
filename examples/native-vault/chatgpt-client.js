@@ -14,13 +14,14 @@ export function installChatgptSettings(ctx, React) {
     const h = React.createElement;
     function AccountSettings() {
       const [state, setState] = React.useState(null), [error, setError] = React.useState(''), [busy, setBusy] = React.useState(false), [models, setModels] = React.useState({});
-      const mounted = React.useRef(true), busyRef = React.useRef(false), latestState = React.useRef(null);
+      const mounted = React.useRef(true), busyRef = React.useRef(false), latestState = React.useRef(null), statusRequest = React.useRef(0);
       const remote = scope.remote.notaraChatgpt;
       const notice = code => CHATGPT_NOTICES[typeof code === 'string' ? code : code?.message] || '操作未完成，请重试。';
-      const refresh = async () => { const result = await remote.status({}); if (!mounted.current) return; if (result.ok) {
+      const refresh = async () => { const request = ++statusRequest.current; const result = await remote.status({}); if (!mounted.current || request !== statusRequest.current) return false; if (result.ok) {
         latestState.current = result.value; setState(result.value);
         setModels(previous => Object.fromEntries(Object.entries(previous).filter(([id, entry]) => result.value.accounts.some(account => account.id === id && account.connected && account.planEnabled && account.authorizationRevision === entry.revision))));
-      } else setError(notice(result.error)); };
+        return true;
+      } else { setError(notice(result.error)); return false; } };
       React.useEffect(() => { mounted.current = true; void refresh().catch(() => setError('无法读取登录状态。')); const timer = setInterval(() => { if (!document.hidden) void refresh().catch(() => {}); }, 1500); return () => { mounted.current = false; clearInterval(timer); }; }, []);
       const act = async (method, input = {}) => {
         if (busyRef.current) return;
@@ -37,8 +38,8 @@ export function installChatgptSettings(ctx, React) {
             if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || !url.pathname.startsWith('/start/')) throw new Error('登录地址无效。');
             if (popup) popup.location.replace(url.href); else { await remote.cancel({}); throw new Error('浏览器阻止了登录窗口，请允许弹窗后重试。'); }
           }
-          await refresh();
-          if (method === 'models' && mounted.current) {
+          const verified = await refresh();
+          if (method === 'models' && mounted.current && verified) {
             const account = latestState.current?.accounts.find(value => value.id === input.id);
             if (account?.connected && account.planEnabled && account.authorizationRevision === authorizationRevision) setModels(previous => ({ ...previous, [input.id]: { revision: authorizationRevision, rows: result.value.models } }));
           }
