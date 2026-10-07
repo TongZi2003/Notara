@@ -2,15 +2,17 @@
 
 先把小书桌安顿好，再抱着第一道题来找老师吧。第一次使用按「下载并打开 → 接好模型 → 选学习目录 → 发出问题」走就可以，不用一口气研究所有开关喵。
 
-适用源码版本：Notara 0.24.2 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。白板操作设置与稳定性修复见[本版说明](releases/native-vault-0.24.2.md)，自由白板、桌面学习 Skill 原文同步和 PDF 改进见[0.24.1说明](releases/native-vault-0.24.1.md)，分支白板见[0.23.11 说明](releases/native-vault-0.23.11.md)，弹窗键盘修复见[0.23.10 说明](releases/native-vault-0.23.10.md)，自动恢复、关闭和单个桌面入口见[0.23.9 说明](releases/native-vault-0.23.9.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
+适用源码版本：Notara 0.24.3 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。订阅动态模型目录见[本版说明](releases/native-vault-0.24.3.md)，白板操作设置与稳定性修复见[0.24.2说明](releases/native-vault-0.24.2.md)，自由白板、桌面学习 Skill 原文同步和 PDF 改进见[0.24.1说明](releases/native-vault-0.24.1.md)，分支白板见[0.23.11 说明](releases/native-vault-0.23.11.md)，弹窗键盘修复见[0.23.10 说明](releases/native-vault-0.23.10.md)，自动恢复、关闭和单个桌面入口见[0.23.9 说明](releases/native-vault-0.23.9.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
 
 🐾 0.24.1 纳入自由白板、PDF 书签与范围读取、中文字体和扫描页修复、窗格调换与一层课堂分组；读书和绘图资源随包分发。新白板的数据格式标识为 5：从 0.23.12 或更早版本升级前，停止服务并备份运行目录和外部学习目录，然后在新版目录执行 `vault:upgrade`。更新器会要求手动升级；旧程序不能安全读写新版自由白板，回退时也必须恢复升级前的数据备份。
 
 0.24.2保留相同数据格式，增加鼠标模式独立滚轮映射、底部缩放滑条与数值框，并修复编辑草稿、PDF定位、设置发布和更新恢复。升级0.24.1安装同样应先停止并备份；采用新目录后执行下方快照升级命令。
 
+0.24.3 增加订阅动态模型目录，新增内置接入或成功登录时获取一次，已有配置读取缓存并可手动刷新。与0.24.2使用相同数据格式，可在「设置 → 更新」检查并在课堂空闲时重启更新。
+
 ## Windows x64 免安装版
 
-想少折腾环境，可以从 [0.24.2 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.24.2) 抱走 `notara-portable-0.24.2-win-x64.zip`，完整解压后双击「start-notara.cmd」。包内已经收好 Node.js、npm、Windows 依赖与构建产物，无需先安装系统 Node.js、Git 或运行安装脚本。运行要求仍为 Windows 10 1903+ / Windows 11 x64；首次启动要布置数据目录，请稍等一下，模型账号和可选的 ngrok 仍需自行配置。
+想少折腾环境，可以从 [0.24.3 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.24.3) 抱走 `notara-portable-0.24.3-win-x64.zip`，完整解压后双击「start-notara.cmd」。包内已经收好 Node.js、npm、Windows 依赖与构建产物，无需先安装系统 Node.js、Git 或运行安装脚本。运行要求仍为 Windows 10 1903+ / Windows 11 x64；首次启动要布置数据目录，请稍等一下，模型账号和可选的 ngrok 仍需自行配置。
 
 用「stop-notara.cmd」停止；需要桌面入口时运行「create-notara-shortcuts.cmd」。便携包的程序体积较大，课堂与资料仍保存在用户的 `.notara/vault-runtime`，并不写入程序包。
 
@@ -68,6 +70,20 @@ git --version
 Notara 对这两个官方服务地址自动发送稳定的 `x-opencode-session` 和自身客户端标识。同一课堂的续聊、重试、压缩和标题生成沿用课堂 ID，新课堂使用自己的 ID；无需手工配置该请求头、安装其他插件或另开代理。服务商配置名可以自定义。OpenAI SDK 在所填地址后追加 `/chat/completions` 或 `/responses`，Anthropic SDK 追加 `/v1/messages`；按对应协议填写地址，避免重复拼接。
 
 兼容处理只作用于官方 Go 服务地址，其他 API 与订阅接入继续使用原有请求头。OpenCode Go 的额度、支持的模型和使用要求以服务商为准。
+
+0.24.3 支持动态目录。使用内置 `opencode-go` 提供方时，模型发现会合并 Go 的实时型号列表与 [Models.dev](https://models.dev/) 的逐模型协议信息，新增型号不再依赖 Notara 随包目录更新。这个内置路由可填写 `https://opencode.ai/zen/go` 或 `https://opencode.ai/zen/go/v1`，每个模型自动使用对应接口地址；显式协议、自定义端点和其他提供方继续按原设置工作。
+
+每次新增内置接入获取一次目录；重新打开已有配置与启动只读取本地有效缓存，不定时刷新。需要更新时点击获取模型按钮。网络超时、目录无效或断网时保留上次有效目录，并在本次刷新中提示失败；可用型号仍在 Go 列表中但元信息暂时缺项时，保留已知协议。全新型号若尚无受支持的协议元信息，仍需明确配置协议。Go 目录刷新只请求公开信息，不发送 API Key，也不保存凭据。推理等级采用目录明确声明且当前 SDK 能表达的选项；陌生模型的特殊思考开关或预算格式仍需对应适配。
+
+### 其他订阅目录
+
+离线缓存可供已有路由继续读取；全新的配置草稿若首次获取失败，会显示获取错误，需要成功获取一次后再从目录选择模型。
+
+OpenCode Zen、Kimi Coding、MiniMax Coding Plan、Z.AI/智谱 Coding Plan、通义 Token Plan 与小米 Token Plan 使用各自对应的公开模型元信息，保留现有协议、认证与服务地址。公开目录描述服务商支持的型号，不代表当前套餐账号一定有权限或额度；通义的套餐接口没有普通的 `/models`，不能拿套餐 Key 调用普通 API 的管理目录。
+
+ChatGPT/Codex 与 GitHub Copilot 获取当前授权账号的可用目录，账号授权只发送到对应官方服务或原生 OAuth 选择的企业端点；公开元信息请求不携带凭据。每次成功登录也会获取一次目录，退出账号会清除当前缓存选择。自定义服务地址继续使用原有的获取模型入口，不会被替换为官方地址。
+
+原生「设置 → ChatGPT 账号」使用 OpenAI 的 `/v1/models`，保留服务端返回的可见型号与顺序；`openai-codex` 使用其原生 OAuth 和 Responses 接口。这两种连接的可用型号可能不同。比如 GPT-6-Sol、GPT-6-Luna、GPT-6.1-Sol，只要相应账号接口返回，就能显示与选择，无需等待 Notara 的内置型号名单更新。
 
 ## 第一次启动
 

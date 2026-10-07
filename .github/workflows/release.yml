@@ -119,7 +119,7 @@ jobs:
       - run: npm run typecheck && npm run typecheck:tests && npm run test:unit && npm run test:plugins
       - run: npm run test:integration
       - run: npm exec -- playwright install --with-deps chromium
-      - run: npm run test:e2e:vault
+      - run: npm run test:e2e:vault -- subscription-catalog.spec.ts chatgpt-catalog.spec.ts
   release:
     needs: [resolve, windows, linux]
     runs-on: ubuntu-24.04

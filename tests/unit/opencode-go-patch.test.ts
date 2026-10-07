@@ -15,6 +15,9 @@ test('OpenCode Go compatibility rejects unknown or partially patched dependency 
   const patched = patchOpenCodeGo(original);
   expect(sha(patched)).toBe(OPENCODE_GO_PATCH.patchedSha);
   expect(patchOpenCodeGo(patched)).toBe(patched);
+  const headerOnly = OPENCODE_GO_PATCH.replacements.slice(0, 2).reduce((source, patch) => source.replace(patch.before, patch.after), original);
+  expect(sha(headerOnly)).toBe(OPENCODE_GO_PATCH.headerOnlySha);
+  expect(patchOpenCodeGo(headerOnly)).toBe(patched);
   expect(() => patchOpenCodeGo(original + '\n// upstream change')).toThrow(/Unknown DSH pi-ai artifact/);
   const first = OPENCODE_GO_PATCH.replacements[0]!;
   expect(() => patchOpenCodeGo(original.replace(first.before, first.after))).toThrow(/Unknown DSH pi-ai artifact/);

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { isBrowserBlockedPort } from './http-port.js';
+import { cachedChatgptCatalog } from './chatgpt-catalog.js';
 
 const exec = promisify(execFile);
 export const ISSUER = 'https://auth.openai.com';
@@ -95,7 +96,7 @@ export class ChatgptAccounts {
   constructor(directory, { fetch: fetcher = globalThis.fetch, protect = protectDirectory, onChange = () => {}, now = Date.now, createCallbackServer = createServer } = {}) {
     this.directory = directory; this.fetch = fetcher; this.protect = protect; this.onChange = onChange; this.now = now;
     this.queue = Promise.resolve(); this.pending = null; this.notice = ''; this.controllers = new Map();
-    this.shutdown = new AbortController();
+    this.shutdown = new AbortController(); this.authorizationRevisions = new WeakMap();
     // A local constructor seam for deterministic allocator tests; no environment override.
     this.createCallbackServer = createCallbackServer;
   }
@@ -139,7 +140,13 @@ export class ChatgptAccounts {
   async status() {
     return this.exclusive(async () => {
       const data = await this.load();
-      return { accounts: data.accounts.map(({ id, email, idToken, accessToken, scopes }) => ({ id, label: `${email || 'ChatGPT'} · ${id.slice(0, 6)}`, connected: !!idToken || !!accessToken, planEnabled: !!accessToken && scopes.includes('chatgpt.tokens.use.direct'), provider: `notara-chatgpt-${id}` })), pending: !!this.pending, notice: this.notice };
+      return { accounts: data.accounts.map(account => {
+        const { id, email, idToken, accessToken, scopes } = account;
+        // Reauthorization replaces the account object; token rotation retains it.
+        // A random public revision lets every settings window discard stale rows.
+        if (!this.authorizationRevisions.has(account)) this.authorizationRevisions.set(account, randomUUID());
+        return { id, label: `${email || 'ChatGPT'} · ${id.slice(0, 6)}`, connected: !!idToken || !!accessToken, planEnabled: !!accessToken && scopes.includes('chatgpt.tokens.use.direct'), provider: `notara-chatgpt-${id}`, authorizationRevision: this.authorizationRevisions.get(account) };
+      }), pending: !!this.pending, notice: this.notice };
     });
   }
   async begin(id) {
@@ -222,6 +229,7 @@ export class ChatgptAccounts {
         if (previous && previous.subject !== identity.sub) fail('chatgpt_identity_invalid');
         const account = previous ?? { id: randomUUID(), clientId, subject: identity.sub };
         const next = { ...account, email: typeof identity.email === 'string' ? identity.email : '', ...this.tokenFields(tokens), idToken: tokens.id_token };
+        delete next.modelCatalog;
         this.data.accounts = [...this.data.accounts.filter(a => a.id !== next.id), next]; delete this.data.pendingClientId; await this.save();
         this.notice = next.scopes.includes('chatgpt.tokens.use.direct') ? 'chatgpt_connected' : 'chatgpt_plan_disabled'; this.onChange({ accountId: next.id, reason: 'signed-in' });
       });
@@ -253,7 +261,25 @@ export class ChatgptAccounts {
       return account.accessToken;
     });
   }
-  clearTokens(account) { delete account.accessToken; delete account.refreshToken; delete account.idToken; delete account.expiresAt; }
+  async cachedModels(id) {
+    return this.exclusive(async () => {
+      await this.load(); const account = this.data.accounts.find(a => a.id === id);
+      if (!account?.accessToken) fail('chatgpt_signin_required');
+      if (!account.scopes.includes('chatgpt.tokens.use.direct')) fail('chatgpt_plan_disabled');
+      return cachedChatgptCatalog(account.modelCatalog)?.models;
+    });
+  }
+  async cacheModels(id, sourceAccount, models) {
+    return this.exclusive(async () => {
+      await this.load(); const account = this.data.accounts.find(a => a.id === id);
+      if (account !== sourceAccount || !account?.accessToken || !account.scopes.includes('chatgpt.tokens.use.direct')) fail('chatgpt_signin_required');
+      const catalog = cachedChatgptCatalog({ format: 1, fetchedAt: this.now(), models });
+      if (!catalog) fail('chatgpt_catalog_invalid');
+      account.modelCatalog = catalog;
+      await this.save();
+    });
+  }
+  clearTokens(account) { delete account.accessToken; delete account.refreshToken; delete account.idToken; delete account.expiresAt; delete account.modelCatalog; }
   track(id, controller) { let set = this.controllers.get(id); if (!set) this.controllers.set(id, set = new Set()); set.add(controller); return () => set.delete(controller); }
   async signOut(id) {
     return this.exclusive(async () => {

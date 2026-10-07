@@ -4,6 +4,8 @@
 
 支持多个账号或工作区连接。相同邮箱的连接用短标签区分；重新登录保留原连接与工作区。点击“查看可用模型”向 OpenAI 获取当前账号的模型目录，目录可见不代表每次调用都一定有额度。实际请求失败会显示原因，不会自动转为付费 API 调用。可在[ChatGPT 用量设置](https://chatgpt.com/settings/usage)查看和管理授权。
 
+0.24.3 在成功登录时获取一次目录，同账号的并发读取合并为一次请求。已有连接优先使用自己的缓存，点击“刷新可用模型”重新获取；刷新失败保留上次有效结果并提示失败。新增 GPT 型号直接采用账号接口返回的可见目录，不用随包名单筛选。退出、授权失效或重新登录会清除旧目录；账号接口返回空列表时不会借用另一个账号的模型。
+
 首次登录必须在运行 Notara 的电脑上完成。OpenAI 的开源应用流程使用 `127.0.0.1` 回调，远程手机上的浏览器无法访问电脑的回调端口。通过 ngrok 使用时，先在电脑登录，再从远程页面选择模型。远程访问者使用的是该 Notara 实例保存的账号，因此公网访问密码只应交给你允许使用这些账号的人。
 
 ## 数据与退出
@@ -21,8 +23,8 @@
 - ChatGPT 订阅预览不支持 `temperature`、`max_output_tokens` 等字段，因而此提供方不传这些值；教室里填写的输出 token 预算不能作为此接口的服务端硬上限。
 - 本功能面向开源、本地自托管的个人实例。账号资格、模型与限额由 OpenAI 决定；商业远程托管场景需要另行确认服务商支持。
 
-依据：[官方注册与登录](https://developers.openai.com/siwc/token-sharing-open-source/sign-in)、[账号与会话](https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions)、[模型与推理](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference)、[预览限制](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)。核对日期：2026-10-01。
+依据：[官方注册与登录](https://developers.openai.com/siwc/token-sharing-open-source/sign-in)、[账号与会话](https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions)、[模型与推理](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference)、[预览限制](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)。模型目录合同核对日期：2026-10-08。
 
 ## 验证范围
 
-确定性测试覆盖真实 loopback HTTP 回调、模拟授权端签名验证、令牌刷新与退出、模型目录、工具历史映射、SSE 分片与错误处理。浏览器测试覆盖设置入口、官方授权跳转参数、取消登录与不在浏览器存储凭据。它们不消耗订阅额度，也不能替代用户实际账号的授权与真实推理验收。
+确定性测试覆盖真实 loopback HTTP 回调、模拟授权端签名验证、令牌刷新与退出、模型目录、工具历史映射、SSE 分片与错误处理。浏览器测试覆盖设置入口、官方授权跳转参数、取消登录与不在浏览器存储凭据。它们不消耗订阅额度，也不能替代用户实际账号的授权与真实推理验收。0.24.3 的独立验收实例另已通过用户真实授权：目录返回 7 个型号，包含 GPT-6.1-Sol、GPT-6-Sol 和 GPT-6-Luna，并完成 GPT-6-Luna 的一轮真实对话；不由此推定其他型号或账号的调用权限。

@@ -1,6 +1,6 @@
 {
   "name": "@notara/vault-native",
-  "version": "0.24.2",
+  "version": "0.24.3",
   "license": "MIT",
   "type": "module",
   "main": "index.js",
@@ -15,6 +15,7 @@
     "academy-data.json",
     "academy",
     "chatgpt-auth.js",
+    "chatgpt-catalog.js",
     "http-port.js",
     "http-port.d.ts",
     "chatgpt-contract.js",

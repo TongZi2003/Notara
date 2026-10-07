@@ -4,6 +4,10 @@
 
 ## 当前事实源
 
+- Native Vault `0.24.3` 的订阅目录在 `scripts/opencode-go-catalog.mjs` 与 `scripts/subscription-model-catalog.mjs`，由 `scripts/patch-opencode-go.ts` 对锁定 SDK 及两个 sidecar 校验摘要后安装。内置 OpenCode Go/Zen、Kimi Coding、MiniMax、Z.AI/智谱、通义 Token Plan 和小米 Token Plan 使用精确公共目录映射；原生协议与凭据 endpoint 不受远端 metadata 覆盖。Go 使用官方 `/models` 与 Models.dev 的逐模型协议，SDK API 只按明确 npm 元信息映射；DeepSeek metadata family 复用已支持 dialect，陌生思考格式不猜测。显式协议、模型限制与自定义端点保留优先级。
+- `scripts/patch-model-discovery.ts` 校验模型设置浏览器产物：每次打开新增草稿为每个 provider 获取一次，草稿内切换回来复用同一 Promise，手动刷新替换草稿 Map，已有编辑不自动获取；成功登录也获取一次目录。启动只读有效本地缓存，不后台定时刷新。公共目录请求匿名；账号目录经原生 OAuth 解析同一凭据快照，仅向官方或原生 OAuth 选定的企业 endpoint 发账号认证，缓存路径按账号身份摘要隔离。账号切换、退出与迟到读取用 generation 隔离，刷新失败保留上次目录并明确报错，有效空目录不回退为内置型号。缓存有格式/容量/字段验证及 fsync/原子发布；revision 共同失效严格保存、发现、注册和请求模型读取。公开 `0.24.2` 不含动态目录，动态目录随 `0.24.3` 发布；已发布 tag 与资产保持原状。
+- 原生 ChatGPT SIWC 的 `chatgpt-catalog.js` 只接收官方 `/v1/models` 的 `visibility=list`，保持服务端顺序和账号边界，不用随包名单或 `supported_in_api` 猜订阅权限。每次成功授权清除旧目录并单次预取，同账号并发合并，后续读取缓存，设置按钮手动刷新；目录存于受保护的本账号记录。退出、无 direct scope、重新授权及旧账号对象的迟到结果不能恢复旧目录；登录后预取成功通过现有原生事件失效目录缓存。状态中的随机 `authorizationRevision` 按账号对象隔离，令牌轮换保留，重新授权替换；设置窗口按此值清除旧列表并拒绝旧响应。此入口继续调用公开 `/v1/responses`，与 pi-ai `openai-codex` 的原生 OAuth/Responses 通道分开。
+
 - OpenCode Go 请求头兼容在 `scripts/patch-opencode-go.ts`，针对锁定 `dsh-llm-pi-ai` 产物实施摘要校验补丁，在 postinstall 与原生构建锁内应用。仅解析后的 HTTPS 官方 `opencode.ai/zen/go` 或 `/zen/go/v1` 地址启用 pi-ai `transformHeaders`，不按提供方配置名或模型名猜测；Anthropic SDK 从前者追加 `/v1/messages`，OpenAI SDK 从后者追加 `/chat/completions` 或 `/responses`。动态头使用原生 `GenerateOptions.sessionId`，同课堂主请求、压缩、标题生成沿用持久课堂 ID；不在每次请求生成新 ID。Go 使用 Notara 与 DSH 自有 User-Agent，其他认证、自定义头、请求体、地址及其他服务接入保持原有行为。模型目录发现不添加会话头；没有原生会话 ID 的直接调用不伪造 ID。
 
 - Native Vault `0.24.2` 的白板设备模式与鼠标滚轮映射在「设置 → 学习界面」分别保存：设备沿用 `notara-board-navigation` 的 mouse/trackpad，鼠标滚轮用 `notara-board-mouse-wheel` 的 zoom/scroll，缺省为 zoom。切到触控板只禁用鼠标映射控件，不改其值；共享订阅让已挂载的白板立即更新。Ctrl/Meta 滚轮始终缩放，触控板普通滚轮增量平移；自由绘图、导图和二维函数图读取同一偏好。底栏用30%–200%的滑条与独立百分比输入框，输入在Enter或失焦时提交并保持视口中心锚点；分屏调换按钮为28px，顶栏按钮统一36px高。

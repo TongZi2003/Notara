@@ -4,8 +4,10 @@ import { LlmError, QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm';
 import { ChatgptAccounts } from './chatgpt-auth.js';
 import { CHATGPT_AUTHENTICATED_EVENT } from './chatgpt-contract.js';
 import { installChatgpt } from './chatgpt-runtime.js';
+import { ChatgptAdapter } from './chatgpt-provider.js';
 
 async function runtime(t) {
+  t.mock.method(ChatgptAdapter.prototype, 'refreshModels', async () => []);
   const originalHome = process.env.DSH_HOME;
   process.env.DSH_HOME = 'synthetic-mocked-runtime';
   t.after(() => { if (originalHome === undefined) delete process.env.DSH_HOME; else process.env.DSH_HOME = originalHome; });
@@ -57,4 +59,23 @@ test('settings remote retains the subscription quota notice for the canonical DS
   const { remote } = await runtime(t);
   await assert.rejects(remote.prototype.call(() => { throw new LlmError('synthetic quota', QUOTA_EXCEEDED_CODE); }, {}), { message: 'chatgpt_usage_limit' });
   await assert.rejects(remote.prototype.call(() => { throw new LlmError('synthetic provider failure', 'PROVIDER_ERROR'); }, {}), { message: 'chatgpt_request_failed' });
+});
+
+test('a completed login catalog refresh invalidates a cached directory failure without repeating discovery', async t => {
+  const { accounts, calls } = await runtime(t);
+  let finish, requests = 0;
+  t.mock.method(ChatgptAdapter.prototype, 'refreshModels', async () => {
+    requests++;
+    return new Promise(resolve => { finish = resolve; });
+  });
+  accounts.onChange({ accountId: 'account-a', reason: 'signed-in' });
+  assert.equal(requests, 1);
+  assert.equal(calls.filter(call => call.event === CHATGPT_AUTHENTICATED_EVENT).length, 1);
+  finish([]);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(requests, 1);
+  assert.deepEqual(calls.filter(call => call.event === CHATGPT_AUTHENTICATED_EVENT), [
+    { event: CHATGPT_AUTHENTICATED_EVENT, provider: 'notara-chatgpt-account-a' },
+    { event: CHATGPT_AUTHENTICATED_EVENT, provider: 'notara-chatgpt-account-a' },
+  ]);
 });

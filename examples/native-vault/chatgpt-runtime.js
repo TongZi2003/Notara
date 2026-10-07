@@ -9,13 +9,21 @@ import { CHATGPT_METHODS, CHATGPT_AUTHENTICATED_EVENT } from './chatgpt-contract
 export function installChatgpt(ctx) {
   ctx.plugin({ name: 'notara-chatgpt', inject: ['llm'], apply(scope) {
     if (!process.env.DSH_HOME) return;
-    let registration;
+    let registration, adapter;
     const accounts = new ChatgptAccounts(join(process.env.DSH_HOME, 'notara-chatgpt'), { onChange: change => {
       const routes = accounts.data.accounts.filter(a => a.accessToken && a.scopes.includes('chatgpt.tokens.use.direct')).map(a => `notara-chatgpt-${a.id}`);
       if (registration) registration.replace(routes);
-      else if (routes.length) registration = scope.llm.registerAdapter(routes, new ChatgptAdapter(accounts, scope.get('attachments')));
+      else if (routes.length) { adapter = new ChatgptAdapter(accounts, scope.get('attachments')); registration = scope.llm.registerAdapter(routes, adapter); }
       const provider = `notara-chatgpt-${change?.accountId}`;
-      if (change?.reason === 'signed-in' && routes.includes(provider)) scope.emit(CHATGPT_AUTHENTICATED_EVENT, provider);
+      if (change?.reason === 'signed-in' && routes.includes(provider)) {
+        adapter.resetCatalog(provider);
+        void adapter.refreshModels(provider).then(() => {
+          // A directory read may have cached a failed first request. Invalidate
+          // it once the account catalog arrives, using the same native event.
+          scope.emit(CHATGPT_AUTHENTICATED_EVENT, provider);
+        }).catch(() => {});
+        scope.emit(CHATGPT_AUTHENTICATED_EVENT, provider);
+      }
     } });
     class ChatgptRemote extends TypertRemoteService {
       constructor(context) { super(context, 'notaraChatgpt'); }
@@ -28,7 +36,12 @@ export function installChatgpt(ctx) {
       begin(input) { return this.call(() => accounts.begin(input.id), input); }
       cancel(input) { return this.call(() => { accounts.cancel(); return {}; }, input); }
       signOut(input) { return this.call(() => accounts.signOut(input.id), input); }
-      models(input) { return this.call(async () => ({ models: await new ChatgptAdapter(accounts).listModels(`notara-chatgpt-${input.id}`) }), input); }
+      models(input) { return this.call(async () => {
+        const provider = `notara-chatgpt-${input.id}`;
+        const models = await (adapter ?? new ChatgptAdapter(accounts)).refreshModels(provider);
+        scope.emit(CHATGPT_AUTHENTICATED_EVENT, provider);
+        return { models };
+      }, input); }
     }
     Object.defineProperty(ChatgptRemote.prototype, '@deepseek-ai/dsh-typert-protocol/remote-methods', { value: { version: 1, methods: CHATGPT_METHODS.map(method => ({ method, invocation: { kind: 'direct' } })) } });
     scope.plugin(ChatgptRemote);

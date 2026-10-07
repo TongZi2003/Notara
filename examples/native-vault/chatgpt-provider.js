@@ -1,6 +1,7 @@
 import { LlmAdapter, LlmError, ToolCallId, QUOTA_EXCEEDED_CODE, CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, attributionHeaders, projectToolUpdates, projectOffloadedImages, offloadedImageText } from '@deepseek-ai/dsh-llm';
 import { RESOURCE } from './chatgpt-auth.js';
 import { createHash } from 'node:crypto';
+import { chatgptModelCatalog } from './chatgpt-catalog.js';
 
 const contentHash = content => createHash('sha256').update(JSON.stringify(content)).digest('hex');
 
@@ -88,19 +89,44 @@ export async function* responseEvents(body) {
 }
 
 export class ChatgptAdapter extends LlmAdapter {
-  constructor(accounts, attachments) { super(); this.accounts = accounts; this.attachments = attachments; }
+  constructor(accounts, attachments) { super(); this.accounts = accounts; this.attachments = attachments; this.catalogRequests = new Map(); }
   accountId(provider) { return provider.replace(/^notara-chatgpt-/, ''); }
   providerInfo(provider) {
     const account = this.accounts.data?.accounts.find(a => a.id === this.accountId(provider));
     return { id: provider, name: `ChatGPT · ${account?.email || '订阅账号'} · ${account?.id.slice(0, 6) || ''}` };
   }
   providerRetryPolicy() { return { mode: 'normal', maxRetries: 0, retryableCodes: [], initialDelayMs: 1000, maxDelayMs: 1000, jitterRatio: 0 }; }
-  async listModels(provider) {
+  listModels(provider) { return this.accountModels(provider); }
+  refreshModels(provider) { return this.accountModels(provider, true); }
+  resetCatalog(provider) {
+    const id = this.accountId(provider);
+    this.catalogRequests.get(id)?.controller.abort();
+    this.catalogRequests.delete(id);
+  }
+  async accountModels(provider, force = false) {
+    const id = this.accountId(provider);
     try {
-      const access = await this.accounts.access(this.accountId(provider));
-      const result = await this.accounts.json(`${RESOURCE}/models`, { headers: { authorization: `Bearer ${access}`, ...attributionHeaders() } });
-      if (!Array.isArray(result.models)) throw chatgptFailure('catalog_invalid');
-      return result.models.filter(m => m.visibility === 'list' && typeof m.slug === 'string').map(m => ({ provider, id: m.slug, name: m.display_name || m.slug }));
+      if (!force && this.accounts.cachedModels) {
+        const cached = await this.accounts.cachedModels(id);
+        if (cached) return cached.map(model => ({ provider, ...model }));
+      }
+      if (!this.catalogRequests.has(id)) {
+        const controller = new AbortController(), release = this.accounts.track?.(id, controller);
+        const work = (async () => {
+          const access = await this.accounts.access(id);
+          const account = this.accounts.data?.accounts.find(value => value.id === id);
+          const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]);
+          signal.throwIfAborted();
+          const result = await this.accounts.json(`${RESOURCE}/models`, { signal, headers: { authorization: `Bearer ${access}`, ...attributionHeaders() } });
+          signal.throwIfAborted();
+          const models = chatgptModelCatalog(result);
+          if (this.accounts.cacheModels) await this.accounts.cacheModels(id, account, models);
+          signal.throwIfAborted();
+          return models;
+        })().finally(() => { release?.(); if (this.catalogRequests.get(id)?.work === work) this.catalogRequests.delete(id); });
+        this.catalogRequests.set(id, { work, controller });
+      }
+      return (await this.catalogRequests.get(id).work).map(model => ({ provider, ...model }));
     } catch (error) { if (error.message?.startsWith('chatgpt_')) throw chatgptFailure(error.message); throw error; }
   }
   async resolveModel(provider, model) {
