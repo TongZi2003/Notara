@@ -17,10 +17,7 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run build:native-vault
-      - name: Verify the default deadline, interrupted cleanup and SQL recovery
-        env:
-          TEMP: ${{ runner.temp }}
-          TMP: ${{ runner.temp }}
+      - name: Verify history pressure, PDF recovery and native Low-token file access
         run: |
-          node --input-type=module -e "import {tmpdir} from 'node:os'; console.log('Synthetic database temporary root:',tmpdir())"
-          node --test examples/native-vault/context-history-delete-pressure.test.js
+          node --input-type=module -e "import {tmpdir} from 'node:os'; console.log('Synthetic archive root:',process.env.RUNNER_TEMP); console.log('Other fixture temporary root:',tmpdir())"
+          node --test --test-concurrency=2 examples/native-vault/context-history-delete-pressure.test.js examples/native-vault/agent-io.test.js examples/native-vault/windows-cli-fs.test.js

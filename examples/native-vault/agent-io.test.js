@@ -157,25 +157,25 @@ test('PDFs above 50 MiB are hashed in bounded native ranges; warm reads, stale r
   await assert.rejects(warm.pdfSource.readRange(-1,2),/pdf_range_invalid/);
 });
 
-test('a required PDF raster above 32 MiB reports its bounded range failure without hanging',{timeout:5000},async t=>{
+test('a required PDF raster above 32 MiB reports its bounded range failure and preserves reader recovery',async t=>{
   const {root,ctx,exec}=await setup(t),path=join(root,'vault','large-image.pdf');
   await sparsePdf(path,6000*6000,{image:true});
   const asset=await module.createAgentVaultIO(ctx,exec).readAsset('large-image.pdf');
-  const requests=[];
-  const source={length:asset.pdfSource.length,readRange:async(begin,end,signal)=>{
-    requests.push(end-begin);
-    return asset.pdfSource.readRange(begin,end,signal);
+  const requests=[],source={length:asset.pdfSource.length,readRange:async(begin,end,signal)=>{
+    requests.push(end-begin);return asset.pdfSource.readRange(begin,end,signal);
   }};
-  await assert.rejects(readPdfPage(source,{signal:t.signal}),error=>error.message==='pdf_range_too_large');
-  assert.ok(requests.some(length=>length>32*1024*1024),'the required image must exercise the large-range guard during page parsing');
-  assert.ok(await exists(path),'a failed read must not remove or alter the source PDF');
-  const after=await module.createAgentVaultIO(ctx,exec).readAsset('large-image.pdf');
-  assert.equal(after.revision,asset.revision);
-  await sparsePdf(join(root,'vault','after-failure.pdf'),0);
-  const small=await module.createAgentVaultIO(ctx,exec).readAsset('after-failure.pdf');
-  const recovered=await readPdfPage(small.pdfSource,{signal:t.signal});
-  assert.match(recovered.text,/Large PDF native range proof/);
-  assert.equal(recovered.image.mimeType,'image/png','one failed document must not break the next reader in the same process');
+  await t.test('bounded range rejection and the following reader recovery finish within five seconds',{timeout:5000},async sub=>{
+    await assert.rejects(readPdfPage(source,{signal:sub.signal}),error=>error.message==='pdf_range_too_large');
+    assert.ok(requests.some(length=>length>32*1024*1024),'the required image must exercise the large-range guard during page parsing');
+    assert.ok(await exists(path),'a failed read must not remove or alter the source PDF');
+    const after=await module.createAgentVaultIO(ctx,exec).readAsset('large-image.pdf');
+    assert.equal(after.revision,asset.revision);
+    await sparsePdf(join(root,'vault','after-failure.pdf'),0);
+    const small=await module.createAgentVaultIO(ctx,exec).readAsset('after-failure.pdf');
+    const recovered=await readPdfPage(small.pdfSource,{signal:sub.signal});
+    assert.match(recovered.text,/Large PDF native range proof/);
+    assert.equal(recovered.image.mimeType,'image/png','one failed document must not break the next reader in the same process');
+  });
 });
 
 test('PDF size above 512 MiB is rejected before reading or rendering',async t=>{
