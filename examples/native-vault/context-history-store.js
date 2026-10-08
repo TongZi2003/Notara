@@ -569,39 +569,49 @@ export class ContextHistoryStore {
     if (!state || state.generation !== current || !['deleting','deleted'].includes(state.state)) fail('STALE_SCOPE_GENERATION');
     if (state.state === 'deleted') return { ...this.inspect(scope), generation: current, state: 'deleted' };
     clearDocFeatures();
-    // Cleanup does not transport bodies. Bound transactions by stored bytes and
-    // feature work, rather than paying a FULL-synchronous commit per eight IDs.
-    const chunkPage = this.db.prepare(`SELECT id,length(CAST(body AS BLOB))+coalesce(length(CAST(search AS BLOB)),0) AS bytes
-      FROM chunks WHERE scope=? ORDER BY id LIMIT ?`);
-    // toolCalls is WITHOUT ROWID: SQLite otherwise chooses its scope-only primary
-    // key and repeatedly scans remaining calls, even for a single event sequence.
-    const eventDeletes = ['streams', 'omissions', 'toolCalls', 'events'].map(table => this.db.prepare(
-      `DELETE FROM ${table}${table === 'toolCalls' ? ' INDEXED BY calls_event' : ''} WHERE scope=? AND seq BETWEEN ? AND ?`));
-    let pageRows = 128;
-    for (;;) {
-      context.check(); const rows = chunkPage.all(scope, pageRows); if (!rows.length) break;
-      this.transaction(() => { let bytes = 0, terms = 0, count = 0; for (const row of rows) {
-        context.check();
-        if (count && bytes + row.bytes > STREAM_BUDGET.rpcBytes) break;
-        const features = this.sql.chunkTerms.all(scope, row.id);
-        // A single bounded chunk must make progress even when feature-dense.
-        if (count && terms + features.length > 4096) break;
-        for (const { term } of features) { context.check(); this.sql.decreaseDf.run(scope, term); this.sql.zeroDf.run(scope, term); }
-        this.sql.deletePostings.run(scope, row.id); this.sql.deleteChunk.run(row.id, scope);
-        bytes += row.bytes; terms += features.length; count++;
-      } context.check();
-        // Avoid repeatedly reading a full 128-row page when large projections
-        // permit only a few of its rows in this transaction. These estimates
-        // change read-ahead only; the byte/feature checks remain authoritative.
-        pageRows = Math.max(1, Math.min(128, Math.floor(STREAM_BUDGET.rpcBytes * count / Math.max(1, bytes)),
-          terms ? Math.floor(4096 * count / terms) : 128));
-      }); await yieldTurn();
-    }
-    for (;;) {
-      context.check(); const rows = this.sql.deleteEventsPage.all(scope); if (!rows.length) break;
-      this.transaction(() => { for (const statement of eventDeletes) {
-        context.check(); statement.run(scope, rows[0].seq, rows.at(-1).seq);
-      } context.check(); }); await yieldTurn();
+    // The FULL-synchronous tombstone is already durable and excludes every
+    // reader/writer. Only this replayable cleanup uses NORMAL: a power loss
+    // may undo recent physical batches, which startup resumes from the durable
+    // tombstone. Keep each transaction/cancellation bound and secure erasure;
+    // restore FULL before completion or any later archive write.
+    this.db.exec('PRAGMA synchronous=NORMAL;');
+    try {
+      // Cleanup does not transport bodies. Bound transactions by stored bytes and
+      // feature work, rather than paying a FULL-synchronous commit per eight IDs.
+      const chunkPage = this.db.prepare(`SELECT id,length(CAST(body AS BLOB))+coalesce(length(CAST(search AS BLOB)),0) AS bytes
+        FROM chunks WHERE scope=? ORDER BY id LIMIT ?`);
+      // toolCalls is WITHOUT ROWID: SQLite otherwise chooses its scope-only primary
+      // key and repeatedly scans remaining calls, even for a single event sequence.
+      const eventDeletes = ['streams', 'omissions', 'toolCalls', 'events'].map(table => this.db.prepare(
+        `DELETE FROM ${table}${table === 'toolCalls' ? ' INDEXED BY calls_event' : ''} WHERE scope=? AND seq BETWEEN ? AND ?`));
+      let pageRows = 128;
+      for (;;) {
+        context.check(); const rows = chunkPage.all(scope, pageRows); if (!rows.length) break;
+        this.transaction(() => { let bytes = 0, terms = 0, count = 0; for (const row of rows) {
+          context.check();
+          if (count && bytes + row.bytes > STREAM_BUDGET.rpcBytes) break;
+          const features = this.sql.chunkTerms.all(scope, row.id);
+          // A single bounded chunk must make progress even when feature-dense.
+          if (count && terms + features.length > 4096) break;
+          for (const { term } of features) { context.check(); this.sql.decreaseDf.run(scope, term); this.sql.zeroDf.run(scope, term); }
+          this.sql.deletePostings.run(scope, row.id); this.sql.deleteChunk.run(row.id, scope);
+          bytes += row.bytes; terms += features.length; count++;
+        } context.check();
+          // Avoid repeatedly reading a full 128-row page when large projections
+          // permit only a few of its rows in this transaction. These estimates
+          // change read-ahead only; the byte/feature checks remain authoritative.
+          pageRows = Math.max(1, Math.min(128, Math.floor(STREAM_BUDGET.rpcBytes * count / Math.max(1, bytes)),
+            terms ? Math.floor(4096 * count / terms) : 128));
+        }); await yieldTurn();
+      }
+      for (;;) {
+        context.check(); const rows = this.sql.deleteEventsPage.all(scope); if (!rows.length) break;
+        this.transaction(() => { for (const statement of eventDeletes) {
+          context.check(); statement.run(scope, rows[0].seq, rows.at(-1).seq);
+        } context.check(); }); await yieldTurn();
+      }
+    } finally {
+      this.db.exec('PRAGMA synchronous=FULL;');
     }
     this.transaction(() => { context.check(); this.db.prepare('DELETE FROM source WHERE scope=?').run(scope);
       this.db.prepare("UPDATE scopeMeta SET state='deleted' WHERE scope=? AND generation=?").run(scope, current); });
