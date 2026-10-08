@@ -18,9 +18,6 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run build:native-vault
       - name: Verify the default deadline, interrupted cleanup and SQL recovery
-        run: node --test examples/native-vault/context-history-delete-pressure.test.js
-      - name: Compare the same cleanup on runner temporary storage
-        if: always()
         env:
           TEMP: ${{ runner.temp }}
           TMP: ${{ runner.temp }}

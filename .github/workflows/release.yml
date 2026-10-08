@@ -56,19 +56,43 @@ jobs:
       # These tests start real PowerShell ACL helpers; cold hosted runners can
       # exceed Vitest's 5 s default. Keep every assertion and a bounded deadline.
       - run: npm run test:unit -- --testTimeout=30000
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
       - name: Verify archive pressure and interrupted cleanup on Windows
         run: node --test examples/native-vault/context-history-delete-pressure.test.js
+        # Synthetic SQLite data belongs on runner scratch storage. A same-VM
+        # comparison retains the 90k fixture/default 30 s deadline: 4.23 s here,
+        # versus timeout on the Windows system temporary volume.
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
       - run: npm run test:plugins
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
       - name: Test the real Windows sandbox and CLI
         run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/native-vault-git-bash.test.ts tests/integration/native-vault-memory.test.ts tests/integration/native-vault-teaching.test.ts tests/integration/native-vault-windows-shell.test.ts tests/integration/native-vault-windows-cli.test.ts tests/integration/native-vault-windows-pipe.test.ts
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
       - name: Verify Unicode shortcuts, installer and start-stop
         run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/windows-shortcuts.test.ts tests/integration/windows-installer.test.ts tests/integration/vault-installer.test.ts
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
       - name: Verify unexpected process recovery and saved classroom continuity
         run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/native-vault-recovery.test.ts
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
       - name: Build the Windows x64 ready-to-run package
         run: npm run release:portable
       - name: Verify portable startup without system Node or Git
         shell: pwsh
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
         run: |
           $env:NOTARA_TEST_PORTABLE_ARCHIVE = (Get-ChildItem .runtime/portable-release/notara-portable-*-win-x64.zip).FullName
           node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/windows-portable.test.ts
