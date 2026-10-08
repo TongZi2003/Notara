@@ -17,8 +17,11 @@ let runtime: VaultRuntime | undefined, harness: VaultHarness | undefined;
 afterEach(async () => { await harness?.close(); harness = undefined; await runtime?.stop(); runtime = undefined; });
 
 async function askBash(client: VaultHarness, sessionId: string, text: string, command: string) {
+  const previous = new Set((await client.outcomes(sessionId)).map(row => row.callId));
   await client.ask(sessionId, text, { [text]: [{ name: 'bash', arguments: { command, description: `[notara:material-read] ${text}` } }] });
-  return (await client.outcomes(sessionId)).filter(row => row.name === 'bash').at(-1)!;
+  const result = (await client.outcomes(sessionId)).filter(row => row.name === 'bash' && !previous.has(row.callId)).at(-1);
+  if (!result) throw new Error('submitted turn produced no new bash result');
+  return result;
 }
 const windows = process.platform === 'win32';
 const scripts = join(tmpdir(), windows ? 'notara-windows-posix' : 'notara-git-bash');

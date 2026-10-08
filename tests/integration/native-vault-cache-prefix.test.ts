@@ -19,32 +19,39 @@ interface ModelProjection {
 const textOf = (message: AssembledMessage) => message.content.map(block => block.text ?? '').join('');
 const systemMessages = (request: AssembledRequest) => request.messages.filter(message => message.role === 'system');
 const contexts = (request: AssembledRequest) => request.messages.filter(message => message.source?.kind === 'runtime-context');
-const wireInput = async (request: AssembledRequest): Promise<unknown[]> => {
+const wireInput = async (request: AssembledRequest, messages = request.messages): Promise<unknown[]> => {
   // Native loop requests already carry their system messages in history.
   // Adding options.system here would duplicate that content in the wire input.
-  const wire = await responsesRequest({ provider: request.provider, model: request.model, messages: request.messages, tools: request.toolSchemas });
+  const wire = await responsesRequest({ provider: request.provider, model: request.model, messages, tools: request.toolSchemas });
   return wire.input;
 };
 
 async function expectRetainedPrefix(before: AssembledRequest, after: AssembledRequest, restarted?: { beforeOrigin: string; afterOrigin: string }) {
   expect(after.messages.length).toBeGreaterThan(before.messages.length);
-  expect(after.messages.slice(0, before.messages.length)).toEqual(before.messages);
   const previousSystem = systemMessages(before), nextSystem = systemMessages(after);
   if (restarted) {
-    // A fresh native request series may append a new system snapshot. The
-    // isolated restart may choose another GUI port; only that environment value
-    // may differ, and none of the previous system history may be rewritten.
-    expect(nextSystem.slice(0, previousSystem.length)).toEqual(previousSystem);
-    const added = nextSystem.length - previousSystem.length;
-    expect([0, 1]).toContain(added);
-    if (added === 0) {
-      expect(restarted.afterOrigin).toBe(restarted.beforeOrigin);
-      expect(nextSystem).toEqual(previousSystem);
-    } else {
-      const contentAt = (message: AssembledMessage, origin: string) => message.content.map(block => ({ ...block, ...(block.text === undefined ? {} : { text: block.text.split(origin).join('<isolated-gui-origin>') }) }));
-      expect(contentAt(nextSystem.at(-1)!, restarted.afterOrigin)).toEqual(contentAt(previousSystem.at(-1)!, restarted.beforeOrigin));
-    }
+    // A restored Agent starts a native request series. Native projection
+    // keeps the current prompt in the first system node and empties any later
+    // snapshots; a changed isolated GUI origin can therefore replace that
+    // system message. Every non-system message remains an exact ordered prefix.
+    const previousNonSystem = before.messages.filter(message => message.role !== 'system');
+    const nextNonSystem = after.messages.filter(message => message.role !== 'system');
+    expect(nextNonSystem.slice(0, previousNonSystem.length)).toEqual(previousNonSystem);
+    expect(nextSystem).toHaveLength(previousSystem.length);
+    const priorCurrentPrompt = previousSystem.findLast(message => textOf(message).length > 0) ?? previousSystem[0];
+    expect(priorCurrentPrompt).toBeDefined();
+    const normalizeOrigin = (message: AssembledMessage, origin: string) => ({
+      ...message,
+      id: '<native-system-message-id>',
+      content: message.content.map(block => ({ ...block, ...(block.text === undefined ? {} : { text: block.text.split(origin).join('<isolated-gui-origin>') }) })),
+    });
+    expect(normalizeOrigin(nextSystem[0]!, restarted.afterOrigin)).toEqual(normalizeOrigin(priorCurrentPrompt!, restarted.beforeOrigin));
+    expect(nextSystem.slice(1).every(message => textOf(message) === '')).toBe(true);
+    const previousWire = await wireInput(before, previousNonSystem);
+    const nextWire = await wireInput(after, nextNonSystem);
+    expect(nextWire.slice(0, previousWire.length)).toEqual(previousWire);
   } else expect(nextSystem).toEqual(previousSystem);
+  if (!restarted) expect(after.messages.slice(0, before.messages.length)).toEqual(before.messages);
   expect(after.toolSchemas).toEqual(before.toolSchemas);
   // The existing history keeps its selected route, including when the isolated
   // deployment default changes. This does not measure provider cache hits.
@@ -53,10 +60,10 @@ async function expectRetainedPrefix(before: AssembledRequest, after: AssembledRe
   expect(effortOf(after)).toBe(effortOf(before));
   const previousInput = await wireInput(before), nextInput = await wireInput(after);
   expect(nextInput.length).toBeGreaterThan(previousInput.length);
-  expect(nextInput.slice(0, previousInput.length)).toEqual(previousInput);
+  if (!restarted) expect(nextInput.slice(0, previousInput.length)).toEqual(previousInput);
 }
 
-test('stable replies, board tool steps and forks after a default change and restart retain the request prefix and system history', async () => {
+test('stable replies, board tool steps and forks retain in-series prefixes and rebase native system history after restart', async () => {
   const runtime = await startVaultIsolated({ testModel: true });
   let client: VaultHarness | undefined;
   try {

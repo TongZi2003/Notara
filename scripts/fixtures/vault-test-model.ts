@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis';
-import { LlmAdapter, LlmError, ReasoningEffortId, ToolCallId, type GenerateOptions, type LlmResolvedModelInfo, type StreamChunk } from '@deepseek-ai/dsh-llm';
+import { LlmAdapter, LlmError, ReasoningEffortId, ToolCallId, offloadedImageText, type GenerateOptions, type ImageBlock, type LlmImageRequestPricing, type LlmResolvedModelInfo, type StreamChunk } from '@deepseek-ai/dsh-llm';
 import { appendFile, readFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import { WORKER_PRESETS } from '../../examples/native-vault/worker-catalog.js';
@@ -8,6 +8,8 @@ import { WORKER_PRESETS } from '../../examples/native-vault/worker-catalog.js';
 export const VAULT_TEST_PROVIDER = 'notara-vault-test';
 /** The single model route the synthetic adapter advertises. */
 export const VAULT_TEST_MODEL = 'vault-test';
+/** Fixed synthetic visual-token charge; this adapter does not contact a provider or encode image bytes. */
+export const VAULT_TEST_IMAGE_TOKENS = 256;
 /** Second synthetic route: the provider that hosts the fixed solver's preferred model. */
 export const VAULT_SOLVER_PROVIDER = 'notara-vault-solver';
 /** The solver's preferred model id, exactly as the classroom contract names it. */
@@ -22,6 +24,28 @@ export const VAULT_SOLVER_EFFORTS: readonly string[] = ['low', 'high'];
  */
 export const VAULT_SOLVER_AMBIGUOUS_PROVIDER = 'notara-vault-solver-alt';
 export const VAULT_SOLVER_AMBIGUOUS_ENV = 'NOTARA_VAULT_TEST_AMBIGUOUS_SOLVER';
+
+/** Deterministic image pricing for the exact synthetic routes advertised below. */
+export function vaultTestImageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined {
+  const classroomRoute = provider === VAULT_TEST_PROVIDER && model === VAULT_TEST_MODEL;
+  const solverRoute = (provider === VAULT_SOLVER_PROVIDER || provider === VAULT_SOLVER_AMBIGUOUS_PROVIDER) && model === VAULT_SOLVER_MODEL;
+  if (!classroomRoute && !solverRoute) return undefined;
+  return {
+    priceImages(images: readonly ImageBlock[]) {
+      return images.map(image => image.offloaded === true
+        ? { visualTokens: 0, text: offloadedImageText(image.attachment) }
+        : { visualTokens: VAULT_TEST_IMAGE_TOKENS, text: '' });
+    },
+  };
+}
+
+/** Visual usage reported by the mock stream follows the same price as TokenMeter. */
+export function vaultTestImageUsage(provider: string, model: string, messages: readonly { content: readonly { type: string }[] }[]): number {
+  const pricing = vaultTestImageRequestPricing(provider, model);
+  if (!pricing) return 0;
+  const images = messages.flatMap(message => message.content.filter((block): block is ImageBlock => block.type === 'image'));
+  return pricing.priceImages(images).reduce((total, price) => total + price.visualTokens, 0);
+}
 /**
  * Reserved reply key for every request that arrives on a solver route. The
  * per-preset __worker:<preset> reply may override it. Synthetic workers can
@@ -172,6 +196,9 @@ export function apply(ctx: Context, config: VaultTestModelConfig): void {
         ...(provider === VAULT_TEST_PROVIDER ? {} : { reasoning: { efforts: VAULT_SOLVER_EFFORTS.map(id => ({ id: ReasoningEffortId(id), name: id })) } }),
       };
     }
+    override imageRequestPricing(provider: string, model: string) {
+      return vaultTestImageRequestPricing(provider, model);
+    }
     override async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
       const user = options.messages.findLast(message => message.role === 'user' && message.source?.kind === 'user');
       const userText = user ? user.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n').trim() : '';
@@ -227,7 +254,8 @@ export function apply(ctx: Context, config: VaultTestModelConfig): void {
         yield { type: 'text-delta', index: 0, text: body.slice(start, start + 24) };
       }
       yield { type: 'block-end', index: 0, block: { type: 'text', text: body } };
-      yield { type: 'usage', usage: { inputTokens: 8, cacheReadTokens: 2, outputTokens: 5, totalTokens: 15 } };
+      const inputTokens = 8 + vaultTestImageUsage(options.provider, options.model, options.messages);
+      yield { type: 'usage', usage: { inputTokens, cacheReadTokens: 2, outputTokens: 5, totalTokens: inputTokens + 2 + 5 } };
       yield { type: 'finish', reason: { kind: 'stop' } };
     }
   }

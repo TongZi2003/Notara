@@ -139,6 +139,143 @@ async function scenario(name, options = {}) {
   }
 }
 
+async function softRetentionScenario(name, explicitRetention) {
+  const ctx = new Context();
+  const fibers = [];
+  let handle;
+  let engine;
+  let toolCalls = 0;
+  let pressurePhase = false;
+  const pressureInputs = [];
+  const mainPrices = [];
+  let failure;
+  const inputCap = 9000;
+  const pressureMarker = 'LATEST_PRESSURE_USER_ONLY';
+  const giantMarker = 'GIANT_TOOL_RESULT_MARKER';
+  const policy = { workingInputCap: inputCap, unknownInputCap: inputCap, maxTokens: 512,
+    ...(explicitRetention ? { retainTokens: 3500 } : {}) };
+  const price = createRequestPricer({ imageRequestPricing: () => null, fileRequestText: () => '' });
+  try {
+    for (const [plugin, config] of [
+      [SessionProjectionRegistry], [SessionStore], [AgentRegistry], [LlmRuntime],
+      [SystemPrompt, { includeHarnessIdentity: false, includeRuntimeContext: false }],
+      [ToolRuntime, { mode: 'native' }], [TokenMeter],
+      [AgentDefaultModel, { provider: 'synthetic-only', model: name }],
+      [AgentLoop, {}], [LlmRetry], [BudgetEngine, policy],
+    ]) fibers.push(await ctx.plugin(plugin, config));
+    engine = ctx.get('compaction');
+    assert.ok(engine && typeof engine.compactRegion === 'function', 'the scenario must use the native compaction engine');
+    ctx.on('session/event', (session, event) => {
+      if (event.type === 'turn/end' && event.data.reason.kind === 'error') failure = event.data.reason.error;
+    });
+    ctx.tools.register({
+      name: 'synthetic_tool', description: 'Synthetic paired operation',
+      parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
+      output: { schema: { type: 'object' }, render: (_args, value) => [{ type: 'text', text: value.body }] },
+      execute: async () => {
+        toolCalls++;
+        return { body: `${giantMarker}\n${'g'.repeat(16500)}` };
+      },
+    });
+    let toolCallIssued = false;
+    class Adapter extends LlmAdapter {
+      async resolveModel(provider, model) {
+        return { provider, id: model, name: model, context: { contextWindow: 32768 },
+          defaultMaxTokens: 256, inputModalities: ['text'], systemPromptUpdate: 'in-history' };
+      }
+      async *stream(request) {
+        const estimated = price(request);
+        if (request.purpose === 'compaction') {
+          if (pressurePhase) pressureInputs.push(JSON.stringify(request.messages));
+          const text = pressurePhase && explicitRetention
+            ? `NONSHRINKING_EXPLICIT_RETENTION_${'n'.repeat(3000)}`
+            : 'SHORT_SYNTHETIC_CONTINUITY_CHECKPOINT';
+          yield { type: 'block-end', index: 0, block: { type: 'text', text } };
+          yield { type: 'usage', usage: { inputTokens: estimated, outputTokens: 16 } };
+          yield { type: 'finish', reason: { kind: 'stop' } };
+          return;
+        }
+        const latest = request.messages.findLast(message => message.role === 'user' && message.source.kind === 'user');
+        assert.ok(latest, 'native request retains a real latest user message');
+        const latestText = latest.content.map(block => block.text ?? '').join('');
+        mainPrices.push(estimated);
+        if (pressurePhase && latestText.includes(pressureMarker)) {
+          assert.ok(estimated <= inputCap, 'a recovered request fits the unchanged admission cap');
+        }
+        if (!pressurePhase && latestText.includes('RUN_GIANT_TOOL_TURN') && !toolCallIssued) {
+          assert.ok(estimated < inputCap, 'the complete tool call begins below the admission cap');
+          toolCallIssued = true;
+          yield { type: 'block-end', index: 0, block: {
+            type: 'tool-call', id: 'synthetic-giant-call', name: 'synthetic_tool', arguments: '{}',
+          } };
+          yield { type: 'usage', usage: { inputTokens: estimated, outputTokens: 12 } };
+          yield { type: 'finish', reason: { kind: 'tool-calls' } };
+          return;
+        }
+        yield { type: 'block-end', index: 0, block: { type: 'text', text: 'Synthetic reply.' } };
+        yield { type: 'usage', usage: { inputTokens: estimated, outputTokens: 4 } };
+        yield { type: 'finish', reason: { kind: 'stop' } };
+      }
+    }
+    ctx.llm.registerAdapter(['synthetic-only'], new Adapter());
+    handle = await ctx.agents.create({ sessionId: SessionId(`probe-${name}`),
+      agentOptions: { provider: 'synthetic-only', model: name, maxTokens: 256 } });
+
+    const oldSource = `OLD_SOURCE_FOR_SHORT_CHECKPOINT\n${'old '.repeat(1600)}`;
+    handle.agent.followup(createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: oldSource }] }));
+    await handle.agent.whenIdle();
+    assert.equal(failure, undefined);
+    assert.ok(handle.agent.session.deriveMessages().some(message => message.role === 'assistant'), 'seed turn has a completed assistant reply');
+    await engine.compactNow(handle.agent, new AbortController().signal);
+    const checkpoint = handle.agent.session.deriveMessages().find(message => message.source?.kind === 'compact-checkpoint');
+    assert.ok(checkpoint, 'a real native compaction transaction creates the short old checkpoint');
+    assert.match(checkpoint.content.map(block => block.text ?? '').join(''), /SHORT_SYNTHETIC_CONTINUITY_CHECKPOINT/);
+
+    handle.agent.followup(createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'RUN_GIANT_TOOL_TURN' }] }));
+    await handle.agent.whenIdle();
+    assert.equal(failure, undefined);
+    assert.equal(toolCalls, 1, 'the native tool call/result pair executes once');
+    const afterToolMessages = handle.agent.session.deriveMessages();
+    assert.ok(afterToolMessages.some(message => message.content.some(block => block.text?.includes(giantMarker))), 'the large tool result is present before pressure');
+    const afterToolLatest = afterToolMessages.findLast(message => message.role === 'user' && message.source.kind === 'user');
+    assert.equal(afterToolLatest?.content[0]?.text, 'RUN_GIANT_TOOL_TURN');
+    pressurePhase = true;
+    pressureInputs.length = 0;
+    const requestsBeforePressure = mainPrices.length;
+
+    const pressureText = `${pressureMarker}\n${'current '.repeat(300)}`;
+    handle.agent.followup(createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: pressureText }] }));
+    await handle.agent.whenIdle();
+
+    assert.equal(pressureInputs.length, 1, 'one bounded pressure summary is attempted');
+    const pressureInput = pressureInputs[0];
+    assert.ok(pressureInput.includes(pressureMarker) === false, 'the latest real user input is never included in an old summary range');
+    if (explicitRetention) {
+      assert.equal(mainPrices.length, requestsBeforePressure, 'request admission rejects before starting a provider attempt');
+      assert.equal(toolCalls, 1);
+      assert.ok(pressureInput.includes('SHORT_SYNTHETIC_CONTINUITY_CHECKPOINT'), 'explicit retention keeps the selected range at the short checkpoint');
+      assert.ok(!pressureInput.includes(giantMarker), 'explicit retention does not expand the selected range over the large tool pair');
+      assert.match(failure?.message ?? '', /summary is not smaller than the shadowed content/);
+      const surviving = handle.agent.session.deriveMessages();
+      assert.ok(surviving.some(message => message.content.some(block => block.text?.includes(giantMarker))), 'failed compaction leaves the original tool result on the surface');
+      assert.equal(surviving.findLast(message => message.role === 'user' && message.source.kind === 'user')?.content[0]?.text, pressureText);
+    } else {
+      assert.equal(mainPrices.length, requestsBeforePressure + 1, 'successful recovery starts exactly one bounded retry');
+      assert.ok(pressureInput.includes('SHORT_SYNTHETIC_CONTINUITY_CHECKPOINT'), 'the larger fallback spans the short checkpoint as well as the oversized pair');
+      assert.ok(pressureInput.includes(giantMarker), 'default soft retention falls back to the larger old range containing the complete tool result');
+      assert.ok(pressureInput.includes('synthetic_tool'), 'the fallback range includes the matching tool-call side');
+      assert.equal(failure, undefined);
+      const recovered = handle.agent.session.deriveMessages();
+      assert.equal(recovered.findLast(message => message.role === 'user' && message.source.kind === 'user')?.content[0]?.text, pressureText);
+      assert.ok(!recovered.some(message => message.content.some(block => block.text?.includes(giantMarker))), 'the oversized pair was replaced by a compact checkpoint');
+      assert.ok(mainPrices.at(-1) <= inputCap, 'the retried full request is within the cap');
+    }
+  } finally {
+    if (handle) await handle.dispose();
+    for (const fiber of fibers.reverse()) await fiber.dispose();
+  }
+}
+
 test('planning limits preserve unknown capacity and reject an envelope with no input space', () => {
   assert.equal(planBudget({ contextWindow: undefined }).known, null);
   assert.equal(planBudget({ contextWindow: 8192, maxTokens: 8192 }).inputCap, 0);
@@ -154,6 +291,11 @@ test('native config validates budget limits and preserves manual-only mode', () 
   assert.equal(parsed.unknownInputCap, 8000);
   assert.throws(() => BudgetEngine.Config({ workingInputCap: 0 }));
   assert.throws(() => BudgetEngine.Config({ unknownInputCap: 1.5 }));
+});
+
+test('soft retention expands to a larger balanced range only when the default retained range cannot reach target', { timeout: 30000 }, async () => {
+  await softRetentionScenario('soft-retention-expands', false);
+  await softRetentionScenario('explicit-retention-stays', true);
 });
 
 test('explicit native admission policy retains route overrides and recovery limits', () => {

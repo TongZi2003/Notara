@@ -97,8 +97,20 @@ export class ContextBudgetCoordinator {
     const breakdown = this.ctx.sessionProjections.stateOf(session, 'contextBreakdown');
     const retain = overflow ? 0 : state.plan.retain ?? (state.retries === 0
       ? Math.min(8192, state.plan.target * .4) * Math.min(1, meter.surfaceTokens / Math.max(1, before)) : 0);
-    const range = chooseRange(session, meter, breakdown, protectedSeq, retain)
+    let range = chooseRange(session, meter, breakdown, protectedSeq, retain)
       ?? (state.plan.retain === undefined || overflow ? chooseRange(session, meter, breakdown, protectedSeq, 0) : null);
+    if (range && retain > 0 && state.plan.retain === undefined && !overflow) {
+      // Retention is a soft default. One indivisible large tool call can push
+      // the retained tail far beyond it and leave only a tiny old checkpoint.
+      // If even removing that checkpoint cannot reach the target, select a
+      // larger balanced old span before spending a summary request on it.
+      const remaining = this.priceWithoutRange(session, state, meter, range);
+      if (remaining !== null && remaining > state.plan.target) {
+        const broader = chooseRange(session, meter, breakdown, protectedSeq, 0);
+        const broaderRemaining = broader && this.priceWithoutRange(session, state, meter, broader);
+        if (broader && broader.tokens > range.tokens && broaderRemaining !== null && broaderRemaining < remaining) range = broader;
+      }
+    }
     if (!range || range.tokens <= 0) return false;
     state.retries++;
     state.reducing = true;
@@ -109,6 +121,20 @@ export class ContextBudgetCoordinator {
       this.price({ ...state.request, messages: session.deriveMessages() }));
     return session.surface.replaceGeneration > beforeGeneration
       && (after <= state.plan.inputCap || after < before * .95);
+  }
+  priceWithoutRange(session, state, meter, range) {
+    const first = session.surface.nodes.indexOf(range.start), last = session.surface.nodes.indexOf(range.end);
+    if (first < 0 || last < first) return null;
+    const ids = new Set();
+    for (const seq of session.surface.nodes.slice(first, last + 1)) {
+      const message = session.deriveEventMessage(session.eventAt(seq));
+      if (message !== null) ids.add(message.id);
+    }
+    const messages = state.request.messages.filter(message => !ids.has(message.id));
+    // Never infer a saving from unmatched or already-normalized message IDs.
+    if (state.request.messages.length - messages.length !== ids.size) return null;
+    return measuredRequestPrice({ ...meter, surfaceTokens: Math.max(0, meter.surfaceTokens - range.tokens) },
+      session.requestHeader(), this.price({ ...state.request, messages }));
   }
   boundRecovery(deps) {
     let attempts = 0;
