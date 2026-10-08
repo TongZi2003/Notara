@@ -67,12 +67,22 @@ async function probe(path, operation, size = 0) {
     } else if(workerData.operation==='recover') {
       await store.resumeDeletions({check(){}});
       await store.deleteSessionIds(['synthetic-pressure'],{check(){}});
+    } else if(workerData.operation==='profile-resume') {
+      const originalTransaction=store.transaction.bind(store),originalExec=store.db.exec.bind(store.db);
+      let transactionCount=0,transactionMs=0,checkpointMs=0;
+      store.transaction=work=>{const started=performance.now();try{return originalTransaction(work);}finally{transactionCount++;transactionMs+=performance.now()-started;}};
+      store.db.exec=sql=>{const checkpoint=typeof sql==='string'&&/PRAGMA\\s+wal_checkpoint\\b/i.test(sql),started=checkpoint?performance.now():0;
+        try{return originalExec(sql);}finally{if(checkpoint)checkpointMs+=performance.now()-started;}};
+      const started=performance.now();
+      await store.resumeDeletions({check(){}});
+      await store.deleteSessionIds(['synthetic-pressure'],{check(){}});
+      var resumeProfile={elapsedMs:performance.now()-started,transactionCount,transactionMs,checkpointMs};
     }
     const scopes=store.db.prepare('SELECT * FROM scopeMeta ORDER BY scope').all(),bindings=store.db.prepare('SELECT * FROM sessionBindings ORDER BY sessionId').all();
     const counts=Object.fromEntries(workerData.tables.map(table=>[table,store.db.prepare('SELECT count(*) AS count FROM '+table+' WHERE scope=(SELECT scope FROM scopeOwners WHERE sessionId=?)').get('synthetic-pressure').count]));
     const survivors=Object.fromEntries(workerData.tables.map(table=>[table,store.db.prepare('SELECT count(*) AS count FROM '+table+' WHERE scope=(SELECT scope FROM scopeOwners WHERE sessionId=?)').get('synthetic-survivor').count]));
     const databasePragmas=pragmas();
-    store.close();parentPort.postMessage({bound,error,counts,survivors,scopes,bindings,transactions,maxChunkRows,maxStoredBytes,databasePragmas});
+    store.close();parentPort.postMessage({bound,error,counts,survivors,scopes,bindings,transactions,maxChunkRows,maxStoredBytes,databasePragmas,resumeProfile});
   })().catch(error=>{throw error;});`;
   return new Promise((resolveResult, reject) => {
     const worker = new Worker(source, { eval: true, execArgv: [], workerData: {
@@ -100,8 +110,10 @@ test('90k owned events with 25KiB receipt projections delete within the default 
       const remaining = await probe(f.path, 'inspect');
       const scope = remaining.scopes.find(row => row.scope === seeded.bound.scope);
       t.diagnostic(`delete RPC failed (${error?.code ?? 'unknown'}); worker ready ${readyMs === undefined ? 'not-ready' : `${Math.round(readyMs)} ms`}; end-to-end ${Math.round(totalMs)} ms; client ${closeResult}; pressure scope ${JSON.stringify(scope ? { state: scope.state, generation: scope.generation } : null)}; remaining rows ${JSON.stringify(remaining.counts)}`);
+      const profile = await probe(f.path, 'profile-resume');
+      t.diagnostic(`tombstone resume profile: elapsed ${Math.round(profile.resumeProfile.elapsedMs)} ms; transactions ${profile.resumeProfile.transactionCount} (${Math.round(profile.resumeProfile.transactionMs)} ms total); WAL checkpoint ${Math.round(profile.resumeProfile.checkpointMs)} ms; remaining rows ${JSON.stringify(profile.counts)}`);
     } catch (diagnosticError) {
-      t.diagnostic(`delete RPC failed (${error?.code ?? 'unknown'}); worker ready ${readyMs === undefined ? 'not-ready' : `${Math.round(readyMs)} ms`}; end-to-end ${Math.round(totalMs)} ms; client ${closeResult}; remaining-state probe failed (${diagnosticError?.code ?? 'unknown'})`);
+      t.diagnostic(`delete RPC failed (${error?.code ?? 'unknown'}); worker ready ${readyMs === undefined ? 'not-ready' : `${Math.round(readyMs)} ms`}; end-to-end ${Math.round(totalMs)} ms; client ${closeResult}; remaining-state/profile probe failed (${diagnosticError?.code ?? 'unknown'}: ${diagnosticError?.message ?? 'no error message'})`);
     }
     throw error;
   }

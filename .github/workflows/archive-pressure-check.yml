@@ -1,0 +1,21 @@
+name: Verify Windows history archive pressure
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-history:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build:native-vault
+      - name: Verify the default deadline, interrupted cleanup and SQL recovery
+        run: node --test examples/native-vault/context-history-delete-pressure.test.js
