@@ -7,11 +7,16 @@ import { Worker } from 'node:worker_threads';
 import { ContextHistoryClient } from './context-history-client.js';
 
 const tables = ['source','events','omissions','chunks','postings','termStats','streams','toolCalls'];
+// Hosted Windows system TEMP has highly variable database I/O. Only this
+// synthetic archive fixture uses runner scratch storage; ACL sandbox fixtures
+// retain the OS temporary directory and its original parent permissions.
+const fixtureRoot = process.platform === 'win32' && process.env.GITHUB_ACTIONS === 'true' && process.env.RUNNER_TEMP
+  ? resolve(process.env.RUNNER_TEMP) : resolve(tmpdir());
 async function fixture(t) {
-  const directory = await mkdtemp(join(tmpdir(), 'notara-delete-pressure-')), clients = [];
+  const directory = await mkdtemp(join(fixtureRoot, 'notara-delete-pressure-')), clients = [];
   t.after(async () => {
     await Promise.all(clients.map(client => client.terminate()));
-    assert.equal(dirname(resolve(directory)), resolve(tmpdir()));
+    assert.equal(dirname(resolve(directory)), fixtureRoot);
     assert.ok(basename(directory).startsWith('notara-delete-pressure-'));
     await rm(directory, { recursive: true, force: true });
   });
