@@ -7,7 +7,7 @@
 - Native Vault `0.24.4` 的网页初始 HTML、PWA manifest 与原生布局标题统一为 `Notara「拾页」`；课堂标题仍由原生 DocumentTitle 投影为「课堂名 — Notara「拾页」」。`patch-product-branding.ts` 与 `patch-layout.ts` 校验锁定上游 SHA 后做可逆补丁，postinstall 和原生构建均执行，不另设竞争的客户端标题写入器。Chromium 已验证初始标题、manifest、课堂生成/重命名与刷新。
 - 私有历史删除先在 FULL 同步事务提交不可逆课堂墓碑，随后仅可幂等重放的物理清理批次临时使用连接级 NORMAL；取消或SQL异常也在finally恢复FULL，最终deleted事务及checkpoint保持FULL。secure_delete、每批256KiB/128块/4096特征与默认端到端30s期限不变。掉电最多回退部分清理，持久墓碑仍阻止读写，启动续清理；九万记录压力、取消、SQL失败及跨scope隔离已有回归覆盖。
 - 删除批次用 Node 24 SQLite 的 `octet_length` 读取列元数据字节数，不为预算计算拉取overflow正文；与旧CAST-BLOB长度保持相同的多字节/NUL/NULL计量。插件测试最多并行两个文件，保留全部用例、九万压力规模和产品默认期限；Windows发布门禁先单独验证同一压力/中断/SQL失败用例，失败也输出有界进度诊断。
-- Windows GitHub Actions 中只有历史删除压力fixture使用 `runner.temp`（独立门禁的 `TEMP`/`TMP` 同样指向该目录），其余测试保留系统临时目录及原有ACL父路径；不得全局替换沙箱测试的临时目录。安装、构建、打包或产品归档位置不变。同一VM保留90001事件和默认30s期限对照：系统临时目录超时后又清理103.7s，runner临时目录端到端4.23s且三项压力/中断/SQL恢复检查PASS；临时盘对照不等于完整发布门禁通过。
+- Windows GitHub Actions 中只有历史删除压力fixture使用 `runner.temp`（正式发布的独立压力步骤也设置该目录的 `TEMP`/`TMP`），其余测试保留系统临时目录及原有ACL父路径；不得全局替换沙箱测试的临时目录。安装、构建、打包或产品归档位置不变。同一VM保留90001事件和默认30s期限对照：系统临时目录超时后又清理103.7s，runner临时目录端到端4.23s且三项压力/中断/SQL恢复检查PASS；临时盘对照不等于完整发布门禁通过。
 - 32MiB PDF范围失败回归先准备36MB合成PDF并完成首次哈希，再用独立5s嵌套测试覆盖范围拒绝、源文件/revision不变及后续读者真实PNG恢复；大文件准备的磁盘耗时不冒充读取器挂起，也不提高实际防挂期限。
 
 - 当前原文搜索策略为 `native-evidence-v3`：沿用 v2 的等长转义证据投影、canonical 字节与 SQLite v2，仅增加纯数字查询的有界候选索引。数字单字符/相邻双字符最多110种，只有原词法/汉字/标识符候选词全空时启用，最终仍核验完整原始编码范围；小数点、符号和数字片段不能靠候选拼成假原话。旧v2课堂绑定通过既有policy/prefix机制重建派生索引，未知策略不直接写入。
