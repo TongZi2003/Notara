@@ -37,7 +37,11 @@
 
 Windows 90,001 条历史记录删除压力的同机临时目录对照发现，使用系统 `TEMP`/`TMP` 时超出默认30秒期限；同 VM、同 fixture 和断言改用 `runner.temp` 后，删除耗时4,189ms，3/3项测试通过。Windows GitHub Actions 中只有历史删除压力fixture与独立门禁使用 runner 临时目录；其余测试、构建、依赖安装、打包及产品归档位置不变，沙箱测试保留原有ACL父路径。[对照任务](https://github.com/TongZi2003/Notara/actions/runs/37801843552)因第一步系统临时目录检查失败，整体仍为失败，第二步 runner 临时目录检查通过。这项结果只覆盖专项压力检查；正式发布仍由完整 Windows/Linux 门禁验证。
 
-本轮发布门禁诊断还修正了三处测试夹具/接缝：PDF 合成测试未声明图像定价，触发 32768 的未知价格失败；现在通过精确 mock route 声明 256 的非零图像价格，不改变真实 provider。冷启动时，原生 system 新 series 按当前 GUI origin 重整，同时严格核对旧 non-system 节点与 wire prefix，同 series full prefix 仍严格匹配。长程 fixture 按精确 requestId 跟踪原生 terminal，不再从请求数量推测回合完成，失效工具结果不会冒充本轮结果。2026-10-09 本机三项集成专项共4/4通过，单元测试43文件201/201通过；新增真实原生事务回归核对默认软保留扩展和显式保留不扩展。专项结果不替代完整 Windows/Linux 发布门禁。
+本轮发布门禁诊断还修正了三处测试夹具/接缝：PDF 合成测试未声明图像定价，触发 32768 的未知价格失败；现在通过精确 mock route 声明 256 的非零图像价格，不改变真实 provider。冷启动时，原生 system 新 series 按当前 GUI origin 重整，同时严格核对旧 non-system 节点与 wire prefix，同 series full prefix 仍严格匹配。长程 fixture 按精确 requestId 跟踪原生 terminal，不再从请求数量推测回合完成，失效工具结果不会冒充本轮结果。
+
+此前一轮本机专项为3类集成检查4/4通过、单元测试43个文件201/201通过；新增事务回归核对默认软保留扩展和显式保留不扩展。随后一次全量 Windows 集成（38个文件）为36通过、1失败、1跳过；测试结果为145通过、1失败、1跳过，唯一失败是更新安装遇到锁心跳竞态并触发回滚。`proper-lockfile` 在正常 unlock 后迟到的 heartbeat `stat` 得到 `ENOENT`，并被上报为 `ECOMPROMISED`。`vault-root-lock.ts` 仅在锁路径确为当前实例所拥有且已开始 release 时忽略该迟到回调；活跃 owner 的 compromise 仍正常报错。
+
+修复后，锁模块单元测试5项通过；`npm run test:integration -- tests/integration/native-vault-updates.test.ts` 为3/3通过，用时217.13秒，其中启动失败是用于验证回滚的预期场景，不表示更新安装失败。迁移与持久化专项2个文件、6/6通过，用时48.97秒，覆盖迁移、锁互斥和快照升级。源码与测试 TypeScript 检查通过。Windows 发布门禁现运行 `npm run test:integration` 并包含恢复和更新测试，使 `prepareRelease` 能取得 `npm_execpath`。发布前预检 [run 37810124497](https://github.com/TongZi2003/Notara/actions/runs/37810124497) 的 Windows、Linux 与打包均通过；Linux 浏览器测试87项通过、1项按既有条件跳过。预检分支不会发布安装包，正式资产仍须通过对应版本标签的完整发布门禁。
 
 调整后[Windows 文件IO专项复核](https://github.com/TongZi2003/Notara/actions/runs/37804992632)26/26通过：历史压力端到端3,450ms，PDF范围拒绝与后续读取恢复233ms，原Low-token权限读写196ms。PDF防挂检查仍保留5秒，只将大文件准备与首次哈希移到计时外；其他文件测试继续使用系统临时目录。这些专项检查与上面的全量本机门禁分别记录。
 

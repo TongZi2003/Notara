@@ -69,8 +69,8 @@ jobs:
         run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/native-vault-git-bash.test.ts tests/integration/native-vault-memory.test.ts tests/integration/native-vault-teaching.test.ts tests/integration/native-vault-windows-shell.test.ts tests/integration/native-vault-windows-cli.test.ts tests/integration/native-vault-windows-pipe.test.ts
       - name: Verify Unicode shortcuts, installer and start-stop
         run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/windows-shortcuts.test.ts tests/integration/windows-installer.test.ts tests/integration/vault-installer.test.ts
-      - name: Verify unexpected process recovery and saved classroom continuity
-        run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/native-vault-recovery.test.ts
+      - name: Verify process recovery and installed update continuity
+        run: npm run test:integration -- tests/integration/native-vault-recovery.test.ts tests/integration/native-vault-updates.test.ts
       - name: Build the Windows x64 ready-to-run package
         run: npm run release:portable
       - name: Verify portable startup without system Node or Git

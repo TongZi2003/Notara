@@ -17,8 +17,19 @@ export async function acquireVaultRootLock(root: string, filesystem: typeof fs =
   });
   const lockPath = `${canonical}.lock`;
   let owned = false;
+  let releaseStarted = false;
   const adapter = {
     ...filesystem,
+    stat(path: fs.PathLike, callback: (error: NodeJS.ErrnoException | null, stats: fs.Stats) => void): void {
+      const heartbeat = owned && String(path) === lockPath;
+      filesystem.stat(path, (error, stats) => {
+        // proper-lockfile does not await an in-flight heartbeat stat during
+        // unlock. Once our own release starts, its late callback must not mark
+        // the released lock (or a newly acquired replacement) compromised.
+        if (heartbeat && releaseStarted) return;
+        callback(error, stats!);
+      });
+    },
     rmdir(path: fs.PathLike, callback: fs.NoParamCallback): void {
       // During acquisition proper-lockfile may remove an old stale lock. Only
       // this acquired root's release gets the short sharing-violation retry.
@@ -53,5 +64,11 @@ export async function acquireVaultRootLock(root: string, filesystem: typeof fs =
   const release = await lockfile.lock(root, { retries: 0, stale: staleMs, fs: adapter });
   owned = true;
   let releasing: Promise<void> | undefined;
-  return () => (releasing ??= release());
+  return () => {
+    if (!releasing) {
+      releaseStarted = true;
+      releasing = release();
+    }
+    return releasing;
+  };
 }
