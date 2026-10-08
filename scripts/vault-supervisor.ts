@@ -9,6 +9,7 @@ import { VaultRecovery, validateVaultRecoveryPolicy, type VaultRecoveryPolicy, t
 import { acquireCachedCodeLease, cleanupPreparedReleaseCache, codeContract, collectReleaseCache, defaultReleaseCacheRoot, discoverRelease, prepareRelease, releaseCachedCodeLease, runPackageScript, UpdateController } from './vault-updates.ts';
 import type { Release } from './vault-updates.ts';
 import { startUpdateServer } from './vault-update-server.ts';
+import { captureOwnedVaultLauncher, cleanupStoppedVaultLauncher, type OwnedVaultLauncher } from './vault-owned-launcher.ts';
 import { createRemoteAccessService, type RemoteAccessDependencies, type RemoteAccessService } from './remote-access-service.ts';
 
 const pointerPath = (root: string): string => join(root, 'notara-release.json');
@@ -117,12 +118,17 @@ export async function superviseVault(root: string, code: string, port?: number, 
       });
     } catch (error) { await releaseLease(); throw error; }
     let exited = false;
+    let ownedLauncher: OwnedVaultLauncher | undefined;
     const exit = new Promise<void>(done => { child.once('exit', () => { exited = true; done(); }); child.once('error', () => { exited = true; done(); }); });
     const stop = async () => {
-      if (exited) { await releaseLease(); return; }
-      if (child.connected) { try { child.send({ type: 'stop' }); } catch { /* The exit listener still owns completion. */ } }
-      const timer = setTimeout(() => { try { child.kill('SIGTERM'); } catch { /* Process may already have exited. */ } }, 15_000);
-      try { await exit; } finally { clearTimeout(timer); await releaseLease(); }
+      try {
+        if (!exited) {
+          if (child.connected) { try { child.send({ type: 'stop' }); } catch { /* The exit listener still owns completion. */ } }
+          const timer = setTimeout(() => { try { child.kill('SIGTERM'); } catch { /* Process may already have exited. */ } }, 15_000);
+          try { await exit; } finally { clearTimeout(timer); }
+        }
+        await cleanupStoppedVaultLauncher(root, ownedLauncher);
+      } finally { await releaseLease(); }
     };
     let onAbort: (() => void) | undefined;
     try {
@@ -137,6 +143,7 @@ export async function superviseVault(root: string, code: string, port?: number, 
           if (value && typeof value === 'object' && 'type' in value && value.type === 'ready' && 'authUrl' in value && typeof value.authUrl === 'string') { clearTimeout(timer); done(value.authUrl); }
         });
       });
+      ownedLauncher = await captureOwnedVaultLauncher(root, child.pid!, authUrl);
       activePort = httpUrlPort(new URL(authUrl));
       return { authUrl, alive: () => !exited, stop };
     } catch (error) { await stop(); throw error; }

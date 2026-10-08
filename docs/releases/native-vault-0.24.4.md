@@ -41,7 +41,11 @@ Windows 90,001 条历史记录删除压力的同机临时目录对照发现，�
 
 此前一轮本机专项为3类集成检查4/4通过、单元测试43个文件201/201通过；新增事务回归核对默认软保留扩展和显式保留不扩展。随后一次全量 Windows 集成（38个文件）为36通过、1失败、1跳过；测试结果为145通过、1失败、1跳过，唯一失败是更新安装遇到锁心跳竞态并触发回滚。`proper-lockfile` 在正常 unlock 后迟到的 heartbeat `stat` 得到 `ENOENT`，并被上报为 `ECOMPROMISED`。`vault-root-lock.ts` 仅在锁路径确为当前实例所拥有且已开始 release 时忽略该迟到回调；活跃 owner 的 compromise 仍正常报错。
 
-修复后，锁模块单元测试5项通过；`npm run test:integration -- tests/integration/native-vault-updates.test.ts` 为3/3通过，用时217.13秒，其中启动失败是用于验证回滚的预期场景，不表示更新安装失败。迁移与持久化专项2个文件、6/6通过，用时48.97秒，覆盖迁移、锁互斥和快照升级。源码与测试 TypeScript 检查通过。Windows 发布门禁现运行 `npm run test:integration` 并包含恢复和更新测试，使 `prepareRelease` 能取得 `npm_execpath`。发布前预检 [run 37810124497](https://github.com/TongZi2003/Notara/actions/runs/37810124497) 的 Windows、Linux 与打包均通过；Linux 浏览器测试87项通过、1项按既有条件跳过。预检分支不会发布安装包，正式资产仍须通过对应版本标签的完整发布门禁。
+此前版本的锁模块单元测试5项、更新安装定向集成3/3（217.13秒）和迁移/持久化专项2文件6/6（48.97秒）均通过；更新用例中的故意启动失败用于验证回滚。随后新增 `scripts/vault-owned-launcher.ts` 并接入 `vault-supervisor`：IPC ready 时保存准确的 Host PID、parent PID、auth URL 与原始字节。stop 只有在 Host 和 worker 都退出且启动代次仍匹配时，才通过正常 runtime root lock 清理自身 stale launcher；foreign launcher、新代次、存活进程和 `EPERM` 均保留，锁争用最多等待15秒。父监督器覆盖 hard kill 后子进程来不及清理的情形；`taskkill` 返回 root-not-found 不作为进程树全部停止的证明。
+
+该 launcher 的 pure unit 共8/8通过；新增4项覆盖默认终止遇到 `EPERM` 或进程仍存活、Host 已退出但 parent worker 仍存活、runtime root lock 等待15秒到期，以及 IPC capture 不匹配时拒绝清理。本机 recovery 集成1项通过，用时55.56秒，包含最终 `SIGKILL` 崩溃并保留原有 origin、session、sentinel 与 turn 断言。源码与测试 TypeScript 检查通过。新增更新 fixture 输出 phase、毫秒耗时与归档字节诊断；Windows CI 仅该 fixture 使用 `RUNNER_TEMP`，`NOTARA_TEST_UPDATE_STORAGE=system` 用于同 VM 对照，不修改全局 `TEMP`/`TMP` 或产品数据目录。手动 workflow [windows-update-check.yml](../../.github/workflows/windows-update-check.yml) 将在同一 VM 比较 system-temp 单安装与 runner-temp 的完整更新3项加 recovery1项，沿用240秒期限。
+
+随后本机更新安装定向集成 `npm run test:integration -- tests/integration/native-vault-updates.test.ts` 为1文件3/3通过，用时218.85秒；覆盖正常安装保留课堂与文件，以及故意启动失败后的自动回滚。该次运行使用旧 Vitest console 输出版本，没有可用的逐阶段计时，故不列阶段耗时。正式 workflow [run 37814513349](https://github.com/TongZi2003/Notara/actions/runs/37814513349) 的 Linux 检查通过（全集成134通过、13项平台跳过；E2E 87通过、1项既有跳过，约21.1分钟），Windows 有3项失败，集中在 recovery 与 updates。新手动同机云端对照尚未运行；该版更新专项本机通过不代表 Windows 门禁通过。0.24.4 尚未发布。
 
 调整后[Windows 文件IO专项复核](https://github.com/TongZi2003/Notara/actions/runs/37804992632)26/26通过：历史压力端到端3,450ms，PDF范围拒绝与后续读取恢复233ms，原Low-token权限读写196ms。PDF防挂检查仍保留5秒，只将大文件准备与首次哈希移到计时外；其他文件测试继续使用系统临时目录。这些专项检查与上面的全量本机门禁分别记录。
 
