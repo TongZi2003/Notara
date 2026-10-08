@@ -13,6 +13,7 @@ import { installChatgpt } from './chatgpt-runtime.js';
 import { installSessionDeletion } from './session-deletion-runtime.js';
 import { installRemoteSettings } from './remote-settings-runtime.js';
 import { installSessionGroups } from './session-groups-runtime.js';
+import { NotaraContextHistory } from './context-history.js';
 import { conditionalProjection } from './projection-runtime.js';
 import { PDF_RANGE_OPEN_MAX_JOBS, PDF_RANGE_RPC_MAX_BYTES } from './media.js';
 import { SOLVER_SETTINGS_CONFLICT_CODE, SOLVER_SETTINGS_CONFLICT_MESSAGE } from './solver-policy.js';
@@ -409,6 +410,7 @@ export function apply(ctx) {
   ctx.plugin(NotaraVaultRemote);
   installFontRoute(ctx);
   installChatgpt(ctx);
+  ctx.plugin(NotaraContextHistory);
   installSessionDeletion(ctx);
   installRemoteSettings(ctx);
   installSessionGroups(ctx);

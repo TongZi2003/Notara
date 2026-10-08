@@ -10,6 +10,9 @@ const patches = [
   {
     path: 'lib/client.js', sha: '587d109681891295aed5bf0a4b1ca7c005113124be5b043246f09fccce47f492',
     replacements: [
+      // The native title effect also runs after classroom switches and reloads.
+      // Brand its own authority instead of racing it with another title effect.
+      ['const productTitle = "DeepSeek Harness";', 'const productTitle = "Notara「拾页」";'],
       // The hidden native right sidebar extends beyond the frame. `hidden`
       // makes that outer frame programmatically scrollable: focusing a graph
       // node or navigating an editor can pan the entire app into the offscreen

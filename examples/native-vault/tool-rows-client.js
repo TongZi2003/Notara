@@ -12,6 +12,8 @@ export const STATUS_ROWS = Object.freeze({
   open_learning_lesson: ['正在打开这节课…', '已打开这节课', '这节课没有打开'],
   vault_read: ['正在读取资料…', '已读取资料', '资料读取失败'],
   vault_search: ['正在查找资料…', '已查找资料', '资料检索失败'],
+  history_search: ['正在查找课堂记录…', '已查找课堂记录', '课堂记录检索失败'],
+  history_read: ['正在回看课堂记录…', '已回看课堂记录', '课堂记录读取失败'],
   vault_save: ['正在保存资料…', '已保存资料', '资料没有保存成功'],
   vault_command: ['正在处理资料…', '已处理资料操作', '资料操作没有完成'],
 });

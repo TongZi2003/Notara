@@ -5,3 +5,5 @@
 *.cmd text eol=crlf
 # Keep the bundled PDF.js license notices byte-for-byte; upstream uses trailing spaces.
 examples/native-vault/pdf-resources/**/LICENSE* -whitespace
+# Pinned third-party inputs are verified as bytes, including upstream CRLF.
+vendor/billion-context/** -text -whitespace

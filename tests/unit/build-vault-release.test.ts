@@ -18,6 +18,19 @@ test('release inventory includes all Windows executable, source and license asse
   await text('package.json', JSON.stringify({ devDependencies: { '@deepseek-ai/dsh': '0.2.0-rc.1', '@deepseek-ai/cordis': '4.0.4' } }));
   await text('examples/native-vault/package.json', JSON.stringify({ version: '0.24.1' }));
   await text('docs/runtime/update-contract.json', JSON.stringify({ dataVersion: 5 }));
+  const kernelInputs = {
+    'kernel/src/index.ts': 'export const pinnedKernel = 1;\n',
+    'kernel/package.json': JSON.stringify({ version: '0.0.105' }),
+    'kernel/LICENSE': 'Kernel attribution fixture',
+    'LICENSE': 'Billion attribution fixture',
+  };
+  const kernelLock = { commit: 'pinned-fixture', files: Object.fromEntries(Object.entries(kernelInputs)
+    .map(([path, content]) => [path, createHash('sha256').update(content).digest('hex')])) };
+  for (const [path, content] of Object.entries(kernelInputs)) await text(`vendor/billion-context/${path}`, content);
+  await text('vendor/billion-context/upstream-lock.json', JSON.stringify(kernelLock));
+  await text('vendor/billion-context/README.md', 'Pinned kernel source attribution');
+  await text('examples/native-vault/billion-kernel/index.js', 'export const pinnedKernel = 1;\n');
+  await text('vendor/unrelated/private-cache.txt', 'excluded');
   const files = ['busybox.exe', 'source.tgz', 'LICENSE.txt', 'NOTICE.txt'].map(name => `vendor/windows-posix/FRP-test/${name}`);
   for (const path of files) await text(path, `asset ${path}`);
   await text('vendor/windows-posix/FRP-test/.provision.lock', 'private lock');
@@ -41,6 +54,19 @@ test('release inventory includes all Windows executable, source and license asse
     expect(entries[`notara/${path}`]).toBeDefined();
     expect(inventory.files[path]).toBe(createHash('sha256').update(entries[`notara/${path}`]!).digest('hex'));
   }
-  expect(Object.keys(entries).filter(name => name.includes('/vendor/'))).toHaveLength(4);
+  // The generated module alone cannot satisfy the staging rebuild. Verify every
+  // declared source input survives extraction with the exact locked bytes.
+  const shippedLock = JSON.parse(new TextDecoder().decode(entries['notara/vendor/billion-context/upstream-lock.json']!)) as typeof kernelLock;
+  expect(shippedLock).toEqual(kernelLock);
+  for (const [path, digest] of Object.entries(shippedLock.files)) {
+    const bytes = entries[`notara/vendor/billion-context/${path}`];
+    expect(bytes).toBeDefined();
+    expect(createHash('sha256').update(bytes!).digest('hex')).toBe(digest);
+    expect(inventory.files[`vendor/billion-context/${path}`]).toBe(digest);
+  }
+  expect(entries['notara/vendor/billion-context/README.md']).toBeDefined();
+  expect(entries['notara/examples/native-vault/billion-kernel/index.js']).toBeDefined();
+  expect(Object.keys(entries).filter(name => name.includes('/vendor/windows-posix/'))).toHaveLength(4);
+  expect(Object.keys(entries).some(name => name.includes('/vendor/unrelated/'))).toBe(false);
   expect(Object.keys(entries).some(name => name.includes('preview-install-progress'))).toBe(false);
 });

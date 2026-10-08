@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { responsesRequest, responseEvents, ChatgptAdapter } from './chatgpt-provider.js';
 import { QUOTA_EXCEEDED_CODE, CONTEXT_WINDOW_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm';
 
-const sse = events => new Response(events.map(event => `event: ${event.type}\r\ndata: ${JSON.stringify(event)}\r\n\r\n`).join(''), { headers: { 'content-type': 'text/event-stream' } });
+const sse = (events, headers = {}) => new Response(events.map(event => `event: ${event.type}\r\ndata: ${JSON.stringify(event)}\r\n\r\n`).join(''), { headers: { 'content-type': 'text/event-stream', ...headers } });
 const completed = { type: 'response.completed', response: { status: 'completed', usage: { input_tokens: 8, output_tokens: 4, total_tokens: 12 } } };
 const options = { provider: 'notara-chatgpt-account', model: 'model-from-catalog', messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello' }] }] };
+const httpProvider = (error, status, headers = {}) => new ChatgptAdapter({ track: () => () => {}, access: async () => 'synthetic', request: async () => Response.json({ error }, { status, headers }) });
 
 test('subscription requests preserve text/tool history, map system to developer and omit unsupported fields', async () => {
   const request = await responsesRequest({ ...options, temperature: 1, maxTokens: 99, messages: [
@@ -27,9 +28,9 @@ test('SSE parser handles split bytes, unicode and CRLF', async () => {
   assert.deepEqual(events, [{ type: 'response.output_text.delta', delta: '数学' }]);
 });
 
-function adapter(events) {
+function adapter(events, headers = {}) {
   const requests = [];
-  const accounts = { data: { accounts: [{ id: 'account', email: 'test@example.com' }] }, track: () => () => {}, access: async () => 'synthetic-private-token', request: async (url, request) => { requests.push({ url, request }); return sse(events); } };
+  const accounts = { data: { accounts: [{ id: 'account', email: 'test@example.com' }] }, track: () => () => {}, access: async () => 'synthetic-private-token', request: async (url, request) => { requests.push({ url, request }); return sse(events, headers); } };
   return { adapter: new ChatgptAdapter(accounts), requests };
 }
 const collect = async iterable => { const result = []; for await (const item of iterable) result.push(item); return result; };
@@ -63,7 +64,14 @@ test('model discovery keeps only visible account-specific models and server orde
 
 test('encrypted reasoning survives stateless follow-up without reviving edited content or crossing accounts', async () => {
   const output = [{ type: 'reasoning', id: 'reasoning_1', summary: [], encrypted_content: 'opaque-provider-data' }, { type: 'message', role: 'assistant', phase: 'final_answer', content: [{ type: 'output_text', text: 'Hello', annotations: [] }] }];
-  const fixture = adapter([{ type: 'response.output_text.delta', output_index: 1, content_index: 0, delta: 'Hello' }, { ...completed, response: { ...completed.response, output } }]);
+  const fixture = adapter([
+    { type: 'response.output_item.added', output_index: 0, item: { type: 'reasoning', id: 'reasoning_1', summary: [], status: 'in_progress' } },
+    { type: 'response.output_item.done', output_index: 0, item: output[0] },
+    { type: 'response.output_item.added', output_index: 1, item: { type: 'message', role: 'assistant', content: [], status: 'in_progress' } },
+    { type: 'response.output_text.delta', output_index: 1, content_index: 0, delta: 'Hello' },
+    { type: 'response.output_item.done', output_index: 1, item: output[1] },
+    { ...completed, response: { ...completed.response, output } },
+  ]);
   const chunks = await collect(fixture.adapter.stream(options));
   const message = { role: 'assistant', source: { kind: 'model', provider: options.provider, model: options.model, replayState: chunks.at(-1).replayState }, content: [{ type: 'text', text: 'Hello' }] };
   const request = await responsesRequest({ ...options, messages: [...options.messages, message] });
@@ -74,6 +82,78 @@ test('encrypted reasoning survives stateless follow-up without reviving edited c
   message.content[0].text = 'Hello';
   const switched = await responsesRequest({ ...options, provider: 'notara-chatgpt-other-account', messages: [message] });
   assert.doesNotMatch(JSON.stringify(switched), /opaque-provider-data/);
+});
+
+test('finalized SSE output items recover empty or omitted completed output and preserve paired tool history', async () => {
+  const callId = 'call_synthetic_123456789012345';
+  const argumentsText = '{"action":"list"}';
+  const reasoning = { type: 'reasoning', id: 'rs_synthetic', summary: [], encrypted_content: 'opaque-synthetic-reasoning' };
+  const call = { type: 'function_call', id: 'fc_synthetic', call_id: callId, namespace: 'notara', name: 'write_lesson_board', arguments: argumentsText, status: 'completed' };
+  const output = [reasoning, call];
+  const itemEvents = [
+    { type: 'response.output_item.added', output_index: 0, item: { type: 'reasoning', id: reasoning.id, summary: [], status: 'in_progress' } },
+    { type: 'response.output_item.added', output_index: 1, item: { ...call, arguments: '', status: 'in_progress' } },
+    { type: 'response.function_call_arguments.delta', output_index: 1, delta: argumentsText },
+    { type: 'response.output_item.done', output_index: 1, item: call },
+    { type: 'response.output_item.done', output_index: 0, item: reasoning },
+  ];
+  const tool = { role: 'tool', source: { callId }, content: [{ type: 'text', text: 'synthetic result' }] };
+  const toolOptions = { ...options, tools: [{ name: 'write_lesson_board', description: 'Synthetic tool', parameters: { type: 'object' } }] };
+
+  for (const response of [
+    { status: 'completed', output: [] },
+    { status: 'completed' },
+  ]) {
+    const fixture = adapter([...itemEvents, { type: 'response.completed', response }]);
+    const chunks = await collect(fixture.adapter.stream(options));
+    const finish = chunks.at(-1), nativeCall = chunks.find(chunk => chunk.type === 'block-end' && chunk.block.type === 'tool-call').block;
+    assert.deepEqual(finish.replayState.response.output, output);
+    assert.deepEqual(nativeCall, { type: 'tool-call', id: callId, name: 'write_lesson_board', arguments: argumentsText });
+
+    const assistant = { role: 'assistant', source: { kind: 'model', provider: options.provider, model: options.model, replayState: finish.replayState }, content: [nativeCall] };
+    const replayed = await responsesRequest({ ...toolOptions, messages: [...options.messages, assistant, tool] });
+    assert.deepEqual(replayed.input.slice(1), [
+      ...output,
+      { type: 'function_call_output', call_id: callId, output: [{ type: 'input_text', text: 'synthetic result' }] },
+    ]);
+
+    // A 0.24.3 empty replay with a matching content hash must fall back to native blocks.
+    const staleAssistant = { ...assistant, source: { ...assistant.source, replayState: { response: { ...finish.replayState.response, output: [] } } } };
+    const recovered = await responsesRequest({ ...toolOptions, messages: [...options.messages, staleAssistant, tool] });
+    assert.deepEqual(recovered.input.slice(1), [
+      { type: 'function_call', call_id: callId, namespace: 'notara', name: 'write_lesson_board', arguments: argumentsText },
+      { type: 'function_call_output', call_id: callId, output: [{ type: 'input_text', text: 'synthetic result' }] },
+    ]);
+  }
+});
+
+test('partial completed output that mismatches visible tool calls is not saved as replay', async () => {
+  const callId = 'call_synthetic_partial';
+  const argumentsText = '{"action":"list"}';
+  const call = { type: 'function_call', id: 'fc_partial', call_id: callId, namespace: 'notara', name: 'write_lesson_board', arguments: argumentsText, status: 'completed' };
+  for (const prefix of [
+    [],
+    [{ type: 'response.output_item.added', output_index: 0, item: { type: 'reasoning', id: 'rs_partial', summary: [], status: 'in_progress' } }],
+  ]) {
+    const callIndex = prefix.length;
+    const partialOutput = prefix.length ? [call] : [{ type: 'reasoning', id: 'rs_partial', summary: [], encrypted_content: 'opaque-partial' }];
+    const fixture = adapter([
+      ...prefix,
+      { type: 'response.output_item.added', output_index: callIndex, item: { ...call, arguments: '', status: 'in_progress' } },
+      { type: 'response.function_call_arguments.delta', output_index: callIndex, delta: argumentsText },
+      { type: 'response.completed', response: { status: 'completed', output: partialOutput } },
+    ]);
+    const chunks = await collect(fixture.adapter.stream(options)), finish = chunks.at(-1);
+    const nativeCall = chunks.find(chunk => chunk.type === 'block-end' && chunk.block.type === 'tool-call').block;
+    assert.equal(finish.replayState, undefined);
+    const assistant = { role: 'assistant', source: { kind: 'model', provider: options.provider, model: options.model }, content: [nativeCall] };
+    const tool = { role: 'tool', source: { callId }, content: [{ type: 'text', text: 'synthetic result' }] };
+    const request = await responsesRequest({ ...options, messages: [...options.messages, assistant, tool] });
+    assert.deepEqual(request.input.slice(1), [
+      { type: 'function_call', call_id: callId, namespace: 'notara', name: 'write_lesson_board', arguments: argumentsText },
+      { type: 'function_call_output', call_id: callId, output: [{ type: 'input_text', text: 'synthetic result' }] },
+    ]);
+  }
 });
 
 test('Responses usage separates cached input without changing total or counting it twice', async () => {
@@ -109,16 +189,38 @@ test('malformed usage never finishes successfully and inconsistent aggregate tot
 });
 
 test('HTTP and SSE context overflow and quota failures use native recovery and notice codes', async () => {
-  const http = (error, status) => new ChatgptAdapter({ track: () => () => {}, access: async () => 'synthetic', request: async () => Response.json({ error }, { status }) });
   for (const client of [
-    http({ code: 'context_length_exceeded' }, 400),
-    http({ message: 'This input exceeds the model context window.' }, 400),
+    httpProvider({ code: 'context_length_exceeded' }, 400),
+    httpProvider({ type: 'context_length_exceeded' }, 400),
+    httpProvider({ message: 'This input exceeds the model context window.' }, 400),
     adapter([{ type: 'response.failed', response: { error: { code: 'context_length_exceeded' } } }]).adapter,
+    adapter([{ type: 'response.failed', response: { error: { type: 'context_length_exceeded' } } }]).adapter,
     adapter([{ type: 'error', message: 'Maximum context length exceeded.' }]).adapter,
   ]) await assert.rejects(collect(client.stream(options)), { code: CONTEXT_WINDOW_EXCEEDED_CODE });
   for (const client of [
-    http({ code: 'subscription_sharing_usage_limit_exceeded' }, 429),
+    httpProvider({ code: 'subscription_sharing_usage_limit_exceeded' }, 429),
     adapter([{ type: 'response.failed', response: { error: { code: 'subscription_sharing_usage_limit_exceeded' } } }]).adapter,
   ]) await assert.rejects(collect(client.stream(options)), { code: QUOTA_EXCEEDED_CODE });
-  await assert.rejects(collect(http({ code: 'server_error' }, 500).stream(options)), { code: 'PROVIDER_ERROR' });
+  await assert.rejects(collect(httpProvider({ code: 'server_error' }, 500).stream(options)), { code: 'PROVIDER_ERROR' });
+});
+
+test('generic HTTP errors retain safe status and request id without exposing provider message', async () => {
+  const secret = 'PRIVATE_INPUT_OR_KEY_MUST_NOT_APPEAR';
+  const client = httpProvider({ code: 'invalid_request_error', type: 'invalid_request_error', message: secret }, 400, { 'x-request-id': 'req-synthetic-400' });
+  await assert.rejects(collect(client.stream(options)), error => {
+    assert.equal(error.code, 'PROVIDER_ERROR');
+    assert.match(error.message, /HTTP 400/);
+    assert.doesNotMatch(error.message, /PRIVATE_INPUT_OR_KEY_MUST_NOT_APPEAR/);
+    assert.deepEqual(error.failure, { message: error.message, code: 'PROVIDER_ERROR', status: 400, requestId: 'req-synthetic-400' });
+    assert.doesNotMatch(JSON.stringify(error.failure), /PRIVATE_INPUT_OR_KEY_MUST_NOT_APPEAR/);
+    return true;
+  });
+
+  const streamClient = adapter([{ type: 'response.failed', response: { error: { type: 'invalid_request_error', message: secret } } }], { 'x-request-id': 'req-synthetic-sse' }).adapter;
+  await assert.rejects(collect(streamClient.stream(options)), error => {
+    assert.equal(error.code, 'PROVIDER_ERROR');
+    assert.doesNotMatch(error.message, /PRIVATE_INPUT_OR_KEY_MUST_NOT_APPEAR/);
+    assert.deepEqual(error.failure, { message: error.message, code: 'PROVIDER_ERROR', status: 200, requestId: 'req-synthetic-sse' });
+    return true;
+  });
 });

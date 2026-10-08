@@ -1,5 +1,6 @@
 import { teachingChoices } from './teaching-catalog.js';
 import { workerAllows } from './worker-catalog.js';
+import { registerContextHistoryTools, HISTORY_TOOL_NAMES } from './context-history-tools.js';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { isCodePath } from './media.js';
 import { resolveVaultRoot } from './vault.js';
@@ -49,6 +50,7 @@ export function installAgentTools(ctx,service) {
     }));
   }
   registerVaultAgentTools(ctx,service);
+  registerContextHistoryTools(ctx,service);
   ctx.on('tools/pre-execute',async(exec,next)=>{
     service.prepareTool?.(exec);
     const decision=await next();
@@ -83,7 +85,7 @@ export function installAgentTools(ctx,service) {
   ctx.effect(()=>ctx.tools.guard(exec=>{
     if(isMainTeacher(service,exec.agent)&&TEACHER_TEXT_TOOLS.has(exec.name)&&!(TEACHER_CODE_TOOLS.has(exec.name)&&isCodePath(exec.arguments?.file_path)))return TEACHER_TEXT_REFUSAL;
     if(isMainTeacher(service,exec.agent)&&(exec.name==='write'||exec.name==='edit')&&!insideVault(exec,exec.arguments?.file_path))return TEACHER_OUTSIDE_REFUSAL;
-    if((VAULT_TOOL_CONTRACTS.some(tool=>tool.name===exec.name)||VAULT_AGENT_TOOL_NAMES.includes(exec.name))&&!service.isTeaching(exec.agent))return '该能力仅用于当前教学会话。';
+    if((VAULT_TOOL_CONTRACTS.some(tool=>tool.name===exec.name)||VAULT_AGENT_TOOL_NAMES.includes(exec.name)||HISTORY_TOOL_NAMES.includes(exec.name))&&!service.isTeaching(exec.agent))return '该能力仅用于当前教学会话。';
     if(service.isTeaching(exec.agent)&&exec.agent?.session?.header?.origin==='subagent'&&!workerAllows(exec.agent.session,exec.name))return '后台任务不能越过已配置范围或安排其他助手。';
     return undefined;
   }));
@@ -91,9 +93,9 @@ export function installAgentTools(ctx,service) {
     const result=await next();
     // The native sections were rendered while the tools were still visible
     // ("Use the grep tool — not shell grep or rg"), so they leave with them.
-    if(isMainTeacher(service,context.agent))return {...result,tools:result.tools.filter(tool=>!TEACHER_HIDDEN_TOOLS.has(tool.name)),sections:result.sections.filter(section=>!(section.name.startsWith('tool:')&&TEACHER_TEXT_TOOLS.has(section.name.slice(5))))};
-    if(service.isTeaching(context.agent))return result;
-    const names=new Set([...VAULT_TOOL_CONTRACTS.map(tool=>tool.name),...VAULT_AGENT_TOOL_NAMES]);
+    if(isMainTeacher(service,context.agent))return {...result,tools:result.tools.filter(tool=>!TEACHER_HIDDEN_TOOLS.has(tool.name)&&(!HISTORY_TOOL_NAMES.includes(tool.name)||!!ctx.get('notaraHistory'))),sections:result.sections.filter(section=>!(section.name.startsWith('tool:')&&TEACHER_TEXT_TOOLS.has(section.name.slice(5))))};
+    if(service.isTeaching(context.agent))return {...result,tools:result.tools.filter(tool=>!HISTORY_TOOL_NAMES.includes(tool.name))};
+    const names=new Set([...VAULT_TOOL_CONTRACTS.map(tool=>tool.name),...VAULT_AGENT_TOOL_NAMES,...HISTORY_TOOL_NAMES]);
     return {...result,tools:result.tools.filter(tool=>!names.has(tool.name))};
   });
 }

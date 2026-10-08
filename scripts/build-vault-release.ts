@@ -29,7 +29,9 @@ export async function buildRelease(output: string, source = project, internals: 
     } else if (info.isFile()) files[`notara/${relative}`] = new Uint8Array(await readFile(path));
   };
   // Deliberate allowlist: no checkout history, private data, website or research evidence.
-  for (const path of ['package.json', 'package-lock.json', 'tsconfig.json', 'tsconfig.base.json', 'README.md', 'LICENSE', 'install-notara.cmd', 'start-notara.cmd', 'stop-notara.cmd', 'create-notara-shortcuts.cmd', 'scripts', 'examples/native-vault', 'examples/pixel-classroom', 'resources', 'docs/install.md', 'docs/first-lesson.md',
+  // Install and update staging rebuild the kernel from its pinned source.
+  // Ship this exact source tree, not unrelated vendor caches.
+  for (const path of ['package.json', 'package-lock.json', 'tsconfig.json', 'tsconfig.base.json', 'README.md', 'LICENSE', 'install-notara.cmd', 'start-notara.cmd', 'stop-notara.cmd', 'create-notara-shortcuts.cmd', 'scripts', 'examples/native-vault', 'examples/pixel-classroom', 'resources', 'vendor/billion-context', 'docs/install.md', 'docs/first-lesson.md',
     'docs/runtime/plugins.md', 'docs/runtime/vault-launcher.md', 'docs/runtime/windows-native-vault.md', 'docs/runtime/upstream-lock.json', 'docs/runtime/update-contract.json',
     'docs/runtime/chatgpt-account.md', 'docs/runtime/remote-access.md']) await add(path);
   // Ship the pinned native shell together with its exact source and GPL notices.

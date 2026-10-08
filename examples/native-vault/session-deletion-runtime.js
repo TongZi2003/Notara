@@ -507,6 +507,9 @@ export class SessionDeletionRuntime {
   }
 
   async clearSessionCaches(ids) {
+    // The native deletion is committed before reaching this cleanup. Persisted
+    // ownership resolves scopes even after their session headers are gone.
+    await this.ctx.get('notaraHistory')?.deleteSessionIds(ids);
     const projectionTable = this.ctx.get('sessionProjectionCache')?.table;
     const queryCache = this.ctx.sessionQuery?._observations?.cache;
     const persistence = this.ctx.sessionPersistence;
@@ -540,7 +543,7 @@ export class SessionDeletionRuntime {
 export function installSessionDeletion(ctx) {
   ctx.plugin({
     name: 'notara-session-deletion',
-    inject: ['agents', 'sessionController', 'sessions', 'sessionPersistence', 'sessionQuery', 'sessionProjectionCache', 'workspaceRegistry'],
+    inject: ['agents', 'sessionController', 'sessions', 'sessionPersistence', 'sessionQuery', 'sessionProjectionCache', 'workspaceRegistry', 'notaraHistory'],
     apply(scope) {
       const runtime = new SessionDeletionRuntime(scope);
       runtime.install();

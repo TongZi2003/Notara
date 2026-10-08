@@ -125,12 +125,21 @@ async function recoveryFixture(state) {
   };
   const sessionController = { prompt: async () => ({}), list: async () => ({ items: [] }) };
   const table = { async delete(id) { deletedProjectionIds.push(id); } };
+  const historyDeleteCalls = [], recoveryHooks = {}, runtimeDisposals = [];
+  const notaraHistory = { async deleteSessionIds(ids) {
+    historyDeleteCalls.push([...ids]);
+    const manifest = JSON.parse(await readFile(join(transactionDir, 'notara-session-deletion.json'), 'utf8'));
+    assert.equal(manifest.state, 'committed', 'archive cleanup must follow the durable native commit');
+    await recoveryHooks.historyDelete?.(ids);
+  } };
   const ctx = {
     sessionPersistence: persistence, sessionQuery: query, workspaceRegistry, sessions: { list: () => [], get: () => undefined },
-    get(key) { return ({ agents, sessionController, sessionProjectionCache: { table } })[key]; },
-    on() { return () => {}; }, effect() {},
+    get(key) { return ({ agents, sessionController, sessionProjectionCache: { table }, notaraHistory })[key]; },
+    on() { return () => {}; }, effect(dispose) { runtimeDisposals.push(dispose); },
   };
-  return { root, sessionDir, transactionDir, stagedDir, header, persistence, workspaceRegistry, registryIndex, detached, query, queryCache, agents, ctx, searchEntered, releaseSearch, get searchCalls() { return searchCalls; }, get listCalls() { return listCalls; }, get resumeCalls() { return resumeCalls; }, deletedProjectionIds };
+  return { root, sessionDir, transactionDir, stagedDir, header, persistence, workspaceRegistry, registryIndex, detached, query, queryCache, agents, ctx, searchEntered, releaseSearch, recoveryHooks, historyDeleteCalls,
+    async disposeRuntime() { for (const dispose of runtimeDisposals.splice(0).reverse()) await dispose()(); },
+    get searchCalls() { return searchCalls; }, get listCalls() { return listCalls; }, get resumeCalls() { return resumeCalls; }, deletedProjectionIds };
 }
 
 async function partialRollbackRecoveryFixture() {
@@ -228,6 +237,7 @@ test('startup recovery rolls an interrupted staging transaction back to its orig
     assert.deepEqual(fixture.registryIndex.map(row => row.id), [SESSION_ID]);
     assert.equal(fixture.workspaceRegistry.archivedSessionIds.has(SESSION_ID), false);
     assert.equal(fixture.workspaceRegistry.pinnedSessionIds.has(SESSION_ID), true);
+    assert.deepEqual(fixture.historyDeleteCalls, [], 'staging rollback preserves the derived archive');
   } finally { await rm(fixture.root, { recursive: true, force: true }); }
 });
 
@@ -252,6 +262,7 @@ test('committed startup recovery retires the session before queries and agent re
     const runtime = new SessionDeletionRuntime(fixture.ctx);
     runtime.install();
     await fixture.searchEntered;
+    assert.deepEqual(fixture.historyDeleteCalls, [[SESSION_ID]], 'committed cleanup retires the archive before native search reconciliation');
 
     const listPromise = fixture.query.listSessions();
     const resumePromise = fixture.agents.resume({ resumeSessionId: 'surviving-session' });
@@ -275,6 +286,63 @@ test('committed startup recovery retires the session before queries and agent re
     assert.equal(runtime.retired.has(SESSION_ID), true);
     assert.deepEqual(await readdir(fixture.transactionDir).catch(error => error.code === 'ENOENT' ? [] : Promise.reject(error)), []);
   } finally { fixture.releaseSearch(); await rm(fixture.root, { recursive: true, force: true }); }
+});
+
+test('failed committed archive cleanup keeps its durable manifest and startup retries before releasing queries', async () => {
+  const fixture = await recoveryFixture('committed'), cleanupEntered = deferred(), releaseCleanup = deferred();
+  try {
+    const manifestPath = join(fixture.transactionDir, 'notara-session-deletion.json');
+    const committedManifest = await readFile(manifestPath, 'utf8');
+    fixture.recoveryHooks.historyDelete = async () => { throw new Error('archive_cleanup_failed'); };
+    const failedRuntime = new SessionDeletionRuntime(fixture.ctx);
+    failedRuntime.install();
+    await Promise.all([
+      assert.rejects(failedRuntime.ready, /archive_cleanup_failed/),
+      assert.rejects(fixture.query.listSessions(), /archive_cleanup_failed/),
+      assert.rejects(fixture.agents.resume({ resumeSessionId: 'surviving-session' }), /archive_cleanup_failed/),
+    ]);
+    assert.deepEqual(fixture.historyDeleteCalls, [[SESSION_ID]]);
+    assert.equal(await readFile(manifestPath, 'utf8'), committedManifest, 'failed cleanup must preserve the exact committed recovery manifest');
+    assert.equal(await readFile(join(fixture.stagedDir, 'events.jsonl'), 'utf8'), 'session event log');
+    assert.equal(fixture.listCalls, 0);
+    assert.equal(fixture.resumeCalls, 0);
+    assert.equal(fixture.searchCalls, 0);
+    assert.deepEqual(fixture.deletedProjectionIds, [], 'later cache cleanup waits for archive cleanup');
+    assert.equal(fixture.queryCache.has(SESSION_ID), true);
+    assert.equal(failedRuntime.retired.has(SESSION_ID), true);
+    await fixture.disposeRuntime();
+
+    fixture.recoveryHooks.historyDelete = async () => { cleanupEntered.resolve(); await releaseCleanup.promise; };
+    const recoveredRuntime = new SessionDeletionRuntime(fixture.ctx);
+    recoveredRuntime.install();
+    await cleanupEntered.promise;
+    const listPromise = fixture.query.listSessions();
+    const resumePromise = fixture.agents.resume({ resumeSessionId: 'surviving-session' });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(fixture.historyDeleteCalls, [[SESSION_ID], [SESSION_ID]], 'the next startup retries the same durable owner ids');
+    assert.equal(await readFile(manifestPath, 'utf8'), committedManifest);
+    assert.equal(fixture.listCalls, 0);
+    assert.equal(fixture.resumeCalls, 0);
+    assert.equal(fixture.searchCalls, 0);
+    releaseCleanup.resolve();
+    await fixture.searchEntered;
+    assert.equal(fixture.listCalls, 0, 'queries also wait for the native reconciliation after archive cleanup');
+    assert.equal(fixture.resumeCalls, 0);
+    fixture.releaseSearch();
+    await recoveredRuntime.ready;
+    assert.deepEqual(await listPromise, []);
+    assert.equal((await resumePromise).agent.id, 'surviving-session');
+    assert.equal(fixture.listCalls, 2);
+    assert.equal(fixture.resumeCalls, 1);
+    assert.deepEqual(fixture.deletedProjectionIds, [SESSION_ID]);
+    assert.equal(fixture.queryCache.has(SESSION_ID), false);
+    assert.equal(recoveredRuntime.retired.has(SESSION_ID), true);
+    await assert.rejects(stat(fixture.transactionDir), error => error.code === 'ENOENT');
+  } finally {
+    releaseCleanup.resolve(); fixture.releaseSearch();
+    await fixture.disposeRuntime();
+    await rm(fixture.root, { recursive: true, force: true });
+  }
 });
 
 test('deletion blocks live-session mutations for the whole tree while reads, stopping and other classrooms remain usable', async () => {

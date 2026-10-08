@@ -189,7 +189,7 @@ beforeAll(async () => {
       const body = incoming.url.includes('/bad/')
         ? 'unexpected upstream bundle'
         : 'const check = isLoopback: transport?.ownsHost === true || pageLocation === void 0 || isLoopbackHostname(pageLocation.hostname),';
-      outgoing.writeHead(200, { 'content-type': 'text/javascript', 'content-length': String(Buffer.byteLength(body)) });
+      outgoing.writeHead(200, { 'content-type': 'text/javascript', 'content-length': String(Buffer.byteLength(body)), 'cache-control': 'public, max-age=31536000, immutable', etag: '"upstream"' });
       outgoing.end(body);
       return;
     }
@@ -295,6 +295,31 @@ test('only the exact DSH trust seam is patched and unknown client bundles fail c
   expect(forwarded?.['accept-encoding']).toBe('identity');
   const unknown = await request(proxyPort, '/bad/@deepseek-ai/dsh-client-connection/client.js', { Host: publicHost, Authorization: auth });
   expect(unknown.status).toBe(503);
+});
+
+test('real DSH single and combined plugin query routes receive remote trust and cannot cache the original bundle', async () => {
+  for (const path of [
+    '/plugins/??@deepseek-ai/dsh-client-connection/client.js&rev=abc',
+    '/plugins/??@deepseek-ai/dsh-api-gateway/client.js,@deepseek-ai/dsh-client-connection/client.js&rev=abc',
+  ]) {
+    const result = await request(proxyPort, path, { Host: publicHost, Authorization: auth, 'Accept-Encoding': 'gzip' });
+    expect(result.status).toBe(200);
+    expect(result.body).toContain(`pageLocation.hostname === "${publicHost}"`);
+    expect(result.headers['cache-control']).toBe('no-store');
+    expect(result.headers.etag).toBeUndefined();
+    expect(Number(result.headers['content-length'])).toBe(Buffer.byteLength(result.body));
+    expect(forwarded?.['accept-encoding']).toBe('identity');
+  }
+  for (const path of [
+    '/plugins/??@deepseek-ai/dsh-client-connection/client.js.map&rev=abc',
+    '/plugins/??fake@deepseek-ai/dsh-client-connection/client.js&rev=abc',
+    '/plugins/??@deepseek-ai/dsh-api-gateway/client.js&rev=abc',
+  ]) {
+    const result = await request(proxyPort, path, { Host: publicHost, Authorization: auth });
+    expect(result.status).toBe(200);
+    expect(result.body).not.toContain(`pageLocation.hostname === "${publicHost}"`);
+    expect(forwarded?.['accept-encoding']).not.toBe('identity');
+  }
 });
 
 test('simultaneous proxy starts on one configured port yield one owner; occupied ports fail with an actionable error', async () => {

@@ -22,3 +22,16 @@ test('a lesson the Host declined to rebind is not reported as opened', () => {
   assert.equal(statusRowText('open_learning_lesson', result('{"sessionId":"s","bound":false,"reason":"这节课已经对应另一节"}')), '这节课没有换过来，原因见老师的说明');
   assert.equal(statusRowText('open_learning_lesson', { kind: 'tool-result', isError: false }), '已打开这节课');
 });
+
+test('history rows show Chinese status without querying or rendering private history content', () => {
+  for (const key of ['history_search', 'history_read']) {
+    assert.ok(STATUS_ROWS[key]);
+    for (const text of STATUS_ROWS[key]) assert.doesNotMatch(text, /history_|seq|part|session|native-event|[a-z]_[a-z]/);
+    const running = { kind: 'tool-call', get arguments() { throw new Error('private query/cursor must not be read'); } };
+    const completed = { kind: 'tool-result', isError: false, get content() { throw new Error('private history evidence must not be rendered'); } };
+    const failed = { kind: 'tool-result', isError: true, get content() { throw new Error('internal error codes must not be rendered'); } };
+    assert.equal(statusRowText(key, running), STATUS_ROWS[key][0]);
+    assert.equal(statusRowText(key, completed), STATUS_ROWS[key][1]);
+    assert.equal(statusRowText(key, failed), STATUS_ROWS[key][2]);
+  }
+});

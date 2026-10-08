@@ -33,6 +33,7 @@ coverage/
 /examples/native-vault/fonts/
 /examples/native-vault/lazy/
 /examples/native-vault/academy/
+/examples/native-vault/billion-kernel/
 
 # Local visual rehearsal entry points are not release content.
 /preview-install-progress.cmd
@@ -70,6 +71,7 @@ coverage/
 !/docs/releases/native-vault-0.23.11.md
 !/docs/releases/native-vault-0.24.2.md
 !/docs/releases/native-vault-0.24.3.md
+!/docs/releases/native-vault-0.24.4.md
 
 # Retired workbench-only build/test configurations (kept locally).
 /tsconfig.math-plugin.json
