@@ -578,7 +578,9 @@ export class ContextHistoryStore {
     try {
       // Cleanup does not transport bodies. Bound transactions by stored bytes and
       // feature work, rather than paying a FULL-synchronous commit per eight IDs.
-      const chunkPage = this.db.prepare(`SELECT id,length(CAST(body AS BLOB))+coalesce(length(CAST(search AS BLOB)),0) AS bytes
+      // Column byte lengths come from record metadata, without loading either
+      // potentially overflow-backed text just to choose a deletion batch.
+      const chunkPage = this.db.prepare(`SELECT id,octet_length(body)+coalesce(octet_length(search),0) AS bytes
         FROM chunks WHERE scope=? ORDER BY id LIMIT ?`);
       // toolCalls is WITHOUT ROWID: SQLite otherwise chooses its scope-only primary
       // key and repeatedly scans remaining calls, even for a single event sequence.

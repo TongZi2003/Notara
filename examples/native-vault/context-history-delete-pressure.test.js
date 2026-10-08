@@ -88,8 +88,23 @@ test('90k owned events with 25KiB receipt projections delete within the default 
   assert.equal(seeded.counts.events, 90001); assert.equal(seeded.counts.chunks, 50001);
   assert.equal(seeded.counts.toolCalls, 20000); assert.equal(seeded.counts.postings, 37);
   const start = performance.now(); let readyMs;
-  void client.ready.then(() => { readyMs = performance.now() - start; });
-  assert.deepEqual(await client.deleteSessionIds(['synthetic-pressure']), { state: 'deleted', deletedSessionCount: 1 });
+  void client.ready.then(() => { readyMs = performance.now() - start; }, () => { readyMs = performance.now() - start; });
+  try {
+    assert.deepEqual(await client.deleteSessionIds(['synthetic-pressure']), { state: 'deleted', deletedSessionCount: 1 });
+  } catch (error) {
+    const totalMs = performance.now() - start;
+    let closeResult = 'closed';
+    try { await client.close(); }
+    catch (closeError) { closeResult = closeError?.code ?? 'close-failed'; }
+    try {
+      const remaining = await probe(f.path, 'inspect');
+      const scope = remaining.scopes.find(row => row.scope === seeded.bound.scope);
+      t.diagnostic(`delete RPC failed (${error?.code ?? 'unknown'}); worker ready ${readyMs === undefined ? 'not-ready' : `${Math.round(readyMs)} ms`}; end-to-end ${Math.round(totalMs)} ms; client ${closeResult}; pressure scope ${JSON.stringify(scope ? { state: scope.state, generation: scope.generation } : null)}; remaining rows ${JSON.stringify(remaining.counts)}`);
+    } catch (diagnosticError) {
+      t.diagnostic(`delete RPC failed (${error?.code ?? 'unknown'}); worker ready ${readyMs === undefined ? 'not-ready' : `${Math.round(readyMs)} ms`}; end-to-end ${Math.round(totalMs)} ms; client ${closeResult}; remaining-state probe failed (${diagnosticError?.code ?? 'unknown'})`);
+    }
+    throw error;
+  }
   const totalMs = performance.now() - start;
   t.diagnostic(`worker ready ${Math.round(readyMs)} ms; deletion after ready ${Math.round(totalMs - readyMs)} ms; end-to-end default deadline ${Math.round(totalMs)} ms`);
   await assert.rejects(client.bindSession('synthetic-pressure', 'a'.repeat(64)), { code: 'SESSION_DELETED' });

@@ -56,6 +56,8 @@ jobs:
       # These tests start real PowerShell ACL helpers; cold hosted runners can
       # exceed Vitest's 5 s default. Keep every assertion and a bounded deadline.
       - run: npm run test:unit -- --testTimeout=30000
+      - name: Verify archive pressure and interrupted cleanup on Windows
+        run: node --test examples/native-vault/context-history-delete-pressure.test.js
       - run: npm run test:plugins
       - name: Test the real Windows sandbox and CLI
         run: node node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/native-vault-git-bash.test.ts tests/integration/native-vault-memory.test.ts tests/integration/native-vault-teaching.test.ts tests/integration/native-vault-windows-shell.test.ts tests/integration/native-vault-windows-cli.test.ts tests/integration/native-vault-windows-pipe.test.ts

@@ -17,7 +17,9 @@ if (missing.length) {
 }
 
 for (const project of ['examples/native-vault', 'examples/pixel-classroom']) {
-  const result = spawnSync(process.execPath, ['--test'], { cwd: resolve(root, project), stdio: 'inherit', windowsHide: true });
+  // Each file can own SQLite workers and sizable synthetic archives. Bound
+  // competing instances on hosted runners; retain every test and RPC deadline.
+  const result = spawnSync(process.execPath, ['--test', '--test-concurrency=2'], { cwd: resolve(root, project), stdio: 'inherit', windowsHide: true });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
