@@ -1,6 +1,8 @@
-# Notara 0.24.4 · 长对话保护与历史回读
+# Notara 0.24.4 · 已撤回的历史版本说明
 
-0.24.4 增加长对话预算保护、分层摘要和本课堂历史原文检索，并修复 ChatGPT 重放与远控模型设置。正式安装包只会在 `v0.24.4` 对应标签的 Windows 与 Linux 发布门禁全部通过后生成并上传。资产发布后可从 [GitHub 0.24.4 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.24.4) 下载：
+**0.24.4 已于 2026-10-09 撤回。** 真实课堂出现压缩机制失败，GitHub Release 已设为草稿，下列安装/更新资产已删除。当前公开安装版本为 [0.24.3](https://github.com/TongZi2003/Notara/releases/tag/v0.24.3)。本文保留原发布的行为说明，完整改动、失败证据和后续修复入口见[撤回文档](native-vault-0.24.4-withdrawal.md)。
+
+原计划功能为长对话预算保护、分层摘要和本课堂历史原文检索，以及 ChatGPT 重放与远控模型设置修复。以下仅为历史资产清单，不再提供下载：
 
 - `notara-0.24.4.zip`：Windows 快捷安装包。
 - `notara-portable-0.24.4-win-x64.zip`：Windows x64 免安装包。
@@ -39,6 +41,8 @@ Chromium 品牌检查通过（1/1）：初始 HTML 与 Web App manifest 标题�
 
 ## 下载与升级
 
+本版已下架，请使用 0.24.3。以下数据格式与安装合同仅保留为历史记录，不构成安装 0.24.4 的建议。
+
 本版保持数据格式 Version 5，安装与更新不会迁移课堂数据。已有兼容版本可在「设置 → 更新」检查，并在课堂空闲时重启更新。手动换程序目录仍须先停止服务，保留运行根和学习目录备份，按[安装说明](../install.md)执行升级。
 
-Windows x64 用户可使用上述免安装包；Windows 快捷安装包需完整解压后运行 `install-notara.cmd`。上述资产仅在 `v0.24.4` 标签的 Windows 与 Linux 发布门禁全部通过后生成并上传。固定上游版本和许可见 [vendor/billion-context](../../vendor/billion-context/README.md)。
+上述历史资产曾在 `v0.24.4` 标签的 Windows 与 Linux 发布门禁全部通过后生成并上传，现已删除；通过这些自动化测试不足以证明真实长程课堂机制正确。固定上游版本和许可见 [vendor/billion-context](../../vendor/billion-context/README.md)。

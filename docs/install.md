@@ -2,7 +2,7 @@
 
 先把小书桌安顿好，再抱着第一道题来找老师吧。第一次使用按「下载并打开 → 接好模型 → 选学习目录 → 发出问题」走就可以，不用一口气研究所有开关喵。
 
-适用源码版本：Notara 0.24.4 / DSH 0.2.0-rc.1。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。长对话保护与历史回读见[0.24.4说明](releases/native-vault-0.24.4.md)，订阅动态模型目录见[0.24.3说明](releases/native-vault-0.24.3.md)，白板操作设置与稳定性修复见[0.24.2说明](releases/native-vault-0.24.2.md)，自由白板、桌面学习 Skill 原文同步和 PDF 改进见[0.24.1说明](releases/native-vault-0.24.1.md)，分支白板见[0.23.11 说明](releases/native-vault-0.23.11.md)，弹窗键盘修复见[0.23.10 说明](releases/native-vault-0.23.10.md)，自动恢复、关闭和单个桌面入口见[0.23.9 说明](releases/native-vault-0.23.9.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
+当前公开安装版本：Notara 0.24.3 / DSH 0.2.0-rc.1。0.24.4 已撤回，仓库仅保留其源码与历史记录，不提供该版安装包；撤回原因、全部改动与回退边界见[撤回文档](releases/native-vault-0.24.4-withdrawal.md)。支持 Node 24 或更新版本；Windows shell 需要 Windows 10 1903+ / Windows 11 和 x64 Node。订阅动态模型目录见[0.24.3说明](releases/native-vault-0.24.3.md)，白板操作设置与稳定性修复见[0.24.2说明](releases/native-vault-0.24.2.md)，自由白板、桌面学习 Skill 原文同步和 PDF 改进见[0.24.1说明](releases/native-vault-0.24.1.md)，分支白板见[0.23.11 说明](releases/native-vault-0.23.11.md)，弹窗键盘修复见[0.23.10 说明](releases/native-vault-0.23.10.md)，自动恢复、关闭和单个桌面入口见[0.23.9 说明](releases/native-vault-0.23.9.md)，历史运行时验证范围和真实账号验收边界见[0.23.3 说明](releases/native-vault-0.23.3.md)。
 
 🐾 0.24.1 纳入自由白板、PDF 书签与范围读取、中文字体和扫描页修复、窗格调换与一层课堂分组；读书和绘图资源随包分发。新白板的数据格式标识为 5：从 0.23.12 或更早版本升级前，停止服务并备份运行目录和外部学习目录，然后在新版目录执行 `vault:upgrade`。更新器会要求手动升级；旧程序不能安全读写新版自由白板，回退时也必须恢复升级前的数据备份。
 
@@ -10,11 +10,11 @@
 
 0.24.3 增加订阅动态模型目录，新增内置接入或成功登录时获取一次，已有配置读取缓存并可手动刷新。与0.24.2使用相同数据格式，可在「设置 → 更新」检查并在课堂空闲时重启更新。
 
-0.24.4 增加长对话预算保护、分层摘要和本课堂原文搜索/分页回读，并修复 ChatGPT 重放与远控设置；浏览器标签页标题统一为 Notara「拾页」。数据格式保持 Version 5；可在「设置 → 更新」检查并在课堂空闲时重启更新。真实模型质量边界见[版本说明](releases/native-vault-0.24.4.md)。
+0.24.4 的长对话预算保护、分层摘要与历史回读功能已经随版本撤回。已安装实例需要在备份当前数据并正常停止后，使用 0.24.3 的程序执行插件快照切换；安装包下架不会自动降级。回退不能把已经压缩的历史自动展开，0.24.4 的私有原文归档应继续保留，不用升级前的旧数据覆盖之后的课堂。
 
 ## Windows x64 免安装版
 
-想少折腾环境，可以从 [0.24.4 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.24.4) 获取 `notara-portable-0.24.4-win-x64.zip`，完整解压后双击「start-notara.cmd」。包内已经收好 Node.js、npm、Windows 依赖与构建产物，无需先安装系统 Node.js、Git 或运行安装脚本。运行要求仍为 Windows 10 1903+ / Windows 11 x64；首次启动要布置数据目录，请稍等一下，模型账号和可选的 ngrok 仍需自行配置。
+想少折腾环境，可以从 [0.24.3 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.24.3) 获取 `notara-portable-0.24.3-win-x64.zip`，完整解压后双击「start-notara.cmd」。包内已经收好 Node.js、npm、Windows 依赖与构建产物，无需先安装系统 Node.js、Git 或运行安装脚本。运行要求仍为 Windows 10 1903+ / Windows 11 x64；首次启动要布置数据目录，请稍等一下，模型账号和可选的 ngrok 仍需自行配置。
 
 用「stop-notara.cmd」停止；需要桌面入口时运行「create-notara-shortcuts.cmd」。便携包的程序体积较大，课堂与资料仍保存在用户的 `.notara/vault-runtime`，并不写入程序包。
 
@@ -92,6 +92,7 @@ ChatGPT/Codex 与 GitHub Copilot 获取当前授权账号的可用目录，账�
 ```sh
 git clone https://github.com/TongZi2003/Notara.git Notara-Vault
 cd Notara-Vault
+git checkout v0.24.3
 npm ci --no-audit --no-fund
 npm run vault
 ```

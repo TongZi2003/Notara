@@ -6,11 +6,11 @@ Notara 用于围绕题目、讲义和学习问题展开讨论，并记录你的�
 
 Notara 底层基于 **DeepSeek Harness**。保存的解题卡片、学生理解和课堂小结会乖乖留在本地的 Markdown 文件里，对话记录由本地运行时另行保存。下次回来，沿着计划、Vault 和技能页就能接着学啦。
 
-当前版本为 **0.24.4**，依赖 **DSH 0.2.0-rc.1**。第一次来可以从安装开始；已经坐进教室的同学，直接跳到想用的功能就好。这份说明里的按钮名称都按当前版本写，免得你对着屏幕到处找，小耳朵都找耷拉了。
+当前公开安装版本为 **0.24.3**，依赖 **DSH 0.2.0-rc.1**。**0.24.4 已于 2026-10-09 撤回，安装包和更新清单已下架，请勿安装。** 仓库保留 0.24.4 的源码与标签，供后续排查；源码版本不等于当前可用发布版本。
 
-🐾 **0.24.4** 新增长对话预算保护、分层摘要与本课堂历史原文检索和分页回读，并修复 ChatGPT 重放与远控模型设置；浏览器标签页标题统一为 Notara「拾页」。数据格式保持 Version 5，兼容版本可通过「设置 → 更新」更新。0.24.3 的订阅动态模型目录、0.24.2 的白板编辑与更新恢复修复，以及 0.24.1 的自由白板和课堂分组继续保留。
+🐾 **0.24.3** 提供订阅动态模型目录，保留 0.24.2 的白板编辑与更新恢复修复，以及 0.24.1 的自由白板和课堂分组。0.24.4 的长对话机制出现真实课堂运行失败，已停止分发，等待重新修复和验收。
 
-长对话功能的真实教学边界和验证结果见[0.24.4 版本说明](docs/releases/native-vault-0.24.4.md)：官方 DeepSeek 12 轮合成课堂的结构与检索项通过，但完成状态第 5/12 轮仍失败；后续规则增强只通过确定性 smoke，尚未用真实模型复验其效果。
+0.24.4 的全部改动、已知失败、历史验证与回退边界见[撤回记录](docs/releases/native-vault-0.24.4-withdrawal.md)。自动化 CI 通过不代表真实长程课堂验收通过；已经安装的实例不会因为安装包下架而自动回退。
 
 | 你现在想做什么 | 从这里出发 |
 | --- | --- |
@@ -55,7 +55,7 @@ Windows 入口文件统一使用英文名，方便在不同语言的系统上使
 
 ### Windows x64 免安装版（推荐）
 
-如果希望省去安装环境与本地构建的等待，可以直接抱走 [notara-portable-0.24.4-win-x64.zip](https://github.com/TongZi2003/Notara/releases/download/v0.24.4/notara-portable-0.24.4-win-x64.zip)。面向 **Windows 10 1903+ / Windows 11 x64** 系统喵。
+如果希望省去安装环境与本地构建的等待，可以直接抱走 [notara-portable-0.24.3-win-x64.zip](https://github.com/TongZi2003/Notara/releases/download/v0.24.3/notara-portable-0.24.3-win-x64.zip)。面向 **Windows 10 1903+ / Windows 11 x64** 系统喵。
 
 1. 下载并完整解压到一个普通可写文件夹中（千万不要直接在压缩包里点运行，耳朵会吓耷拉的！）。
 2. 双击「start-notara.cmd」。不需要预先安装 Node.js、npm 或 Git，也不用敲任何安装脚本。
@@ -74,7 +74,7 @@ Windows 入口文件统一使用英文名，方便在不同语言的系统上使
 
 ### Windows 快捷安装
 
-从 [0.24.4 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.24.4) 下载 [notara-0.24.4.zip](https://github.com/TongZi2003/Notara/releases/download/v0.24.4/notara-0.24.4.zip)。完整解压到可写目录，双击运行里面的 **install-notara.cmd**。桌面入口带有新的书页 N 图标。
+从 [0.24.3 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.24.3) 下载 [notara-0.24.3.zip](https://github.com/TongZi2003/Notara/releases/download/v0.24.3/notara-0.24.3.zip)。完整解压到可写目录，双击运行里面的 **install-notara.cmd**。桌面入口带有新的书页 N 图标。
 
 安装器会自动检查 **Node.js 24+、npm 和 Git Bash**。若缺少组件，将通过 Windows **WinGet** 自动补全（系统弹出权限确认时轻点允许即可）。随后检查最新正式版、安装依赖并构建，在解压出的 `notara` 目录准备好环境。百分比表示已到达的安装阶段，不代表下载字节数或剩余时间。窗口太小或输出到文件时，会自动使用文字进度。
 
@@ -91,6 +91,7 @@ Windows 入口文件统一使用英文名，方便在不同语言的系统上使
 ```sh
 git clone https://github.com/TongZi2003/Notara.git Notara-Vault
 cd Notara-Vault
+git checkout v0.24.3
 node --version
 npm ci --no-audit --no-fund
 npm run vault
@@ -694,7 +695,9 @@ npm run vault
 
 ## 🐾 更新小记：从最新的一页往前翻
 
-### 0.24.4 · 长对话保护与历史回读
+### 0.24.4 · 已撤回：长对话保护与历史回读
+
+2026-10-09 因真实课堂的压缩机制运行失败撤回，安装包与更新清单已删除。下列内容是历史改动记录，不能作为继续安装或重新发布的依据。完整逐文件清单和后续修复入口见[撤回文档](docs/releases/native-vault-0.24.4-withdrawal.md)。
 
 - 完整请求组装后检查输入预算，保护最新学生消息，通过原生压缩事务整理旧历史；明确的上下文溢出可有界恢复。
 - 默认软保留在较小旧范围无法达到规划目标时，可扩大到更大的合法旧范围；显式 retention、最新真实 user 消息和完整工具配对仍受保护。
@@ -705,7 +708,7 @@ npm run vault
 - 官方 DeepSeek 12 轮合成课堂通过来源覆盖和早期原话检索，但第 5/12 轮任务完成状态判断失败。后续提示增强只通过确定性 smoke，未真实模型复验；完整长程教学质量仍待验证。
 - 数据格式保持 Version 5；其他更新与检索边界见[版本说明](docs/releases/native-vault-0.24.4.md)。
 
-[0.24.4 发布页](https://github.com/TongZi2003/Notara/releases/tag/v0.24.4) · [详细版本说明](docs/releases/native-vault-0.24.4.md)
+[撤回记录与完整改动](docs/releases/native-vault-0.24.4-withdrawal.md) · [历史版本说明](docs/releases/native-vault-0.24.4.md)
 
 ### 0.24.3 · 订阅模型动态目录
 
@@ -896,7 +899,7 @@ flowchart LR
     C --> D
     D --> E["在发布目录合并分支"]
     E --> F["推送 main 与版本标签"]
-    F --> G["发布门禁通过<br/>生成 0.24.4 安装包"]
+    F --> G["发布门禁通过<br/>生成待验收版本安装包"]
 ```
 
 例如原目录是 `Notara/`，本次工作树是 `.worktrees/whiteboard-web/`：我们在后者改文件时，前者的文件不会随之变化。另一对话可以使用这个工作树，但必须切到它的完整路径；两段对话都编辑同一工作树时就不再隔离。Git 提交历史、分支名和远端是共享的，端口、依赖、运行数据和外部文件也不会被 Git 自动隔离，因此测试另外使用临时 Vault、独立端口与本目录依赖。
