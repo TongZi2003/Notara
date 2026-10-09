@@ -113,6 +113,8 @@
 
 ## 工作约定
 
+- 公开 README、发布文档、PR/Issue 和 Git 提交不得包含用户密钥、令牌、账号标识、个人绝对路径、真实课堂原文/截图、私有会话标识或本机端口及控制状态。真实运行调查和原始证据只保存在 Git 忽略的 `.runtime/`，发布说明使用通用产品行为、脱敏错误类型或合成示例；推送前核对 staged 内容，不将整份运行报告直接复制到公开仓库。
+
 - 课堂列表行使用 `session-actions-client.js` 的三点菜单，提供重命名、归档对话、删除对话。重命名经原生 `sessions.using` 的 `workspaceOperation` 引用调用 `Session.rename`，检查回执并沿用标题投影；归档使用 `uiWorkspace.archiveSession`，Host 的 `workspace/session-active` 拒绝后确认才传 `stopActivity`，撤销用 `unarchiveSession`。删除复用既有 `notaraSession` 双重确认，菜单仅禁用运行中课堂的删除项。原生 Menu 的 portal 避免列表裁切，保留键盘与中文输入法行为；晚到归档结果不得覆盖新的课堂选择。
 
 - Windows x64 免安装包由 `scripts/build-portable-release.ts` 在 Windows 构建，携带独立 Node/npm、已安装依赖和标准发布代码，不含用户运行目录。`notara-portable.json` 校验预构建资源后才跳过启动构建；启动器优先使用包内 runtime，并为更新器提供对应 npm。程序移动或旧数据升级仍须显式 `vault:upgrade`，不得绕过快照版本保护。普通安装器只适用于标准 Release ZIP，便携包不带其安装入口。
