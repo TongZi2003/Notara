@@ -4,6 +4,8 @@
 
 ## 当前事实源
 
+- Native Vault `0.24.4` 重新以 `v0.24.3` 为代码基线，仅恢复 ChatGPT 响应/重放及安全错误分类、HTTPS 远控模型设置、Notara「拾页」品牌、释放后的锁心跳处理、崩溃后的自身 launcher 清理，以及独立测试修正。教师继续使用 0.24.3 的原生 `@deepseek-ai/dsh-compaction-basic`；不接入已撤回构建的 Billion、Notara 请求预算协调器、私有历史归档/检索或对应 SDK 补丁。手工升级和运行目录迁移也复用同一 root lock；launcher 清理必须校验本次记录原始字节、Host/worker 均退出且持有正常目录锁。数据格式仍为 5，不宣称自动修复撤回构建写入的压缩记录；同版本旧实验构建须手动更换程序并先备份数据。
+
 - Native Vault `0.24.3` 的订阅目录在 `scripts/opencode-go-catalog.mjs` 与 `scripts/subscription-model-catalog.mjs`，由 `scripts/patch-opencode-go.ts` 对锁定 SDK 及两个 sidecar 校验摘要后安装。内置 OpenCode Go/Zen、Kimi Coding、MiniMax、Z.AI/智谱、通义 Token Plan 和小米 Token Plan 使用精确公共目录映射；原生协议与凭据 endpoint 不受远端 metadata 覆盖。Go 使用官方 `/models` 与 Models.dev 的逐模型协议，SDK API 只按明确 npm 元信息映射；DeepSeek metadata family 复用已支持 dialect，陌生思考格式不猜测。显式协议、模型限制与自定义端点保留优先级。
 - `scripts/patch-model-discovery.ts` 校验模型设置浏览器产物：每次打开新增草稿为每个 provider 获取一次，草稿内切换回来复用同一 Promise，手动刷新替换草稿 Map，已有编辑不自动获取；成功登录也获取一次目录。启动只读有效本地缓存，不后台定时刷新。公共目录请求匿名；账号目录经原生 OAuth 解析同一凭据快照，仅向官方或原生 OAuth 选定的企业 endpoint 发账号认证，缓存路径按账号身份摘要隔离。账号切换、退出与迟到读取用 generation 隔离，刷新失败保留上次目录并明确报错，有效空目录不回退为内置型号。缓存有格式/容量/字段验证及 fsync/原子发布；revision 共同失效严格保存、发现、注册和请求模型读取。公开 `0.24.2` 不含动态目录，动态目录随 `0.24.3` 发布；已发布 tag 与资产保持原状。
 - 原生 ChatGPT SIWC 的 `chatgpt-catalog.js` 只接收官方 `/v1/models` 的 `visibility=list`，保持服务端顺序和账号边界，不用随包名单或 `supported_in_api` 猜订阅权限。每次成功授权清除旧目录并单次预取，同账号并发合并，后续读取缓存，设置按钮手动刷新；目录存于受保护的本账号记录。退出、无 direct scope、重新授权及旧账号对象的迟到结果不能恢复旧目录；登录后预取成功通过现有原生事件失效目录缓存。状态中的随机 `authorizationRevision` 按账号对象隔离，令牌轮换保留，重新授权替换；设置窗口按此值清除旧列表并拒绝旧响应。此入口继续调用公开 `/v1/responses`，与 pi-ai `openai-codex` 的原生 OAuth/Responses 通道分开。
@@ -83,6 +85,8 @@
 - 老师人格在本课教学设置中保存，上限4000字符，空白恢复默认大肥鱼。0.23.12 工作员只用任务职责，不再编辑或注入旧工作员人格；旧记录保留。`persona.js` 是纯文本装配，身份风格不改工具/权限/交付边界，也不按模型名自动猜人格。首次介绍应出现在最终可见答复，不仅是被折叠的工具进度。
 
 ## 工作约定
+
+- 公开 README、发布文档、PR/Issue 和 Git 提交不得包含用户密钥、令牌、账号标识、个人绝对路径、真实课堂原文/截图、私有会话标识或本机端口及控制状态。真实运行调查和原始证据只保存在 Git 忽略的 `.runtime/`，发布说明使用通用产品行为、脱敏错误类型或合成示例；推送前核对 staged 内容，不将整份运行报告直接复制到公开仓库。
 
 - 课堂列表行使用 `session-actions-client.js` 的三点菜单，提供重命名、归档对话、删除对话。重命名经原生 `sessions.using` 的 `workspaceOperation` 引用调用 `Session.rename`，检查回执并沿用标题投影；归档使用 `uiWorkspace.archiveSession`，Host 的 `workspace/session-active` 拒绝后确认才传 `stopActivity`，撤销用 `unarchiveSession`。删除复用既有 `notaraSession` 双重确认，菜单仅禁用运行中课堂的删除项。原生 Menu 的 portal 避免列表裁切，保留键盘与中文输入法行为；晚到归档结果不得覆盖新的课堂选择。
 

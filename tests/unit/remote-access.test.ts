@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { createServer, request as httpRequest, type IncomingMessage, type Server } from 'node:http';
 import { connect as connectTcp } from 'node:net';
 import { promisify } from 'node:util';
+import { runInNewContext } from 'node:vm';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -186,10 +187,17 @@ beforeAll(async () => {
     upstreamHits++;
     forwarded = incoming.headers;
     if (incoming.url?.includes('@deepseek-ai/dsh-client-connection/client.js')) {
+      const seam = 'isLoopback: transport?.ownsHost === true || pageLocation === void 0 || isLoopbackHostname(pageLocation.hostname),';
       const body = incoming.url.includes('/bad/')
         ? 'unexpected upstream bundle'
-        : 'const check = isLoopback: transport?.ownsHost === true || pageLocation === void 0 || isLoopbackHostname(pageLocation.hostname),';
-      outgoing.writeHead(200, { 'content-type': 'text/javascript', 'content-length': String(Buffer.byteLength(body)) });
+        : `const check = { ${seam} };${incoming.url.includes('/duplicate/') ? ` const duplicate = { ${seam} };` : ''}`;
+      outgoing.writeHead(200, {
+        'content-type': 'text/javascript',
+        'content-length': String(Buffer.byteLength(body)),
+        'cache-control': 'public, max-age=31536000, immutable',
+        etag: '"upstream"',
+        'last-modified': 'Thu, 01 Oct 2026 00:00:00 GMT',
+      });
       outgoing.end(body);
       return;
     }
@@ -226,10 +234,16 @@ afterAll(async () => {
 
 test('proxy fails closed without Basic Auth and rejects spoofed Host and Origin before forwarding', async () => {
   upstreamHits = 0;
-  expect((await request(proxyPort, '/data', { Host: publicHost })).status).toBe(401);
-  expect((await request(proxyPort, '/data', { Host: publicHost, authorization: 'Basic d3Jvbmc6Y3JlZHM=' })).status).toBe(401);
-  expect((await request(proxyPort, '/data', { Host: publicHost, authorization: auth, origin: 'https://attacker.example' })).status).toBe(403);
-  expect((await request(proxyPort, '/data', { Host: 'attacker.example', authorization: auth, origin: publicOrigin })).status).toBe(403);
+  for (const [headers, status] of [
+    [{ Host: publicHost }, 401],
+    [{ Host: publicHost, authorization: 'Basic d3Jvbmc6Y3JlZHM=' }, 401],
+    [{ Host: publicHost, authorization: auth, origin: 'https://attacker.example' }, 403],
+    [{ Host: 'attacker.example', authorization: auth, origin: publicOrigin }, 403],
+  ] as const) {
+    const response = await request(proxyPort, '/data', headers);
+    expect(response.status).toBe(status);
+    expect(response.headers['cache-control']).toBe('no-store');
+  }
   expect(upstreamHits).toBe(0);
 });
 
@@ -292,9 +306,64 @@ test('only the exact DSH trust seam is patched and unknown client bundles fail c
   const patched = await request(proxyPort, '/@deepseek-ai/dsh-client-connection/client.js', { Host: publicHost, Authorization: auth });
   expect(patched.status).toBe(200);
   expect(patched.body).toContain(`pageLocation.hostname === "${publicHost}"`);
+  expect(patched.headers['cache-control']).toBe('no-store');
   expect(forwarded?.['accept-encoding']).toBe('identity');
-  const unknown = await request(proxyPort, '/bad/@deepseek-ai/dsh-client-connection/client.js', { Host: publicHost, Authorization: auth });
-  expect(unknown.status).toBe(503);
+  for (const path of [
+    '/bad/@deepseek-ai/dsh-client-connection/client.js',
+    '/plugins/??@deepseek-ai/dsh-client-connection/client.js&rev=/bad/',
+    '/plugins/??@deepseek-ai/dsh-api-gateway/client.js,@deepseek-ai/dsh-client-connection/client.js&rev=/bad/',
+    '/plugins/??@deepseek-ai/dsh-client-connection/client.js&rev=/duplicate/',
+  ]) {
+    const unknown = await request(proxyPort, path, { Host: publicHost, Authorization: auth });
+    expect(unknown.status).toBe(503);
+    expect(unknown.headers['cache-control']).toBe('no-store');
+    expect(unknown.body).not.toContain('unexpected upstream bundle');
+  }
+});
+
+test('the patched client trusts the configured HTTPS host while retaining native loopback ownership', async () => {
+  const patched = await request(proxyPort, '/plugins/??@deepseek-ai/dsh-client-connection/client.js&rev=abc', { Host: publicHost, Authorization: auth });
+  expect(patched.status).toBe(200);
+  const trusted = (pageLocation: { protocol: string; hostname: string } | undefined, ownsHost = false): unknown => runInNewContext(
+    `${patched.body}; check.isLoopback;`,
+    { pageLocation, transport: { ownsHost }, isLoopbackHostname: (hostname: string) => hostname === '127.0.0.1' },
+  );
+  expect(trusted({ protocol: 'https:', hostname: publicHost })).toBe(true);
+  expect(trusted({ protocol: 'http:', hostname: publicHost })).toBe(false);
+  expect(trusted({ protocol: 'https:', hostname: `other.${publicHost}` })).toBe(false);
+  expect(trusted({ protocol: 'https:', hostname: 'attacker.example' })).toBe(false);
+  expect(trusted({ protocol: 'http:', hostname: '127.0.0.1' })).toBe(true);
+  expect(trusted(undefined)).toBe(true);
+  expect(trusted({ protocol: 'https:', hostname: 'attacker.example' }, true)).toBe(true);
+});
+
+test('real DSH single and combined plugin query routes receive remote trust and cannot cache the original bundle', async () => {
+  for (const path of [
+    '/plugins/??@deepseek-ai/dsh-client-connection/client.js&rev=abc',
+    '/plugins/??@deepseek-ai/dsh-api-gateway/client.js,@deepseek-ai/dsh-client-connection/client.js&rev=abc',
+  ]) {
+    const result = await request(proxyPort, path, { Host: publicHost, Authorization: auth, 'Accept-Encoding': 'gzip' });
+    expect(result.status).toBe(200);
+    expect(result.body).toContain(`pageLocation.hostname === "${publicHost}"`);
+    expect(result.headers['cache-control']).toBe('no-store');
+    expect(result.headers.etag).toBeUndefined();
+    expect(result.headers['last-modified']).toBeUndefined();
+    expect(Number(result.headers['content-length'])).toBe(Buffer.byteLength(result.body));
+    expect(forwarded?.['accept-encoding']).toBe('identity');
+  }
+  for (const path of [
+    '/plugins/??@deepseek-ai/dsh-client-connection/client.js.map&rev=abc',
+    '/plugins/??fake@deepseek-ai/dsh-client-connection/client.js&rev=abc',
+    '/plugins/??@deepseek-ai/dsh-api-gateway/client.js&rev=abc',
+    '/plugins/?resource=@deepseek-ai/dsh-client-connection/client.js',
+    '/plugins/??@deepseek-ai/dsh-api-gateway/client.js&resource=@deepseek-ai/dsh-client-connection/client.js',
+    '/other/??@deepseek-ai/dsh-client-connection/client.js&rev=abc',
+  ]) {
+    const result = await request(proxyPort, path, { Host: publicHost, Authorization: auth });
+    expect(result.status).toBe(200);
+    expect(result.body).not.toContain(`pageLocation.hostname === "${publicHost}"`);
+    expect(forwarded?.['accept-encoding']).not.toBe('identity');
+  }
 });
 
 test('simultaneous proxy starts on one configured port yield one owner; occupied ports fail with an actionable error', async () => {

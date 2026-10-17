@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
-import lockfile from 'proper-lockfile';
 import { ensureVaultAliases, httpUrlPort, installedPluginRoot, isBrowserBlockedPort, liveVaultUrl, mustUpgradeBeforeStart, pluginVersions, readVaultState, vaultPluginLinks, writeVaultState, validateVaultPort, upgradeBeforeStartMessage } from './vault-launcher-state.ts';
 import { packageBin } from './package-bin.ts';
 import { ensureWindowsPosix } from './windows-posix.ts';
@@ -153,7 +152,7 @@ export async function upgradeVaultPersistent(rootInput: string): Promise<{ upgra
   if (!state) throw new Error('这个目录不是已登记的 Vault 运行目录，没有可升级的内容。');
   if (await liveVaultUrl(root)) throw new Error('Vault 正在运行。先停止它（在运行它的终端窗口按 Ctrl+C，或关闭那个窗口），再升级。');
   let release: () => Promise<void>;
-  try { release = await lockfile.lock(root, { retries: 0, stale: 10_000 }); }
+  try { release = await acquireVaultRootLock(root); }
   catch { throw new Error('Vault 正在运行或刚刚停止。先停止它，稍等十几秒再升级。'); }
   try {
     const { snapshot: from, checkout: to } = await vaultVersions(root);

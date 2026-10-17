@@ -3,6 +3,7 @@ import type { SessionCreateValue, SessionListValue, SessionPage } from '@deepsee
 import { readFile, readdir, realpath, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { VaultRuntime } from '../../scripts/dev-isolated.ts';
+import { captureNativeCut, waitForNativeTurn } from './vault-native-turns.ts';
 
 /**
  * Test-only native HTTP transport for the isolated Vault runtime. It talks to a
@@ -225,14 +226,17 @@ export async function connectVault(runtime: VaultRuntime): Promise<VaultHarness>
   }
 
   async function outcomes(sessionId: string): Promise<ToolOutcome[]> {
-    // Pair each tool result with the tool call that produced it: the call
-    // identity only exists in the assembled assistant message.
+    // Pair canonical native calls/results, including calls whose request has
+    // since been compacted out of the assembled working context.
+    const events = await records(sessionId);
     const byCallId = new Map<string, string>();
-    for (const request of await turns(sessionId)) {
-      for (const block of blocks(request)) if (block.type === 'tool-call' && block.id !== undefined && block.name !== undefined) byCallId.set(block.id, block.name);
+    for (const record of events) {
+      if (record.type !== 'event' || record.event.type !== 'tool/call') continue;
+      const data = record.event.data as { callId: string; name: string };
+      byCallId.set(data.callId, data.name);
     }
     const rows: ToolOutcome[] = [];
-    for (const record of await records(sessionId)) {
+    for (const record of events) {
       if (record.type !== 'event' || record.event.type !== 'tool/result') continue;
       // Session format v4: the result's call id, error flag and content sit on the message itself.
       const message = (record.event.data as { message: { toolCallId?: string; isError?: boolean; content: { type: string; text?: string }[] } }).message;
@@ -250,13 +254,35 @@ export async function connectVault(runtime: VaultRuntime): Promise<VaultHarness>
     return value(await rpc<SessionListValue>('session/list', { _request: {} })).items as unknown as SessionRow[];
   }
 
+  async function turnDiagnostics(sessionId: string): Promise<string> {
+    // Failure-only metadata from this synthetic instance. Never print model
+    // messages, tool arguments/results, cookies or authenticated URLs.
+    const recentEvents = (await records(sessionId)).filter(record => record.type === 'event').slice(-12).map(record => {
+      if (record.type !== 'event') return {};
+      const data = record.event.data as { turn?: unknown; step?: unknown; reason?: unknown; error?: { code?: unknown }; failure?: { code?: unknown } };
+      return { seq: record.event.seq, type: record.event.type,
+        ...(typeof data.turn === 'number' ? { turn: data.turn } : {}),
+        ...(typeof data.step === 'number' ? { step: data.step } : {}),
+        ...(typeof data.reason === 'string' ? { reason: data.reason.slice(0, 80) } : {}),
+        ...(typeof data.error?.code === 'string' ? { errorCode: data.error.code.slice(0, 100) } : {}),
+        ...(typeof data.failure?.code === 'string' ? { failureCode: data.failure.code.slice(0, 100) } : {}),
+      };
+    });
+    const recentRequests = (await requests()).filter(row => row.sessionId === sessionId).slice(-2)
+      .map(({ purpose, provider, model, at, messages }) => ({ purpose, provider, model, at, messageCount: messages.length }));
+    return JSON.stringify({ recentEvents, recentRequests });
+  }
+
   async function waitForTurn(sessionId: string, before: number, timeoutMs = 120_000): Promise<void> {
     const deadline = Date.now() + timeoutMs;
     for (;;) {
       const row = (await sessions()).find(item => item.sessionId === sessionId);
       const started = (await turns(sessionId)).length > before;
       if (started && row?.running !== true) return;
-      if (Date.now() > deadline) throw new Error(`session ${sessionId} did not settle: started=${String(started)} running=${String(row?.running)}`);
+      if (Date.now() > deadline) {
+        const diagnostics = await turnDiagnostics(sessionId).catch(() => 'diagnostics unavailable');
+        throw new Error(`session ${sessionId} did not settle: started=${String(started)} running=${String(row?.running)}; ${diagnostics}`);
+      }
       await delay(150);
     }
   }
@@ -287,7 +313,23 @@ export async function connectVault(runtime: VaultRuntime): Promise<VaultHarness>
     async ask(sessionId, text, replies) {
       if (replies !== undefined) await script(replies);
       const before = (await turns(sessionId)).length;
-      value(await rpc('session/prompt', { request: { sessionId, requestId: crypto.randomUUID(), mode: 'queue', content: [{ type: 'text', text }] } }));
+      const baseline = await captureNativeCut(harness, sessionId), requestId = crypto.randomUUID();
+      value(await rpc('session/prompt', { request: { sessionId, requestId, mode: 'queue', content: [{ type: 'text', text }] } }));
+      const turn = await waitForNativeTurn(harness, sessionId, baseline, { requestId, timeoutMs: 120_000 });
+      if (turn.status !== 'completed') {
+        const failure = turn.reason.error as { code?: unknown; message?: unknown } | undefined;
+        // Only the scripted, credential-free provider may expose a bounded
+        // diagnostic message; real-provider errors remain metadata-only.
+        const synthetic = (await turns(sessionId)).at(-1)?.provider === 'notara-vault-test';
+        const detail = synthetic && typeof failure?.message === 'string'
+          ? failure.message.replace(/https?:\/\/\S+|\bsk-\S+|Bearer\s+\S+/gi, '[redacted]').slice(0, 800) : '';
+        const request = (await turns(sessionId)).at(-1);
+        const messageSizes = synthetic ? request?.messages.slice(-12).map(message => ({ role: message.role, source: message.source?.kind,
+          blocks: message.content.slice(0, 4).map(block => ({ type: block.type, chars: block.text?.length ?? block.arguments?.length ?? 0 })) })) : undefined;
+        throw new Error(`native turn ${turn.turn} failed: ${turn.reason.kind}; code=${String(failure?.code ?? 'unknown')}; ${detail}; ${JSON.stringify(messageSizes)}`);
+      }
+      // Maintenance may continue after the submitted turn's terminal. Fork and
+      // restart callers need the native session to be idle as well.
       await waitForTurn(sessionId, before);
       return (await turns(sessionId)).slice(before);
     },

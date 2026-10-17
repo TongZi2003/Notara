@@ -5,11 +5,16 @@ import { expect, test } from 'vitest';
 import { startVaultPersistent } from '../../scripts/dev-isolated.ts';
 import { superviseVault } from '../../scripts/vault-supervisor.ts';
 import { connectVault } from '../fixtures/vault-http.ts';
-import { futureRelease } from '../fixtures/vault-update-release.ts';
+import { futureRelease, updatePhase } from '../fixtures/vault-update-release.ts';
 import { managedCode } from '../../scripts/vault-supervisor.ts';
 
+// Only this update fixture uses runner scratch storage. Sandbox ACL tests keep
+// os.tmpdir(); the explicit system mode supports a same-VM diagnostic comparison.
+const updateTemp = process.env.NOTARA_TEST_UPDATE_STORAGE === 'system' ? tmpdir()
+  : process.platform === 'win32' && process.env.RUNNER_TEMP ? process.env.RUNNER_TEMP : tmpdir();
+
 test('the real Host reaches its launcher without exposing the private bridge to the client', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'notara-update-host-'));
+  const root = await mkdtemp(join(updateTemp, 'notara-update-host-'));
   const seed = await startVaultPersistent(root, { testModel: true, port: 0 });
   await seed.stop();
   let checks = 0;
@@ -39,19 +44,19 @@ test('the real Host reaches its launcher without exposing the private bridge to 
 }, 120_000);
 
 test('a downloaded release installs and restarts the real DSH while keeping a lesson and its files', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'notara-update-install-')), root = join(base, 'runtime');
+  const base = await mkdtemp(join(updateTemp, 'notara-update-install-')), root = join(base, 'runtime');
   const fixture = await futureRelease(base);
-  const seed = await startVaultPersistent(root, { testModel: true, port: 0 }); await seed.stop();
-  const runtime = await superviseVault(root, resolve('.'), undefined, { discover: async () => fixture.release, prepare: fixture.prepare });
+  const seed = await updatePhase('seed-install', () => startVaultPersistent(root, { testModel: true, port: 0 })); await seed.stop();
+  const runtime = await updatePhase('supervise-install', () => superviseVault(root, resolve('.'), undefined, { discover: async () => fixture.release, prepare: fixture.prepare }));
   let client = await connectVault({ ...runtime, root, log: () => '', restart: async () => {} });
   try {
     const sessionId = await client.createSession();
     await client.ask(sessionId, '更新前', { '更新前': '课堂会保留下来。' });
     await client.writeVaultFile('保留.md', '# 保留资料\n');
-    await runtime.controller.check();
+    await updatePhase('check-install', () => runtime.controller.check());
     expect(runtime.controller.status().phase, runtime.controller.status().message).toBe('ready');
     await client.close();
-    await runtime.controller.apply();
+    await updatePhase('apply-install', () => runtime.controller.apply());
     expect(runtime.controller.status()).toMatchObject({ phase: 'current', currentVersion: fixture.release.version });
     expect(await readFile(join(root, 'vault-plugin/update-marker.txt'), 'utf8')).toBe('synthetic release installed');
     expect(await managedCode(root)).toBeTruthy();
@@ -65,17 +70,17 @@ test('a downloaded release installs and restarts the real DSH while keeping a le
 }, 240_000);
 
 test('a real next-release startup failure restores the original snapshot and can continue the same lesson', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'notara-update-recovery-')), root = join(base, 'runtime');
+  const base = await mkdtemp(join(updateTemp, 'notara-update-recovery-')), root = join(base, 'runtime');
   const fixture = await futureRelease(base, { brokenStartup: true });
-  const seed = await startVaultPersistent(root, { testModel: true, port: 0 }); await seed.stop();
-  const runtime = await superviseVault(root, resolve('.'), undefined, { discover: async () => fixture.release, prepare: fixture.prepare });
+  const seed = await updatePhase('seed-rollback', () => startVaultPersistent(root, { testModel: true, port: 0 })); await seed.stop();
+  const runtime = await updatePhase('supervise-rollback', () => superviseVault(root, resolve('.'), undefined, { discover: async () => fixture.release, prepare: fixture.prepare }));
   let client = await connectVault({ ...runtime, root, log: () => '', restart: async () => {} });
   try {
     const sessionId = await client.createSession();
     await client.ask(sessionId, '恢复前', { '恢复前': '保留这节课。' });
-    await runtime.controller.check();
+    await updatePhase('check-rollback', () => runtime.controller.check());
     expect(runtime.controller.status().phase, runtime.controller.status().message).toBe('ready');
-    await client.close(); await runtime.controller.apply();
+    await client.close(); await updatePhase('apply-rollback', () => runtime.controller.apply());
     expect(runtime.controller.status().phase).toBe('error');
     const original = JSON.parse(await readFile('examples/native-vault/package.json', 'utf8')).version;
     expect(JSON.parse(await readFile(join(root, 'vault-plugin/package.json'), 'utf8')).version).toBe(original);

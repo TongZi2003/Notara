@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { mkdtemp, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import lockfile from 'proper-lockfile';
 import { acquireVaultRootLock } from '../../scripts/vault-root-lock.ts';
 
@@ -97,4 +97,73 @@ test('an exhausted release stays rejected on later Stop and never blindly remove
     expect(await lockfile.check(root, { stale: 10_000 })).toBe(true);
     await expect(acquireVaultRootLock(root)).rejects.toMatchObject({ code: 'ELOCKED' });
   } finally { await removeEmptyFixture(root); }
+});
+
+test('late heartbeat callbacks after release cannot compromise a released lock or its new owner', async () => {
+  vi.useFakeTimers();
+  const root = await mkdtemp(join(tmpdir(), 'notara-root-release-heartbeat-'));
+  let holdHeartbeatStat = false;
+  let lateStat: ((error: NodeJS.ErrnoException | null, stats: fs.Stats) => void) | undefined;
+  const lockPath = `${resolve(root)}.lock`;
+  const filesystem = {
+    ...fs,
+    stat(path: fs.PathLike, callback: (error: NodeJS.ErrnoException | null, stats: fs.Stats) => void): void {
+      if (holdHeartbeatStat && resolve(String(path)) === lockPath) { lateStat = callback; return; }
+      fs.stat(path, callback);
+    },
+  } as typeof fs;
+  let release: (() => Promise<void>) | undefined;
+  let newOwner: (() => Promise<void>) | undefined;
+  let released = false;
+  try {
+    release = await acquireVaultRootLock(root, filesystem);
+    holdHeartbeatStat = true;
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(lateStat).toBeDefined();
+    const oldHeartbeat = lateStat!;
+    await release();
+    released = true;
+    expect(await lockfile.check(root, { stale: 10_000 })).toBe(false);
+    const missing = Object.assign(new Error('released lock path is gone'), { code: 'ENOENT' });
+    expect(() => oldHeartbeat(missing, undefined as unknown as fs.Stats)).not.toThrow();
+
+    newOwner = await acquireVaultRootLock(root);
+    const replacementStat = await new Promise<fs.Stats>((resolveStats, reject) => fs.stat(lockPath, (error, stats) => error ? reject(error) : resolveStats(stats)));
+    expect(() => oldHeartbeat(null, replacementStat)).not.toThrow();
+    expect(await lockfile.check(root, { stale: 10_000 })).toBe(true);
+    await newOwner(); newOwner = undefined;
+  } finally {
+    await newOwner?.().catch(() => {});
+    if (release && !released) await release().catch(() => {});
+    vi.useRealTimers();
+    await removeEmptyFixture(root);
+  }
+});
+
+test('an active owner heartbeat ENOENT remains a proper-lockfile compromise', async () => {
+  vi.useFakeTimers();
+  const root = await mkdtemp(join(tmpdir(), 'notara-root-active-heartbeat-'));
+  let holdHeartbeatStat = false;
+  let lateStat: ((error: NodeJS.ErrnoException | null, stats: fs.Stats) => void) | undefined;
+  const lockPath = `${resolve(root)}.lock`;
+  const filesystem = {
+    ...fs,
+    stat(path: fs.PathLike, callback: (error: NodeJS.ErrnoException | null, stats: fs.Stats) => void): void {
+      if (holdHeartbeatStat && resolve(String(path)) === lockPath) { lateStat = callback; return; }
+      fs.stat(path, callback);
+    },
+  } as typeof fs;
+  let release: (() => Promise<void>) | undefined;
+  try {
+    release = await acquireVaultRootLock(root, filesystem);
+    holdHeartbeatStat = true;
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(lateStat).toBeDefined();
+    const missing = Object.assign(new Error('active lock path disappeared'), { code: 'ENOENT' });
+    expect(() => lateStat!(missing, undefined as unknown as fs.Stats)).toThrow(expect.objectContaining({ code: 'ECOMPROMISED' }));
+  } finally {
+    vi.useRealTimers();
+    await release?.().catch(() => {});
+    await removeEmptyFixture(root);
+  }
 });

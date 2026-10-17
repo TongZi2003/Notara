@@ -7,8 +7,9 @@ import {connectVault, effectiveSystemText, outcomeJson, toolNames, type VaultHar
 let runtime: VaultRuntime | undefined, harness: VaultHarness | undefined;
 afterEach(async () => {await harness?.close(); harness = undefined; await runtime?.stop(); runtime = undefined;});
 async function call(session: string, name: string, args: Record<string, unknown>, title: string): Promise<ToolOutcome> {
+  const previous = new Set((await harness!.outcomes(session)).map(row => row.callId));
   await harness!.ask(session, title, {[title]: {name, arguments: args}});
-  const result = (await harness!.outcomes(session)).filter(row => row.name === name).at(-1);
+  const result = (await harness!.outcomes(session)).filter(row => row.name === name && !previous.has(row.callId)).at(-1);
   if (!result) throw new Error(`missing ${name} result`);
   return result;
 }

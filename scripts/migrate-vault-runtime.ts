@@ -1,7 +1,7 @@
 import { constants } from 'node:fs';
 import { copyFile, lstat, mkdir, readFile, readdir, readlink, realpath, rename, rm, stat, symlink, unlink, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep, posix, win32 } from 'node:path';
-import lockfile from 'proper-lockfile';
+import { acquireVaultRootLock } from './vault-root-lock.ts';
 import { readVaultState, validateVaultPort, writeVaultState } from './vault-launcher-state.ts';
 
 function isWithin(root: string, candidate: string): boolean {
@@ -73,7 +73,7 @@ export async function relocateVaultRuntime(sourceInput: string, destinationInput
   for (const path of [destination, backup]) {
     if (await lstat(path).then(() => true, (error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return false; throw error; })) throw new Error('Migration target or backup already exists');
   }
-  const release = await lockfile.lock(source, { retries: 0, realpath: false });
+  const release = await acquireVaultRootLock(source);
   let copied = false, moved = false, aliased = false;
   try {
     // A stopped Vault removes its launcher record; one left behind must name a dead process.

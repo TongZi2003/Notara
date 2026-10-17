@@ -5,12 +5,72 @@ import { chatgptModelCatalog } from './chatgpt-catalog.js';
 
 const contentHash = content => createHash('sha256').update(JSON.stringify(content)).digest('hex');
 
-export function chatgptFailure(code, detail = '') {
-  if (code === 'chatgpt_signin_required') return new LlmError('请在设置的 ChatGPT 账号中重新登录。', 'AUTH');
-  if (code === 'chatgpt_plan_disabled') return new LlmError('请重新登录并允许 Notara 使用 ChatGPT 订阅额度。', 'AUTH');
-  if (code === 'chatgpt_usage_limit' || String(code).startsWith('subscription_sharing_usage_')) return new LlmError('ChatGPT 额度暂不可用，请在 ChatGPT 的用量设置中查看，或稍后重试。', QUOTA_EXCEEDED_CODE);
-  if (isContextWindowExceededError(`${code ?? ''} ${detail}`)) return new LlmError('ChatGPT 对话超过模型上下文上限。', CONTEXT_WINDOW_EXCEEDED_CODE);
-  return new LlmError('ChatGPT 请求未完成，请检查连接后重试。', 'PROVIDER_ERROR');
+function responseOutputMatchesContent(output, content) {
+  if (!Array.isArray(output) || output.length === 0 || !Array.isArray(content)) return false;
+  const visible = [];
+  for (const item of output) {
+    if (item?.type === 'reasoning') continue;
+    if (item?.type === 'function_call') {
+      if (typeof item.call_id !== 'string' || typeof item.name !== 'string' || typeof item.arguments !== 'string'
+        || item.namespace != null && item.namespace !== 'notara') return false;
+      visible.push({ type: 'tool-call', id: item.call_id, name: item.name.replace(/^notara\./, ''), arguments: item.arguments });
+      continue;
+    }
+    if (item?.type === 'message' && Array.isArray(item.content)) {
+      for (const part of item.content) {
+        if (part?.type === 'output_text' && typeof part.text === 'string') visible.push({ type: 'text', text: part.text });
+        else if (part?.type === 'refusal' && typeof part.refusal === 'string') visible.push({ type: 'text', text: part.refusal });
+        else return false;
+      }
+      continue;
+    }
+    return false;
+  }
+  const expected = content.filter(block => block.type === 'text' || block.type === 'tool-call');
+  return visible.length === expected.length && visible.every((block, index) => {
+    const candidate = expected[index];
+    return block.type === candidate.type && (block.type === 'text'
+      ? block.text === candidate.text
+      : block.id === candidate.id && block.name === candidate.name && block.arguments === candidate.arguments);
+  });
+}
+
+function completedEventOutput(addedItems, doneItems) {
+  if (doneItems.size === 0) return undefined;
+  const indexes = [...new Set([...addedItems.keys(), ...doneItems.keys()])].sort((left, right) => left - right);
+  if (doneItems.size !== indexes.length || indexes.some((index, position) => index !== position || !doneItems.has(index))) return undefined;
+  return indexes.map(index => doneItems.get(index));
+}
+
+function completedResponseOutput(output, addedItems) {
+  if (!Array.isArray(output) || output.length === 0) return undefined;
+  const indexes = [...addedItems.keys()].sort((left, right) => left - right);
+  if (indexes.length && (output.length !== indexes.length || indexes.some((index, position) => index !== position))) return undefined;
+  return output;
+}
+
+function providerFailureFacts(response) {
+  const status = response?.status;
+  const requestId = response?.headers?.get?.('x-request-id');
+  return {
+    ...(Number.isInteger(status) && status >= 100 && status <= 599 ? { status } : {}),
+    ...(typeof requestId === 'string' && /^[\x21-\x7e]{1,128}$/.test(requestId) ? { requestId } : {}),
+  };
+}
+
+export function chatgptFailure(code, detail = '', facts = {}) {
+  const classification = [code, ...(Array.isArray(detail) ? detail : [detail])]
+    .filter(value => typeof value === 'string').join(' ');
+  const options = {
+    ...(Number.isInteger(facts.status) && facts.status >= 100 && facts.status <= 599 ? { status: facts.status } : {}),
+    ...(typeof facts.requestId === 'string' && /^[\x21-\x7e]{1,128}$/.test(facts.requestId) ? { requestId: facts.requestId } : {}),
+  };
+  if (code === 'chatgpt_signin_required') return new LlmError('请在设置的 ChatGPT 账号中重新登录。', 'AUTH', options);
+  if (code === 'chatgpt_plan_disabled') return new LlmError('请重新登录并允许 Notara 使用 ChatGPT 订阅额度。', 'AUTH', options);
+  if (code === 'chatgpt_usage_limit' || String(code).startsWith('subscription_sharing_usage_')) return new LlmError('ChatGPT 额度暂不可用，请在 ChatGPT 的用量设置中查看，或稍后重试。', QUOTA_EXCEEDED_CODE, options);
+  if (isContextWindowExceededError(classification)) return new LlmError('ChatGPT 对话超过模型上下文上限。', CONTEXT_WINDOW_EXCEEDED_CODE, options);
+  const status = Number.isInteger(options.status) && options.status >= 400 ? `（HTTP ${options.status}）` : '';
+  return new LlmError(`ChatGPT 请求未完成${status}，请检查连接后重试。`, 'PROVIDER_ERROR', options);
 }
 
 /** DSH usage buckets are disjoint; Responses input_tokens includes cached input. */
@@ -40,7 +100,7 @@ export async function responsesRequest(options, imageContent) {
     const replay = message.source?.replayState?.response;
     // Retain opaque encrypted reasoning and assistant phase only for unchanged content
     // from this exact account/model. Edits, compaction and account switches use plain history.
-    if (message.role === 'assistant' && replay?.format === 'notara-responses-v1' && message.source.provider === options.provider && message.source.model === options.model && replay.contentHash === contentHash(message.content) && Array.isArray(replay.output)) {
+    if (message.role === 'assistant' && replay?.format === 'notara-responses-v1' && message.source.provider === options.provider && message.source.model === options.model && replay.contentHash === contentHash(message.content) && responseOutputMatchesContent(replay.output, message.content)) {
       input.push(...replay.output); continue;
     }
     const content = [];
@@ -147,15 +207,28 @@ export class ChatgptAdapter extends LlmAdapter {
       });
       const response = await this.accounts.request(`${RESOURCE}/responses`, { method: 'POST', signal, headers: { authorization: `Bearer ${access}`, 'content-type': 'application/json', ...attributionHeaders() }, body: JSON.stringify(request) });
       if (!response.ok) {
-        if (response.status === 401) throw chatgptFailure('chatgpt_signin_required');
-        let code, detail; try { const error = (await response.json()).error; code = error?.code; detail = error?.message ?? error?.type; } catch {}
-        throw chatgptFailure(response.status === 429 ? 'chatgpt_usage_limit' : code, detail);
+        const facts = providerFailureFacts(response);
+        if (response.status === 401) throw chatgptFailure('chatgpt_signin_required', '', facts);
+        let upstream = {}; try { upstream = (await response.json())?.error ?? {}; } catch {}
+        const details = [upstream.type, upstream.message].filter(value => typeof value === 'string');
+        throw chatgptFailure(response.status === 429 ? 'chatgpt_usage_limit' : upstream.code, details, facts);
       }
       let completed = false, nextIndex = 0, toolCalls = false, replayState;
       const blocks = new Map();
+      const addedItems = new Map(), doneItems = new Map();
       for await (const event of responseEvents(response.body)) {
-        if (event.type === 'response.failed' || event.type === 'error') throw chatgptFailure(event.response?.error?.code || event.code, event.response?.error?.message || event.message);
-        if (event.type === 'response.incomplete') throw new LlmError('ChatGPT 回复不完整，请缩小问题后重试。', 'PROVIDER_ERROR');
+        if (event.type === 'response.failed' || event.type === 'error') {
+          const upstream = event.response?.error ?? event.error ?? {};
+          const details = [upstream.type, upstream.message, event.message].filter(value => typeof value === 'string');
+          throw chatgptFailure(upstream.code ?? event.code, details, providerFailureFacts(response));
+        }
+        if (event.type === 'response.incomplete') throw new LlmError('ChatGPT 回复不完整，请缩小问题后重试。', 'PROVIDER_ERROR', providerFailureFacts(response));
+        if (event.type === 'response.output_item.added' && Number.isSafeInteger(event.output_index) && event.output_index >= 0 && event.item && typeof event.item === 'object') {
+          addedItems.set(event.output_index, event.item);
+        }
+        if (event.type === 'response.output_item.done' && Number.isSafeInteger(event.output_index) && event.output_index >= 0 && event.item && typeof event.item === 'object') {
+          doneItems.set(event.output_index, event.item);
+        }
         if (event.type === 'response.output_item.added' && event.item?.type === 'function_call') {
           const item = event.item;
           const block = { index: nextIndex++, type: 'tool-call', id: ToolCallId(item.call_id), name: item.name.replace(/^notara\./, ''), arguments: item.arguments || '' };
@@ -173,8 +246,13 @@ export class ChatgptAdapter extends LlmAdapter {
         } else if (event.type === 'response.completed') {
           if (event.response?.status !== 'completed') throw chatgptFailure('incomplete');
           completed = true;
-          if (Array.isArray(event.response.output)) {
-            const output = event.response.output.filter(item => ['reasoning', 'message', 'function_call'].includes(item.type));
+          const visibleBlocks = [...blocks.values()].map(({ index, ...block }) => block);
+          const eventOutput = completedEventOutput(addedItems, doneItems);
+          const completedOutput = completedResponseOutput(event.response?.output, addedItems);
+          const output = eventOutput && responseOutputMatchesContent(eventOutput, visibleBlocks)
+            ? eventOutput
+            : responseOutputMatchesContent(completedOutput, visibleBlocks) ? completedOutput : undefined;
+          if (output) {
             replayState = { response: { format: 'notara-responses-v1', contentHash: contentHash([...blocks.values()].map(({ index, ...block }) => block)), output } };
           }
           for (const block of blocks.values()) { const { index, ...content } = block; yield { type: 'block-end', index, block: content }; }

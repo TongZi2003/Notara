@@ -1,0 +1,32 @@
+name: Verify Windows update and crash recovery
+on:
+  workflow_dispatch:
+    inputs:
+      compare_system_temp:
+        description: Compare one install on system TEMP before the complete scratch-storage check
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  windows-update:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build:native-vault && npm run build:pixel-classroom
+      - name: Compare the unchanged install deadline on system temporary storage
+        if: inputs.compare_system_temp
+        continue-on-error: true
+        env:
+          NOTARA_TEST_UPDATE_STORAGE: system
+        run: npm run test:integration -- tests/integration/native-vault-updates.test.ts --testNamePattern="a downloaded release installs"
+      - name: Verify every update and crash recovery assertion on runner scratch storage
+        run: npm run test:integration -- tests/integration/native-vault-recovery.test.ts tests/integration/native-vault-updates.test.ts

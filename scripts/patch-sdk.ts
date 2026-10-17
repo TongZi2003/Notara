@@ -13,6 +13,7 @@ import './patch-storage-json.ts';
 import './patch-student-ui.ts';
 import { stripConversationSeams, applyConversationSeams } from './patch-conversation-views.ts';
 import { applySidebarReadyPatch } from './patch-sidebar-ready.ts';
+import { applyProductBrandingPatch } from './patch-product-branding.ts';
 import { applyOpenCodeGoPatch } from './patch-opencode-go.ts';
 import { applyModelDiscoveryPatch } from './patch-model-discovery.ts';
 
@@ -20,6 +21,7 @@ const project = join(dirname(fileURLToPath(import.meta.url)), '..');
 const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
 
 applySidebarReadyPatch();
+applyProductBrandingPatch();
 applyOpenCodeGoPatch();
 applyModelDiscoveryPatch();
 

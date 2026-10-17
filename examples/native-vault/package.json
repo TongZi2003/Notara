@@ -1,6 +1,6 @@
 {
   "name": "@notara/vault-native",
-  "version": "0.24.3",
+  "version": "0.24.4",
   "license": "MIT",
   "type": "module",
   "main": "index.js",

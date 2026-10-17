@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { expect, test } from 'vitest';
@@ -36,7 +36,7 @@ test('a crashed real synthetic Host recovers on the same origin, keeps the class
       }, { timeout: 60_000 }).toBe(true);
       expect(runtime.recoveryStatus().restarts).toBe(count);
       expect(new URL(runtime.authUrl).origin).toBe(origin);
-      expect(runtime.authUrl).not.toBe(old.authUrl);
+      expect(runtime.authUrl !== old.authUrl).toBe(true);
     }
     client = await connect();
     expect((await client.sessions()).some(row => row.sessionId === session)).toBe(true);
@@ -45,12 +45,12 @@ test('a crashed real synthetic Host recovers on the same origin, keeps the class
     await client.ask(session, 'after crash', { 'after crash': 'Synthetic lesson continued after recovery.' });
     expect((await client.turns(session)).length).toBeGreaterThanOrEqual(2);
     await client.close();
-    process.kill((await launcher()).pid, 'SIGTERM');
+    process.kill((await launcher()).pid, 'SIGKILL');
     await expect.poll(() => runtime.recoveryStatus(), { timeout: 10_000 }).toEqual({ phase: 'failed', restarts: 3, error: 'restart_limit' });
     const events = await readFile(join(root, 'launcher-events.log'), 'utf8');
     expect(events).toContain('restart_limit'); expect(events).not.toMatch(/token|Bearer|http:|Synthetic retained material|Synthetic lesson record/);
     await runtime.stop();
-    await expect(readFile(join(root, 'launcher.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(stat(join(root, 'launcher.json'))).rejects.toMatchObject({ code: 'ENOENT' });
     expect(await liveVaultUrl(root)).toBeUndefined();
   } finally { await client.close(); await runtime.stop(); await rm(root, { recursive: true, force: true }); }
 }, 240_000);

@@ -56,7 +56,15 @@ function respond(response: ServerResponse, status: number, message: string, head
 
 function bundlePath(path: string | undefined): boolean {
   if (!path) return false;
-  try { return new URL(path, 'http://127.0.0.1').pathname.includes('@deepseek-ai/dsh-client-connection/client.js'); }
+  try {
+    const url = new URL(path, 'http://127.0.0.1');
+    const resource = '@deepseek-ai/dsh-client-connection/client.js';
+    // DSH loads client modules through /plugins/??id/client.js,...&rev=... .
+    // The resource list belongs to the query, while pathname is /plugins/.
+    if (url.pathname === '/plugins/' && url.search.startsWith('??'))
+      return url.search.slice(2).split('&', 1)[0]!.split(',').includes(resource);
+    return url.pathname.endsWith('/' + resource);
+  }
   catch { return false; }
 }
 

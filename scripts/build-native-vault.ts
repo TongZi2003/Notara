@@ -6,6 +6,7 @@ import { ACADEMY_FILES } from '../examples/native-vault/academy.js';
 import { PDF_RESOURCE_FILES } from '../examples/native-vault/pdf-resources.js';
 import { withVaultBuild } from './vault-build-lock.ts';
 import { applySidebarReadyPatch } from './patch-sidebar-ready.ts';
+import { applyProductBrandingPatch } from './patch-product-branding.ts';
 import { applyOpenCodeGoPatch } from './patch-opencode-go.ts';
 import { applyModelDiscoveryPatch } from './patch-model-discovery.ts';
 import {boardReact,excalidrawLocalAssets} from './board-editor-build.ts';
@@ -15,6 +16,8 @@ await withVaultBuild(resolve('.'), 'native-vault', async () => {
 // Patches also read/write shared dependencies, so run only after acquiring the
 // same lock that protects generated assets and the runtime's snapshot copy.
 applySidebarReadyPatch();
+applyProductBrandingPatch();
+await import('./patch-layout.ts');
 applyOpenCodeGoPatch();
 applyModelDiscoveryPatch();
 await import('./patch-session-extension.ts');
